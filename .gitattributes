@@ -1,0 +1,29 @@
+# Force LF on everything.
+* text=auto eol=lf
+
+# ------------------------------------------------------------------
+# CRITICAL INFRASTRUCTURE CONFIG
+# ------------------------------------------------------------------
+
+# Treat lockfiles as binary to prevent text-merge conflicts
+*.lock binary
+
+# Exclude meta-files from release archives
+.gitignore export-ignore
+.gitattributes export-ignore
+.editorconfig export-ignore
+
+# ------------------------------------------------------------------
+# VANITY METRICS (Linguist)
+# ------------------------------------------------------------------
+*.env linguist-detectable linguist-language=SHELL
+*.json linguist-detectable linguist-language=JSON
+*.json5 linguist-detectable linguist-language=JSON5
+*.just linguist-detectable linguist-language=JUST
+*.justfile linguist-detectable linguist-language=JUST
+*.md linguist-detectable linguist-language=MARKDOWN
+*.sh linguist-detectable linguist-language=SHELL
+*.toml linguist-detectable linguist-language=TOML
+*.yml linguist-detectable linguist-language=YAML
+*.yaml linguist-detectable linguist-language=YAML
+*.yaml.j2 linguist-detectable linguist-language=YAML

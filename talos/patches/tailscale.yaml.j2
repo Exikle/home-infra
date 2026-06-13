@@ -1,0 +1,7 @@
+machine:
+  extensionServiceConfigs:
+    - name: tailscale
+      environment:
+        - TS_AUTHKEY=op://kubernetes/tailscale-frostlink/TS_AUTH_KEY
+        - TS_EXTRA_ARGS=--advertise-tags=tag:k8s
+        - TS_STATE_DIR=/var/lib/tailscale

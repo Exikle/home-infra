@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+
+helmDefaults:
+  args:
+    - --include-crds
+    - --no-hooks
+
+releases:
+  - name: cloudflare-dns
+    namespace: network
+    chart: oci://ghcr.io/home-operations/charts-mirror/external-dns
+    version: 1.21.1
+
+  - name: envoy-gateway
+    namespace: network
+    chart: oci://mirror.gcr.io/envoyproxy/gateway-helm
+    version: 1.8.1
