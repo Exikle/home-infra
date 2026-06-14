@@ -27,7 +27,10 @@ These three are NOT in `bootstrap/helmfile.d/01-apps.yaml`. Install them manuall
 
 **Why**: Talos pre-installs Cilium and CoreDNS using field manager `helm-controller`. Helmfile v4 also uses `helm-controller`. Applying both results in SSA ownership conflicts. cert-manager's `startupapicheck` Job also conflicts. Install all three with direct `helm install` calls instead.
 
+**Important**: `cluster.network.cni.name: none` must be in `talos/patches/controlplane.yaml` before bootstrap. Without it, Talos injects a flannel DaemonSet (owned by `talos-bootstrap-manifests-inventory`) that coexists with Cilium and wastes resources. It will not be removed automatically — you must delete it manually and patch the config.
+
 **Cilium** — must set `sysctlfix.enabled: false` (Talos has no `/etc/sysctl.d/`):
+
 ```bash
 helm install cilium cilium/cilium --namespace kube-system --version 1.17.4 \
   --set sysctlfix.enabled=false \
@@ -40,6 +43,7 @@ helm install cilium cilium/cilium --namespace kube-system --version 1.17.4 \
 ```
 
 **CoreDNS** — must forward to `169.254.169.254` (not `/etc/resolv.conf`):
+
 ```bash
 helm install coredns coredns/coredns --namespace kube-system \
   --set fullnameOverride=coredns \
@@ -50,6 +54,7 @@ helm install coredns coredns/coredns --namespace kube-system \
 ```
 
 **cert-manager**:
+
 ```bash
 helm install cert-manager oci://quay.io/jetstack/charts/cert-manager \
   --namespace cert-manager --create-namespace \
