@@ -11,5 +11,12 @@ spec:
   interval: 1h
   values:
     web:
+      httpRoute:
+        enabled: true
+        hostnames:
+          - flux.frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
       networkPolicy:
         create: false
