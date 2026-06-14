@@ -22,3 +22,7 @@ spec:
     - name: envoy-gateway
     - name: onepassword-connect
       namespace: external-secrets
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: cloudflare-tunnel-id-secret
