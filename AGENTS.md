@@ -5,7 +5,7 @@ Single-node Talos Kubernetes cluster on Oracle Cloud Always Free Ampere A1 (ca-t
 - **User**: exikle (Dixon) — Mississauga ON (Eastern Time)
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets (no SOPS)
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
-- **CNI**: Cilium | **Ingress**: Envoy Gateway (Gateway API / HTTPRoute)
+- **CNI**: Cilium | **Ingress**: Envoy Gateway (Gateway API / HTTPRoute) *(planned)*
 
 ---
 
@@ -14,6 +14,7 @@ Single-node Talos Kubernetes cluster on Oracle Cloud Always Free Ampere A1 (ca-t
 ```text
 .agents/          # AI agent instructions, references, and skills
 talos/            # Talos schematic and patches
+bootstrap/        # helmfile.d/ and resources.yaml.j2 for one-time bootstrap
 kubernetes/
   apps/           # App HelmReleases by namespace
   flux/sync/      # Entrypoint Kustomization → kubernetes/apps
@@ -28,50 +29,64 @@ kubernetes/
 - **VM.Standard.A1.Flex** — 4 OCPU / 24 GB RAM, ARM64 Ampere A1
 - **Boot volume**: 50 GB / 10 VPU
 - **Region**: ca-toronto-1, AD-1
-- **Image**: Talos Linux (UEFI, paravirtualized networking, QEMU guest agent)
+- **Instance name**: `instance-20260612-2239`
+- **Public IP**: `40.233.88.33` (reserved, frostlink.dev A record)
+- **Internal IP**: `10.0.0.203`
+- **Tailscale IP**: `100.67.108.103`
+- **Talos version**: v1.13.4 | **Kubernetes**: v1.36.1
 - **Schematic**: `e4c2f7fe09fbcc3e03227a77dcb705e0e8b76acc3ef9f0e43f39f7723c8c98bc`
+- **Extensions**: iscsi-tools, util-linux-tools, qemu-guest-agent, tailscale
 
 ---
 
 ## Networking
 
 - **VCN**: `frostlink-vcn`, subnet `frostlink-public` (10.0.0.0/24)
-- **Public IP**: reserved IP → frostlink.dev A record
-- **Security list ingress**: 50000/tcp + 6443/tcp from home IP only; 80/443 from 0.0.0.0/0
-- **DNS**: Cloudflare (frostlink.dev zone), managed by external-dns
+- **Public IP**: `40.233.88.33` reserved → frostlink.dev A record
+- **Tailscale**: node joined (tag: k8s); management access via `100.67.108.103`
+- **OCI DNS**: node resolver is `169.254.169.254` (OCI metadata link-local) — CoreDNS must forward there, NOT `/etc/resolv.conf` which resolves to unreachable `127.0.0.53`
+- **Security list ingress**: 50000/tcp + 6443/tcp from home IP; 80/443 from 0.0.0.0/0
+- **kubeconfig**: `~/.kube/config` on WSL, context `frostlink`, server `https://100.67.108.103:6443`
 
 ---
 
 ## Namespaces & Apps
 
-| Namespace          | Key Apps                                          |
-| ------------------ | ------------------------------------------------- |
-| `flux-system`      | flux-operator, flux-instance                      |
-| `kube-system`      | Cilium, local-path-provisioner                    |
-| `cert-manager`     | cert-manager + Cloudflare DNS01 ClusterIssuer     |
-| `network`          | Envoy Gateway, external-dns                       |
-| `external-secrets` | External Secrets Operator (1Password)             |
-| `apoci`            | apoci OCI registry (federation peer for Artemis)  |
-| `headscale`        | Headscale VPN control plane                       |
-| `monitoring`       | Gatus / Uptime Kuma                               |
+| Namespace          | Key Apps                                          | Status     |
+| ------------------ | ------------------------------------------------- | ---------- |
+| `kube-system`      | Cilium 1.17.4, CoreDNS 1.46.0                     | ✓ deployed |
+| `cert-manager`     | cert-manager 1.20.2                               | ✓ deployed |
+| `external-secrets` | External Secrets 2.6.0, 1Password Connect 2.4.1   | ✓ deployed |
+| `flux-system`      | flux-operator 0.52.0, flux-instance (Flux v2.8.8) | ✓ deployed |
+| `network`          | Envoy Gateway, cloudflare-tunnel                  | planned    |
+| `apoci`            | apoci OCI registry (federation peer for Artemis)  | planned    |
+| `monitoring`       | Gatus / Uptime Kuma                               | planned    |
 
 ---
 
 ## Bootstrap Order
 
-1. Import Talos custom image (Oracle Compute → Custom Images, QCOW2, PARAVIRTUALIZED, UEFI_64)
-2. Launch VM.Standard.A1.Flex (4 OCPU / 24 GB, frostlink-vcn, boot vol 50 GB)
-3. Attach reserved public IP; create frostlink.dev A record
-4. `talosctl gen config frostlink https://<reserved-ip>:6443 --config-patch @talos/patches/controlplane.yaml`
-5. `talosctl apply-config --insecure -n <ip> --file controlplane.yaml`
-6. `talosctl bootstrap -n <ip>`
-7. `flux bootstrap git --url=https://git.dcunha.io/Exikle/frostlink.git --branch=main --path=kubernetes/flux/sync`
-8. Apply infra in order: external-secrets → cert-manager → network → apps
+Bootstrap uses helmfile (not `flux bootstrap`) because the Forgejo repo must already have content before Flux GitRepository can sync. See `.agents/references/bootstrap.md` for full detail.
+
+1. Import Talos custom image → launch VM.Standard.A1.Flex (4 OCPU / 24 GB, 50 GB boot)
+2. Attach reserved public IP; ensure security list allows 50000/tcp
+3. `talosctl gen config` with patches → `talosctl apply-config --insecure` → `talosctl bootstrap`
+4. Export kubeconfig: `talosctl kubeconfig`
+5. Apply bootstrap secrets: `KUBECONFIG=... just bootstrap base`
+   - Requires 1Password items: `1password-frostlink`, `forgejo-frostlink`, `cloudflare-frostlink`
+6. Install cilium, coredns, cert-manager directly via `helm install` (NOT via helmfile — SSA conflict)
+7. Run `just bootstrap apps` — installs external-secrets → onepassword-connect → flux-operator → flux-instance
+8. Commit and push repo to Forgejo → Flux reconciles everything from Git
 
 ---
 
 ## Known Quirks
 
-- Single node — control plane also acts as worker (`allowSchedulingOnControlPlanes: true` in `talos/patches/controlplane.yaml`)
-- Oracle Cloud paravirtualized NIC — Talos detects it automatically; no manual interface config needed
-- Forgejo reachability from Oracle: HTTPS via git.dcunha.io (Cloudflare Tunnel) — SSH not available; `flux bootstrap` must use HTTPS
+- **Single node**: control plane also acts as worker (`allowSchedulingOnControlPlanes: true`)
+- **OCI DNS**: `169.254.169.254` is the only working upstream for CoreDNS. `/etc/resolv.conf` resolves to `127.0.0.53` (unreachable inside pods). Set `forward . 169.254.169.254` in CoreDNS values.
+- **Cilium on Talos/OCI**: must set `sysctlfix.enabled: false` — Talos has no `/etc/sysctl.d/`; cilium-agent init crashes otherwise.
+- **Helm v4 SSA conflicts**: Talos pre-installs cilium and coredns with field manager `helm-controller`. Helmfile also uses `helm-controller`. Install these with direct `helm install` to avoid conflicts.
+- **`helmfile --cleanup-on-fail`**: deletes cluster-scoped resources on failure, leaving orphaned SSA ownership that conflicts on retry.
+- **`talosctl patch machineconfig --patch`**: expects a DELTA patch (only changed fields). Passing a full config duplicates array fields (e.g. `machine.files`) and breaks the node on next boot. Use a minimal patch file, or `talosctl apply-config --file` for full replacement.
+- **Forgejo auth via HTTPS**: SSH unreachable from OCI. Flux uses HTTPS with secret `flux-system/flux-system` (`username` + `password` fields).
+- **certSANs for Tailscale**: apply with a 6-line minimal patch — never include the full `controlplane.yaml` as a patch.
