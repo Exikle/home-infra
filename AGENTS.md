@@ -5,7 +5,7 @@ Single-node Talos Kubernetes cluster on Oracle Cloud Always Free Ampere A1 (ca-t
 - **User**: exikle (Dixon) — Mississauga ON (Eastern Time)
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets (no SOPS)
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
-- **CNI**: Cilium | **Ingress**: Envoy Gateway (Gateway API / HTTPRoute) *(planned)*
+- **CNI**: Cilium | **Ingress**: Envoy Gateway (Gateway API / HTTPRoute via Cloudflare tunnel)
 
 ---
 
@@ -58,7 +58,7 @@ kubernetes/
 | `cert-manager`     | cert-manager 1.20.2                               | ✓ deployed |
 | `external-secrets` | External Secrets 2.6.0, 1Password Connect 2.4.1   | ✓ deployed |
 | `flux-system`      | flux-operator 0.52.0, flux-instance (Flux v2.8.8) | ✓ deployed |
-| `network`          | Envoy Gateway, cloudflare-tunnel                  | planned    |
+| `network`          | Envoy Gateway, wildcard cert, cloudflare-tunnel   | ✓ deployed |
 | `apoci`            | apoci OCI registry (federation peer for Artemis)  | planned    |
 | `monitoring`       | Gatus / Uptime Kuma                               | planned    |
 
@@ -77,6 +77,7 @@ Bootstrap uses helmfile (not `flux bootstrap`) because the Forgejo repo must alr
 6. Install cilium, coredns, cert-manager directly via `helm install` (NOT via helmfile — SSA conflict)
 7. Run `just bootstrap apps` — installs external-secrets → onepassword-connect → flux-operator → flux-instance
 8. Commit and push repo to Forgejo → Flux reconciles everything from Git
+9. Deploy `network` namespace **first** (cert-manager clusterissuer → envoy-gateway → certificates → cloudflare-tunnel) before any app with an HTTPRoute
 
 ---
 
@@ -90,3 +91,4 @@ Bootstrap uses helmfile (not `flux bootstrap`) because the Forgejo repo must alr
 - **`talosctl patch machineconfig --patch`**: expects a DELTA patch (only changed fields). Passing a full config duplicates array fields (e.g. `machine.files`) and breaks the node on next boot. Use a minimal patch file, or `talosctl apply-config --file` for full replacement.
 - **Forgejo auth via HTTPS**: SSH unreachable from OCI. Flux uses HTTPS with secret `flux-system/flux-system` (`username` + `password` fields).
 - **certSANs for Tailscale**: apply with a 6-line minimal patch — never include the full `controlplane.yaml` as a patch.
+- **flate `dependsOn` namespace**: `just kube apply-ks` uses flate, which resolves dependencies by `targetNamespace`. Cross-namespace refs require `namespace: <targetNamespace>` (e.g. `namespace: cert-manager` for clusterissuer, `namespace: external-secrets` for onepassword-connect). Without it, flate looks in the current ks's own targetNamespace and fails.

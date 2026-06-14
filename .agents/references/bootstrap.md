@@ -86,6 +86,30 @@ stringData:
 
 This is created by `just bootstrap base` via `resources.yaml.j2` (references `op://kubernetes/forgejo-frostlink/token`).
 
+## Post-Bootstrap App Deployment Order
+
+Deploy the `network` namespace **before any app that has an HTTPRoute**. Apps with `web.httpRoute.enabled: true` (e.g. flux-operator) will create an HTTPRoute but traffic cannot flow until envoy-gateway and cloudflare-tunnel are running.
+
+Correct order after Flux is reconciling:
+
+1. `cert-manager/clusterissuer` — ExternalSecret + ClusterIssuer (dependsOn: cert-manager, onepassword-connect)
+2. `network/envoy-gateway` — Envoy Gateway + GatewayClass + external-gateway (ClusterIP)
+3. `network/certificates` — wildcard cert `frostlink.dev` / `*.frostlink.dev` (dependsOn: clusterissuer)
+4. `network/cloudflare-tunnel` — routes `*.frostlink.dev` to envoy internally (dependsOn: envoy-gateway, certificates)
+5. All other apps with HTTPRoutes (any order)
+
+**flate dependsOn namespace rule**: `just kube apply-ks` uses `flate` which resolves `dependsOn` by `targetNamespace`, not `flux-system`. Cross-namespace dependencies require an explicit `namespace:` field matching the dependency's `targetNamespace`:
+
+```yaml
+dependsOn:
+  - name: clusterissuer
+    namespace: cert-manager   # matches clusterissuer ks targetNamespace
+  - name: onepassword-connect
+    namespace: external-secrets
+```
+
+Without `namespace:`, flate looks in the current kustomization's own `targetNamespace` and fails with "dependency not found".
+
 ## certSANs — Tailscale IP
 
 To reach the API via Tailscale, apply a minimal patch (never pass the full `controlplane.yaml` as a patch — it duplicates `machine.files` and breaks the node):
