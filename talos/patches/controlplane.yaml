@@ -59,6 +59,9 @@ cluster:
   allowSchedulingOnControlPlanes: true
   coreDNS:
     disabled: true
+  network:
+    cni:
+      name: none
   proxy:
     disabled: true
   discovery:
