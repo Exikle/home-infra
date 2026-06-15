@@ -18,7 +18,7 @@ spec:
   interval: 1h
   wait: true
   dependsOn:
-    - name: certificates
+    - name: certificates-export
     - name: envoy-gateway
     - name: onepassword-connect
       namespace: external-secrets
