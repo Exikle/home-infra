@@ -12,7 +12,7 @@ spec:
   values:
     web:
       httpRoute:
-        enabled: true
+        enabled: false
         hostnames:
           - flux.frostlink.dev
         parentRefs:
