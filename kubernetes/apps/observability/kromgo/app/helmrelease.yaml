@@ -62,7 +62,9 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
-            conditions: ["[STATUS] == 200"]
+            url: "http://kromgo.observability.svc.cluster.local:8080/readyz"
+            conditions:
+              - "[STATUS] == 200"
         hostnames:
           - kromgo.frostlink.dev
         parentRefs:
