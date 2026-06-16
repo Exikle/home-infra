@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/home-operations/kromgo/main/config.schema.json
+defaults:
+  badge:
+    size: 14
+    style: flat-square
+badges:
+  - title: Talos
+    id: talos_version
+    query: label_replace(node_os_info{name="Talos"}, "version_id", "$1", "version_id", "v(.+)")
+    valueExpr: labels["version_id"]
+    icon: si:talos
+  - title: Kubernetes
+    id: kubernetes_version
+    query: label_replace(kubernetes_build_info{service="kubernetes"}, "git_version", "$1", "git_version", "v(.+)")
+    valueExpr: labels["git_version"]
+    icon: si:kubernetes
+  - title: Flux
+    id: flux_version
+    query: label_replace(flux_instance_info, "revision", "$1", "revision", "v(.+)@sha256:.+")
+    valueExpr: labels["revision"]
+    icon: si:flux
+  - title: Age
+    id: cluster_birth_age
+    query: round(time() - min(kube_node_created))
+    valueExpr: humanizeDurationDays(result)
+    colorExpr: 'colorScale(result, [15552000.0, 31104000.0], ["green", "orange", "red"])'
+  - title: Pods
+    id: cluster_pod_count
+    query: sum(kube_pod_status_phase{phase="Running"})
+    valueExpr: humanizeCommas(result)
+    colorExpr: '"green"'
+  - title: CPU
+    id: cluster_cpu_usage
+    query: round(avg(instance:node_cpu_utilisation:rate5m{pod!=""}) * 100, 0.1)
+    valueExpr: string(result) + "%"
+    colorExpr: 'colorScale(result, [35.0, 75.0], ["green", "orange", "red"])'
+  - title: Memory
+    id: cluster_memory_usage
+    query: round(sum(node_memory_MemTotal_bytes{pod!=""} - node_memory_MemAvailable_bytes{pod!=""}) / sum(node_memory_MemTotal_bytes{pod!=""}) * 100, 0.1)
+    valueExpr: string(result) + "%"
+    colorExpr: 'colorScale(result, [35.0, 75.0], ["green", "orange", "red"])'
+  - title: Status Page
+    id: core_status_page
+    query: gatus_results_endpoint_success{key="core_status-page"}
+    valueExpr: 'result == 1.0 ? "Up" : "Down"'
+    colorExpr: 'result == 1.0 ? "brightgreen" : "red"'
+    icon: si:statuspage

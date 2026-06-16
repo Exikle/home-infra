@@ -6,3 +6,4 @@ namespace: observability
 resources:
   - ./namespace.yaml
   - ./gatus/ks.yaml
+  - ./kromgo/ks.yaml
