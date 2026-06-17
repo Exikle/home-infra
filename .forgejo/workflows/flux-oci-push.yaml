@@ -67,7 +67,7 @@ jobs:
             --tag main \
             --creds=exikle:${CI_TOKEN}
 
-      - name: Push to registry.dcunha.io
+      - name: Push to registry.frostlink.dev
         env:
           SHA: ${{ forgejo.sha }}
           SERVER_URL: ${{ forgejo.server_url }}
@@ -82,7 +82,7 @@ jobs:
             --revision=${REF_NAME}@sha1:${SHA} \
             --creds=exikle:${REGISTRY_TOKEN}
 
-      - name: Tag main on registry.dcunha.io
+      - name: Tag main on registry.frostlink.dev
         env:
           SHA: ${{ forgejo.sha }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
