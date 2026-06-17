@@ -108,16 +108,18 @@ spec:
         advancedMounts:
           apoci:
             init-pgdata:
-              - path: /var/lib/postgresql/data
-                subPath: pgdata
               - path: /data
-                subPath: data
             app:
               - path: /data
-                subPath: data
+      pgdata:
+        accessMode: ReadWriteOnce
+        size: 5Gi
+        advancedMounts:
+          apoci:
+            init-pgdata:
+              - path: /var/lib/postgresql/data
             postgres:
               - path: /var/lib/postgresql/data
-                subPath: pgdata
       config:
         type: configMap
         name: apoci-config
@@ -132,7 +134,6 @@ spec:
           apoci:
             app:
               - path: /tmp
-                subPath: tmp
 
     route:
       app:
