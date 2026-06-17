@@ -140,6 +140,7 @@ spec:
                 port: 5000
       webfinger:
         annotations:
+          external-dns.alpha.kubernetes.io/exclude: "true"
           gatus.home-operations.com/endpoint: |-
             name: webfinger
             url: "https://frostlink.dev/.well-known/webfinger?resource=acct:registry@frostlink.dev"

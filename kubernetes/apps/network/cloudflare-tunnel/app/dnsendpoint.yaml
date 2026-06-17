@@ -6,6 +6,10 @@ metadata:
   name: cloudflare-tunnel
 spec:
   endpoints:
+    - dnsName: frostlink.dev
+      recordType: CNAME
+      targets:
+        - ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com
     - dnsName: external.frostlink.dev
       recordType: CNAME
       targets:

@@ -20,6 +20,13 @@ spec:
         data:
           config.yaml: |-
             ingress:
+              - hostname: "frostlink.dev"
+                originRequest:
+                  http2Origin: true
+                  keepAliveTimeout: 3600s
+                  originServerName: frostlink.dev
+                  tcpKeepAlive: 7200s
+                service: https://external-gateway.{{ .Release.Namespace }}.svc.cluster.local:443
               - hostname: "*.frostlink.dev"
                 originRequest:
                   http2Origin: true
