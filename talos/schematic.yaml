@@ -1,10 +1,9 @@
-# Schematic ID: e4c2f7fe09fbcc3e03227a77dcb705e0e8b76acc3ef9f0e43f39f7723c8c98bc
+# Schematic ID: 708747e350d604ae9e57227d8dcf274091453ddb1097b765d4ea8884f1992c1f
 # Generated at: https://factory.talos.dev
 # Platform: Oracle Cloud (ARM64, UEFI, QEMU/KVM paravirtualized)
 customization:
   systemExtensions:
     officialExtensions:
       - siderolabs/iscsi-tools
-      - siderolabs/qemu-guest-agent
       - siderolabs/tailscale
       - siderolabs/util-linux-tools
