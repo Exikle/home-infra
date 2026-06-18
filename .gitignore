@@ -1,34 +1,29 @@
-# System / IDE
+# System
 .DS_Store
-.idea/
-*.swp
-*.swo
-*~
-*.log
+Thumbs.db
+.private/
 
-# Python
-__pycache__/
-*.py[cod]
+# Tools
+.task/
 .venv/
 
 # Kubernetes
 *.kubeconfig
 kubeconfig
+talosconfig
 
-# Generated Talos bootstrap configs (output to /tmp/frostlink-bootstrap, but gitignore as safety net)
+# Bootstrap (generated Talos configs)
 bootstrap/controlplane.yaml
 bootstrap/worker.yaml
 bootstrap/talosconfig
 
 # Secrets
+*.crt
+*.iso
 *.key
 *.pem
-*.crt
+.decrypted~*
 
 # AI
 .claude/*
 !.claude/commands/
-
-# MemPalace per-project files (issue #185)
-# mempalace.yaml and entities.json are intentionally tracked
-.mempalace-wing
