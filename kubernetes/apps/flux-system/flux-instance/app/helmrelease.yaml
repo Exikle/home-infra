@@ -24,11 +24,10 @@ spec:
       cluster:
         networkPolicy: false
       sync:
-        kind: GitRepository
-        url: "https://git.dcunha.io/Exikle/frostlink.git"
-        ref: "refs/heads/main"
+        kind: OCIRepository
+        url: "oci://registry.frostlink.dev/exikle/frostlink"
+        ref: "main"
         path: "kubernetes/flux/sync"
-        pullSecret: "flux-system"
       kustomize:
         patches:
           - # Increase the number of workers
