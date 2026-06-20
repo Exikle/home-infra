@@ -5,7 +5,8 @@ kind: SnapshotPolicy
 metadata:
   name: ${APP}
 spec:
-  copyMethod: Direct
+  copyMethod: Snapshot
+  volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=zfs-snapshotclass}
   credentialProjection:
     enabled: true
   repository:
