@@ -8,6 +8,10 @@ spec:
   copyMethod: Direct
   credentialProjection:
     enabled: true
+  mover:
+    cache:
+      capacity: 2Gi
+      storageClassName: openebs-zfs
   repository:
     kind: ClusterRepository
     name: r2
