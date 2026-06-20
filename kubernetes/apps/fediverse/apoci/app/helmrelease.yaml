@@ -111,7 +111,7 @@ spec:
             app:
               - path: /data
       pgdata:
-        existingClaim: apoci-pgdata-new
+        existingClaim: apoci-pgdata
         advancedMounts:
           apoci:
             init-pgdata:
