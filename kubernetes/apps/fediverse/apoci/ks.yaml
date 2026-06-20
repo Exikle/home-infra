@@ -20,5 +20,7 @@ spec:
   dependsOn:
     - name: envoy-gateway
       namespace: network
+    - name: kopiur-repository
+      namespace: kopiur-system
     - name: onepassword-connect
       namespace: external-secrets

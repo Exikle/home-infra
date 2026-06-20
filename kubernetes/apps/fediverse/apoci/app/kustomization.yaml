@@ -7,6 +7,8 @@ resources:
   - ./externalsecret.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./snapshotpolicy.yaml
+  - ./snapshotschedule.yaml
 configMapGenerator:
   - name: apoci-config
     files:
