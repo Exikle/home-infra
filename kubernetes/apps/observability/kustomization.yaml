@@ -8,3 +8,4 @@ resources:
   - ./gatus-sidecar/ks.yaml
   - ./kube-prometheus-stack/ks.yaml
   - ./kromgo/ks.yaml
+  - ./prometheus-adapter/ks.yaml

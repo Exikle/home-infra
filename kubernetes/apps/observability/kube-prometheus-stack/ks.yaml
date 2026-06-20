@@ -18,5 +18,5 @@ spec:
   interval: 1h
   wait: true
   dependsOn:
-    - name: local-path-provisioner
-      namespace: kube-system
+    - name: zfs-localpv
+      namespace: openebs-system
