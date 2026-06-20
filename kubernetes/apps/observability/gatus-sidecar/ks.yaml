@@ -19,13 +19,6 @@ spec:
   dependsOn:
     - name: envoy-gateway
       namespace: network
-    - name: kopiur-repository
-      namespace: kopiur-system
     - name: onepassword-connect
       namespace: external-secrets
   wait: true
-  postBuild:
-    substitute:
-      APP: gatus-sidecar
-      KOPIUR_CAPACITY: 1Gi
-      KOPIUR_SNAPSHOT_REF: gatus-sidecar-manual-1
