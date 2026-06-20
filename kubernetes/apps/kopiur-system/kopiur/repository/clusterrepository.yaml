@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kopiur.home-operations.com/clusterrepository_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: ClusterRepository
+metadata:
+  name: r2
+spec:
+  allowedNamespaces:
+    all: true
+  backend:
+    s3:
+      auth:
+        secretRef:
+          name: kopiur-r2-secret
+          namespace: kopiur-system
+      bucket: frostlink-kopiur
+      endpoint: cb8e9b25dc436d997f232269a3597c61.r2.cloudflarestorage.com
+      region: auto
+  create:
+    enabled: true
+  credentialProjection:
+    allowed: true
+  encryption:
+    passwordSecretRef:
+      key: KOPIA_PASSWORD
+      name: kopiur-r2-secret
+      namespace: kopiur-system
+  identityDefaults:
+    hostnameExpr: namespace
+    usernameExpr: namespace + '-' + policyName
+  maintenance:
+    namespace: kopiur-system
+  moverDefaults:
+    cache:
+      capacity: 1Mi
+      mode: Ephemeral
+      storageClassName: openebs-zfs
+    podSecurityContext:
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
+    securityContext:
+      runAsGroup: 1000
+      runAsUser: 1000
+    ttlSecondsAfterFinished: 300
