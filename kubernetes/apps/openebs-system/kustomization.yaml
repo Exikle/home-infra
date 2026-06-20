@@ -5,3 +5,4 @@ kind: Kustomization
 namespace: openebs-system
 resources:
   - ./namespace.yaml
+  - ./zfs-localpv/ks.yaml

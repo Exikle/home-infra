@@ -1,4 +1,7 @@
 machine:
+  kernel:
+    modules:
+      - name: zfs
   kubelet:
     extraConfig:
       serializeImagePulls: false
