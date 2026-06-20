@@ -3,7 +3,7 @@
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotPolicy
 metadata:
-  name: apoci
+  name: apoci-data
 spec:
   copyMethod: Direct
   credentialProjection:
@@ -17,5 +17,3 @@ spec:
   sources:
     - pvc:
         name: apoci-data
-    - pvc:
-        name: apoci-pgdata
