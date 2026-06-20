@@ -41,7 +41,7 @@ spec:
       enabled: true
       accessMode: ReadWriteOnce
       size: 1Gi
-      storageClass: local-path
+      storageClass: openebs-zfs
     sidecar:
       kinds:
         httproute:

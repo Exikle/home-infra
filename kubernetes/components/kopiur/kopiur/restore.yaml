@@ -7,11 +7,8 @@ metadata:
 spec:
   credentialProjection:
     enabled: true
-  policy:
-    onMissingSnapshot: Continue
   source:
-    fromPolicy:
-      name: ${APP}
-      offset: 0
+    snapshotRef:
+      name: ${KOPIUR_SNAPSHOT_REF}
   target:
     populator: {}

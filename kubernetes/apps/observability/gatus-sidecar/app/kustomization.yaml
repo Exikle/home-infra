@@ -7,6 +7,8 @@ resources:
   - ./externalsecret.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+components:
+  - ../../../../components/kopiur
 configMapGenerator:
   - name: gatus-sidecar-configmap
     files:
