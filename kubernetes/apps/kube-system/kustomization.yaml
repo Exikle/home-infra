@@ -8,5 +8,4 @@ resources:
   - ./cilium/ks.yaml
   - ./coredns/ks.yaml
   - ./k8tz/ks.yaml
-  - ./local-path-provisioner/ks.yaml
-  - ./reloader/ks.yaml
+- ./reloader/ks.yaml
