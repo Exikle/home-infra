@@ -41,10 +41,6 @@ spec:
                 memory: 32Mi
               limits:
                 memory: 64Mi
-            securityContext:
-              allowPrivilegeEscalation: false
-              capabilities:
-                drop: ["ALL"]
 
     persistence:
       cache:
