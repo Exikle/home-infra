@@ -143,11 +143,28 @@ spec:
         parentRefs:
           - name: external-gateway
             namespace: network
-            sectionName: https
+      webfinger:
+        hostnames:
+          - "frostlink.dev"
         rules:
-          - backendRefs:
+          - matches:
+              - path:
+                  type: Exact
+                  value: /.well-known/webfinger
+                queryParams:
+                  - name: resource
+                    type: RegularExpression
+                    value: ".*registry@.*"
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  hostname: registry.frostlink.dev
+            backendRefs:
               - identifier: app
                 port: 5000
+        parentRefs:
+          - name: external-gateway
+            namespace: network
     service:
       app:
         ports:
