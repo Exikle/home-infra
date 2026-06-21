@@ -45,7 +45,6 @@ spec:
               allowPrivilegeEscalation: false
               capabilities:
                 drop: ["ALL"]
-              readOnlyRootFilesystem: true
 
     persistence:
       cache:
@@ -53,12 +52,12 @@ spec:
         advancedMounts:
           phanpy:
             app:
-              - path: /var/cache/nginx
-                subPath: cache
-              - path: /var/run
-                subPath: run
               - path: /tmp
                 subPath: tmp
+              - path: /data
+                subPath: data
+              - path: /config
+                subPath: config
 
     route:
       app:
