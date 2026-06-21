@@ -110,7 +110,7 @@ spec:
                   - name: resource
                     value: acct:registry@frostlink.dev
             backendRefs:
-              - name: apoci-app
+              - name: apoci
                 port: 5000
           - matches:
               - path:
