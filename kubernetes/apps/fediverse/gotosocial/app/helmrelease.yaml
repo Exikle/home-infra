@@ -63,6 +63,7 @@ spec:
         existingClaim: gotosocial
         globalMounts:
           - path: /data
+            subPath: data
       tmpfs:
         type: emptyDir
         globalMounts:
@@ -81,6 +82,16 @@ spec:
           - backendRefs:
               - identifier: app
                 port: 8080
+            filters:
+              - cors:
+                  allowHeaders:
+                    - "*"
+                  allowMethods:
+                    - "*"
+                  allowOrigins:
+                    - "https://phanpy.frostlink.dev"
+                  maxAge: 86400
+                type: CORS
       webfinger:
         annotations:
           external-dns.alpha.kubernetes.io/exclude: "true"
