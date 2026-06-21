@@ -1,0 +1,124 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gotosocial
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: gotosocial
+  interval: 1h
+  values:
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+
+    controllers:
+      gotosocial:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/superseriousbusiness/gotosocial
+              tag: 0.21.2@sha256:53106462f352c23c25a32d4bd5c03eb3c2198f2d2549ff1e7d5ef6deb7f44961
+            env:
+              GTS_ACCOUNT_DOMAIN: frostlink.dev
+              GTS_ACCOUNTS_REGISTRATION_OPEN: "false"
+              GTS_DB_ADDRESS: /gotosocial/sqlite.db
+              GTS_DB_TYPE: sqlite
+              GTS_HOST: social.frostlink.dev
+              GTS_LANDING_PAGE_USER: exikle
+              GTS_METRICS_ENABLED: "true"
+              GTS_SEMAPHORE_URL: https://phanpy.frostlink.dev
+              GTS_STORAGE_LOCAL_BASE_PATH: /gotosocial/storage
+              GTS_TRUSTED_PROXIES: "10.244.0.0/16"
+              OTEL_EXPORTER_PROMETHEUS_HOST: 0.0.0.0
+              OTEL_METRICS_EXPORTER: prometheus
+              OTEL_METRICS_PRODUCERS: prometheus
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+              readOnlyRootFilesystem: true
+
+    persistence:
+      data:
+        existingClaim: gotosocial
+        globalMounts:
+          - path: /gotosocial
+      tmpfs:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+            subPath: tmp
+
+    route:
+      app:
+        hostnames:
+          - social.frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 8080
+      webfinger:
+        annotations:
+          external-dns.alpha.kubernetes.io/exclude: "true"
+        hostnames:
+          - frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
+            sectionName: https
+        rules:
+          - matches:
+              - path:
+                  type: Exact
+                  value: /.well-known/webfinger
+                queryParams:
+                  - name: resource
+                    value: acct:registry@frostlink.dev
+            backendRefs:
+              - name: apoci-app
+                port: 5000
+          - matches:
+              - path:
+                  type: Exact
+                  value: /.well-known/webfinger
+              - path:
+                  type: Exact
+                  value: /.well-known/host-meta
+              - path:
+                  type: Exact
+                  value: /.well-known/nodeinfo
+            backendRefs:
+              - identifier: app
+                port: 8080
+
+    service:
+      app:
+        ports:
+          http:
+            port: 8080
+          metrics:
+            port: 9464

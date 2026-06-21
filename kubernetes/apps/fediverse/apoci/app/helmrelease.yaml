@@ -148,33 +148,6 @@ spec:
           - backendRefs:
               - identifier: app
                 port: 5000
-      webfinger:
-        annotations:
-          external-dns.alpha.kubernetes.io/exclude: "true"
-          gatus.home-operations.com/endpoint: |-
-            name: webfinger
-            url: "https://frostlink.dev/.well-known/webfinger?resource=acct:registry@frostlink.dev"
-            conditions:
-              - "[STATUS] == 200"
-        hostnames:
-          - frostlink.dev
-        parentRefs:
-          - name: external-gateway
-            namespace: network
-            sectionName: https
-        rules:
-          - matches:
-              - path:
-                  type: Exact
-                  value: /.well-known/webfinger
-            filters:
-              - type: URLRewrite
-                urlRewrite:
-                  hostname: registry.frostlink.dev
-            backendRefs:
-              - identifier: app
-                port: 5000
-
     service:
       app:
         ports:

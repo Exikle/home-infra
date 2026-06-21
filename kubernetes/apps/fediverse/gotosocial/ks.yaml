@@ -1,0 +1,32 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app gotosocial
+spec:
+  targetNamespace: fediverse
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  path: ./kubernetes/apps/fediverse/gotosocial/app
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
+  interval: 1h
+  wait: true
+  dependsOn:
+    - name: envoy-gateway
+      namespace: network
+    - name: kopiur-repository
+      namespace: kopiur-system
+    - name: onepassword-connect
+      namespace: external-secrets
+  components:
+    - ../../../../components/kopiur
+  postBuild:
+    substitute:
+      APP: gotosocial
+      KOPIUR_CAPACITY: 10Gi

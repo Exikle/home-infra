@@ -7,6 +7,10 @@ metadata:
 spec:
   credentialProjection:
     enabled: true
+  mover:
+    cache:
+      capacity: ${KOPIUR_CACHE_CAPACITY:=2Gi}
+      storageClassName: ${KOPIUR_STORAGECLASS:=openebs-zfs}
   policy:
     onMissingSnapshot: Continue
   source:
