@@ -30,13 +30,13 @@ spec:
             env:
               GTS_ACCOUNT_DOMAIN: frostlink.dev
               GTS_ACCOUNTS_REGISTRATION_OPEN: "false"
-              GTS_DB_ADDRESS: /gotosocial/sqlite.db
+              GTS_DB_ADDRESS: /data/sqlite.db
               GTS_DB_TYPE: sqlite
               GTS_HOST: social.frostlink.dev
               GTS_LANDING_PAGE_USER: exikle
               GTS_METRICS_ENABLED: "true"
               GTS_SEMAPHORE_URL: https://phanpy.frostlink.dev
-              GTS_STORAGE_LOCAL_BASE_PATH: /gotosocial/storage
+              GTS_STORAGE_LOCAL_BASE_PATH: /data/storage
               GTS_TRUSTED_PROXIES: "10.244.0.0/16"
               OTEL_EXPORTER_PROMETHEUS_HOST: 0.0.0.0
               OTEL_METRICS_EXPORTER: prometheus
@@ -62,7 +62,7 @@ spec:
       data:
         existingClaim: gotosocial
         globalMounts:
-          - path: /gotosocial
+          - path: /data
       tmpfs:
         type: emptyDir
         globalMounts:
