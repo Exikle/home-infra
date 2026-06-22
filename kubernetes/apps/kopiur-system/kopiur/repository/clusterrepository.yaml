@@ -32,13 +32,10 @@ spec:
     namespace: kopiur-system
   moverDefaults:
     cache:
-      capacity: 1Mi
+      capacity: 2Gi
       mode: Ephemeral
       storageClassName: openebs-zfs
     podSecurityContext:
       fsGroup: 1000
       fsGroupChangePolicy: OnRootMismatch
-    securityContext:
-      runAsGroup: 1000
-      runAsUser: 1000
     ttlSecondsAfterFinished: 300
