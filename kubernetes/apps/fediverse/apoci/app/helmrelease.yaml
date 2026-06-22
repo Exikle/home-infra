@@ -144,6 +144,8 @@ spec:
           - name: external-gateway
             namespace: network
       webfinger:
+        annotations:
+          gatus.home-operations.com/enabled: "false"
         hostnames:
           - "frostlink.dev"
         rules:
