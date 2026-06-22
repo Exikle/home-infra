@@ -13,6 +13,8 @@ spec:
     cache:
       capacity: ${KOPIUR_CACHE_CAPACITY:=2Gi}
       storageClassName: ${KOPIUR_STORAGECLASS:=openebs-zfs}
+    inheritSecurityContextFrom:
+      pvcConsumer: {}
   repository:
     kind: ClusterRepository
     name: r2
