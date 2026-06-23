@@ -40,3 +40,19 @@ Always update the `## Current State` block when focus changes:
 - Include the WHY, not just the what — "used emptyDir because readOnlyRootFilesystem blocks /tmp writes" beats "added emptyDir"
 - Keep entries short — 2–4 bullets each
 - The PreCompact hook trims old entries automatically; don't worry about length
+
+## memini — Lessons
+
+`mcp__memini__*` tools store short lessons that persist across sessions with semantic search + reranking.
+
+**Load**: when starting work on a distinct topic or component, call `memory_recall` or `memory_answer` with relevant keywords (e.g. `"talos oracle cloud"`, `"frostlink flux"`, `"flux helmrelease"`). Skip if the topic is trivial or already covered by file-based memory.
+
+**Save**: after any non-obvious discovery — a quirk, a failure mode, a workaround — call `memory_remember`. Good candidates:
+
+- An unexpected API behaviour or field requirement
+- A command/flag that fixed a recurring problem
+- Something that would take >5 minutes to re-derive next time
+
+Bad candidates (use file-based memory instead): conventions, architecture, project context, anything already in `.agents/` files.
+
+Keep lessons short — one sentence of fact + one sentence of why/how.

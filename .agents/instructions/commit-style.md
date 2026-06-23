@@ -25,28 +25,6 @@ This repo has no staging cluster. `main` reconciles directly to production.
 - Pre-merge corrections (wrong port, typo, image tag) → squash into original commit
 - Post-merge discoveries → new commit on a new PR, always
 
-## Commit Message Format
-
-Semantic prefix scoped to namespace:
-
-```text
-feat(network): deploy envoy-gateway
-fix(cert-manager): correct cloudflare api token secret key
-chore: update flux-operator to v0.53.0
-docs: update AGENTS.md bootstrap order
-refactor(external-secrets): add 1password clusterissuer secret
-```
-
-- Title-only is fine for small changes
-- Explain WHY in the body only when genuinely non-obvious
-- No `Co-Authored-By` trailer — ever
-- No `--no-verify` — fix the hook instead
-
-## Staging Rules
-
-- Always stage specific files by name — never `git add .` or `git add -A`
-- Run `git diff --staged` before committing — check for secrets, debug output, unintended files
-
 ## PR Branch Naming
 
 ```text

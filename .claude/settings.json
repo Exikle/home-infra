@@ -1,0 +1,52 @@
+{
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl top:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(flux get:*)",
+      "Bash(flux describe:*)",
+      "Bash(flux reconcile:*)",
+      "Bash(flux suspend:*)",
+      "Bash(flux resume:*)",
+      "Bash(talosctl get:*)",
+      "Bash(talosctl health:*)",
+      "Bash(talosctl version:*)",
+      "Bash(talosctl dmesg:*)",
+      "Bash(mise exec:*)",
+      "Bash(just kube:*)",
+      "Bash(just talos:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.talos.dev)",
+      "WebFetch(domain:docs.siderolabs.com)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/validate-manifest.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-context.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
