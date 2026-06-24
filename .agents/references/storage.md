@@ -61,7 +61,7 @@ The component creates 4 resources: `PersistentVolumeClaim`, `SnapshotPolicy`, `S
 
 ### Known quirks
 
-- **`inheritSecurityContextFrom: pvcConsumer: {}`** is required in `SnapshotPolicy` — the mover must inherit the UID from the consuming app pod, or it gets permission errors writing to the volume. The component template already includes this.
+- **`inheritSecurityContextFrom: pvcConsumer: {}`** is required in `SnapshotPolicy` — the mover must inherit the UID from the consuming app pod, or it gets permission errors writing to the volume. The component template already includes this. **`pvcConsumer` is backup-only** — the webhook rejects it on a `Restore` CR. If you need security context inheritance on a manual Restore, use `workloadSelector: { podSelector: { matchLabels: { app.kubernetes.io/name: <app> } } }` instead.
 - **Mover cache must be ≥ 2Gi** — the Kopiur default of 1Mi causes "disk quota exceeded" failures. The component template defaults to 2Gi; only override if you need more.
 - **PVC annotation `kustomize.toolkit.fluxcd.io/ssa: ignore`** — prevents Flux from overwriting the PVC after initial creation (critical for Restore-seeded PVCs).
 - **Restore PVC on first deploy** — the PVC uses `dataSourceRef` pointing to the `Restore` CRD; Kopiur populates it from R2 on first apply. `onMissingSnapshot: Continue` means a missing snapshot doesn't block PVC creation.

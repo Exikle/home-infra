@@ -88,7 +88,7 @@ just talos upgrade <version>              # upgrade Talos (reboots single node)
 | File                          | Contents                                                      |
 | ----------------------------- | ------------------------------------------------------------- |
 | `references/flux-patterns.md` | Flux reconciliation, cross-namespace gotchas, CRD timing race |
-| `references/storage.md`       | local-path storage, future storage options                    |
+| `references/storage.md`       | openebs-zfs storage, zfs-snapshotclass, Kopiur backup component |
 | `references/networking.md`    | Gateways, OCI VCN rules, Cloudflare tunnel, Tailscale         |
 | `references/talos.md`         | Oracle Cloud Talos config, single-node quirks, upgrade steps  |
 | `references/bootstrap.md`     | Bootstrap order and one-time setup                            |
