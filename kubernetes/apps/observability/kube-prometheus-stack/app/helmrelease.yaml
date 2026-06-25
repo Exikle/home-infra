@@ -117,26 +117,7 @@ spec:
                   storage: 5Gi
 
     alertmanager:
-      enabled: true
-      route:
-        main:
-          enabled: true
-          hostnames:
-            - alertmanager.frostlink.dev
-          parentRefs:
-            - name: external-gateway
-              namespace: network
-              sectionName: https
-      alertmanagerSpec:
-        storage:
-          volumeClaimTemplate:
-            spec:
-              storageClassName: openebs-zfs
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1Gi
+      enabled: false
 
     additionalPrometheusRulesMap:
       oom-rules:
