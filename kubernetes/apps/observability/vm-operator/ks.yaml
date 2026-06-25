@@ -3,13 +3,13 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app vmagent
+  name: &app vm-operator
 spec:
   targetNamespace: observability
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apps/observability/vmagent/app
+  path: ./kubernetes/apps/observability/vm-operator/app
   prune: true
   sourceRef:
     kind: OCIRepository
@@ -17,6 +17,4 @@ spec:
     namespace: flux-system
   interval: 1h
   retryInterval: 1m
-  timeout: 5m
-  dependsOn:
-    - name: vmsingle
+  timeout: 10m
