@@ -12,6 +12,7 @@ resources:
   - ./alertmanager/ks.yaml
   - ./vmsingle/ks.yaml
   - ./vmagent/ks.yaml
+  - ./vmalert/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./kube-prometheus-stack/ks.yaml
   - ./kromgo/ks.yaml
