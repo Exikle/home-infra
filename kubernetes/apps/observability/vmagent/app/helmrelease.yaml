@@ -1,0 +1,140 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vmagent
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: vmagent
+  interval: 1h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    fullnameOverride: vmagent
+
+    remoteWrite:
+      - url: http://victoria-metrics-server.observability.svc.cluster.local:8428/api/v1/write
+
+    extraArgs:
+      loggerFormat: json
+      promscrape.suppressDuplicateScrapeTargetErrors: "true"
+
+    rbac:
+      create: true
+      namespaced: false
+
+    config:
+      global:
+        scrape_interval: 30s
+        external_labels:
+          cluster: frostlink
+
+      scrape_configs:
+        # vmagent self-scrape
+        - job_name: vmagent
+          static_configs:
+            - targets:
+                - localhost:8429
+
+        # Kubelet metrics (Talos: cert signed by Talos CA, skip verify)
+        - job_name: kubelet
+          kubernetes_sd_configs:
+            - role: node
+          scheme: https
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_node_name]
+              target_label: node
+
+        # cAdvisor via kubelet (Talos: same cert quirk)
+        - job_name: cadvisor
+          kubernetes_sd_configs:
+            - role: node
+          scheme: https
+          metrics_path: /metrics/cadvisor
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_node_name]
+              target_label: node
+
+        # Node exporter
+        - job_name: node-exporter
+          static_configs:
+            - targets:
+                - node-exporter.observability.svc.cluster.local:9100
+
+        # kube-state-metrics
+        - job_name: kube-state-metrics
+          static_configs:
+            - targets:
+                - kube-prometheus-stack-kube-state-metrics.observability.svc.cluster.local:8080
+
+        # CoreDNS (via KPS headless service — update when KPS is removed)
+        - job_name: coredns
+          static_configs:
+            - targets:
+                - kps-coredns.kube-system.svc.cluster.local:9153
+
+        # kube-controller-manager (Talos: cert signed by Talos CA, skip verify)
+        - job_name: kube-controller-manager
+          scheme: https
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          tls_config:
+            insecure_skip_verify: true
+          static_configs:
+            - targets:
+                - kps-kube-controller-manager.kube-system.svc.cluster.local:10257
+
+        # kube-scheduler (Talos: cert signed by Talos CA, skip verify)
+        - job_name: kube-scheduler
+          scheme: https
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          tls_config:
+            insecure_skip_verify: true
+          static_configs:
+            - targets:
+                - kps-kube-scheduler.kube-system.svc.cluster.local:10259
+
+        # etcd (Talos: exposed on port 2381 via kube-apiserver static pod, HTTP)
+        - job_name: kube-etcd
+          static_configs:
+            - targets:
+                - kps-kube-etcd.kube-system.svc.cluster.local:2381
+
+        # cert-manager controller
+        - job_name: cert-manager
+          kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names:
+                  - cert-manager
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+              regex: cert-manager
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+              regex: controller
+              action: keep
+            - source_labels: [__address__]
+              regex: (.+):.*
+              target_label: __address__
+              replacement: $1:9402
+
+        # VictoriaMetrics self-monitoring
+        - job_name: vmsingle
+          static_configs:
+            - targets:
+                - victoria-metrics-server.observability.svc.cluster.local:8428
