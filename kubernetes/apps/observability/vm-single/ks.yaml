@@ -29,3 +29,22 @@ spec:
     substitute:
       APP: server-volume-victoria-metrics-server-0
       KOPIUR_CAPACITY: 10Gi
+  patches:
+    - patch: |
+        apiVersion: kopiur.home-operations.com/v1alpha1
+        kind: SnapshotPolicy
+        metadata:
+          name: server-volume-victoria-metrics-server-0
+        spec:
+          mover:
+            $patch: replace
+            cache:
+              capacity: 2Gi
+              storageClassName: openebs-zfs
+            podSecurityContext:
+              runAsUser: 65534
+              runAsGroup: 65534
+              fsGroup: 65534
+      target:
+        kind: SnapshotPolicy
+        name: server-volume-victoria-metrics-server-0
