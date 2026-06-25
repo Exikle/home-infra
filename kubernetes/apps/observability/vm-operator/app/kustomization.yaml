@@ -6,3 +6,8 @@ resources:
   - ./helmrelease.yaml
   - ./ocirepository.yaml
   - ./vmagent.yaml
+  - ./vmnodescrape-kubelet.yaml
+  - ./vmservicescrape-apiserver.yaml
+  - ./vmservicescrape-coredns.yaml
+  - ./vmservicescrape-controlplane.yaml
+  - ./vmservicescrape-etcd.yaml

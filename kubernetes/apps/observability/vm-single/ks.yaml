@@ -18,6 +18,14 @@ spec:
   interval: 1h
   retryInterval: 1m
   timeout: 5m
+  components:
+    - ../../../../components/kopiur
   dependsOn:
     - name: envoy-gateway
       namespace: network
+    - name: kopiur-repository
+      namespace: kopiur-system
+  postBuild:
+    substitute:
+      APP: server-volume-victoria-metrics-server-0
+      KOPIUR_CAPACITY: 10Gi

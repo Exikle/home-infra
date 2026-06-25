@@ -13,6 +13,7 @@ resources:
   - ./vm-single/ks.yaml
   - ./vm-operator/ks.yaml
   - ./vm-alert/ks.yaml
+  - ./vm-scrapes/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./kube-prometheus-stack/ks.yaml
   - ./kromgo/ks.yaml

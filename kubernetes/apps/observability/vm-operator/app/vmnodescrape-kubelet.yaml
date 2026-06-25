@@ -1,0 +1,36 @@
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: kubelet
+spec:
+  scheme: https
+  path: /metrics
+  tlsConfig:
+    insecureSkipVerify: true
+  bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  honorLabels: true
+  interval: 30s
+  scrapeTimeout: 10s
+  relabelConfigs:
+    - action: replace
+      sourceLabels: [__metrics_path__]
+      targetLabel: metrics_path
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: cadvisor
+spec:
+  scheme: https
+  path: /metrics/cadvisor
+  tlsConfig:
+    insecureSkipVerify: true
+  bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  honorLabels: true
+  interval: 30s
+  scrapeTimeout: 10s
+  relabelConfigs:
+    - action: replace
+      sourceLabels: [__metrics_path__]
+      targetLabel: metrics_path
