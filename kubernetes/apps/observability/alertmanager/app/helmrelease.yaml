@@ -69,11 +69,6 @@ spec:
           - path: /etc/alertmanager
         name: alertmanager-config
         type: configMap
-      secrets:
-        globalMounts:
-          - path: /etc/secrets
-        name: alertmanager-secret
-        type: secret
       data:
         accessMode: ReadWriteOnce
         globalMounts:

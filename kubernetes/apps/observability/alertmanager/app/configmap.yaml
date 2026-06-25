@@ -37,14 +37,6 @@ data:
     receivers:
       - name: blackhole
       - name: pushover
-        pushover_configs:
-          - user_key_file: /etc/secrets/pushover_api_userkey
-            token_file: /etc/secrets/pushover_api_token
-            title: >-
-              [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}
-            message: |-
-              {{ range .Alerts -}}
-              *{{ .Annotations.summary }}*
-              {{ .Annotations.description }}
-              {{ end }}
+        webhook_configs:
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/alertmanager
             send_resolved: true

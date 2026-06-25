@@ -15,6 +15,7 @@ resources:
   - ./vm-alert/ks.yaml
   - ./vm-scrapes/ks.yaml
   - ./gatus-sidecar/ks.yaml
+  - ./chaski/ks.yaml
   - ./kube-state-metrics/ks.yaml
   - ./node-exporter/ks.yaml
   - ./kromgo/ks.yaml
