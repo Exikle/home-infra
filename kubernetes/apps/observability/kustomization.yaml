@@ -10,6 +10,7 @@ components:
 resources:
   - ./namespace.yaml
   - ./alertmanager/ks.yaml
+  - ./vmsingle/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./kube-prometheus-stack/ks.yaml
   - ./kromgo/ks.yaml
