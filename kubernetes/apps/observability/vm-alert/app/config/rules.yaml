@@ -320,3 +320,15 @@ groups:
         for: 10m
         labels:
           severity: warning
+
+  # ------------------------------------------------------------------ #
+  # ZFS — pool health
+  # ------------------------------------------------------------------ #
+  - name: zfs.rules
+    rules:
+      - alert: ZfsUnexpectedPoolState
+        annotations:
+          summary: ZFS pool {{$labels.zpool}} on {{$labels.instance}} is in unexpected state {{$labels.state}}.
+        expr: node_zfs_zpool_state{state!="online"} > 0
+        labels:
+          severity: critical

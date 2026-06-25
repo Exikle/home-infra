@@ -16,6 +16,5 @@ resources:
   - ./vm-scrapes/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./kube-state-metrics/ks.yaml
-  - ./kube-prometheus-stack/ks.yaml
+  - ./node-exporter/ks.yaml
   - ./kromgo/ks.yaml
-  - ./prometheus-adapter/ks.yaml
