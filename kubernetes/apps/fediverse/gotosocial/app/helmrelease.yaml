@@ -72,6 +72,8 @@ spec:
 
     route:
       app:
+        annotations:
+          fingerjoin.naktis.eu/webfinger: "true"
         hostnames:
           - social.frostlink.dev
         parentRefs:
@@ -91,7 +93,7 @@ spec:
                     - "*"
                   maxAge: 86400
                 type: CORS
-      webfinger:
+      wellknown:
         annotations:
           gatus.home-operations.com/enabled: "false"
         hostnames:
@@ -102,9 +104,6 @@ spec:
             sectionName: https
         rules:
           - matches:
-              - path:
-                  type: Exact
-                  value: /.well-known/webfinger
               - path:
                   type: Exact
                   value: /.well-known/host-meta
