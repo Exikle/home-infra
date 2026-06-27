@@ -15,9 +15,7 @@ spec:
         containers:
           main:
             env:
-              RUST_LOG: fingerjoin=debug,tower_http=debug
-            image:
-              pullPolicy: Always
+              RUST_LOG: fingerjoin=info,tower_http=info
     route:
       app:
         hostnames:
