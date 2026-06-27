@@ -22,6 +22,14 @@ spec:
     server:
       replicaCount: 1
       retentionPeriod: 30d
+      podSecurityContext:
+        enabled: true
+        fsGroup: 65532
+      securityContext:
+        enabled: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
       extraArgs:
         http.shutdownDelay: 15s
         loggerFormat: json
