@@ -5,11 +5,11 @@ kind: Kustomization
 metadata:
   name: &app ksgate
 spec:
-  targetNamespace: ksgate-system
+  targetNamespace: kube-system
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apps/ksgate-system/ksgate/app
+  path: ./kubernetes/apps/kube-system/ksgate/app
   prune: true
   sourceRef:
     kind: OCIRepository
