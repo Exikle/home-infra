@@ -11,3 +11,5 @@ resources:
   - ./namespace.yaml
   - ./cert-manager/ks.yaml
   - ./clusterissuer/ks.yaml
+  - ./postgres-ca/ks.yaml
+  - ./trust-manager/ks.yaml
