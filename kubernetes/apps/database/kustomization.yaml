@@ -6,4 +6,5 @@ namespace: database
 
 resources:
   - ./namespace.yaml
+  - ./dragonfly/ks.yaml
   - ./postgres/ks.yaml
