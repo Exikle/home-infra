@@ -6,5 +6,5 @@ components:
   - ../base/patch
 resources:
   - ./certificate.yaml
-  - ./secret.yaml
+  - ./configmap.yaml
   - ../base/ks.yaml

@@ -19,58 +19,6 @@ spec:
       apoci:
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          init-pgdata:
-            image:
-              repository: docker.io/library/busybox
-              tag: latest
-            command:
-              - sh
-              - -c
-              - chown -R 999:999 /var/lib/postgresql/data && chown -R 1000:1000 /data
-            securityContext:
-              runAsUser: 0
-          postgres:
-            restartPolicy: Always
-            image:
-              repository: docker.io/library/postgres
-              tag: 18-alpine
-            env:
-              PGDATA: /var/lib/postgresql/data
-              POSTGRES_DB: apoci
-              POSTGRES_USER:
-                valueFrom:
-                  secretKeyRef:
-                    name: apoci
-                    key: APOCI_DB_USER
-              POSTGRES_PASSWORD:
-                valueFrom:
-                  secretKeyRef:
-                    name: apoci
-                    key: APOCI_DB_PASSWORD
-            probes:
-              readiness:
-                enabled: true
-                custom: true
-                spec:
-                  exec:
-                    command: [pg_isready, -U, apoci]
-                  initialDelaySeconds: 5
-                  periodSeconds: 5
-                  failureThreshold: 30
-            resources:
-              requests:
-                cpu: 10m
-                memory: 128Mi
-              limits:
-                memory: 256Mi
-            securityContext:
-              allowPrivilegeEscalation: false
-              capabilities:
-                drop: ["ALL"]
-              runAsNonRoot: true
-              runAsGroup: 999
-              runAsUser: 999
         containers:
           app:
             image:
@@ -78,6 +26,11 @@ spec:
               tag: 0.0.48@sha256:3592cc796bfcf696c6ec0a55ca69bee4955cd35a6869b1ab24239a22e0787c49 # renovate: ignore
             env:
               APOCI_DATA_DIR: /data
+              APOCI_DB_DSN:
+                valueFrom:
+                  configMapKeyRef:
+                    name: apoci-postgres
+                    key: url
             envFrom:
               - secretRef:
                   name: apoci
@@ -106,18 +59,8 @@ spec:
         existingClaim: apoci-data
         advancedMounts:
           apoci:
-            init-pgdata:
-              - path: /data
             app:
               - path: /data
-      pgdata:
-        existingClaim: apoci-pgdata
-        advancedMounts:
-          apoci:
-            init-pgdata:
-              - path: /var/lib/postgresql/data
-            postgres:
-              - path: /var/lib/postgresql/data
       config:
         type: configMap
         name: apoci-config

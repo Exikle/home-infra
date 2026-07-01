@@ -27,5 +27,5 @@ spec:
       namespace: kopiur-system
   postBuild:
     substitute:
-      APP: server-volume-victoria-metrics-server-0
+      KOPIUR_APP: server-volume-victoria-metrics-server-0
       KOPIUR_CAPACITY: 10Gi

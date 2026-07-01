@@ -3,7 +3,7 @@
 apiVersion: kopiur.home-operations.com/v1alpha1
 kind: SnapshotPolicy
 metadata:
-  name: ${APP}
+  name: ${KOPIUR_APP}
 spec:
   copyMethod: Snapshot
   volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=zfs-snapshotclass}
@@ -23,4 +23,4 @@ spec:
     keepHourly: 24
   sources:
     - pvc:
-        name: ${APP}
+        name: ${KOPIUR_APP}

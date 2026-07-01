@@ -28,5 +28,5 @@ spec:
     - ../../../../components/kopiur
   postBuild:
     substitute:
-      APP: gotosocial
+      KOPIUR_APP: gotosocial
       KOPIUR_CAPACITY: 10Gi

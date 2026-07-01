@@ -24,8 +24,12 @@ spec:
       namespace: kopiur-system
     - name: onepassword-connect
       namespace: external-secrets
+    - name: postgres-ca
+      namespace: cert-manager
   components:
     - ../../../../components/kopiur
+    - ../../../../components/postgres/cert
   postBuild:
     substitute:
-      APP: apoci-data
+      APP: apoci
+      KOPIUR_APP: apoci-data
