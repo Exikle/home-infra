@@ -7,6 +7,6 @@ metadata:
 spec:
   cluster:
     name: postgres
-  extensions: ${EXTENSIONS:=${emptyArray}}
+  extensions: ${DATABASE_EXTENSIONS:=[]}
   name: ${APP}
   owner: ${OWNER}
