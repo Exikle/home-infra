@@ -59,7 +59,7 @@ Show the fetched YAML and note the source URL. Identify the key patterns:
 - **Persistence**: mount paths and PVC usage
 - **Secrets**: what env vars are sourced from secrets
 - **Security context**: `runAsUser`, `readOnlyRootFilesystem`, etc.
-- **Database/cache dependencies**: flag any `dependsOn: dragonfly-cluster` or `dependsOn: mariadb` — these require adaptation to the silo pattern (see below)
+- **Database/cache dependencies**: flag any `dependsOn: dragonfly-cluster`, `dependsOn: mariadb`, or `dependsOn: postgres` — these require adaptation to the shared-DB pattern (see below)
 
 Adapt to Frostlink conventions:
 
@@ -69,7 +69,7 @@ Adapt to Frostlink conventions:
 | Any `TZ:` env var                           | Remove — k8tz handles timezone cluster-wide                                           |
 | `secretRef` / `envFrom`                     | `ExternalSecret` via `onepassword-connect` ClusterSecretStore                         |
 | `Ingress`                                   | `HTTPRoute` inline in helmrelease values via `internal-gateway` or `external-gateway` |
-| `dependsOn: mariadb` or `dragonfly-cluster` | Silo pattern: SQLite if supported, else app-specific CNPG postgres or sidecar Redis   |
+| `dependsOn: mariadb`, `postgres`, or `dragonfly-cluster` | Shared `postgres/cert` component (Postgres) or the shared Dragonfly instance (cache/queue) — see `.agents/instructions/cluster-conventions.md` "Database & Cache" |
 | Block storage class                         | `local-path` (no Rook-Ceph on Frostlink)                                              |
 | Any namespace                               | Match user's target namespace for this cluster                                        |
 

@@ -46,7 +46,7 @@ Invoke the `kubesearch` skill for the app name. Use the top result to fill in th
 | App-specific env vars  | `containers.app.env` in helmrelease          |
 | Secret env var names   | `externalsecret.yaml` template fields        |
 
-Adapt any patterns from the reference to Frostlink conventions as documented in the kubesearch skill (remove TZ, replace HelmRepository with OCIRepository, replace Ingress with HTTPRoute, flag any shared Dragonfly/MariaDB deps, replace any block storage class with `local-path`).
+Adapt any patterns from the reference to Frostlink conventions as documented in the kubesearch skill (remove TZ, replace HelmRepository with OCIRepository, replace Ingress with HTTPRoute, replace any block storage class with `local-path`). If the reference uses its own Postgres or Redis/Valkey, replace it with the shared `postgres/cert` component and the shared Dragonfly instance — see `.agents/instructions/cluster-conventions.md` "Database & Cache".
 
 If kubesearch returns no results, fall back to the GitHub search in the kubesearch skill and proceed with what you find.
 

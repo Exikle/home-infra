@@ -37,6 +37,28 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 - Primary storage class: `local-path`
 - PVC: `existingClaim: <app>` when using VolSync component (if/when added)
 
+## Database & Cache
+
+Reversed 2026-07-01: apps no longer default to SQLite or an app-specific/sidecar database.
+Frostlink runs one shared CNPG Postgres cluster and one shared Dragonfly instance; apps attach
+to them instead of provisioning their own.
+
+- **Postgres**: shared `Cluster/postgres` + `Pooler/pooler-rw` in the `database` namespace
+  (CNPG, `cnpg-system` namespace). No app runs its own sidecar `postgres:` container or an
+  app-specific CNPG `Cluster` anymore.
+- **Onboarding a new app**: add the `kubernetes/components/postgres/cert` Flux Component to the
+  app's `ks.yaml` (`dependsOn: postgres-ca` in `cert-manager`). It provisions a `Database` CR
+  (via a nested `${APP}-db` Kustomization), a client `Certificate` (CN = app name, issued by
+  `postgres-client-ca`), and a `ConfigMap` with the full mTLS connection string — apps read the
+  DSN from that ConfigMap, never a literal Secret (auth is cert-based, there's no password).
+  `ksgate` (`kube-system` namespace) gates the app pod until the `Database` CR is Ready.
+- **Never connect directly to the `Cluster`** — always go through `pooler-rw.database.svc:5432`.
+- **Cache/queue**: shared `Dragonfly` CR in the `database` namespace (`dragonfly-operator`,
+  `dragonfly-system` namespace). No app runs its own sidecar Redis/Valkey.
+- **Backups**: the shared Postgres cluster backs up via the `barman-cloud` CNPG plugin to
+  `s3://frostlink-kopiur/barman/` — same R2 bucket Kopiur uses for PVC snapshots, isolated by
+  the `barman/` prefix (Kopia writes to the bucket root with no prefix, so there's no collision).
+
 ## Single-Node Notes
 
 - `allowSchedulingOnControlPlanes: true` — set in `talos/patches/controlplane.yaml`
@@ -60,3 +82,5 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 | Cluster traffic          | `<app>.<ns>.svc.cluster.local`   | external hostname                       |
 | OCIRepository scope      | one per app                      | shared across apps                      |
 | Storage class            | `local-path`                     | `ceph-block`, `standard`                |
+| App database             | shared `postgres/cert` component | sidecar postgres, SQLite, app-specific CNPG |
+| App cache/queue          | shared Dragonfly (`database` ns) | sidecar Redis/Valkey                    |
