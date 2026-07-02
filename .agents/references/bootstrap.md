@@ -23,44 +23,11 @@ Apply with: `KUBECONFIG=/path/to/kubeconfig just bootstrap base`
 
 ## Cilium / CoreDNS / cert-manager — Install Directly
 
-These three are NOT in `bootstrap/helmfile.d/01-apps.yaml`. Install them manually before running helmfile:
+These three are NOT in `bootstrap/helmfile.d/01-apps.yaml`. `just bootstrap cni` (wired into `phase2` between `base` and `apps`) installs all three directly via `helm upgrade --install`, one per iteration, reading `chart`/`version` from each app's `ocirepository.yaml` and `values` from its `helmrelease.yaml` — so the bootstrap-time install always matches whatever is currently checked in, with nothing hardcoded to go stale.
 
-**Why**: Talos pre-installs Cilium and CoreDNS using field manager `helm-controller`. Helmfile v4 also uses `helm-controller`. Applying both results in SSA ownership conflicts. cert-manager's `startupapicheck` Job also conflicts. Install all three with direct `helm install` calls instead.
+**Why not helmfile**: Talos pre-installs Cilium and CoreDNS using field manager `helm-controller`. Helmfile v4 also uses `helm-controller`. Applying both results in SSA ownership conflicts. cert-manager's `startupapicheck` Job also conflicts. Install all three with direct `helm` CLI calls instead — its default field manager (`helm`) avoids the collision.
 
-**Important**: `cluster.network.cni.name: none` must be in `talos/patches/controlplane.yaml` before bootstrap. Without it, Talos injects a flannel DaemonSet (owned by `talos-bootstrap-manifests-inventory`) that coexists with Cilium and wastes resources. It will not be removed automatically — you must delete it manually and patch the config.
-
-**Cilium** — must set `sysctlfix.enabled: false` (Talos has no `/etc/sysctl.d/`):
-
-```bash
-helm install cilium cilium/cilium --namespace kube-system --version 1.17.4 \
-  --set sysctlfix.enabled=false \
-  --set cgroup.autoMount.enabled=false \
-  --set cgroup.hostRoot=/sys/fs/cgroup \
-  --set k8sServiceHost=127.0.0.1 \
-  --set k8sServicePort=7445 \
-  --set kubeProxyReplacement=true \
-  --set operator.replicas=1
-```
-
-**CoreDNS** — must forward to `169.254.169.254` (not `/etc/resolv.conf`):
-
-```bash
-helm install coredns coredns/coredns --namespace kube-system \
-  --set fullnameOverride=coredns \
-  --set k8sAppLabelOverride=kube-dns \
-  --set "service.clusterIP=10.96.0.10" \
-  --set "service.name=kube-dns"
-# then apply helmrelease values via --values file with forward . 169.254.169.254
-```
-
-**cert-manager**:
-
-```bash
-helm install cert-manager oci://quay.io/jetstack/charts/cert-manager \
-  --namespace cert-manager --create-namespace \
-  --version v1.20.2 --set crds.enabled=true \
-  --timeout 5m --wait
-```
+**Important**: `cluster.network.cni.name: none`, `cluster.coreDNS.disabled: true`, and `machine.kubelet.disableManifestsDirectory: true` are all set in `talos/patches/controlplane.yaml`. Together these stop Talos from ever applying its own CNI/CoreDNS/flannel bootstrap manifests, so there's nothing to clean up manually before Cilium and CoreDNS take over.
 
 ## OCI DNS — CoreDNS Forward Target
 

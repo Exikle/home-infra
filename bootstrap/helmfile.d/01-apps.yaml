@@ -1,10 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
 
-repositories:
-  - name: cilium
-    url: https://helm.cilium.io
-
 helmDefaults:
   cleanupOnFail: true
   wait: true

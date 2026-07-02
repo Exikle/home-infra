@@ -22,7 +22,7 @@ phase1: config apply
 # Phase 2: bootstrap Kubernetes, fetch kubeconfig, install base apps via Tailscale IP.
 [confirm('Bootstrap Frostlink — Phase 2 (k8s + helmfile)? [y|N]')]
 [doc('Bootstrap Kubernetes and install base apps (requires FROSTLINK_NODE_IP = Tailscale IP)')]
-phase2: k8s kubeconfig base apps
+phase2: k8s kubeconfig base cni apps
 
 [private]
 [script]
@@ -106,6 +106,31 @@ base:
         kubectl apply --server-side --field-manager bootstrap --force-conflicts -f -; then
         just log fatal "Failed to apply CRDs" "stage" "$(basename "$0")"
     fi
+
+[private]
+[script]
+cni:
+    just log info "Installing Cilium, CoreDNS, and cert-manager directly via helm (avoids SSA field-manager conflicts with helm-controller)..." "stage" "$(basename "$0")"
+
+    for app in kube-system/cilium kube-system/coredns cert-manager/cert-manager; do
+        ns="${app%%/*}"
+        name="${app##*/}"
+        ocirepo="{{ source_dir() }}/../kubernetes/apps/${app}/app/ocirepository.yaml"
+        helmrelease="{{ source_dir() }}/../kubernetes/apps/${app}/app/helmrelease.yaml"
+
+        chart="$(yq '.spec.url' "$ocirepo")"
+        version="$(yq '.spec.ref.tag' "$ocirepo")"
+
+        just log info "Installing ${name}..." "stage" "$(basename "$0")" "version" "$version"
+        if ! yq '.spec.values' "$helmrelease" | \
+            helm upgrade --install "$name" "$chart" \
+                --version "$version" \
+                --namespace "$ns" \
+                --create-namespace \
+                --values -; then
+            just log fatal "Failed to install $name" "stage" "$(basename "$0")"
+        fi
+    done
 
 [private]
 [script]

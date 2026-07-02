@@ -14,5 +14,9 @@ releases:
 
   - name: envoy-gateway
     namespace: network
+    # Pulled via mirror.gcr.io (not docker.io, unlike the live app's OCIRepository) to
+    # avoid Docker Hub anonymous pull-rate-limits during bootstrap, before any registry
+    # mirror/cache exists on the cluster. Keep the version in sync with
+    # kubernetes/apps/network/envoy-gateway/app/ocirepository.yaml.
     chart: oci://mirror.gcr.io/envoyproxy/gateway-helm
     version: 1.8.2
