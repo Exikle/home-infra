@@ -50,3 +50,8 @@ spec:
             {{- $body = printf "%s\n<b>%s:</b> %s" $body $k $v -}}
             {{- end -}}
             token={{ env "PUSHOVER_TOKEN" | urlquery }}&user={{ env "PUSHOVER_USER_KEY" | urlquery }}&html=1&priority={{ ternary "1" "0" (eq .payload.status "firing") }}&sound=gamelan&title={{ $title | urlquery }}&message={{ $body | urlquery }}&url={{ .payload.externalURL | urlquery }}&url_title=View+in+Alertmanager
+        apoci:
+          target: pushover
+          message: |-
+            {{- $body := .payload.message | replace "\n" "<br>" -}}
+            token={{ env "PUSHOVER_TOKEN" | urlquery }}&user={{ env "PUSHOVER_USER_KEY" | urlquery }}&html=1&priority=0&sound=cosmic&title={{ "[apoci]" | urlquery }}&message={{ $body | urlquery }}&url=https://registry.frostlink.dev&url_title=Open+apoci
