@@ -85,9 +85,7 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
-            url: "http://alertmanager.observability.svc.cluster.local:9093/-/healthy"
-            conditions:
-              - "[STATUS] == 200"
+            conditions: ["[STATUS] == 200"]
         hostnames:
           - alertmanager.frostlink.dev
         parentRefs:
