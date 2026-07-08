@@ -7,5 +7,5 @@ metadata:
 spec:
   interval: 1h
   ref:
-    tag: 0.65.1
+    tag: 0.66.0
   url: oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-operator
