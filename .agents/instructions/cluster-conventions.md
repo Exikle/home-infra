@@ -52,6 +52,10 @@ to them instead of provisioning their own.
   `postgres-client-ca`), and a `ConfigMap` with the full mTLS connection string — apps read the
   DSN from that ConfigMap, never a literal Secret (auth is cert-based, there's no password).
   `ksgate` (`kube-system` namespace) gates the app pod until the `Database` CR is Ready.
+  **Also add the app's role** (`name: <app>`, `login: true`, `disablePassword: true`) to
+  `spec.managed.roles` in `kubernetes/apps/database/postgres/cluster/cluster.yaml` — the
+  `Database` CR only runs `CREATE DATABASE ... OWNER <app>`, it does not create the role itself.
+  Skipping this fails with `role "<app>" does not exist (SQLSTATE 42704)`.
 - **Never connect directly to the `Cluster`** — always go through `pooler-rw.database.svc:5432`.
 - **Cache/queue**: shared `Dragonfly` CR in the `database` namespace (`dragonfly-operator`,
   `dragonfly-system` namespace). No app runs its own sidecar Redis/Valkey.

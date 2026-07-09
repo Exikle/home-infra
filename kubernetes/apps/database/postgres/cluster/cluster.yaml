@@ -24,6 +24,16 @@ spec:
         login: true
         superuser: false
         disablePassword: true
+      - name: mautrix-signal
+        ensure: present
+        login: true
+        superuser: false
+        disablePassword: true
+      - name: mautrix-whatsapp
+        ensure: present
+        login: true
+        superuser: false
+        disablePassword: true
       - name: pooler-rw
         ensure: present
         login: true
