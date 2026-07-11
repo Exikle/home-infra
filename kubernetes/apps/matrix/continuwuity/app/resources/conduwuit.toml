@@ -29,6 +29,14 @@ require_auth_for_profile_requests = true
 registration_token = "{{ .registration_token }}"
 emergency_password = "{{ .emergency_password }}"
 
+[global.oauth]
+compatibility_mode = "exclusive"
+
+[global.oauth.oidc]
+discovery_url = "https://auth.dcunha.io"
+client_id = "{{ .oidc_client_id }}"
+client_secret = "{{ .oidc_client_secret }}"
+
 [global.well_known]
 client = "https://matrix.frostlink.dev"
 server = "matrix.frostlink.dev:443"
