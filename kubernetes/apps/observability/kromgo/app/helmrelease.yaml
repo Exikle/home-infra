@@ -26,9 +26,8 @@ spec:
               repository: ghcr.io/home-operations/kromgo
               tag: 0.15.0@sha256:f3c01a0624c95db0f50a65ef901661774da5d2922a3187a2741e7149dee45f2a
             env:
-              PROMETHEUS_URL: http://prometheus-operated.observability.svc.cluster.local:9090
-              SERVER_PORT: &port 8080
-              HEALTH_PORT: &healthPort 8888
+              KROMGO_PROMETHEUS_URL: http://prometheus-operated.observability.svc.cluster.local:9090
+              KROMGO_SERVER_PORT: &port 8080
             probes:
               liveness: &probes
                 enabled: true
@@ -36,7 +35,7 @@ spec:
                 spec:
                   httpGet:
                     path: /readyz
-                    port: *healthPort
+                    port: *port
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
@@ -62,7 +61,7 @@ spec:
       app:
         annotations:
           gatus.home-operations.com/endpoint: |-
-            url: "http://kromgo.observability.svc.cluster.local:8888/readyz"
+            url: "http://kromgo.observability.svc.cluster.local:8080/readyz"
             conditions: ["[STATUS] == 200"]
             client:
               dns-resolver: ""
@@ -81,5 +80,3 @@ spec:
         ports:
           http:
             port: *port
-          health:
-            port: *healthPort
