@@ -33,3 +33,4 @@ spec:
     substitute:
       APP: apoci
       KOPIUR_APP: apoci-data
+      KOPIUR_CAPACITY: 20Gi
