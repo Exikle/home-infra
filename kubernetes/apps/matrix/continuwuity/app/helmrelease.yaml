@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: forgejo.ellis.link/continuwuation/continuwuity
-              tag: v26.6.1@sha256:151e44f6d6bdf007d5b3f4457fa2659ff8efc268be31a3857605553d7dcce7d0
+              tag: v26.6.2@sha256:1075385d4e14eca24897177d9fb03b39b6c2821f94bfc94af0d84c3e0bd3fcfc
             env:
               CONDUWUIT_CONFIG: /etc/conduwuit/conduwuit.toml
             probes:
