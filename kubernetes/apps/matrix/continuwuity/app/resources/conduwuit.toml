@@ -33,7 +33,7 @@ emergency_password = "{{ .emergency_password }}"
 compatibility_mode = "exclusive"
 
 [global.oauth.oidc]
-discovery_url = "https://auth.dcunha.io"
+discovery_url = "https://id.dcunha.io"
 client_id = "{{ .oidc_client_id }}"
 client_secret = "{{ .oidc_client_secret }}"
 
