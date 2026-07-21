@@ -31,12 +31,26 @@ data:
       group_interval: 5m
       repeat_interval: 12h
       routes:
-        - receiver: pushover
+        - receiver: chaski-critical
           matchers:
-            - severity =~ "warning|critical"
+            - severity = critical
+        - receiver: chaski-warning
+          matchers:
+            - severity = warning
+        - receiver: chaski-info
+          matchers:
+            - severity = info
     receivers:
       - name: blackhole
-      - name: pushover
+      - name: chaski-critical
         webhook_configs:
-          - url: http://chaski.observability.svc.cluster.local:8080/hooks/alertmanager
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/critical
+            send_resolved: true
+      - name: chaski-warning
+        webhook_configs:
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/warning
+            send_resolved: true
+      - name: chaski-info
+        webhook_configs:
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/info
             send_resolved: true

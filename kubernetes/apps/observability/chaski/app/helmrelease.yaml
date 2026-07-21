@@ -34,24 +34,46 @@ spec:
     config:
       targets:
         pushover:
-          http:
-            url: https://api.pushover.net/1/messages.json
-            method: POST
-            headers:
-              Content-Type: application/x-www-form-urlencoded
+          apprise:
+            url: 'pover://{{ env "PUSHOVER_USER_KEY" }}@{{ env "PUSHOVER_TOKEN" }}'
+      templates:
+        alert-title: '{{ .payload.commonLabels.alertname }} — {{ .payload.status | toUpper }}{{ if eq .payload.status "firing" }} ({{ len .payload.alerts }}){{ end }}'
+        alert-body: |-
+          {{- range .payload.alerts }}
+          <b>{{ .labels.alertname }}</b>{{ if .labels.namespace }} <small>({{ .labels.namespace }})</small>{{ end }}
+          {{ coalesce .annotations.description .annotations.summary .annotations.message "No description available" | trunc 200 }}
+          {{ end -}}
+        route-title: '{{ if .payload.alerts }}{{ template "alert-title" . }}{{ else }}{{ .payload.title | default (toTitleCase .route) }}{{ end }}'
+        route-message: '{{ if .payload.alerts }}{{ template "alert-body" . }}{{ else }}{{ .payload.message }}{{ end }}'
+        route-url: '{{ if .payload.alerts }}{{ .payload.externalURL | default "" }}{{ else }}{{ .payload.url | default "" }}{{ end }}'
       routes:
-        alertmanager:
+        critical:
           target: pushover
-          message: |-
-            {{- $title := printf "[%s%s] %s" (.payload.status | toUpper) (ternary (printf ":%d" (len .payload.alerts)) "" (eq .payload.status "firing")) .payload.commonLabels.alertname -}}
-            {{- $desc := coalesce .payload.commonAnnotations.description .payload.commonAnnotations.summary .payload.commonAnnotations.message "No description available" -}}
-            {{- $body := $desc -}}
-            {{- range $k, $v := .payload.commonLabels -}}
-            {{- $body = printf "%s\n<b>%s:</b> %s" $body $k $v -}}
-            {{- end -}}
-            token={{ env "PUSHOVER_TOKEN" | urlquery }}&user={{ env "PUSHOVER_USER_KEY" | urlquery }}&html=1&priority={{ ternary "1" "0" (eq .payload.status "firing") }}&sound=gamelan&title={{ $title | urlquery }}&message={{ $body | urlquery }}&url={{ .payload.externalURL | urlquery }}&url_title=View+in+Alertmanager
-        apoci:
+          title: '{{ template "route-title" . }}'
+          message: '{{ template "route-message" . }}'
+          params:
+            format: html
+            priority: high
+            sound: alien
+            url: '{{ template "route-url" . }}'
+            url_title: View-Details
+        warning:
           target: pushover
-          message: |-
-            {{- $body := .payload.message | replace "\n" "<br>" -}}
-            token={{ env "PUSHOVER_TOKEN" | urlquery }}&user={{ env "PUSHOVER_USER_KEY" | urlquery }}&html=1&priority=0&sound=cosmic&title={{ "[apoci]" | urlquery }}&message={{ $body | urlquery }}&url=https://registry.frostlink.dev&url_title=Open+apoci
+          title: '{{ template "route-title" . }}'
+          message: '{{ template "route-message" . }}'
+          params:
+            format: html
+            priority: normal
+            sound: gamelan
+            url: '{{ template "route-url" . }}'
+            url_title: View-Details
+        info:
+          target: pushover
+          title: '{{ template "route-title" . }}'
+          message: '{{ template "route-message" . }}'
+          params:
+            format: html
+            priority: low
+            sound: pushover
+            url: '{{ template "route-url" . }}'
+            url_title: View-Details
