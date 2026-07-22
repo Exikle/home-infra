@@ -19,4 +19,4 @@ releases:
     # mirror/cache exists on the cluster. Keep the version in sync with
     # kubernetes/apps/network/envoy-gateway/app/ocirepository.yaml.
     chart: oci://mirror.gcr.io/envoyproxy/gateway-helm
-    version: 1.8.2
+    version: 1.8.3
