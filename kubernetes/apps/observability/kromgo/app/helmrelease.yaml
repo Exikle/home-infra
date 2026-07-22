@@ -26,7 +26,7 @@ spec:
               repository: ghcr.io/home-operations/kromgo
               tag: 0.15.1@sha256:45be63a0bd3d8e2bd6109a914ab7b7f2dd796b4e5ad82ec3e218e4f49524b906
             env:
-              KROMGO_PROMETHEUS_URL: http://prometheus-operated.observability.svc.cluster.local:9090
+              KROMGO_PROMETHEUS_URL: http://victoria-metrics-server.observability.svc.cluster.local:8428
               KROMGO_SERVER_PORT: &port 8080
             probes:
               liveness: &probes

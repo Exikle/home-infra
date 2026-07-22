@@ -37,6 +37,9 @@ spec:
         - name: external-gateway
           namespace: network
           sectionName: https
+    monitoring:
+      serviceMonitor:
+        enabled: true
     persistence:
       enabled: true
       accessMode: ReadWriteOnce
