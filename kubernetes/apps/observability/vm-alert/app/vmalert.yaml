@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/operator.victoriametrics.com/vmalert_v1beta1.json
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlert
+metadata:
+  name: vmalert
+spec:
+  # selectAllByDefault picks up every VMRule in the cluster, including the ones
+  # vm-operator converts from chart-shipped PrometheusRules (e.g. kopiur).
+  selectAllByDefault: true
+  evaluationInterval: 1m
+  datasource:
+    url: http://victoria-metrics-server.observability.svc.cluster.local:8428
+  notifiers:
+    - url: http://alertmanager.observability.svc.cluster.local:9093
+  extraArgs:
+    loggerFormat: json
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
