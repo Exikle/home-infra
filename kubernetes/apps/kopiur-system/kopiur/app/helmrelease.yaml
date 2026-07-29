@@ -13,13 +13,23 @@ spec:
     features:
       credentialProjection:
         enabled: true
-    installScope: cluster
+    monitoring:
+      prometheusRule:
+        enabled: true
+        # Backups run hourly, so the 48h chart default is far too loose.
+        backupStaleAfterSeconds: 21600 # 6h
+      serviceMonitor:
+        enabled: true
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 1000
       runAsGroup: 1000
       fsGroup: 1000
       fsGroupChangePolicy: OnRootMismatch
+    rbac:
+      # ClusterRole for the `kubectl kopiur ls/cat/download/browse` data-plane.
+      # Grants no access to Secrets; bind it separately.
+      browseRole: true
     webhook:
-      tls:
-        mode: self
+      serviceMonitor:
+        enabled: true

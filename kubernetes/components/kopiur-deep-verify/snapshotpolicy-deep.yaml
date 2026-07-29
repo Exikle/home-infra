@@ -1,0 +1,18 @@
+---
+# Layered on top of the ./kopiur component. Adds the monthly scratch-restore
+# test — deep verify IS a restore under the hood, so it is the only check that
+# proves the data comes back, and the only one that costs real CPU and disk.
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: ${KOPIUR_APP}
+spec:
+  verification:
+    deep:
+      # Scratch PVC must be big enough to hold a full restore of the source.
+      capacity: ${KOPIUR_DEEP_VERIFY_CAPACITY:=5Gi}
+      storageClassName: ${KOPIUR_STORAGECLASS:=openebs-zfs}
+      # Timezone inherits from the ClusterRepository scheduleDefaults.
+      schedule:
+        cron: H 5 1 * *
+        jitter: 1h

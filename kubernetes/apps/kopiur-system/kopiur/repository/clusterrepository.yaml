@@ -20,11 +20,21 @@ spec:
     enabled: true
   credentialProjection:
     allowed: true
+  deletionProtection:
+    # Hold external destructive Snapshot deletions once this many pile up, until
+    # acknowledged with the kopiur.home-operations.com/allow-mass-deletion
+    # annotation. Matches the CRD default; pinned here so it stays visible.
+    threshold: 10
   encryption:
     passwordSecretRef:
       key: KOPIA_PASSWORD
       name: kopiur-r2-secret
       namespace: kopiur-system
+  health:
+    probe:
+      # Periodically re-connect to R2 so a wiped or unreachable bucket surfaces
+      # on its own instead of at restore time. Off by default.
+      enabled: true
   identityDefaults:
     hostnameExpr: namespace
     usernameExpr: namespace + '-' + policyName
@@ -39,3 +49,7 @@ spec:
       fsGroup: 1000
       fsGroupChangePolicy: OnRootMismatch
     ttlSecondsAfterFinished: 300
+  scheduleDefaults:
+    # Inherited by verification, replication and maintenance crons only —
+    # SnapshotSchedule sets its own timezone.
+    timezone: America/Toronto

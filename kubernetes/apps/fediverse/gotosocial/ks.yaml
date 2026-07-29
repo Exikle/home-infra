@@ -28,9 +28,11 @@ spec:
       namespace: cert-manager
   components:
     - ../../../../components/kopiur
+    - ../../../../components/kopiur-deep-verify
     - ../../../../components/postgres/cert
   postBuild:
     substitute:
       APP: gotosocial
       KOPIUR_APP: gotosocial
       KOPIUR_CAPACITY: 10Gi
+      KOPIUR_DEEP_VERIFY_CAPACITY: 10Gi

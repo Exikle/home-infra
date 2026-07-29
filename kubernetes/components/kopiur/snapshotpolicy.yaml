@@ -5,8 +5,25 @@ kind: SnapshotPolicy
 metadata:
   name: ${KOPIUR_APP}
 spec:
+  compression:
+    compressor: zstd
+    neverCompress:
+      - "*.7z"
+      - "*.avif"
+      - "*.bz2"
+      - "*.gif"
+      - "*.gz"
+      - "*.jpeg"
+      - "*.jpg"
+      - "*.mkv"
+      - "*.mp3"
+      - "*.mp4"
+      - "*.png"
+      - "*.webm"
+      - "*.webp"
+      - "*.xz"
+      - "*.zst"
   copyMethod: Snapshot
-  volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=zfs-snapshotclass}
   credentialProjection:
     enabled: true
   mover:
@@ -15,12 +32,33 @@ spec:
       storageClassName: ${KOPIUR_STORAGECLASS:=openebs-zfs}
     inheritSecurityContextFrom:
       pvcConsumer: {}
+  preflight:
+    checks:
+      # Gates only when the health probe has positively observed the backend as
+      # gone or unreachable. `backendReachable` is true when the probe is
+      # disabled or has no evidence, so this fails open on no signal.
+      - name: backend-reachable
+        expr: repository.backendReachable
+        message: R2 backend is unreachable; holding the backup rather than spawning a mover that cannot connect.
+    # Generous enough that a transient R2 blip does not mark backups Failed.
+    timeout: 30m
   repository:
     kind: ClusterRepository
     name: r2
   retention:
-    keepDaily: 7
+    keepLatest: 3
     keepHourly: 24
+    keepDaily: 7
+    keepWeekly: 4
+    keepMonthly: 3
   sources:
     - pvc:
         name: ${KOPIUR_APP}
+  verification:
+    quick:
+      # Blob-level verify, weekly. Timezone inherits from the ClusterRepository
+      # scheduleDefaults (America/Toronto).
+      schedule:
+        cron: H 4 * * 0
+        jitter: 30m
+  volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=zfs-snapshotclass}
