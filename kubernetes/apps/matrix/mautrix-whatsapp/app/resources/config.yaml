@@ -119,6 +119,10 @@ encryption:
   default: true
   require: false
   appservice: false
+  # continuwuity runs delegated OIDC auth, which forces oauth compatibility_mode
+  # "exclusive" and 404s the legacy /_matrix/client/v3/login endpoint. MSC4190
+  # creates the bot device via PUT /devices/{id} with the as_token instead.
+  msc4190: true
   allow_key_sharing: true
   pickle_key: "{{ .PICKLE_KEY }}"
   verification_levels:
