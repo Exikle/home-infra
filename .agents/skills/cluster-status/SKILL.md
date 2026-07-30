@@ -1,3 +1,8 @@
+---
+name: cluster-status
+description: Take a fast read on overall cluster health — failing pods, unready Flux resources, node and storage state — and report what is actually broken. Use for "cluster status", "what's broken", "health check", "anything down", or "quick status". Scoped to the Frostlink cluster.
+---
+
 # Skill: Cluster Status
 
 Quick read-only health digest of Frostlink. Produces a 🟢/🟡/🔴 summary per layer.
@@ -22,7 +27,7 @@ kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' |
 flux get all -A | grep -i suspend
 ```
 
-Use `mcp__artemis-ops__mcp-k8s_*` tools if local kubectl is unavailable (switch kubeconfig context to `frostlink` first).
+Use the `-ops` tier k8s tools if local kubectl is unavailable (switch kubeconfig context to `frostlink` first).
 
 ## Output Format
 

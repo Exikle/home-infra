@@ -1,3 +1,8 @@
+---
+name: watch-deploys
+description: Watch an in-flight deployment or Flux reconciliation until it settles or fails, reporting state transitions as they happen. Use for "watch the deploy", "monitor the rollout", "keep an eye on flux", or when a change was just pushed and its landing needs following. Scoped to the Frostlink cluster.
+---
+
 # Skill: Watch Deploys
 
 Delta-aware cluster state watcher. Use with `/loop 30s /watch-deploys` during active deployments.
@@ -22,7 +27,7 @@ kubectl get pods -A -o json
 kubectl get nodes -o json
 ```
 
-Use `mcp__artemis-ops__mcp-k8s_kubectl_get` with `output: json` if local kubectl is unavailable.
+Use the `-ops` tier `k8s_kubectl_get` tool with `output: json` if local kubectl is unavailable.
 
 ## Delta Logic
 

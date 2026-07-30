@@ -26,4 +26,4 @@ bootstrap/talosconfig
 
 # AI
 .claude/*
-!.claude/commands/
+!.claude/skills/

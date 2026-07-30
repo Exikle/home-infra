@@ -32,17 +32,28 @@ Talos v1.13.4 | Kubernetes v1.36.1 | `allowSchedulingOnControlPlanes: true`
 
 ### MCPs
 
-| MCP                                   | Capability                                                      |
-| ------------------------------------- | --------------------------------------------------------------- |
-| `mcp__artemis-ops__mcp-k8s_*`         | kubectl — pods, logs, exec, resources, events, scale            |
-| `mcp__artemis-ops__mcp-forgejo_*`     | Forgejo API — PRs, issues, files, repos, runners                |
-| `mcp__artemis-ops__mcp-github_*`      | GitHub API — code search, file fetch, repo operations           |
-| `mcp__artemis-general__mcp-searxng_*` | Web search + URL fetch (use instead of WebSearch)               |
-| `mcp__memini__*`                      | Cross-session semantic memory                                   |
-| `mcp__artemis-ops__mcp-ha_*`          | Home Assistant (Artemis) — available but not local to Frostlink |
-| `mcp__artemis-media__mcp-arr_*`       | Arr stack (Artemis) — available but not local to Frostlink      |
+Servers are registered in `.mcp.json` as three tiers — `litellm-general`, `litellm-media`,
+`litellm-ops`. Tool names are `mcp__<server>__<tool>`, but **the server prefix changes when
+the gateway is rewired**, so list the session's tools and match the suffix rather than
+trusting a name written here.
 
-> MCP kubeconfig default is `artemis` context — always specify `--context frostlink` or switch with `kubectx frostlink` before running cluster commands.
+| Tier      | Tool suffix   | Capability                                                 |
+| --------- | ------------- | ---------------------------------------------------------- |
+| `-ops`    | `k8s-*`       | kubectl — pods, logs, exec, resources, events, scale       |
+| `-ops`    | `forgejo-*`   | Forgejo API — PRs, issues, files, repos, runners           |
+| `-ops`    | `github-*`    | GitHub API — code search, file fetch, repo operations      |
+| `-ops`    | `ha-*`        | Home Assistant — Artemis-local, not Frostlink              |
+| `-general`| `searxng-*`   | Web search + URL fetch (use instead of WebSearch)          |
+| `-media`  | `arr-*`       | Arr stack — Artemis-local, not Frostlink                   |
+| plugin    | `memini`      | Cross-session semantic memory                              |
+
+> Local `kubectl` and `talosctl` are already scoped to this cluster — `.mise.toml` sets
+> `KUBECONFIG`/`TALOSCONFIG` to this repo's own files, so anything run from this directory
+> hits Frostlink. No `--context` flag needed.
+>
+> The **MCP** k8s tools are the exception: they execute server-side and cannot see this
+> repo's kubeconfig, so they act on whatever context the gateway holds (`artemis`). Prefer
+> local `kubectl` here, and treat an MCP k8s result as Artemis's state unless verified.
 
 ### just commands
 
@@ -54,7 +65,14 @@ just talos schematic-id                   # get current schematic ID from Sidero
 just talos upgrade <version>              # upgrade Talos (reboots single node)
 ```
 
-### Skills — invoke by natural language
+### Skills
+
+Runbooks live in `.agents/skills/`; `.claude/skills/<name>` symlinks to each one. Every
+`SKILL.md` carries `name:`/`description:` frontmatter — that is what lets a skill be invoked
+automatically instead of only when its name is typed, so a skill added without it is
+invisible. See the global `add-agent-content` skill before adding one.
+
+Project skills (this cluster):
 
 | Say this...                                                      | Skill              |
 | ---------------------------------------------------------------- | ------------------ |
@@ -62,16 +80,14 @@ just talos upgrade <version>              # upgrade Talos (reboots single node)
 | "flux is broken", "HelmRelease stuck", "kustomization failing"   | `fix-flux`         |
 | "find examples for X", "how do others deploy X"                  | `kubesearch`       |
 | "review X deployment", "audit X manifests"                       | `review-app`       |
-| "create Forgejo repo", "set action secret", "check runner"       | `forgejo`          |
 | "cluster status", "what's broken", "health check"                | `cluster-status`   |
 | "watch the deploy", "monitor rollout", "loop watch"              | `watch-deploys`    |
-| "triage renovate PRs", "which updates are safe to merge"         | `triage-renovate`  |
 | "apply talos config", "upgrade talos node", "extension change"   | `talos-ops`        |
 | "validate manifests", "flate diff", "pre-commit check"           | `flux-validate`    |
 | "manage apoci federation", "webfinger", "federation peer"        | `apoci-federation` |
-| "add a new skill", "document this as a runbook"                  | `add-agent-content`|
-| "build a custom image", "no upstream image"                      | `build-container`  |
-| "automate browser", "playwright", "inspect UI calls"             | `playwright`       |
+
+Global skills in `~/.claude/skills/`, available here and in every other repo — not duplicated
+per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add-agent-content`.
 
 ---
 

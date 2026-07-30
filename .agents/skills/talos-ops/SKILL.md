@@ -1,3 +1,8 @@
+---
+name: talos-ops
+description: Perform Talos node operations — apply a config change, add or change a system extension, upgrade Talos or Kubernetes, reboot or reset a node. Use for "apply talos config", "upgrade talos node", "reboot node", "add a talos extension", or "node config change". Scoped to the Frostlink cluster.
+---
+
 # Skill: Talos Operations
 
 Node operations for Frostlink (single-node ARM64, Oracle Cloud, Talos Linux).

@@ -1,0 +1,6 @@
+*
+!skills/
+!skills/*
+!hooks/
+!hooks/*
+!settings.json
