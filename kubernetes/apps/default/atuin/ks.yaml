@@ -20,14 +20,10 @@ spec:
   dependsOn:
     - name: envoy-gateway
       namespace: network
-    - name: kopiur-repository
-      namespace: kopiur-system
+    - name: postgres-ca
+      namespace: cert-manager
   components:
-    - ../../../../components/kopiur
+    - ../../../../components/postgres/cert
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_APP: *app
-      # The history database is text-only and compresses well; 5Gi is the
-      # component default and is generous for a shell history.
-      KOPIUR_CAPACITY: 5Gi

@@ -19,6 +19,11 @@ spec:
         login: true
         superuser: false
         disablePassword: true
+      - name: atuin
+        ensure: present
+        login: true
+        superuser: false
+        disablePassword: true
       - name: gotosocial
         ensure: present
         login: true
