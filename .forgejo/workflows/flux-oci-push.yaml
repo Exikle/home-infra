@@ -15,8 +15,9 @@ concurrency:
   group: oci-push-${{ forgejo.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+# permissions: unsupported in Forgejo — grant via repo Settings → Actions → Authorized Integrations
+# permissions:
+#   contents: read
 
 env:
   FLUX_VERSION: 2.8.3
@@ -26,8 +27,8 @@ jobs:
   push:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: read
+    # permissions:
+    #   contents: read
     outputs:
       digest-url: ${{ steps.push.outputs.digest-url }}
     steps:
@@ -94,8 +95,8 @@ jobs:
   sign:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: read
+    # permissions:
+    #   contents: read
     needs: push
     steps:
       - name: Install Cosign
