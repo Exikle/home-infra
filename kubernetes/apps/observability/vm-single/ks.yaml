@@ -29,9 +29,6 @@ spec:
     substitute:
       KOPIUR_APP: server-volume-victoria-metrics-server-0
       KOPIUR_CAPACITY: 10Gi
-      # VictoriaMetrics' TSDB rewrites its parts continuously, so an hourly
-      # snapshot deduplicated poorly and dominated churn in the R2 repository.
-      # Metrics are the most reconstructible data here: daily, 7 deep is enough.
       KOPIUR_SCHEDULE: H 3 * * *
       KOPIUR_KEEP_LATEST: "1"
       KOPIUR_KEEP_HOURLY: "0"

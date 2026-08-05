@@ -16,14 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  # NOT `wait: true`. kopiur writes status.observedGeneration on a
-  # SnapshotSchedule at first reconcile and never again, so after the schedule
-  # spec is edited it sits at generation != observedGeneration permanently.
-  # kstatus reads that as InProgress and the health check hangs for the full
-  # timeout, every time, forever -- this ks flapped for 12 days on exactly that.
-  # healthCheckExprs does NOT help: the generation precondition is evaluated
-  # before the CEL expressions, so the stale field still wins (verified live).
-  # Gate on the HelmRelease instead, which is what "apoci is up" actually means.
   healthChecks:
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease

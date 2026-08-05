@@ -22,7 +22,4 @@ spec:
         key: SECRET_ACCESS_KEY
     wal:
       compression: zstd
-  # 14d of PITR is ample for a single-node homelab VPS and roughly halves both
-  # the barman/ footprint and its object count in R2 -- WAL segments dominate
-  # the bucket's object count even though they are a small share of its bytes.
   retentionPolicy: 14d

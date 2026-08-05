@@ -76,6 +76,37 @@ When a Kustomization deploys both a HelmRelease (which installs CRDs) and resour
 flux reconcile kustomization <name> -n <namespace>
 ```
 
+## kopiur CRs stall `wait: true` health checks
+
+kopiur writes `status.observedGeneration` on a `SnapshotSchedule` at its **first** reconcile and
+never again. Edit the schedule spec afterwards and the object sits at
+`generation != observedGeneration` permanently. kstatus reads that as `InProgress`, so a
+Kustomization with `wait: true` hangs on health checks for the full timeout — every cycle,
+indefinitely. `fediverse/apoci` flapped `DependencyNotReady` 58128 times over 12 days on exactly
+this, and while stuck on a stale revision it silently re-applied an old cron over a change.
+
+- **`healthCheckExprs` does not help.** The generation precondition is evaluated *before* the CEL
+  expressions, so the stale field still wins. Verified live, not assumed.
+- **Fix: drop `wait: true` and gate on the HelmRelease** via explicit `spec.healthChecks` — that
+  is what "the app is up" actually means. Applied to `fediverse/apoci`, `fediverse/gotosocial`
+  and `matrix/continuwuity`; the latter two carried the same latent fault and only escaped it
+  because their schedules had never been edited.
+- `SnapshotPolicy` tracks `observedGeneration` correctly. `Restore` does **not**, but the
+  component annotates it `kustomize.toolkit.fluxcd.io/ssa: ignore`, so Flux reports it `skipped`
+  and excludes it from health checks. Artemis-Cluster lacked that annotation and stalled
+  `arcade/eco` for 24 days the same way — keep it.
+- Diagnostic: `kubectl get snapshotschedule -A -o json` and compare
+  `.metadata.generation` against `.status.observedGeneration`.
+
+## ks.yaml changes cannot be tested locally
+
+`just kube apply-ks <ns> <ks>` renders and applies the app **path** — it does not touch the
+Kustomization CR itself. Patching the live CR does not work either: `frostlink-dev` reverts it
+within seconds, and suspending `frostlink-dev` does not help because flux-operator recreates it
+from the FluxInstance. **Pushing is the only way to test a ks.yaml change**, so budget for
+verifying after the push rather than before. Two test results were silently invalidated by this
+before it was noticed.
+
 ## Common Anti-Patterns
 
 - **Sharing OCIRepository**: every app needs its own — never reuse

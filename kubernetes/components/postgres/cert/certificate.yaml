@@ -11,11 +11,6 @@ spec:
     kind: ClusterIssuer
     name: postgres-client-ca
   privateKey:
-    # cert-manager emits PKCS#1 ("BEGIN RSA PRIVATE KEY") by default. Clients on
-    # a rustls TLS stack reject that outright -- atuin >= 18.19.0 crashloops with
-    # "expected PKCS#8 PEM" -- so those apps set POSTGRES_CERT_ENCODING: PKCS8.
-    # Kept at PKCS#1 by default: switching here reissues every client cert in the
-    # cluster at once, which is a far wider blast radius than the apps needing it.
     encoding: ${POSTGRES_CERT_ENCODING:=PKCS1}
   secretName: postgres-${APP}-cert
   usages:

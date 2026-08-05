@@ -74,3 +74,26 @@ apiVersion → kind → metadata → spec:
 - Never sort YAML within string values (e.g. config file contents inside ConfigMaps)
 - `enabled: true/false` is always the first field in any section
 - Alphabetical applies recursively at every nesting level unless a specific order is defined above
+
+## No Comments in Manifests
+
+**Manifests carry configuration, not prose.** Do not add explanatory comments to anything
+under `kubernetes/` — no rationale, no incident history, no "keep this ordered" warnings, no
+commented-out alternatives. Rationale belongs in `.agents/references/<topic>.md`, where it is
+searchable, reviewable, and does not have to be re-read on every manifest edit.
+
+Three exceptions, all machine-oriented:
+
+| Allowed                                          | Why                                        |
+| ------------------------------------------------ | ------------------------------------------ |
+| `# yaml-language-server: $schema=…`              | injected and maintained by the schema hook |
+| YAML anchor markers where the anchor is subtle   | reading aid for `&name` / `*name` pairs    |
+| Renovate directives (`# renovate: datasource=…`) | consumed by Renovate                       |
+
+When a value is non-obvious enough to feel like it needs a comment, that is the signal to
+write it up in the matching reference doc instead — then, if the constraint is genuinely
+dangerous to violate, the doc is what gets cited in review. Example: the kopiur R2 credential
+key is unrecoverable if repointed at the wrong 1Password item, and that warning lives in
+`.agents/references/storage.md` § kopiur, not in the ExternalSecret.
+
+Mirrors the identical rule in Artemis-Cluster — the two repos share this convention.

@@ -27,7 +27,4 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      # atuin 18.19.0 moved to a rustls-based TLS stack that only accepts PKCS#8
-      # client keys; on cert-manager's default PKCS#1 it fails to connect to
-      # Postgres and crashloops, which is what stalled this HelmRelease.
       POSTGRES_CERT_ENCODING: PKCS8
