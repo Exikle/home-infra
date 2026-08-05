@@ -38,7 +38,4 @@ spec:
       APP: apoci
       KOPIUR_APP: apoci-data
       KOPIUR_CAPACITY: 20Gi
-      # Registry blobs are content-addressed and effectively immutable, so
-      # hourly snapshots bought almost nothing over 6-hourly. Retention is left
-      # at the component default, which still lands around 30 restore points.
       KOPIUR_SCHEDULE: H */6 * * *
