@@ -16,7 +16,15 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  wait: true
+  # See the note in fediverse/apoci: kopiur stops updating a SnapshotSchedule's
+  # observedGeneration after its first reconcile, which strands `wait: true`
+  # permanently the first time the schedule spec changes. Gate on the
+  # HelmRelease instead.
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: gotosocial
+      namespace: fediverse
   dependsOn:
     - name: envoy-gateway
       namespace: network
