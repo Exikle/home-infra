@@ -17,12 +17,23 @@ limits:
 gc:
   untaggedManifestAge: 1h
   orphanBatchSize: 10000
-  interval: 30m
+  # Upstream default is 6h. This ran at 30m and reclaimed nothing across every
+  # cycle -- 421 untagged versions total 704 kB, and no unpinned tag has yet
+  # aged past maxAge. All the sweep bought was DB churn every half hour on a
+  # 4-OCPU VPS, which kopiur then has to snapshot to R2.
+  interval: 6h
+  # Only schedules an extra GC cycle when the PVC crosses this; it does not
+  # delete anything a normal cycle would not.
   diskUsageThreshold: 80
   diskUsageCheckInterval: 5m
   retention:
     maxAge: 168h
     pinnedGlobs:
+      # `latest` is in upstream's default pinned set and was lost when these
+      # globs were overridden. Without it a `latest` tag is deleted once it is
+      # 168h old -- it matches neither v* nor *.*.* -- which on a federated
+      # registry silently drops the tag peers pull by default.
+      - "latest"
       - "v*"
       - "*.*.*"
 
