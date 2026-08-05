@@ -8,6 +8,6 @@ spec:
   policyRef:
     name: ${KOPIUR_APP}
   schedule:
-    cron: H * * * *
+    cron: ${KOPIUR_SCHEDULE:=H * * * *}
     jitter: 2m
     timezone: America/Toronto
