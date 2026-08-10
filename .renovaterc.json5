@@ -1,19 +1,63 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  // 6.0.0 made the apps/ presets opt-in — the root preset no longer pulls them in, so every
+  // app-specific manager/datasource this repo depends on has to be listed explicitly here.
+  // Dropping one is silent: the custom manager simply stops extracting and the dependency
+  // goes stale with no error. cnpg → Cluster.spec.imageName in database/postgres,
+  // phanpy → its `<calver>.<sha>` tags. grafanaDashboards, searxng, talosFactory and llamacpp
+  // are deliberately absent: no dashboards here (VictoriaMetrics only), no searxng, no llamacpp,
+  // and the Talos version is passed to `just talos upgrade <version>` by hand rather than pinned
+  // in any tracked YAML.
+  //
+  // Pinned to 7.0.0, which is the first release where these files are self-contained. Up to and
+  // including 6.0.0, default.json reached its content through nested
+  // `github>home-operations/renovate-presets//config/...` references that carried NO tag, and
+  // Renovate resolves an untagged nested preset against the preset repo's DEFAULT BRANCH, not the
+  // tag its parent was pinned at. So the pin was never real: when upstream deleted config/,
+  // managers/, overrides/ and policies/ from main (7.0.0, "consolidate the general-purpose presets
+  // into default.json"), this repo — still on 4.0.0 — started 404ing on the nested fetch and
+  // Renovate aborted in the init phase. No dependency updates landed after 2026-08-05. Before
+  // bumping this pin, check that the target tag's files still contain no self-references.
   extends: [
-    "github>home-operations/renovate-presets#4.0.0",
+    "github>home-operations/renovate-presets#7.0.0",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/phanpy.json5#7.0.0",
     ":semanticCommits",
     ":timezone(America/Toronto)",
   ],
-  dependencyDashboardTitle: "Renovate Dashboard 🤖",
   suppressNotifications: ["prEditedNotification", "prIgnoreNotification"],
+  // Renovate commits through the Forgejo API rather than local git, so the instance SSH key signs
+  // both the branch commits (automergeType "branch") and the squash merges (automergeType "pr").
+  // Artemis dropped platformCommit and went squash-only; here it is what keeps the two
+  // automergeType paths on the same signer, so do not remove one without the other.
   platformCommit: "enabled",
   schedule: ["at any time"],
   automergeSchedule: ["at any time"],
   automergeStrategy: "squash",
   ignorePaths: ["**/*.secret.*", "**/resources/**"],
+  // All six tools in .mise.toml are `latest`, so mise.lock is the only thing pinning them and
+  // nothing was refreshing it — flate, minijinja, oxfmt, shellcheck, yayamlls and zizmor are
+  // frozen at whatever resolved when the lock was last written, and the lock still carries a
+  // `github:home-operations/yamlls` entry for a tool that was renamed out of .mise.toml.
+  // Needs its own schedule: the top-level "at any time" would run this every pass.
+  //
+  // Renovate runs `mise lock --bump` for this, which needs the mise binary. It is deliberately
+  // NOT added to allowedUnsafeExecutions — mise >= 2026.7.12 gets safe mode (MISE_SAFE=1)
+  // instead, which resolves versions over HTTP without letting project config shell out. If the
+  // runner ever ships an older mise, Renovate logs a warning and skips; it does not half-write
+  // the lock. Left off automerge on purpose: these tools back the `just` recipes and the
+  // flux-oci-push CI workflow, so the monthly bump gets eyes on it.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["before 4am on the first day of the month"],
+  },
   packageRules: [
     {
+      // No factory.talos.dev image is tracked in this repo today — `just talos upgrade` takes the
+      // version as an argument and talos/schematic.yaml carries no tag — so apps/talosFactory.json5
+      // is not extended above. This stays as a guard: if an installer image ever lands in a
+      // manifest, the generic docker datasource cannot resolve factory.talos.dev and would report
+      // it as a lookup failure every run.
       description: "Disable broken docker lookups for Talos Image Factory",
       matchDatasources: ["docker"],
       matchPackageNames: ["/^factory\\.talos\\.dev/"],
@@ -37,17 +81,6 @@
       ignoreTests: false,
     },
     {
-      description: "Auto-merge OCI Charts",
-      matchDatasources: ["docker"],
-      automerge: true,
-      automergeType: "pr",
-      platformAutomerge: true,
-      matchUpdateTypes: ["minor", "patch"],
-      matchPackageNames: ["/kube-prometheus-stack/"],
-      schedule: ["before 6am on Monday"],
-      ignoreTests: false,
-    },
-    {
       description: "Auto-merge Forgejo Actions",
       matchManagers: ["github-actions"],
       automerge: true,
@@ -67,24 +100,6 @@
       ignoreTests: true,
     },
     {
-      description: "Auto-merge GitHub Releases",
-      matchDatasources: ["github-releases"],
-      automerge: true,
-      automergeType: "pr",
-      platformAutomerge: true,
-      matchUpdateTypes: ["minor", "patch"],
-      matchPackageNames: ["/external-dns/", "/gateway-api/", "/prometheus-operator/"],
-      ignoreTests: true,
-    },
-    {
-      description: "Auto-merge Grafana dashboards",
-      matchDatasources: ["custom.grafana-dashboards"],
-      matchUpdateTypes: ["major"],
-      automerge: true,
-      automergeType: "branch",
-      ignoreTests: true,
-    },
-    {
       description: "Auto-merge all patch updates",
       matchUpdateTypes: ["patch"],
       automerge: true,
@@ -93,8 +108,16 @@
       ignoreTests: false,
     },
     {
-      description: "Auto-merge all minor updates",
+      // The zer0ver policy (preset 5.0.0+) reclassifies 0.x minors as breaking: they get a
+      // `feat(scope)!:` prefix and land on a `major-` branch. That is presentation only —
+      // updateType stays "minor", so an unguarded rule here still automerges them, and the preset
+      // says as much: a guard shipped upstream would just be overridden by this rule, so it has to
+      // live here. Most of this cluster's control plane is 0.x — flux-operator, kopiur, ksgate,
+      // dragonfly-operator and both victoria-metrics charts — so without the guard a 0.x minor on
+      // any of them merges to production unattended.
+      description: "Auto-merge all minor updates, except breaking 0.x minors (zer0ver)",
       matchUpdateTypes: ["minor"],
+      matchCurrentVersion: "!/^v?0\\./",
       automerge: true,
       automergeType: "pr",
       platformAutomerge: true,
@@ -106,21 +129,6 @@
       groupName: "flux-operator",
       matchDatasources: ["docker"],
       matchPackageNames: ["/flux-operator/", "/flux-instance/"],
-      group: {
-        commitMessageTopic: "{{{groupName}}} group",
-      },
-      minimumGroupSize: 2,
-    },
-    {
-      description: "Kubernetes Group",
-      groupName: "kubernetes",
-      matchDatasources: ["docker"],
-      matchPackageNames: [
-        "/siderolabs\\/kubelet/",
-        "/kube-apiserver/",
-        "/kube-controller-manager/",
-        "/kube-scheduler/",
-      ],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
