@@ -1,0 +1,110 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Push OCI Artifact (Tekton)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - kubernetes/**
+      - .sourceignore
+  workflow_dispatch:
+
+concurrency:
+  group: oci-push-${{ forgejo.ref }}
+  cancel-in-progress: true
+
+# permissions: unsupported in Forgejo — grant via repo Settings → Actions → Authorized Integrations
+# permissions:
+#   contents: read
+
+jobs:
+  push:
+    name: Push Artifact
+    runs-on: tekton
+    timeout-minutes: 15
+    # permissions:
+    #   contents: read
+    steps:
+      - name: Setup Tekton Connection
+        uses: tekton/setup@v0
+        with:
+          secrets: |
+            - name: git-auth
+              type: kubernetes.io/basic-auth
+              stringData:
+                username: ${{ forgejo.actor }}
+                password: ${{ forgejo.token }}
+                .git-credentials: "https://${{ forgejo.actor }}:${{ forgejo.token }}@git.dcunha.io"
+                .gitconfig: |
+                  [credential]
+                          helper = store
+            - name: registry-auth
+              stringData:
+                ci-token: ${{ secrets.CI_TOKEN }}
+                registry-token: ${{ secrets.REGISTRY_TOKEN }}
+            - name: cosign-creds
+              stringData:
+                cosign.key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+                password: ${{ secrets.COSIGN_PASSWORD }}
+                webhook-token: ${{ secrets.FLUX_WEBHOOK_TOKEN }}
+                webhook-url: ${{ secrets.FLUX_WEBHOOK_URL }}
+            - name: docker-config
+              stringData:
+                config.json: |
+                  {"auths":{"git.dcunha.io":{"username":"exikle","password":"${{ secrets.CI_TOKEN }}"},"registry.frostlink.dev":{"username":"exikle","password":"${{ secrets.REGISTRY_TOKEN }}"}}}
+          volumes: |
+            - name: source
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 1Gi
+
+      - name: Run oci-push Pipeline
+        uses: tekton/pipeline@v0
+        with:
+          name: oci-push
+          # Per-Pipeline-task commit statuses are on by default; this Pipeline has
+          # 10 tasks. With enabled:false, `exclude` acts as an allowlist.
+          runner: |
+            commitStatuses:
+              enabled: false
+              exclude: '^(push-forgejo|push-registry|notify)$'
+          taskRunTemplate: |
+            podTemplate:
+              securityContext:
+                fsGroup: 65532
+                fsGroupChangePolicy: OnRootMismatch
+          params: |
+            - name: url
+              value: ${{ forgejo.event.repository.clone_url }}
+            - name: sha
+              value: ${{ forgejo.sha }}
+            - name: source-url
+              value: ${{ forgejo.server_url }}/${{ forgejo.repository }}
+            - name: revision
+              value: ${{ forgejo.ref_name }}@sha1:${{ forgejo.sha }}
+            - name: creds-secret
+              value: ${{ runner.setup.secrets['cosign-creds'] }}
+            - name: forgejo-oci-url
+              value: oci://git.dcunha.io/exikle/frostlink
+            - name: registry-oci-url
+              value: oci://registry.frostlink.dev/exikle/frostlink
+          workspaces: |
+            - name: source
+              persistentVolumeClaim:
+                claimName: ${{ runner.setup.volumes['source'] }}
+            - name: basic-auth
+              secret:
+                secretName: ${{ runner.setup.secrets['git-auth'] }}
+            - name: registry-auth
+              secret:
+                secretName: ${{ runner.setup.secrets['registry-auth'] }}
+            - name: cosign-creds
+              secret:
+                secretName: ${{ runner.setup.secrets['cosign-creds'] }}
+            - name: docker-config
+              secret:
+                secretName: ${{ runner.setup.secrets['docker-config'] }}
