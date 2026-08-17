@@ -31,11 +31,13 @@ spec:
     - name: postgres-ca
       namespace: cert-manager
   components:
+    - ../../../../components/anubis
     - ../../../../components/kopiur
     - ../../../../components/kopiur-deep-verify
     - ../../../../components/postgres/cert
   postBuild:
     substitute:
+      ANUBIS_TARGET: http://gotosocial.fediverse.svc.cluster.local:8080
       APP: gotosocial
       KOPIUR_APP: gotosocial
       KOPIUR_CAPACITY: 10Gi

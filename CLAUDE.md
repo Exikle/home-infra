@@ -103,6 +103,7 @@ per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add
 
 | File                          | Contents                                                      |
 | ----------------------------- | ------------------------------------------------------------- |
+| `references/anubis.md`        | Anubis PoW scraper deterrence — component, GoToSocial policy, caveats |
 | `references/flux-patterns.md` | Flux reconciliation, cross-namespace gotchas, CRD timing race |
 | `references/storage.md`       | openebs-zfs storage, zfs-snapshotclass, Kopiur backup component |
 | `references/networking.md`    | Gateways, OCI VCN rules, Cloudflare tunnel, Tailscale         |

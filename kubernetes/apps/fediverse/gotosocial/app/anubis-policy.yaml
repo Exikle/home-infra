@@ -1,0 +1,51 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/configmap_v1.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gotosocial-anubis-policy
+data:
+  policy.yaml: |-
+    bots:
+      - import: (data)/meta/default-config.yaml
+      - name: allow-activitypub-federation
+        action: ALLOW
+        expression:
+          any:
+            - '"Content-Type" in headers && headers["Content-Type"].contains("activity+json")'
+            - '"Content-Type" in headers && headers["Content-Type"].contains("ld+json")'
+            - '"Accept" in headers && headers["Accept"].contains("activity+json")'
+            - '"Accept" in headers && headers["Accept"].contains("ld+json")'
+      - name: allow-signed-requests
+        action: ALLOW
+        expression:
+          all:
+            - '"Signature" in headers'
+            - 'headers["Signature"].contains("keyId=")'
+      - name: allow-service-routes
+        action: ALLOW
+        expression:
+          any:
+            - path.startsWith("/api/")
+            - path.startsWith("/oauth/")
+            - path.startsWith("/auth/")
+            - path.startsWith("/check_your_input")
+            - path.startsWith("/fileserver/")
+            - path.startsWith("/nodeinfo/")
+            - path.startsWith("/users/")
+            - path.startsWith("/emoji/")
+            - path.startsWith("/assets/")
+            - path.startsWith("/settings")
+            - path.startsWith("/signup")
+            - path.startsWith("/authorize_interaction")
+            - path == "/inbox"
+            - path == "/custom_css"
+      - name: allow-gatus-monitoring
+        action: ALLOW
+        expression: 'userAgent.startsWith("Gatus/")'
+      - name: catch-all
+        action: CHALLENGE
+        path_regex: .*
+        challenge:
+          algorithm: fast
+          difficulty: 4

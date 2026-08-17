@@ -76,8 +76,6 @@ spec:
 
     route:
       app:
-        annotations:
-          fingerjoin.naktis.eu/webfinger: "true"
         hostnames:
           - social.frostlink.dev
         parentRefs:
@@ -99,6 +97,7 @@ spec:
                 type: CORS
       wellknown:
         annotations:
+          fingerjoin.naktis.eu/webfinger: "true"
           gatus.home-operations.com/enabled: "false"
         hostnames:
           - frostlink.dev
