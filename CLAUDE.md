@@ -62,6 +62,8 @@ trusting a name written here.
 just kube apply-ks <ns> <ks>              # apply a Kustomization live (always before commit)
 just kube sync <ocirepo|hr|ks|es|gitrepo> # force-sync a Flux resource type
 just kube render-local-ks <ns> <ks>       # validate with flate (offline, no cluster needed)
+just kube backup <ns> <claim>             # on-demand Kopiur snapshot, waits for it
+just kube restore <ns> <ks> <claim>       # restore a PVC from Kopiur (DESTRUCTIVE)
 just talos schematic-id                   # get current schematic ID from Sidero factory
 just talos upgrade <version>              # upgrade Talos (reboots single node)
 ```
@@ -121,7 +123,7 @@ per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add
 - **No shared OCIRepository** — every app gets its own standalone OCIRepository
 - **No external hostnames for cluster traffic** — always `<app>.<namespace>.svc.cluster.local`
 - **Routes in HelmRelease values** — `HTTPRoute` goes in helmrelease values, not standalone files
-- **Test before commit** — `just kube apply-ks <ns> <ks>` then wait for explicit user confirmation
+- **Test before commit** — `just kube apply-ks <ns> <ks>` then wait for explicit user confirmation. It fails on any app with a bound Kopiur PVC (it bypasses `ssa: IfNotPresent` and `dataSourceRef` is immutable) — filter the PVC out of the render, or let Flux apply it
 - **No `git add .` or `git add -A`** — stage specific files by name only
 - **Single node** — no drain/uncordon needed; storage class is `openebs-zfs` (ZFS-backed, default); backups via Kopiur to Cloudflare R2
 - **OCI quirk** — CoreDNS must forward to `169.254.169.254`, not `/etc/resolv.conf` (resolves to unreachable `127.0.0.53`)

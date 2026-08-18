@@ -36,8 +36,7 @@ spec:
         selfScrapeInterval: 10s
       persistentVolume:
         enabled: true
-        storageClassName: openebs-zfs
-        size: 10Gi
+        existingClaim: server-volume-victoria-metrics-server-0
       resources:
         requests:
           cpu: 50m

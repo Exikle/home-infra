@@ -5,7 +5,7 @@ kind: Restore
 metadata:
   name: ${KOPIUR_APP}
   annotations:
-    kustomize.toolkit.fluxcd.io/ssa: ignore
+    kustomize.toolkit.fluxcd.io/ssa: IfNotPresent
 spec:
   credentialProjection:
     enabled: true
