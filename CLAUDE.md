@@ -17,8 +17,9 @@ Single-node Talos Kubernetes cluster on Oracle Cloud Always Free ARM64 (ca-toron
 | `flux-system`      | flux-operator 0.52.0, Flux v2.8.8                             | ✓ running    |
 | `network`          | Envoy Gateway, wildcard cert, cloudflare-tunnel               | ✓ running    |
 | `fediverse`        | GoToSocial (social.frostlink.dev), phanpy, apoci (registry)   | ✓ running    |
-| `apoci`            | apoci OCI registry — federation peer for Artemis              | ✓ running    |
-| `monitoring`       | Gatus / Uptime Kuma                                           | planned      |
+| `matrix`           | continuwuity, mautrix-signal, mautrix-whatsapp                | ✓ running    |
+| `database`         | shared CNPG Postgres + pooler, shared Dragonfly               | ✓ running    |
+| `observability`    | VictoriaMetrics, vmagent, alertmanager, kromgo, gatus, chaski | ✓ running    |
 
 ## Node
 
@@ -109,6 +110,7 @@ per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add
 | `references/networking.md`    | Gateways, OCI VCN rules, Cloudflare tunnel, Tailscale         |
 | `references/talos.md`         | Oracle Cloud Talos config, single-node quirks, upgrade steps  |
 | `references/bootstrap.md`     | Bootstrap order and one-time setup                            |
+| `references/database.md`      | Shared Postgres, pgbouncer tuning, surviving a primary restart |
 
 ---
 

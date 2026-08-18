@@ -19,7 +19,7 @@ spec:
     path: ./kubernetes/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
-        kind: GitRepository
+        kind: OCIRepository
         name: flux-system
         namespace: flux-system
     interval: 1h
@@ -34,26 +34,29 @@ dependsOn:
       namespace: external-secrets
 ```
 
-## With Rook-Ceph storage (add to dependsOn)
+## With Kopiur backup (add dependsOn + components + postBuild)
+
+There is no Rook-Ceph and no VolSync on this cluster. PVCs are `openebs-zfs`, and backups go to
+Cloudflare R2 via Kopiur. The `kopiur` component owns the PVC itself — do not also declare one.
 
 ```yaml
 dependsOn:
-    - name: rook-ceph-cluster
-      namespace: rook-ceph
-```
-
-## With VolSync backup (add components + postBuild)
-
-```yaml
-  components:
-    - ../../../../components/volsync
-  postBuild:
+    - name: kopiur-repository
+      namespace: kopiur-system
+components:
+    - ../../../../components/kopiur
+postBuild:
     substitute:
-      APP: *app
-      VOLSYNC_CAPACITY: 5Gi
+        APP: *app
+        KOPIUR_APP: *app
+        KOPIUR_CAPACITY: 5Gi
 ```
 
-## Full example (storage + secrets + VolSync)
+Add `../../../../components/kopiur-deep-verify` (with `KOPIUR_DEEP_VERIFY_CAPACITY`) when the
+app's data is worth a periodic full restore check. Other `KOPIUR_*` substitutions all have
+defaults — see `kubernetes/components/kopiur/`.
+
+## Full example (storage + secrets + Kopiur)
 
 ```yaml
 ---
@@ -70,21 +73,22 @@ spec:
     path: ./kubernetes/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
-        kind: GitRepository
+        kind: OCIRepository
         name: flux-system
         namespace: flux-system
     interval: 1h
     dependsOn:
         - name: onepassword-connect
           namespace: external-secrets
-        - name: rook-ceph-cluster
-          namespace: rook-ceph
+        - name: kopiur-repository
+          namespace: kopiur-system
     components:
-        - ../../../../components/volsync
+        - ../../../../components/kopiur
     postBuild:
         substitute:
             APP: *app
-            VOLSYNC_CAPACITY: 5Gi
+            KOPIUR_APP: *app
+            KOPIUR_CAPACITY: 5Gi
     wait: true
 ```
 
@@ -92,5 +96,5 @@ spec:
 
 - Use YAML anchor `&app` on `metadata.name` and alias `*app` everywhere the app name repeats (labels, postBuild).
 - Always include `namespace:` on every cross-namespace `dependsOn` entry — omitting it silently resolves to the local namespace.
-- `rook-ceph-cluster` dep is required whenever the app uses a PVC backed by Ceph (block or filesystem).
+- `sourceRef.kind` is `OCIRepository` — this repo syncs from an OCI artifact, not a GitRepository.
 - `retryInterval` and `timeout` are optional — add only when the app is known to be slow to reconcile.

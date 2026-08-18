@@ -77,7 +77,7 @@ Output a summary grouped by severity using this format — blank lines between e
 
 **[H8]** `defaultPodOptions.securityContext.runAsNonRoot` is missing.
 
-**[K12]** `dependsOn` entry for `rook-ceph-cluster` is missing the `namespace: rook-ceph` field.
+**[K12]** `dependsOn` entry for `kopiur-repository` is missing the `namespace: kopiur-system` field.
 
 ---
 
@@ -91,7 +91,7 @@ Output a summary grouped by severity using this format — blank lines between e
 
 ### ADVISORY — recommendations _(requires human review — never auto-fix)_
 
-**[A2]** App has a PVC but no VolSync component — data is not backed up.
+**[A2]** App has a PVC but no `kopiur` component — data is not backed up.
 
 **[A10]** App is on `external-gateway` with no SecurityPolicy OIDC — confirm this is intentional.
 

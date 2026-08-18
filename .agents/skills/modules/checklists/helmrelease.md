@@ -6,7 +6,7 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 | #   | Check                                                                                                                                        | Result |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| H1  | Schema comment present: `# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json` |        |
+| H1  | Schema comment present. app-template apps use the chart's own schema (`.../helm-charts/app-template-<version>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`); any other chart uses `https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json` |        |
 | H2  | `apiVersion: helm.toolkit.fluxcd.io/v2`                                                                                                      |        |
 | H3  | `chartRef.kind: OCIRepository`, `chartRef.name: <app>` (references own OCIRepository)                                                        |        |
 | H4  | `interval: 1h`                                                                                                                               |        |
@@ -58,7 +58,7 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 | #    | Check                                                                                                           | Result |
 | ---- | --------------------------------------------------------------------------------------------------------------- | ------ |
-| H26  | If VolSync used: `existingClaim: <app>` (not inline PVC spec)                                                   |        |
+| H26  | If Kopiur used: `existingClaim: <app>` (the `kopiur` component owns the PVC — not an inline PVC spec)           |        |
 | H27  | If `readOnlyRootFilesystem: true`: a `tmp` emptyDir mount exists                                                |        |
 | H27a | Every emptyDir uses `advancedMounts` (never `globalMounts`), with a `subPath` per path — even for a single path |        |
 | H28  | Persistence item field order: `type → annotations → labels → <alphabetical> → globalMounts → advancedMounts`    |        |
@@ -73,5 +73,5 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 | #   | Check                                                                                                      | Result |
 | --- | ---------------------------------------------------------------------------------------------------------- | ------ |
-| H30 | If route present: `parentRefs` references `internal-gateway` or `external-gateway` in `namespace: network` |        |
+| H30 | If route present: `parentRefs` references `external-gateway` in `namespace: network` (there is no internal gateway) |        |
 | H31 | Route defined under `route.app:` in values — not a standalone HTTPRoute file                               |        |

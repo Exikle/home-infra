@@ -50,6 +50,6 @@ Use `advancedMounts` with `subPath: tmp` — even for a single path — so futur
 Cross-namespace deps silently resolve to the local namespace if `namespace:` is omitted.
 Always add `namespace:` explicitly on every cross-namespace `dependsOn` entry.
 
-## VOLSYNC_CAPACITY in wrong place
+## KOPIUR_CAPACITY in wrong place
 
-`VOLSYNC_CAPACITY` must be in `ks.yaml` under `postBuild.substitute`, not in the app's `persistence` spec.
+`KOPIUR_CAPACITY` must be in `ks.yaml` under `postBuild.substitute`, not in the app's `persistence` spec.

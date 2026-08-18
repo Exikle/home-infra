@@ -42,9 +42,9 @@ When a `Kustomization` lives outside `flux-system` (e.g. in `fediverse` or `netw
 ```yaml
 spec:
     sourceRef:
-        kind: GitRepository
+        kind: OCIRepository
         name: flux-system
-        namespace: flux-system # REQUIRED — omitting causes "GitRepository not found"
+        namespace: flux-system # REQUIRED — omitting causes "OCIRepository not found"
     dependsOn:
         - name: cert-manager
           namespace: cert-manager # REQUIRED for cross-namespace deps

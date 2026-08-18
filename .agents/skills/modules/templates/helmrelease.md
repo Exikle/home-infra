@@ -8,7 +8,7 @@
 
 ```yaml
 ---
-# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.1.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -71,7 +71,7 @@ spec:
                 hostnames:
                     - <hostname>
                 parentRefs:
-                    - name: internal-gateway # or external-gateway
+                    - name: external-gateway
                       namespace: network
         service:
             app:

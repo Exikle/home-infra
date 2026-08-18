@@ -17,6 +17,7 @@ talos/            # Talos schematic and patches
 bootstrap/        # helmfile.d/ and resources.yaml.j2 for one-time bootstrap
 kubernetes/
   apps/           # App HelmReleases by namespace
+  components/     # Reusable Flux Components (postgres/cert, kopiur, anubis, alerts)
   flux/sync/      # Entrypoint Kustomization → kubernetes/apps
 ```
 
@@ -59,8 +60,10 @@ kubernetes/
 | `external-secrets` | External Secrets 2.7.0, 1Password Connect 2.4.1   | ✓ deployed |
 | `flux-system`      | flux-operator 0.53.0, flux-instance (Flux v2.8.8) | ✓ deployed |
 | `network`          | Envoy Gateway, wildcard cert, cloudflare-tunnel   | ✓ deployed |
-| `apoci`            | apoci OCI registry (federation peer for Artemis)  | planned    |
-| `monitoring`       | Gatus / Uptime Kuma                               | planned    |
+| `fediverse`        | GoToSocial, phanpy, apoci (OCI registry)          | ✓ deployed |
+| `matrix`           | continuwuity, mautrix-signal, mautrix-whatsapp    | ✓ deployed |
+| `database`         | shared CNPG Postgres + pooler, shared Dragonfly   | ✓ deployed |
+| `observability`    | VictoriaMetrics, alertmanager, kromgo, gatus      | ✓ deployed |
 
 ---
 

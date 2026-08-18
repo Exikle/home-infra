@@ -15,7 +15,7 @@ spec:
         mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
         operation: copy
     ref:
-        tag: 5.0.1
+        tag: 5.1.0
     url: oci://ghcr.io/bjw-s-labs/helm/app-template
 ```
 
@@ -24,6 +24,8 @@ spec:
 - `name` must match the app name — it is referenced by `chartRef.name` in the HelmRelease.
 - `url` must use `bjw-s-labs` (not `bjw-s`) — wrong org path silently fails.
 - `apiVersion` must be `source.toolkit.fluxcd.io/v1` — `v1beta2` is removed.
-- OCIRepository chart tag uses bare version (`5.0.1`) — no SHA pinning for Helm charts.
+- OCIRepository chart tag uses bare version (`5.1.0`) — no SHA pinning for Helm charts.
 - `ref.tag` is the app-template chart version, not the app image tag.
+- All app-template apps sit on the same tag; bumping the chart means bumping each app's file
+  (Renovate does this, one PR per app).
 - Do NOT add `namespace:` to metadata — the Flux Kustomization's `targetNamespace` injects it.

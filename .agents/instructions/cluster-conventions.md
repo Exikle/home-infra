@@ -16,9 +16,13 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 
 ## Helm / app-template v5
 
-- Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` tag `5.0.1` (note: `-labs`, not `-bjw-s`)
+- Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` tag `5.1.0` (note: `-labs`, not `-bjw-s`)
 - Every app gets its own standalone `OCIRepository` — never share or reuse one
 - `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`
+- Schema modeline on an app-template HelmRelease points at the **chart's own** HelmRelease schema
+  (`raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-<version>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`),
+  which is the only thing that validates `spec.values`. A Renovate customManager keeps that
+  version in step with the chart — do not hand-edit it out of sync.
 - OCIRepository API version: `source.toolkit.fluxcd.io/v1` (not `v1beta2`)
 - Reloader: `reloader.stakater.com/auto: "true"` annotation on controller
 - Default security context: `runAsNonRoot: true`, `runAsUser: 1000`, `runAsGroup: 1000`, `fsGroupChangePolicy: OnRootMismatch`
@@ -34,8 +38,8 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 ## Storage
 
 - **No Rook-Ceph** (single node)
-- Primary storage class: `local-path`
-- PVC: `existingClaim: <app>` when using VolSync component (if/when added)
+- Primary storage class: `openebs-zfs` (ZFS-backed, cluster default) — see `.agents/references/storage.md`
+- Backups: Kopiur to Cloudflare R2 (Kopiur replaced VolSync; there are no `ReplicationSource`s)
 
 ## Database & Cache
 
@@ -83,8 +87,7 @@ to them instead of provisioning their own.
 | Pattern                  | Correct                          | Wrong                                   |
 | ------------------------ | -------------------------------- | --------------------------------------- |
 | Secret store name        | `onepassword-connect`            | `onepassword`, `1password-connect`      |
-| Gateway (internal)       | `internal-gateway`               | `internal`, `envoy-internal`            |
-| Gateway (external)       | `external-gateway`               | `external`, `envoy-external`            |
+| Gateway                  | `external-gateway` — the only one | `internal-gateway` (does not exist here) |
 | Gateway namespace        | `network`                        | `default`, `networking`                 |
 | OCIRepository API        | `source.toolkit.fluxcd.io/v1`    | `v1beta2`                               |
 | ExternalSecret API       | `external-secrets.io/v1`         | `v1beta1`                               |
@@ -95,6 +98,6 @@ to them instead of provisioning their own.
 | HTTPRoute location       | inline in helmrelease values     | standalone HTTPRoute file               |
 | Cluster traffic          | `<app>.<ns>.svc.cluster.local`   | external hostname                       |
 | OCIRepository scope      | one per app                      | shared across apps                      |
-| Storage class            | `local-path`                     | `ceph-block`, `standard`                |
+| Storage class            | `openebs-zfs`                    | `local-path`, `ceph-block`, `standard`  |
 | App database             | shared `postgres/cert` component | sidecar postgres, SQLite, app-specific CNPG |
 | App cache/queue          | shared Dragonfly (`database` ns) | sidecar Redis/Valkey                    |
