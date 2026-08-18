@@ -14,31 +14,6 @@ spec:
   instances: 1
   managed:
     roles:
-      - name: apoci
-        ensure: present
-        login: true
-        superuser: false
-        disablePassword: true
-      - name: atuin
-        ensure: present
-        login: true
-        superuser: false
-        disablePassword: true
-      - name: gotosocial
-        ensure: present
-        login: true
-        superuser: false
-        disablePassword: true
-      - name: mautrix-signal
-        ensure: present
-        login: true
-        superuser: false
-        disablePassword: true
-      - name: mautrix-whatsapp
-        ensure: present
-        login: true
-        superuser: false
-        disablePassword: true
       - name: pooler-rw
         ensure: present
         login: true
