@@ -24,7 +24,7 @@ spec:
     - name: continuwuity
       namespace: matrix
   components:
-    - ../../../../components/postgres/csi
+    - ../../../../components/postgres/cert
   postBuild:
     substitute:
       APP: mautrix-signal
