@@ -48,6 +48,8 @@ spec:
                     port: 29328
                   initialDelaySeconds: 30
                   periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 6
               readiness:
                 enabled: true
                 custom: true
