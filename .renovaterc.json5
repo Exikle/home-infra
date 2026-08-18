@@ -4,10 +4,14 @@
   // app-specific manager/datasource this repo depends on has to be listed explicitly here.
   // Dropping one is silent: the custom manager simply stops extracting and the dependency
   // goes stale with no error. cnpg → Cluster.spec.imageName in database/postgres,
-  // phanpy → its `<calver>.<sha>` tags. grafanaDashboards, searxng, talosFactory and llamacpp
-  // are deliberately absent: no dashboards here (VictoriaMetrics only), no searxng, no llamacpp,
-  // and the Talos version is passed to `just talos upgrade <version>` by hand rather than pinned
-  // in any tracked YAML.
+  // phanpy → its `<calver>.<sha>` tags. grafanaDashboards, searxng and llamacpp are deliberately
+  // absent: no dashboards here (VictoriaMetrics only), no searxng, no llamacpp.
+  //
+  // talosFactory is extended purely for the `custom.talos-factory` customDatasource it defines.
+  // Its own customManager only scans `talos/**`, and nothing there carries a version — but
+  // tuppr's TalosUpgrade does, and the default preset's generic `# renovate:` annotation manager
+  // (which scans every file) resolves that marker against this datasource. Drop this and the
+  // marker in talosupgrade.yaml silently stops resolving.
   //
   // Pinned to 7.0.0, which is the first release where these files are self-contained. Up to and
   // including 6.0.0, default.json reached its content through nested
@@ -22,6 +26,7 @@
     "github>home-operations/renovate-presets#7.0.0",
     "github>home-operations/renovate-presets//apps/cnpg.json5#7.0.0",
     "github>home-operations/renovate-presets//apps/phanpy.json5#7.0.0",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#7.0.0",
     ":semanticCommits",
     ":timezone(America/Toronto)",
   ],
@@ -73,17 +78,6 @@
     schedule: ["before 4am on the first day of the month"],
   },
   packageRules: [
-    {
-      // No factory.talos.dev image is tracked in this repo today — `just talos upgrade` takes the
-      // version as an argument and talos/schematic.yaml carries no tag — so apps/talosFactory.json5
-      // is not extended above. This stays as a guard: if an installer image ever lands in a
-      // manifest, the generic docker datasource cannot resolve factory.talos.dev and would report
-      // it as a lookup failure every run.
-      description: "Disable broken docker lookups for Talos Image Factory",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/^factory\\.talos\\.dev/"],
-      enabled: false,
-    },
     {
       description: "Disable artifact actions — Forgejo only supports up to v3 (v4+ uses GHES-incompatible backend)",
       matchManagers: ["github-actions"],
@@ -143,6 +137,17 @@
       automergeType: "pr",
       platformAutomerge: true,
       ignoreTests: false,
+    },
+    {
+      // tuppr turns a merged version bump into a real cluster upgrade. Frostlink is a single
+      // node, so both a Talos and a Kubernetes bump are full cluster downtime with nowhere to
+      // drain to. "Auto-merge all patch updates" above matches on update type with no package
+      // filter, so without this guard v1.13.4 -> v1.13.8 would merge and reboot the cluster
+      // unattended. Must stay AFTER the auto-merge rules — later packageRules win.
+      description: "Never auto-merge tuppr-driven Talos or Kubernetes upgrades",
+      matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
+      automerge: false,
+      minimumReleaseAge: "7 days",
     },
     // Groups
     {
