@@ -120,7 +120,67 @@ Two corollaries worth keeping:
   `postgres-${APP}-cert`. Changing one without the other yields pods that start fine and fail at
   the TLS handshake. It only becomes relevant if the two blockers above are ever solved.
 
+## Client certificates: CSI for most apps, Secrets for the mautrix bridges
+
+Two mechanisms exist on purpose. `components/postgres/csi` mints the client
+certificate into the pod at mount time via `csi.cert-manager.io`, so there is no
+Secret and the cert rotates with the pod. `components/postgres/cert` keeps the
+cert-manager `Certificate` plus a long-lived Secret. Shared wiring — the ksgate
+scheduling gates, the `root-ca` mount, the connection-URL ConfigMap and the
+`Database`/`DatabaseRole` — lives in `base/`, so the two differ only in how
+`postgres-certs` is produced.
+
+| App | Mechanism | Postgres driver |
+| --- | --- | --- |
+| atuin, gotosocial, apoci | `postgres/csi` | Rust sqlx-postgres 0.9.0; jackc/pgx v5.10.0 |
+| mautrix-signal, mautrix-whatsapp | `postgres/cert` | lib/pq v1.11.2 |
+
+**The bridges are not on CSI because of a lib/pq file-mode check, not anything
+about CSI.** The driver mounts `tls.key` at `0440` root:`fsGroup`. lib/pq
+v1.11.2 requires the owner write bit — `u=rw`, i.e. 0600 or 0640 — and rejects
+0440 with:
+
+```
+pq: private key has world access; permissions should be u=rw,g=r (0640)
+if owned by root, or u=rw (0600), or less
+```
+
+despite the "or less". Confirmed independent of CSI: a plain **Secret** at
+`defaultMode: 0440` fails identically, and the same Secret at 0640 works. The
+driver exposes `csi.cert-manager.io/fs-group` (group ownership only) and no
+file-mode attribute, so 0440 cannot be changed; dropping `readOnly: true` does
+not mount.
+
+Before moving any app to `postgres/csi`, read its driver out of the binary and
+confirm it is not lib/pq:
+
+```bash
+kubectl --context frostlink -n <ns> exec <pod> -c app -- \
+  grep -a -o -E '(lib/pq|jackc/pgx)@?v[0-9.]*' <binary> | sort -u
+```
+
+lib/pq master has since relaxed the check to allow "0640 or less", so the
+bridges can move once that reaches a mautrix release. m00nwtchr/homelab-cluster
+runs mautrix-discord on CSI with an identical pod securityContext — that works
+only because v0.7.6 predates lib/pq v1.11.2, so it is not evidence the bridges
+would work here.
+
+Two consequences worth keeping:
+
+- **`POSTGRES_CERT_ENCODING` is retired from app config.** The CSI component
+  pins PKCS8 for everyone, so atuin's PKCS8 exemption disappeared. The variable
+  survives only as the PKCS1 default in `cert/certificate.yaml` for the bridges.
+- **The `cert-manager` namespace is `pod-security.kubernetes.io/enforce:
+  privileged`** so the CSI driver DaemonSet can mount hostPath and run
+  privileged. That raises the ceiling in the namespace holding the PKI keys; a
+  dedicated privileged namespace for the driver is the stricter alternative.
+
 ## Still open
+
+Deleting a `Certificate` does not delete its Secret, so `postgres-atuin-cert`
+(tools), `postgres-gotosocial-cert` and `postgres-apoci-cert` (fediverse) are
+now orphaned and unreferenced. They are regenerable and safe to delete; the
+`postgres-atuin-cert` in `default` is older, from the namespace move.
 
 `kube-apiserver` is the node's largest single consumer at ~1980Mi with **no** memory limit. The
 same shape caused OOM kills on Artemis. Not urgent at 43% node utilisation and unrelated to the
