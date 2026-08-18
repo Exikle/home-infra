@@ -78,6 +78,48 @@ Done when `restartCount` on both bridges is unchanged once Postgres is Ready aga
 way on 2026-08-18: `postgres-1` recreated at 00:57:55, both bridges still running since 00:52 with
 restart counts flat.
 
+## Why `DatabaseRole.clientCertificate` cannot replace `components/postgres/cert`
+
+Evaluated 2026-08-18 on mautrix-signal and rejected. CNPG 1.30 can issue and renew a client
+certificate per role (`spec.clientCertificate.enabled`), which looks like it would delete the
+cert-manager `Certificate` in `components/postgres/cert`. It cannot, for two independent
+structural reasons. Neither is fixable inside the component.
+
+**1. The client CA is bring-your-own, and CNPG will not sign without the key.** Enabling it live
+returned:
+
+```
+client CA secret "postgres-client-ca" has no private key;
+bring-your-own-CA clusters require manual certificate management
+```
+
+`database/postgres-client-ca` is a **trust-manager `Bundle` target** — it carries `ca.crt` only,
+because the Bundle's source is `secret.key: tls.crt`. The CA keypair lives in
+`cert-manager/postgres-client-ca` and stays there on purpose. Making CNPG issue would mean copying
+the client CA **private key** into the `database` namespace, which is the separation trust-manager
+exists to enforce.
+
+**2. The secret lands in the wrong namespace.** `DatabaseRole.spec.cluster` is a
+`LocalObjectReference` — name only, no namespace — so a `DatabaseRole` must live beside the
+`Cluster` in `database`. CNPG writes the cert to `<databaserole-name>-client-cert` in *that*
+namespace, but the pod that mounts it is in the app's namespace (`matrix`, `fediverse`, `tools`).
+Secrets are namespace-scoped and no reflector/replicator is installed. cert-manager does not have
+this problem because the `Certificate` is created by the app's own Flux Kustomization, so the
+secret is already local to the pod.
+
+Making this work needs both a CA-key relocation and a secret replicator — a change to the PKI trust
+model, not a component refactor.
+
+Two corollaries worth keeping:
+
+- **The atuin `POSTGRES_CERT_ENCODING: PKCS8` exemption is moot.** `clientCertificate` exposes only
+  `enabled`, with no encoding control, so atuin was expected to be the one app that could not
+  migrate. In fact no app can, and for reasons that have nothing to do with encoding.
+- **The naming mismatch is real but was never the binding constraint.** CNPG writes
+  `<databaserole-name>-client-cert` while `components/postgres/base/patch` mounts
+  `postgres-${APP}-cert`. Changing one without the other yields pods that start fine and fail at
+  the TLS handshake. It only becomes relevant if the two blockers above are ever solved.
+
 ## Still open
 
 `kube-apiserver` is the node's largest single consumer at ~1980Mi with **no** memory limit. The
