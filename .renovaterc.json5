@@ -35,6 +35,27 @@
   automergeSchedule: ["at any time"],
   automergeStrategy: "squash",
   ignorePaths: ["**/*.secret.*", "**/resources/**"],
+  // The app-template HelmReleases point their `# yaml-language-server:` modeline at the chart's
+  // OWN HelmRelease schema, which is the only thing that validates `spec.values`; the generic
+  // helmrelease_v2.json validates the envelope and stops there. That URL carries the chart
+  // version in its git tag, so without this manager the schema silently pins to whatever version
+  // was current when the file was written and drifts every time the chart moves. Same depName as
+  // the per-app ocirepository.yaml files, so the schema bump rides along with the chart bump
+  // rather than arriving as a second, separate PR. Matters because the chart version lives in
+  // 22 places here — 11 OCIRepositories and 11 modelines — and only this keeps the two halves
+  // in step.
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Keep the app-template schema modeline on the same version as the chart",
+      managerFilePatterns: ["/^kubernetes/.+/helmrelease\\.yaml$/"],
+      matchStrings: [
+        "bjw-s-labs/helm-charts/app-template-(?<currentValue>[^/]+)/charts/other/app-template/schemas/",
+      ],
+      datasourceTemplate: "docker",
+      depNameTemplate: "ghcr.io/bjw-s-labs/helm/app-template",
+    },
+  ],
   // All six tools in .mise.toml are `latest`, so mise.lock is the only thing pinning them and
   // nothing was refreshing it — flate, minijinja, oxfmt, shellcheck, yayamlls and zizmor are
   // frozen at whatever resolved when the lock was last written, and the lock still carries a
