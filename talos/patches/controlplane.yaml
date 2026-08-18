@@ -49,12 +49,6 @@ machine:
     user.max_user_namespaces: "11255"
   features:
     rbac: true
-    kubernetesTalosAPIAccess:
-      enabled: true
-      allowedRoles:
-        - os:admin
-      allowedKubernetesNamespaces:
-        - system-upgrade
     apidCheckExtKeyUsage: true
     diskQuotaSupport: true
     kubePrism:
@@ -89,6 +83,16 @@ cluster:
   etcd:
     extraArgs:
       listen-metrics-urls: http://0.0.0.0:2381
+---
+# tuppr reaches the Talos API from in-cluster through a talos.dev ServiceAccount.
+# This is the v1.14+ form; on v1.13 the same setting lived at
+# .machine.features.kubernetesTalosAPIAccess, which is deprecated but still honoured.
+apiVersion: v1alpha1
+kind: KubeTalosAPIAccessConfig
+allowedRoles:
+  - os:admin
+allowedKubernetesNamespaces:
+  - system-upgrade
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig

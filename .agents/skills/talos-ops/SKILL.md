@@ -23,20 +23,36 @@ Node operations for Frostlink (single-node ARM64, Oracle Cloud, Talos Linux).
 
 Frostlink uses patch files in `talos/patches/` — no Jinja2/render-config templating.
 
-1. Edit the relevant file in `talos/patches/`
-2. Get the current config, apply the patch:
+### NEVER `apply-config` the patch file
+
+`talos/patches/controlplane.yaml` is a **gen-time patch, not a full machine config** — no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` (the Tailscale auth key lives only on the node, injected from 1Password at bootstrap). `apply-config` replaces the entire config, so pointing it at that file strands the node. Unlike Artemis, this repo cannot regenerate a complete config.
+
+### Applying a change
+
+1. Edit the relevant file in `talos/patches/` so the repo records the intent.
+2. Write a **delta** containing only the changed fields, and dry-run it:
 
 ```bash
-talosctl --context frostlink apply-config \
-  --file <patch-file> \
-  -n 100.67.108.103
+mise exec -- talosctl --context frostlink patch machineconfig \
+  -n 40.233.88.33 --patch-file /tmp/delta.yaml --dry-run
 ```
+
+3. Read the printed diff — it shows exactly what changes and whether a reboot is needed — then re-run without `--dry-run`. The diff contains the Tailscale auth key; never paste it anywhere.
 
 For changes requiring a reboot, add `--mode reboot`.
 
-### NEVER use `talosctl patch machineconfig` with a full config
+Use `mise exec -- talosctl`: the client decodes config documents locally, so a mismatched client rejects valid documents (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`) before the node sees them. `.mise.toml` pins the matching version.
 
-Full config passed as a patch causes array fields (`machine.files`, `machine.certSANs`) to be **duplicated** in the merge, which can produce a read-only filesystem on next boot. Always use `apply-config` with targeted patch files for full config replacement.
+### Deleting a field
+
+A plain `null` is ignored and JSON6902 patches are rejected (the config is multi-document). Use the strategic-merge directive:
+
+```yaml
+machine:
+  features:
+    someField:
+      $patch: delete
+```
 
 ### certSANs patch (minimal delta)
 
@@ -49,8 +65,6 @@ cluster:
         certSANs:
             - <ip-or-hostname>
 ```
-
-Apply: `talosctl --context frostlink apply-config --file patch.yaml -n 100.67.108.103`
 
 ---
 
@@ -74,7 +88,34 @@ just talos upgrade <current-talos-version>
 
 ---
 
-## Talos Upgrade
+## Talos + Kubernetes Upgrades — owned by tuppr
+
+Upgrades are declarative. Edit the version in
+`kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (or
+`kubernetesupgrade.yaml`), merge, and tuppr performs the upgrade.
+
+Frostlink is a **single node**, so every upgrade is full cluster downtime
+(~5 min, roughly 2 min of it API-server down). Draining is skipped
+automatically — there is nowhere to drain to — and completion is tracked by
+polling node readiness after reboot.
+
+tuppr rebuilds the installer from the node's **runtime-reported schematic**, so
+extensions survive: `.machine.install.image` is rewritten to
+`factory.talos.dev/metal-installer/<schematic>:<version>`. If it cannot resolve a
+schematic it refuses rather than reinstalling from the generic installer and
+wiping extensions.
+
+tuppr triggers on `currentVersion != targetVersion` — **not** a "newer than"
+check, and there is no downgrade guard. Never apply a version bump out of band
+while Flux still serves the old value from git, or the next reconcile reverts the
+CR and tuppr downgrades the node. Either commit the bump, or
+`flux suspend ks tuppr-upgrades` first.
+
+### Break-glass: manual upgrade
+
+Only when tuppr is unavailable. Note this uses the legacy
+`factory.talos.dev/installer/` path, while tuppr uses `metal-installer`:
+
 
 ```bash
 # Get current schematic ID
