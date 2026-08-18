@@ -66,6 +66,10 @@ Both cadence and retention are per-app overridable from `postBuild.substitute` �
 | `vm-single` | `H 3 * * *`, 1/0/7/0/0 | VictoriaMetrics' TSDB rewrites its parts continuously, so hourly snapshots deduplicated poorly and dominated churn in the R2 repository. Metrics are the most reconstructible data here — daily, 7 deep, is enough. |
 | `apoci` | `H */6 * * *` | Registry blobs are content-addressed and effectively immutable, so hourly bought almost nothing over 6-hourly. Retention left at the component default (~30 restore points). |
 
+> Changing a `KOPIUR_SCHEDULE` means updating that policy's branch in `KopiurPolicyBackupStale`
+> too — see "Backup staleness alerting is per-policy" below. Nothing derives it automatically,
+> and the failure mode is a permanently-firing alert nobody reads.
+
 ### The R2 credential key is unrecoverable if repointed — read before editing
 
 `kubernetes/apps/kopiur-system/kopiur/repository/externalsecret.yaml` pulls `KOPIA_PASSWORD`
@@ -248,16 +252,48 @@ Two things to know when touching this:
   `KOPIUR_APP` would start a fresh snapshot lineage and orphan the existing dailies in R2 with
   nothing to prune them.
 
-## Known alerting gap: KopiurBackupStale
+## Backup staleness alerting is per-policy
 
-The `KopiurBackupStale` rule (VMRule `kopiur-system/kopiur-controller`) uses a flat threshold:
+The kopiur chart ships one flat `monitoring.prometheusRule.backupStaleAfterSeconds` applied to
+every SnapshotPolicy. That cannot hold for a fleet with mixed schedules: set it for hourly
+backups and the daily policy is "stale" for ~18h of every day; set it for the daily policy and
+an hourly backup can be dead for a full day before anyone hears about it.
+
+Until 2026-08-18 it was 6h, so `KopiurBackupStale` fired against `vm-single` (deliberately
+`H 3 * * *`) daily and permanently. `apoci-data` (`H */6 * * *`) was one jitter away from the
+same thing. That is worse than useless — a permanently-firing alert is exactly what stops
+anyone noticing a real backup failure.
+
+Two layers now:
+
+1. **The chart's `KopiurBackupStale`, widened to 26h** (`backupStaleAfterSeconds: 93600`) — set
+   to the loosest schedule in the fleet so it never false-fires. It stays enabled as a backstop:
+   it still catches a genuinely dead backup even if layer 2 is removed, and its second branch
+   (policy failing and never having succeeded) is independent of the threshold.
+2. **`KopiurPolicyBackupStale` in the `baseline` VMRule** (`kopiur-overrides.rules`) — the real
+   detector, with a per-policy allowance of roughly one interval plus grace:
+
+   | Policy | Schedule | Allowance |
+   | --- | --- | --- |
+   | `gotosocial`, `continuwuity` | hourly | 6h (default) |
+   | `apoci-data` | `H */6 * * *` | 8h |
+   | `server-volume-victoria-metrics-server-0` | `H 3 * * *` | 26h |
+
+The threshold is built by `or`-chaining constant vectors off the metric itself, so the label
+sets match and the comparison joins cleanly:
 
 ```promql
-time() - kopiur_policy_last_backup_success_timestamp_seconds > 21600
+(kopiur_policy_last_backup_success_timestamp_seconds{policy="<exception>"} * 0 + <seconds>)
+or
+(kopiur_policy_last_backup_success_timestamp_seconds * 0 + 21600)
 ```
 
-6h, applied to every policy regardless of its schedule. `vm-single` is deliberately on
-`H 3 * * *` (daily), so it is "stale" by that definition for ~18h of every day and the alert
-fires daily and permanently. The backups are healthy. Until the rule derives its threshold from
-each policy's own schedule, this alert is noise — which is worse than useless, because it masks
-a real backup failure.
+Each exception is one `or` branch ahead of the catch-all; anything unlisted defaults to 6h.
+**When you change a `KOPIUR_SCHEDULE`, add or update its branch here** — nothing derives this
+automatically, because kopiur exposes no metric carrying a policy's schedule or expected
+interval (checked against the full `/metrics` surface on 2026-08-18).
+
+The chart rule is left enabled rather than replaced because it carries ten other alerts
+(`KopiurRepositoryNotReady`, `KopiurSnapshotFailed`, `KopiurRestoreFailed`, leader-election
+health, and so on). Vendoring a copy to edit one expression would fork all of them and drift on
+every Renovate chart bump.

@@ -16,8 +16,7 @@ spec:
     monitoring:
       prometheusRule:
         enabled: true
-        # Backups run hourly, so the 48h chart default is far too loose.
-        backupStaleAfterSeconds: 21600 # 6h
+        backupStaleAfterSeconds: 93600 # 26h
       serviceMonitor:
         enabled: true
     podSecurityContext:

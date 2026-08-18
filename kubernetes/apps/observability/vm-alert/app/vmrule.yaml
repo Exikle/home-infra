@@ -339,3 +339,31 @@ spec:
           expr: node_zfs_zpool_state{state!="online"} > 0
           labels:
             severity: critical
+
+    # ------------------------------------------------------------------ #
+    # Kopiur — per-policy backup staleness
+    # ------------------------------------------------------------------ #
+    - name: kopiur-overrides.rules
+      rules:
+        - alert: KopiurPolicyBackupStale
+          annotations:
+            description: >-
+              SnapshotPolicy {{ $labels.namespace }}/{{ $labels.policy }} has had
+              no successful backup for {{ printf "%.0f" $value }}s, past the
+              allowance for its own schedule. The chart's KopiurBackupStale uses
+              one flat threshold for every policy, which cannot hold for a fleet
+              mixing hourly, 6-hourly and daily schedules.
+            summary: No recent successful backup for {{ $labels.namespace }}/{{ $labels.policy }}.
+          expr: >-
+            (time() - kopiur_policy_last_backup_success_timestamp_seconds)
+            >
+            (
+            (kopiur_policy_last_backup_success_timestamp_seconds{policy="server-volume-victoria-metrics-server-0"} * 0 + 93600)
+            or
+            (kopiur_policy_last_backup_success_timestamp_seconds{policy="apoci-data"} * 0 + 28800)
+            or
+            (kopiur_policy_last_backup_success_timestamp_seconds * 0 + 21600)
+            )
+          for: 30m
+          labels:
+            severity: warning
