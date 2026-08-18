@@ -34,7 +34,7 @@ spec:
     - ../../../../components/anubis
     - ../../../../components/kopiur
     - ../../../../components/kopiur-deep-verify
-    - ../../../../components/postgres/cert
+    - ../../../../components/postgres/csi
   postBuild:
     substitute:
       ANUBIS_TARGET: http://gotosocial.fediverse.svc.cluster.local:8080

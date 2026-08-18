@@ -32,7 +32,7 @@ spec:
       namespace: cert-manager
   components:
     - ../../../../components/kopiur
-    - ../../../../components/postgres/cert
+    - ../../../../components/postgres/csi
   postBuild:
     substitute:
       APP: apoci

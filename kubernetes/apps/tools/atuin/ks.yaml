@@ -23,8 +23,7 @@ spec:
     - name: postgres-ca
       namespace: cert-manager
   components:
-    - ../../../../components/postgres/cert
+    - ../../../../components/postgres/csi
   postBuild:
     substitute:
       APP: *app
-      POSTGRES_CERT_ENCODING: PKCS8
