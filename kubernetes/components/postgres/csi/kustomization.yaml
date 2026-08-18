@@ -34,6 +34,5 @@ patches:
                     csi.cert-manager.io/common-name: ${DATABASE_OWNER:=${APP}}
                     csi.cert-manager.io/key-usages: client auth
                     csi.cert-manager.io/key-encoding: PKCS8
-                    csi.cert-manager.io/fs-group: "${POSTGRES_CERT_FS_GROUP:=1000}"
               globalMounts:
                 - path: /var/run/secrets/postgresql
