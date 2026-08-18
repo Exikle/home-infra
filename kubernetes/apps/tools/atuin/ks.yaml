@@ -5,11 +5,11 @@ kind: Kustomization
 metadata:
   name: &app atuin
 spec:
-  targetNamespace: default
+  targetNamespace: tools
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apps/default/atuin/app
+  path: ./kubernetes/apps/tools/atuin/app
   prune: true
   sourceRef:
     kind: OCIRepository
