@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# The kopiur component is pulled in here rather than via the Flux
+# Kustomization's `components:` so the patch below actually applies to it.
+components:
+  - ../../../../components/kopiur
+resources:
+  - ./ocirepository.yaml
+  - ./helmrelease.yaml
+  - ./dnsendpoint.yaml
+  - ./prometheusrule-edge.yaml
+patches:
+  # The shared kopiur component points the restore mover at the security
+  # context RECORDED on the backup snapshot. towonel has never been backed up,
+  # so there is no recorded identity and the Restore holds forever
+  # (SecurityContextInherited/MissingRecordedIdentity), which leaves the PVC
+  # unbound — that Restore is the PVC's populator.
+  #
+  # Pin the mover to the same non-root uid/gid the towonel-node chart runs as.
+  # Targeted by kind: postBuild substitution runs later, so the resource is
+  # still literally named ${KOPIUR_APP} at this point.
+  # Same problem on the backup side, different trigger: the component inherits
+  # the mover's security context from the PVC consumer — the towonel pod — which
+  # adds NET_BIND_SERVICE so the edge can bind :443/:80 as a non-root user.
+  # kopiur classifies any added capability as a privileged mover and refuses to
+  # run it unless the namespace opts in. The mover only reads /data, so give it
+  # a plain non-root context instead of opting the namespace into privilege.
+  - target:
+      kind: SnapshotPolicy
+    patch: |-
+      - op: remove
+        path: /spec/mover/inheritSecurityContextFrom
+      - op: add
+        path: /spec/mover/podSecurityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          fsGroup: 10001
+  - target:
+      kind: Restore
+    patch: |-
+      - op: remove
+        path: /spec/mover/inheritSecurityContextFrom
+      - op: add
+        path: /spec/mover/podSecurityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          fsGroup: 10001

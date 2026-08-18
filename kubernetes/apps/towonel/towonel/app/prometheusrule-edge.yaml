@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+# The towonel-node chart ships hub alerts (monitoring.prometheusRule) but no
+# edge alerts. These are lifted from eleboucher/homelab, with their
+# cluster="towonel-ops" selector dropped — that exists only because their hub
+# runs outside their cluster; ours is local.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: towonel-edge
+spec:
+  groups:
+    - name: towonel-edge.rules
+      rules:
+        - alert: TowonelEdgeMetricsAbsent
+          expr: |-
+            absent(towonel_edge_active_sessions)
+          for: 10m
+          annotations:
+            summary: >-
+              No towonel edge metrics received for 10 minutes — the edge is down
+              or its scrape is broken
+          labels:
+            severity: critical
+
+        # NOTE: deliberately NOT alerting on active_sessions == 0. Upstream
+        # pages on it, but a hub with zero agents is the correct steady state
+        # here until the Artemis agent lands (S8). Re-enable then.
+
+        - alert: TowonelEdgeOverloadDrops
+          expr: |-
+            sum by (job, reason) (rate(towonel_edge_connections_rejected_overload_total[15m])) > 1
+          for: 30m
+          annotations:
+            summary: >-
+              Towonel edge {{ $labels.job }} is dropping {{ $value | humanize }} conns/s
+              at the {{ $labels.reason }} cap — for reason=udp_session query
+              towonel_edge_udp_sessions_rejected_total to find the listener,
+              otherwise it is an accept-time DoS or an under-sized cap
+          labels:
+            severity: warning
+
+        - alert: TowonelEdgeRouteNoSession
+          expr: |-
+            sum by (job) (rate(towonel_edge_route_no_session_total[15m])) > 0.2
+          for: 15m
+          annotations:
+            summary: >-
+              Towonel edge {{ $labels.job }} is taking {{ $value | humanize }} req/s
+              for tunnels whose agent has no registered session — a tenant's agent
+              is down or disconnected and its service is unreachable
+          labels:
+            severity: warning
