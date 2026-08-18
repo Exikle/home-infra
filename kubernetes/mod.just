@@ -93,14 +93,22 @@ restore ns ks claim offset='0':
         just log info "scaling down" workload "${w%%=*}"
         {{ kubectl }} -n {{ ns }} scale "${w%%=*}" --replicas=0
     done
-    {{ kubectl }} -n {{ ns }} wait pod --for=delete --all --timeout=10m \
-        --field-selector=status.phase!=Succeeded || true
+    # Scoped to pods actually mounting the claim - a namespace-wide wait would
+    # block on every unrelated app in the namespace.
+    for _ in $(seq 1 120); do
+        USING=$({{ kubectl }} -n {{ ns }} get pods -o json \
+            | jq --arg c "$PVC" '[.items[]
+                | select([.spec.volumes[]? | select(.persistentVolumeClaim.claimName == $c)] | length > 0)]
+                | length')
+        [[ "$USING" == "0" ]] && break
+        sleep 5
+    done
 
     just log info "deleting PVC and stale Restore CR" claim "$PVC"
     {{ kubectl }} -n {{ ns }} delete pvc "$PVC" --timeout=5m
     {{ kubectl }} -n {{ ns }} delete restore "$PVC" --ignore-not-found --timeout=5m
 
-    # Both carry ssa: IfNotPresent, so Flux recreates them now that they are gone.
+    # The component carries no ssa annotation, so Flux recreates both normally.
     flux -n {{ ns }} reconcile kustomization {{ ks }}
     {{ kubectl }} -n {{ ns }} wait restore "$PVC" --for=create --timeout=5m
     {{ kubectl }} -n {{ ns }} wait pvc "$PVC" --for=create --timeout=5m
@@ -127,10 +135,15 @@ restore ns ks claim offset='0':
         exit 1
     fi
 
-    {{ kubectl }} -n {{ ns }} wait pod --for=condition=ready --all --timeout=15m
+    for w in $WORKLOADS; do
+        {{ kubectl }} -n {{ ns }} rollout status "${w%%=*}" --timeout=15m
+    done
     just log info "restore complete" claim "$PVC" resolution "$RESOLUTION"
-    just log warn "verify the data, then reclaim the old volume" \
-        run "kubectl --context frostlink delete pv $PV && kubectl --context frostlink -n openebs-system delete zfsvolume $PV"
+    # Printed rather than passed to `just log`: gum parses a leading --flag inside
+    # a value as its own flag and exits non-zero.
+    just log warn "old volume retained - reclaim it once the data checks out" pv "$PV"
+    printf '  %s delete pv %s\n  %s -n openebs-system delete zfsvolume %s\n' \
+        "{{ kubectl }}" "$PV" "{{ kubectl }}" "$PV"
 
 [doc('Take an on-demand Kopiur snapshot and wait for it')]
 [script]

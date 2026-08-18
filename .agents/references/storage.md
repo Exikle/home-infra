@@ -95,14 +95,15 @@ so zstd is not available there (it is for `wal.compression`, which uses it).
 
 - **`inheritSecurityContextFrom: pvcConsumer: {}`** is required in `SnapshotPolicy` — the mover must inherit the UID from the consuming app pod, or it gets permission errors writing to the volume. The component template already includes this. **`pvcConsumer` is backup-only** — the webhook rejects it on a `Restore` CR. If you need security context inheritance on a manual Restore, use `workloadSelector: { podSelector: { matchLabels: { app.kubernetes.io/name: <app> } } }` instead.
 - **Mover cache must be ≥ 2Gi** — the Kopiur default of 1Mi causes "disk quota exceeded" failures. The component template defaults to 2Gi; only override if you need more.
-- **PVC/Restore annotation `kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`** — creates the resource when absent, then leaves it alone (`spec.dataSourceRef` is immutable once bound). It was `ignore` until 2026-08-18, which skipped the apply entirely and meant Flux could neither create these on a fresh cluster nor recreate them for a restore. See the Restore section below before changing it.
+- **No `kustomize.toolkit.fluxcd.io/ssa` annotation on the PVC/Restore** — Flux applies them normally; a rendered PVC matching the bound one is a no-op. It was `ssa: ignore` until 2026-08-18, which skipped the apply entirely so Flux could neither create these on a fresh cluster nor recreate them for a restore. Do not re-add it — see the Restore section for the prerequisite that makes going annotation-free safe.
 - **Restore PVC on first deploy** — the PVC uses `dataSourceRef` pointing to the `Restore` CRD; Kopiur populates it from R2 once a pod claims it. `onMissingSnapshot: Continue` means a missing snapshot doesn't block PVC creation — which is exactly why a stale `Restore` CR can hand back an empty volume and call it success. See the Restore section.
 
 ## Restore
 
 Use `just kube restore <ns> <ks> <claim>` (add a snapshot offset as a 4th arg to go back
 further). It encodes every constraint below and, critically, **asserts the restore actually
-came from a snapshot** before declaring success. Do not hand-roll the sequence.
+came from a snapshot** before declaring success. Do not hand-roll the sequence. It has been
+exercised end to end against continuwuity, vm-single, and gotosocial.
 
 The restore path was exercised end-to-end for the first time on 2026-08-18 against
 `matrix/continuwuity` (0.49Gi, 2662 files). It **did not work on the first attempt** — the
@@ -127,25 +128,41 @@ created 2026-07-09 and had been poisoned for 40 days.
 current `SnapshotPolicy`. A healthy restore shows `status.resolved.resolution: Snapshot`; if it
 says `NoSnapshot`, the volume is empty — stop and use the retained PV.
 
-### `ssa: IfNotPresent`, never `ssa: ignore`
+### No `ssa:` annotation — and why the old one was wrong
 
-The component's PVC and Restore carry `kustomize.toolkit.fluxcd.io/ssa: IfNotPresent`.
+The component's PVC and Restore carry **no** `kustomize.toolkit.fluxcd.io/ssa` annotation, the
+same as upstream (onedr0p and the rest of the kubesearch cohort). Flux applies them normally.
+That works because a rendered PVC identical to the bound one is a no-op apply — nothing
+mutates, so nothing is rejected.
 
-`Ignore` (used until 2026-08-18) makes kustomize-controller skip the resource **entirely** —
-it logs `"PersistentVolumeClaim/<ns>/<app>":"skipped"`. That means Flux never creates it on a
-fresh cluster and never recreates it after a delete-to-restore. The PVCs that exist today were
-created by `just kube apply-ks`, which is a plain server-side apply and ignores the
-annotation — not by Flux. A from-scratch Flux bootstrap would have left every Kopiur-backed
-app without a PVC.
+It was `ssa: ignore` until 2026-08-18. `Ignore` makes kustomize-controller skip the resource
+**entirely** — it logs `"PersistentVolumeClaim/<ns>/<app>":"skipped"`. Consequences:
 
-`IfNotPresent` creates the resource when absent and leaves it alone once it exists, which is
-what was actually wanted. Do not drop the annotation entirely: `spec.dataSourceRef` is
-immutable once bound, so a plain apply is rejected — and because Flux applies a Kustomization
-atomically, that one rejection blocks the **entire** Kustomization.
+- Flux never created these on a fresh cluster, and never recreated them after a
+  delete-to-restore. The PVCs that existed were created by `just kube apply-ks` (a plain
+  server-side apply, which ignores the annotation), **not** by Flux. A from-scratch Flux
+  bootstrap would have left every Kopiur-backed app without a PVC.
+- Capacity changes to `KOPIUR_CAPACITY` in git would never reach the cluster.
 
-> Corollary: **`just kube apply-ks` fails on any app with a bound Kopiur PVC**, because it
-> bypasses the annotation and tries to add `dataSourceRef` to a bound claim. Let Flux apply
-> those, or filter the PVC out of the render.
+`IfNotPresent` was an intermediate step: it fixes creation but still never reconciles an
+existing claim, so a capacity bump would silently do nothing. Dropping the annotation entirely
+is correct — but only once **every** live PVC already matches its rendered manifest.
+
+> **The prerequisite is real.** `spec.dataSourceRef` is immutable once bound, and Flux applies
+> a Kustomization atomically, so one rejected PVC blocks the *entire* Kustomization (a safe
+> failure — the app keeps running — but nothing else in that Kustomization reconciles either).
+> On 2026-08-18 both `vm-single` and `gotosocial` had PVCs predating the component and lacking
+> `dataSourceRef`; each had to be recreated through `just kube restore` before the annotation
+> could come off. Check with a server dry-run before touching this:
+>
+> ```
+> just kube render-local-ks <ns> <app> | kubectl apply --server-side \
+>   --force-conflicts --field-manager=kustomize-controller --dry-run=server -f -
+> ```
+
+Because a bound PVC is now a no-op apply, `just kube apply-ks` works on Kopiur-backed apps
+again. Any future app whose PVC is created outside the component will reintroduce the problem —
+the fix is always to recreate that PVC through the restore path, never to re-add the annotation.
 
 ### `WaitForFirstConsumer` means a restore needs a consumer
 
@@ -171,17 +188,30 @@ removed too, or the space stays leaked. The recipe prints the exact command when
 
 ### Observed timings
 
-0.49Gi / 2662 files, single-node ARM to Cloudflare R2:
+All three restores below were run on 2026-08-18, single-node ARM to Cloudflare R2. The
+end-to-end column is the whole `just kube restore` run: scale down, delete, Flux recreate,
+repopulate, roll out.
 
-| Phase | Time |
-| --- | --- |
-| On-demand snapshot (backup) | ~49s |
-| Consumer created -> PVC `Bound` | **54s** |
-| Mover Job runtime | ~38s |
-| PVC `Bound` -> app serving | ~4s |
+| App | Size / files | Backup | Restore (end to end) |
+| --- | --- | --- | --- |
+| `matrix/continuwuity` | 0.49Gi / 2662 | ~49s | 54s to `Bound`, +4s serving |
+| `observability/vm-single` | 3.18Gi / — | ~53s | ~2m |
+| `fediverse/gotosocial` | 0.37Gi / 3163 | ~58s | **1m14s** |
 
-Roughly ~16s fixed overhead plus transfer. Do not extrapolate linearly to large volumes — this
-was a metadata-heavy RocksDB workload where small-file overhead dominates.
+Roughly ~16s of fixed overhead (prime PVC, Job scheduling, kopia connect) plus transfer. Do
+not extrapolate linearly — continuwuity and gotosocial are metadata-heavy workloads with
+thousands of small files, where per-file overhead dominates over raw bytes. Note that
+gotosocial moved *more* files than continuwuity in less time despite being smaller, because
+media files are large and contiguous where RocksDB SSTs are not.
+
+Verification results, for confidence in the path:
+
+- **gotosocial**: 3163 files, **all 3163 byte-identical** by sha256 — zero missing, zero extra,
+  zero mismatched. The cleanest possible result.
+- **continuwuity**: all 1768 media files byte-identical; the only same-path hash difference
+  across the volume was `/CURRENT`, RocksDB's manifest pointer, plus `.sst`/`.log` churn from
+  compaction after the app reopened the DB.
+- **vm-single**: `rowsCount: 16948801650` after restore, storage opened clean, queries served.
 
 ## Why vm-single uses `existingClaim`
 
