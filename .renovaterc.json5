@@ -154,6 +154,22 @@
       },
       minimumGroupSize: 2,
     },
+    {
+      // Every update to Cluster.spec.imageName recreates postgres-1, and `instances: 1` means
+      // that is a full outage rather than a switchover. The mautrix bridges exit fatally when
+      // their DB goes away and then crash-loop against pgbouncer until it stops serving the
+      // cached login failure, so each of these bumps costs ~3 bridge restarts. Three landed in
+      // August alone, at arbitrary times. Grouping them with the operator and holding them to a
+      // weekly window makes the outage predictable and less frequent; it does not prevent it.
+      description: "CNPG Group — batches the updates that recreate the single Postgres instance",
+      groupName: "cnpg",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/cloudnative-pg/"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      schedule: ["* 4-6 * * 6"],
+    },
     // Labels
     {
       description: "Label major updates",
