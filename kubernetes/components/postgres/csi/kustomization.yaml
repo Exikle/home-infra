@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+components:
+  - ../base/patch
+resources:
+  - ../base/configmap.yaml
+  - ../base/ks.yaml
+patches:
+  - target:
+      group: helm.toolkit.fluxcd.io
+      kind: HelmRelease
+      version: v2
+      annotationSelector: "!postgres.frostlink.dev/skip-cert-patch"
+    patch: |-
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: not-used
+      spec:
+        values:
+          persistence:
+            postgres-certs:
+              type: custom
+              volumeSpec:
+                csi:
+                  driver: csi.cert-manager.io
+                  readOnly: true
+                  volumeAttributes:
+                    csi.cert-manager.io/issuer-name: postgres-client-ca
+                    csi.cert-manager.io/issuer-kind: ClusterIssuer
+                    csi.cert-manager.io/issuer-group: cert-manager.io
+                    csi.cert-manager.io/common-name: ${DATABASE_OWNER:=${APP}}
+                    csi.cert-manager.io/key-usages: client auth
+                    csi.cert-manager.io/key-encoding: PKCS8
+                    csi.cert-manager.io/fs-group: "${POSTGRES_CERT_FS_GROUP:=1000}"
+              globalMounts:
+                - path: /var/run/secrets/postgresql
