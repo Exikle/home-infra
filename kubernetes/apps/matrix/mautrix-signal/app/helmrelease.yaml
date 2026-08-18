@@ -71,6 +71,11 @@ spec:
                 drop:
                   - "ALL"
     persistence:
+      postgres-certs:
+        volumeSpec:
+          csi:
+            volumeAttributes:
+              csi.cert-manager.io/fs-group: "1337"
       config:
         type: secret
         name: mautrix-signal
