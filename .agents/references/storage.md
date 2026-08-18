@@ -160,6 +160,19 @@ is correct — but only once **every** live PVC already matches its rendered man
 >   --force-conflicts --field-manager=kustomize-controller --dry-run=server -f -
 > ```
 
+> **Removing it from git is not enough.** kustomize-controller reads the annotation off the
+> **live object**, not just the rendered manifest, so a resource still carrying a stale
+> `ssa: ignore` keeps being skipped forever — silently, since the Kustomization still reports
+> Ready. Strip it from the live objects with a server-side apply that no longer includes the
+> field (`just kube apply-ks <ns> <app>` does exactly that). Confirm with:
+>
+> ```
+> kubectl -n flux-system logs deploy/kustomize-controller --since=2m \
+>   | grep -oE '"PersistentVolumeClaim/[^"]*":"[a-z]*"'
+> ```
+>
+> `unchanged`/`configured` means Flux is managing it; `skipped` means it is still ignored.
+
 Because a bound PVC is now a no-op apply, `just kube apply-ks` works on Kopiur-backed apps
 again. Any future app whose PVC is created outside the component will reintroduce the problem —
 the fix is always to recreate that PVC through the restore path, never to re-add the annotation.
