@@ -35,21 +35,6 @@ prune-pods:
         {{ kubectl }} delete pods -A --field-selector status.phase="$phase" --ignore-not-found=true
     done
 
-[doc('Snapshot VolSync PVCs')]
-[script]
-snapshot:
-    {{ kubectl }} get replicationsources --no-headers -A | while read -r ns name _; do
-        {{ kubectl }} -n "$ns" patch replicationsources "$name" --type merge -p '{"spec":{"trigger":{"manual":"$(date +%s)"}}}'
-    done
-
-[arg('state', pattern='suspend|resume')]
-[doc('Suspend or resume Keda ScaledObjects')]
-[script]
-keda state:
-    {{ kubectl }} get scaledobjects --no-headers -A | while read -r ns name _; do
-        {{ kubectl }} -n "$ns" annotate --field-manager flux-client-side-apply --overwrite so "$name" autoscaling.keda.sh/paused{{ if state != "suspend" { "-" } else { "=true" } }}
-    done
-
 [arg('state', pattern='suspend|resume')]
 [doc('Suspend or resume VolSync')]
 volsync state:
