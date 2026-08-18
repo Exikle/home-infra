@@ -12,4 +12,5 @@ resources:
   - ./cert-manager/ks.yaml
   - ./clusterissuer/ks.yaml
   - ./postgres-ca/ks.yaml
+  - ./csi-driver/ks.yaml
   - ./trust-manager/ks.yaml
