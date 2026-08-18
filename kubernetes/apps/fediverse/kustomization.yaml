@@ -10,5 +10,6 @@ components:
 resources:
   - ./namespace.yaml
   - ./apoci/ks.yaml
+  - ./fingerjoin/ks.yaml
   - ./gotosocial/ks.yaml
   - ./phanpy/ks.yaml

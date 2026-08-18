@@ -5,11 +5,11 @@ kind: Kustomization
 metadata:
   name: &app fingerjoin
 spec:
-  targetNamespace: network
+  targetNamespace: fediverse
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apps/network/fingerjoin/app
+  path: ./kubernetes/apps/fediverse/fingerjoin/app
   prune: true
   sourceRef:
     kind: OCIRepository

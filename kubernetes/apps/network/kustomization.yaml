@@ -13,4 +13,3 @@ resources:
   - ./cloudflare-dns/ks.yaml
   - ./cloudflare-tunnel/ks.yaml
   - ./envoy-gateway/ks.yaml
-  - ./fingerjoin/ks.yaml
