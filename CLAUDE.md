@@ -5,13 +5,13 @@
 
 ## What Is This
 
-Single-node Talos Kubernetes cluster on Oracle Cloud Always Free ARM64 (ca-toronto-1). All external traffic via Cloudflare tunnel only — no direct ingress. Management via Tailscale. Every push to `main` reconciles immediately to production via Flux. **No staging cluster — test with `just kube apply-ks` before committing.**
+Single-node Talos Kubernetes cluster on Oracle Cloud Always Free ARM64 (ca-toronto-1). Most external traffic arrives via the Cloudflare tunnel, but **this is no longer a zero-inbound-port cluster** — the towonel edge listens directly on 443/tcp and 51820/udp so other machines can publish through it. Management via Tailscale. Every push to `main` reconciles immediately to production via Flux. **No staging cluster — test with `just kube apply-ks` before committing.**
 
 ## Cluster Map
 
 | Namespace          | Key Apps                                                      | Status       |
 | ------------------ | ------------------------------------------------------------- | ------------ |
-| `kube-system`      | Cilium 1.17.4, CoreDNS 1.46.0                                 | ✓ running    |
+| `kube-system`      | Cilium 1.17.4, CoreDNS 1.14.6                                 | ✓ running    |
 | `cert-manager`     | cert-manager 1.20.2                                           | ✓ running    |
 | `external-secrets` | External Secrets 2.6.0, 1Password Connect 2.4.1               | ✓ running    |
 | `flux-system`      | flux-operator 0.52.0, Flux v2.8.8                             | ✓ running    |
@@ -20,12 +20,13 @@ Single-node Talos Kubernetes cluster on Oracle Cloud Always Free ARM64 (ca-toron
 | `matrix`           | continuwuity, mautrix-signal, mautrix-whatsapp                | ✓ running    |
 | `database`         | shared CNPG Postgres + pooler, shared Dragonfly               | ✓ running    |
 | `observability`    | VictoriaMetrics, vmagent, alertmanager, kromgo, gatus, chaski | ✓ running    |
+| `towonel`          | towonel hub + edge — tunnel for other machines (hostNetwork)   | ✓ running    |
 
 ## Node
 
 **Single node `frostlink`** — ARM64 Ampere A1, 4 OCPU / 24 GB RAM  
 Tailscale: `100.67.108.103` | Public IP: `40.233.88.33` | kubeconfig context: `frostlink`  
-Talos v1.13.4 | Kubernetes v1.36.1 | `allowSchedulingOnControlPlanes: true`
+Talos v1.14.0-rc.1 | Kubernetes v1.36.1 | `allowSchedulingOnControlPlanes: true`
 
 > The global kubeconfig has both contexts. Switch to Frostlink: `kubectx frostlink` / back to Artemis: `kubectx artemis`
 
@@ -88,6 +89,7 @@ Project skills (this cluster):
 | "apply talos config", "upgrade talos node", "extension change"   | `talos-ops`        |
 | "validate manifests", "flate diff", "pre-commit check"           | `flux-validate`    |
 | "manage apoci federation", "webfinger", "federation peer"        | `apoci-federation` |
+| "towonel is down", "create an invite", "expose X through towonel" | `towonel-ops`      |
 
 Global skills in `~/.claude/skills/`, available here and in every other repo — not duplicated
 per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add-agent-content`.
@@ -113,6 +115,7 @@ per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add
 | `references/talos.md`         | Oracle Cloud Talos config, single-node quirks, upgrade steps  |
 | `references/bootstrap.md`     | Bootstrap order and one-time setup                            |
 | `references/database.md`      | Shared Postgres, pgbouncer tuning, surviving a primary restart |
+| `references/towonel.md`       | towonel hub/edge — ports, grey-cloud DNS, key material, kopiur movers |
 
 ---
 

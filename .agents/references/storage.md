@@ -297,3 +297,33 @@ The chart rule is left enabled rather than replaced because it carries ten other
 (`KopiurRepositoryNotReady`, `KopiurSnapshotFailed`, `KopiurRestoreFailed`, leader-election
 health, and so on). Vendoring a copy to edit one expression would fork all of them and drift on
 every Renovate chart bump.
+
+
+## Gotcha: stale CSINode topology keys block every new PVC
+
+`zfs.csi.openebs.io` has `storageCapacity: true`, so the scheduler will not place a
+pod with an **unbound** PVC unless a matching `CSIStorageCapacity` object exists.
+
+The zfs-localpv node plugin registers the node's labels as CSINode `topologyKeys` at
+startup. tuppr sets `tuppr.home-operations.com/upgrading` on the node during an
+upgrade — if the node reboots while that label is present, the key is baked into
+CSINode. tuppr then removes the label, the capacity controller can no longer build a
+complete topology segment, and it publishes nothing:
+
+```text
+Initial number of topology segments 0, storage classes 1, potential CSIStorageCapacity objects 0
+```
+
+The symptom is a pod stuck `Pending` with **"1 node(s) did not have enough free
+storage"** while the pool is nearly empty, and `kubectl get csistoragecapacity -A`
+returning nothing. Already-bound PVCs are unaffected, which is why it can sit
+unnoticed until the next new app.
+
+```bash
+kubectl -n openebs-system rollout restart ds/zfs-localpv-node        # re-register CSINode
+kubectl -n openebs-system rollout restart deploy/zfs-localpv-controller
+kubectl get csistoragecapacities.storage.k8s.io -A                   # expect >= 1
+```
+
+Diagnose by diffing CSINode's `topologyKeys` against the node's actual labels — any
+key with no matching label is the culprit.

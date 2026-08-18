@@ -55,18 +55,39 @@ Always use `svc.cluster.local` — never external hostnames:
 
 ## Oracle Cloud VCN
 
-- **Security list ingress**:
-    - `50000/tcp` + `6443/tcp` — from home IP only (Talos API + Kubernetes API)
-    - `80/tcp` + `443/tcp` — from `0.0.0.0/0` (future direct access, currently unused by tunnel)
-- **Security list egress**: all allowed
+Verified against the console 2026-08-18. The earlier version of this section was
+wrong in both directions — 80/443 were **not** open, and 50000/6443 were **not**
+scoped to a home IP.
+
+- **Security list ingress** (all stateful, all `0.0.0.0/0` unless noted):
+    - `443/tcp` — towonel edge, TLS with SNI routing
+    - `51820/udp` — towonel iroh QUIC. **Missing the UDP half fails silently.**
+    - `50000/tcp` — Talos API. `talosconfig` points at the **public** IP, not
+      Tailscale, so closing this locks out `talosctl` until that is repointed.
+    - `22/tcp` — dead weight; Talos runs no SSH daemon
+    - `icmp` 3,4 (path MTU) and `icmp` 3 from `10.0.0.0/16`
+- **Deliberately closed**:
+    - `8443/tcp` — the towonel hub API is bound on the host but speaks plain HTTP.
+      It is reached through cloudflared at `hub.frostlink.dev` instead. Opening this
+      exposes the operator API in cleartext.
+    - `80/tcp` — the towonel edge binds it, but origins use DNS-01, not HTTP-01.
+    - `6443/tcp` — removed 2026-08-18. `kubeconfig` uses the Tailscale address, so
+      the Kubernetes API never needed to be public.
+- **Security list egress**: all allowed — this is what carries Tailscale, which is
+  outbound-initiated and has no ingress rule of its own.
+
+Stateless rules would break this: OCI skips connection tracking for any flow that
+matches one, and a stateless rule takes precedence over a stateful one.
 
 ## Access Methods
 
 | Access type    | Method                             | Address                   |
 | -------------- | ---------------------------------- | ------------------------- |
 | Kubernetes API | Tailscale                          | `100.67.108.103:6443`     |
-| Talos API      | Tailscale                          | `100.67.108.103:50000`    |
+| Talos API      | **Public IP** (`talosconfig` endpoint) | `40.233.88.33:50000`  |
 | App traffic    | Cloudflare tunnel → external-gateway | `*.frostlink.dev`       |
+| Tunnelled origins | towonel edge, direct to the VPS  | `edge.frostlink.dev:443`  |
+| towonel hub API | Cloudflare tunnel → external-gateway | `hub.frostlink.dev`     |
 | Node debug     | Tailscale → talosctl               | `100.67.108.103`          |
 
 ## kubectl context

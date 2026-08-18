@@ -23,11 +23,12 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 | | |
 | --- | --- |
 | **Node** | VM.Standard.A1.Flex — 4 OCPU / 24 GB RAM (ARM64) |
-| **OS** | Talos Linux v1.13.4 |
+| **OS** | Talos Linux v1.14.0-rc.1 |
 | **Kubernetes** | v1.36.1 |
 | **CNI** | Cilium 1.17.4 |
 | **GitOps** | Flux CD v2.8.8 via flux-operator |
 | **Secrets** | 1Password ExternalSecret (no SOPS) |
+| **Ingress** | Cloudflare tunnel (apps) + towonel edge on 443/tcp, 51820/udp (tunnelled origins) |
 
 ## Structure
 
@@ -35,3 +36,11 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 - `bootstrap/` — One-time helmfile bootstrap (secrets + Flux install)
 - `kubernetes/flux/` — Flux sync entrypoint
 - `kubernetes/apps/` — Workloads reconciled by Flux
+- `kubernetes/components/` — Reusable Flux Components (kopiur backups, postgres certs, anubis, alerts)
+
+## Tunnel
+
+Frostlink runs the [towonel](https://codeberg.org/towonel/towonel) hub and edge, so
+machines behind NAT/CGNAT can publish through this VPS without opening ports of their
+own. Agents dial out over iroh QUIC; the edge routes by SNI and passes TLS straight
+through, so origins keep their own certificates.
