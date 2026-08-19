@@ -23,9 +23,22 @@ spec:
           labels:
             severity: critical
 
-        # NOTE: deliberately NOT alerting on active_sessions == 0. Upstream
-        # pages on it, but a hub with zero agents is the correct steady state
-        # here until the Artemis agent lands (S8). Re-enable then.
+        # Enabled 2026-08-19: the Artemis agent has landed, so zero sessions is
+        # no longer a valid steady state. This is the only alert that catches a
+        # dead tunnel for the non-HTTP services — Artemis probes its own HTTPS
+        # hostnames, but minecraft/tcp and eco/udp would otherwise go dark
+        # silently. 10m tolerates an agent rollout without flapping.
+        - alert: TowonelEdgeNoSessions
+          expr: |-
+            towonel_edge_active_sessions == 0
+          for: 10m
+          annotations:
+            summary: >-
+              Towonel edge {{ $labels.job }} has no agent sessions — every tunnelled
+              service is unreachable (Artemis: *.frostlink.dev, minecraft/tcp 25565,
+              eco/udp 3000)
+          labels:
+            severity: critical
 
         - alert: TowonelEdgeOverloadDrops
           expr: |-
