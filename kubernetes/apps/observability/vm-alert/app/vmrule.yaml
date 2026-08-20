@@ -367,3 +367,52 @@ spec:
           for: 30m
           labels:
             severity: warning
+
+    # ------------------------------------------------------------------ #
+    # OCI — Always Free egress budget
+    # ------------------------------------------------------------------ #
+    # enp0s6 is the VM's public NIC, so its transmit counter is the closest
+    # available proxy for what Oracle bills as egress. It over-counts (some
+    # intra-region traffic is free), which is the safe direction for a budget
+    # alert. There is no OCI billing exporter here.
+    #
+    # The window is 28d, not 30d: vm-single retains exactly 30d, so a [30d]
+    # range sits on the boundary where the oldest samples are already expiring.
+    # A rolling window also trips earlier on sustained overuse than Oracle's
+    # calendar-month reset would, which is the useful direction.
+    #
+    # This matters because Jellyfin is published through the towonel tunnel;
+    # video is what will move the needle. Note the real ceiling is Artemis's
+    # residential upload, not this cap.
+    #
+    # The warning is bounded (> 7 and <= 9) so it hands off to the critical
+    # rather than both firing at once. Alertmanager's inhibit_rule cannot do
+    # that here -- it matches on equal alertname, and these two differ.
+    - name: oci.rules
+      rules:
+        - alert: OciEgressBudgetHigh
+          annotations:
+            description: >-
+              {{ printf "%.2f" $value }} TB egressed on the public interface over
+              the last 28 days, past 70% of Oracle's 10 TB Always Free allowance.
+              Check whether Jellyfin streaming is driving it.
+            summary: OCI egress past 70% of the free-tier allowance.
+          expr: >-
+            (sum(increase(node_network_transmit_bytes_total{device="enp0s6"}[28d]))
+            / 1e12 > 7) <= 9
+          for: 1h
+          labels:
+            severity: warning
+        - alert: OciEgressBudgetCritical
+          annotations:
+            description: >-
+              {{ printf "%.2f" $value }} TB egressed on the public interface over
+              the last 28 days, past 90% of Oracle's 10 TB Always Free allowance.
+              Exceeding it starts incurring charges.
+            summary: OCI egress past 90% of the free-tier allowance.
+          expr: >-
+            sum(increase(node_network_transmit_bytes_total{device="enp0s6"}[28d]))
+            / 1e12 > 9
+          for: 1h
+          labels:
+            severity: critical
