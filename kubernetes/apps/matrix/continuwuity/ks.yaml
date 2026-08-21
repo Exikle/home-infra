@@ -22,12 +22,8 @@ spec:
       name: continuwuity
       namespace: matrix
   dependsOn:
-    - name: envoy-gateway
-      namespace: network
-    - name: kopiur-repository
+    - name: kopiur
       namespace: kopiur-system
-    - name: onepassword-connect
-      namespace: external-secrets
   components:
     - ../../../../components/kopiur
   postBuild:

@@ -21,9 +21,7 @@ spec:
   components:
     - ../../../../components/kopiur
   dependsOn:
-    - name: envoy-gateway
-      namespace: network
-    - name: kopiur-repository
+    - name: kopiur
       namespace: kopiur-system
   postBuild:
     substitute:

@@ -17,11 +17,6 @@ spec:
     namespace: flux-system
   interval: 1h
   wait: true
-  dependsOn:
-    - name: certificates-export
-    - name: envoy-gateway
-    - name: onepassword-connect
-      namespace: external-secrets
   postBuild:
     substituteFrom:
       - kind: Secret

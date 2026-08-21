@@ -17,9 +17,6 @@ spec:
     namespace: flux-system
   interval: 1h
   wait: true
-  dependsOn:
-    - name: zfs-localpv
-      namespace: openebs-system
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -41,5 +38,3 @@ spec:
   wait: true
   dependsOn:
     - name: kopiur
-    - name: onepassword-connect
-      namespace: external-secrets

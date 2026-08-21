@@ -22,14 +22,8 @@ spec:
       name: apoci
       namespace: fediverse
   dependsOn:
-    - name: envoy-gateway
-      namespace: network
-    - name: kopiur-repository
+    - name: kopiur
       namespace: kopiur-system
-    - name: onepassword-connect
-      namespace: external-secrets
-    - name: postgres-ca
-      namespace: cert-manager
   components:
     - ../../../../components/kopiur
     - ../../../../components/postgres/csi

@@ -25,5 +25,3 @@ spec:
       namespace: cnpg-system
     - name: trust-manager-config
       namespace: cert-manager
-    - name: onepassword-connect
-      namespace: external-secrets
