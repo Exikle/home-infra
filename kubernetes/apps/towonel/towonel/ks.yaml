@@ -21,9 +21,6 @@ spec:
       kind: HelmRelease
       name: *app
       namespace: towonel
-  dependsOn:
-    - name: kopiur
-      namespace: kopiur-system
   postBuild:
     substitute:
       APP: *app

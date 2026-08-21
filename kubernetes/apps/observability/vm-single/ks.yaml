@@ -20,9 +20,6 @@ spec:
   timeout: 5m
   components:
     - ../../../../components/kopiur
-  dependsOn:
-    - name: kopiur
-      namespace: kopiur-system
   postBuild:
     substitute:
       KOPIUR_APP: server-volume-victoria-metrics-server-0

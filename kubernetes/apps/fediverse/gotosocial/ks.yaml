@@ -21,9 +21,6 @@ spec:
       kind: HelmRelease
       name: gotosocial
       namespace: fediverse
-  dependsOn:
-    - name: kopiur
-      namespace: kopiur-system
   components:
     - ../../../../components/anubis
     - ../../../../components/kopiur

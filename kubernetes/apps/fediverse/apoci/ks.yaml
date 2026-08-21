@@ -21,9 +21,6 @@ spec:
       kind: HelmRelease
       name: apoci
       namespace: fediverse
-  dependsOn:
-    - name: kopiur
-      namespace: kopiur-system
   components:
     - ../../../../components/kopiur
     - ../../../../components/postgres/csi

@@ -21,9 +21,6 @@ spec:
       kind: HelmRelease
       name: continuwuity
       namespace: matrix
-  dependsOn:
-    - name: kopiur
-      namespace: kopiur-system
   components:
     - ../../../../components/kopiur
   postBuild:
