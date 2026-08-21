@@ -23,10 +23,10 @@
   // Renovate aborted in the init phase. No dependency updates landed after 2026-08-05. Before
   // bumping this pin, check that the target tag's files still contain no self-references.
   extends: [
-    "github>home-operations/renovate-presets#7.0.0",
-    "github>home-operations/renovate-presets//apps/cnpg.json5#7.0.0",
-    "github>home-operations/renovate-presets//apps/phanpy.json5#7.0.0",
-    "github>home-operations/renovate-presets//apps/talosFactory.json5#7.0.0",
+    "github>home-operations/renovate-presets#8.0.0",
+    "github>home-operations/renovate-presets//apps/cnpg.json5#8.0.0",
+    "github>home-operations/renovate-presets//apps/phanpy.json5#8.0.0",
+    "github>home-operations/renovate-presets//apps/talosFactory.json5#8.0.0",
     ":semanticCommits",
     ":timezone(America/Toronto)",
   ],
