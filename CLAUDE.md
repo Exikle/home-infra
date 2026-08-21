@@ -116,6 +116,7 @@ per cluster: `forgejo`, `triage-renovate`, `build-container`, `playwright`, `add
 | `references/bootstrap.md`     | Bootstrap order and one-time setup                            |
 | `references/database.md`      | Shared Postgres, pgbouncer tuning, surviving a primary restart |
 | `references/towonel.md`       | towonel hub/edge — ports, grey-cloud DNS, key material, kopiur movers |
+| `references/renovate.md`      | Preset pinning, automerge policy, tuppr/zer0ver guards        |
 
 ---
 

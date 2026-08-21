@@ -1,27 +1,5 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  // 6.0.0 made the apps/ presets opt-in — the root preset no longer pulls them in, so every
-  // app-specific manager/datasource this repo depends on has to be listed explicitly here.
-  // Dropping one is silent: the custom manager simply stops extracting and the dependency
-  // goes stale with no error. cnpg → Cluster.spec.imageName in database/postgres,
-  // phanpy → its `<calver>.<sha>` tags. grafanaDashboards, searxng and llamacpp are deliberately
-  // absent: no dashboards here (VictoriaMetrics only), no searxng, no llamacpp.
-  //
-  // talosFactory is extended purely for the `custom.talos-factory` customDatasource it defines.
-  // Its own customManager only scans `talos/**`, and nothing there carries a version — but
-  // tuppr's TalosUpgrade does, and the default preset's generic `# renovate:` annotation manager
-  // (which scans every file) resolves that marker against this datasource. Drop this and the
-  // marker in talosupgrade.yaml silently stops resolving.
-  //
-  // Pinned to 7.0.0, which is the first release where these files are self-contained. Up to and
-  // including 6.0.0, default.json reached its content through nested
-  // `github>home-operations/renovate-presets//config/...` references that carried NO tag, and
-  // Renovate resolves an untagged nested preset against the preset repo's DEFAULT BRANCH, not the
-  // tag its parent was pinned at. So the pin was never real: when upstream deleted config/,
-  // managers/, overrides/ and policies/ from main (7.0.0, "consolidate the general-purpose presets
-  // into default.json"), this repo — still on 4.0.0 — started 404ing on the nested fetch and
-  // Renovate aborted in the init phase. No dependency updates landed after 2026-08-05. Before
-  // bumping this pin, check that the target tag's files still contain no self-references.
   extends: [
     "github>home-operations/renovate-presets#8.0.0",
     "github>home-operations/renovate-presets//apps/cnpg.json5#8.0.0",
@@ -31,24 +9,11 @@
     ":timezone(America/Toronto)",
   ],
   suppressNotifications: ["prEditedNotification", "prIgnoreNotification"],
-  // Renovate commits through the Forgejo API rather than local git, so the instance SSH key signs
-  // both the branch commits (automergeType "branch") and the squash merges (automergeType "pr").
-  // Artemis dropped platformCommit and went squash-only; here it is what keeps the two
-  // automergeType paths on the same signer, so do not remove one without the other.
   platformCommit: "enabled",
   schedule: ["at any time"],
   automergeSchedule: ["at any time"],
   automergeStrategy: "squash",
   ignorePaths: ["**/*.secret.*", "**/resources/**"],
-  // The app-template HelmReleases point their `# yaml-language-server:` modeline at the chart's
-  // OWN HelmRelease schema, which is the only thing that validates `spec.values`; the generic
-  // helmrelease_v2.json validates the envelope and stops there. That URL carries the chart
-  // version in its git tag, so without this manager the schema silently pins to whatever version
-  // was current when the file was written and drifts every time the chart moves. Same depName as
-  // the per-app ocirepository.yaml files, so the schema bump rides along with the chart bump
-  // rather than arriving as a second, separate PR. Matters because the chart version lives in
-  // 22 places here — 11 OCIRepositories and 11 modelines — and only this keeps the two halves
-  // in step.
   customManagers: [
     {
       customType: "regex",
@@ -61,18 +26,6 @@
       depNameTemplate: "ghcr.io/bjw-s-labs/helm/app-template",
     },
   ],
-  // All six tools in .mise.toml are `latest`, so mise.lock is the only thing pinning them and
-  // nothing was refreshing it — flate, minijinja, oxfmt, shellcheck, yayamlls and zizmor are
-  // frozen at whatever resolved when the lock was last written, and the lock still carries a
-  // `github:home-operations/yamlls` entry for a tool that was renamed out of .mise.toml.
-  // Needs its own schedule: the top-level "at any time" would run this every pass.
-  //
-  // Renovate runs `mise lock --bump` for this, which needs the mise binary. It is deliberately
-  // NOT added to allowedUnsafeExecutions — mise >= 2026.7.12 gets safe mode (MISE_SAFE=1)
-  // instead, which resolves versions over HTTP without letting project config shell out. If the
-  // runner ever ships an older mise, Renovate logs a warning and skips; it does not half-write
-  // the lock. Left off automerge on purpose: these tools back the `just` recipes and the
-  // flux-oci-push CI workflow, so the monthly bump gets eyes on it.
   lockFileMaintenance: {
     enabled: true,
     schedule: ["before 4am on the first day of the month"],
@@ -84,7 +37,6 @@
       matchPackageNames: ["actions/upload-artifact", "actions/download-artifact"],
       enabled: false,
     },
-    // Auto-merge
     {
       description: "Auto-merge trusted container digests",
       matchDatasources: ["docker"],
@@ -123,13 +75,6 @@
       ignoreTests: false,
     },
     {
-      // The zer0ver policy (preset 5.0.0+) reclassifies 0.x minors as breaking: they get a
-      // `feat(scope)!:` prefix and land on a `major-` branch. That is presentation only —
-      // updateType stays "minor", so an unguarded rule here still automerges them, and the preset
-      // says as much: a guard shipped upstream would just be overridden by this rule, so it has to
-      // live here. Most of this cluster's control plane is 0.x — flux-operator, kopiur, ksgate,
-      // dragonfly-operator and both victoria-metrics charts — so without the guard a 0.x minor on
-      // any of them merges to production unattended.
       description: "Auto-merge all minor updates, except breaking 0.x minors (zer0ver)",
       matchUpdateTypes: ["minor"],
       matchCurrentVersion: "!/^v?0\\./",
@@ -139,17 +84,11 @@
       ignoreTests: false,
     },
     {
-      // tuppr turns a merged version bump into a real cluster upgrade. Frostlink is a single
-      // node, so both a Talos and a Kubernetes bump are full cluster downtime with nowhere to
-      // drain to. "Auto-merge all patch updates" above matches on update type with no package
-      // filter, so without this guard v1.13.4 -> v1.13.8 would merge and reboot the cluster
-      // unattended. Must stay AFTER the auto-merge rules — later packageRules win.
       description: "Never auto-merge tuppr-driven Talos or Kubernetes upgrades",
       matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
       automerge: false,
       minimumReleaseAge: "7 days",
     },
-    // Groups
     {
       description: "Flux Operator Group",
       groupName: "flux-operator",
@@ -181,12 +120,6 @@
       minimumGroupSize: 2,
     },
     {
-      // Every update to Cluster.spec.imageName recreates postgres-1, and `instances: 1` means
-      // that is a full outage rather than a switchover. The mautrix bridges exit fatally when
-      // their DB goes away and then crash-loop against pgbouncer until it stops serving the
-      // cached login failure, so each of these bumps costs ~3 bridge restarts. Three landed in
-      // August alone, at arbitrary times. Grouping them with the operator and holding them to a
-      // weekly window makes the outage predictable and less frequent; it does not prevent it.
       description: "CNPG Group — batches the updates that recreate the single Postgres instance",
       groupName: "cnpg",
       matchDatasources: ["docker"],
@@ -196,7 +129,6 @@
       },
       schedule: ["* 4-6 * * 6"],
     },
-    // Labels
     {
       description: "Label major updates",
       matchUpdateTypes: ["major"],
