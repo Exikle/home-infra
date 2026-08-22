@@ -5,7 +5,7 @@ description: Audit an existing app's manifests against this repo's conventions â
 
 # Skill: Review App Deployment
 
-Audit an existing app's manifests against Artemis-Cluster conventions and report (then optionally fix) any violations.
+Audit an existing app's manifests against this repo's conventions and report (then optionally fix) any violations.
 
 **Before reviewing, read:**
 

@@ -327,3 +327,46 @@ kubectl get csistoragecapacities.storage.k8s.io -A                   # expect >=
 
 Diagnose by diffing CSINode's `topologyKeys` against the node's actual labels — any
 key with no matching label is the culprit.
+
+## Migrating a PVC between StorageClasses
+
+Recovered 2026-08-21 from a completed `local-path` → `openebs-zfs` migration (originally written
+up as a skill, misfiled in Artemis, retired once the migration finished). The general restore
+mechanics are above — § Restore, § `WaitForFirstConsumer` means a restore needs a consumer, and
+§ Always retain the old volume first all apply unchanged. Only the migration-specific traps are
+recorded here.
+
+### `target.pvcRef`, never `target.pvc`
+
+`pvcRef` points a `Restore` at a PVC you pre-created; the Restore writes into it and does not
+take ownership. `target.pvc` makes the Restore **own** a PVC it creates — so when the Restore
+object is garbage-collected, the data goes with it. This is the most destructive mistake
+available in the procedure and it is a one-word difference.
+
+### Annotate a Helm-managed PVC `helm.sh/resource-policy: keep` before switching to `existingClaim`
+
+Otherwise the next Helm upgrade recreates the PVC on the chart's own StorageClass and deletes the
+live one you just migrated into. Annotate first, then switch the HelmRelease.
+
+### A Postgres data dir (uid 999, mode 700) cannot be read by a kopiur mover
+
+Neither `copyMethod: Direct` nor an unprivileged mover can read it. Copy it with a privileged
+Job instead — `securityContext.runAsUser: 0`, busybox, `sh -c 'cp -a /source/. /dest/'`, mounting
+the old PVC at `/source` and the new one at `/dest`.
+
+Because that Job needs the destination under a temporary name, finish by **re-pointing the PV**
+rather than copying twice: scale to 0, delete the temp PVC, strip the PV's `claimRef`
+(`[{"op": "remove", "path": "/spec/claimRef"}]`), then recreate the PVC under the final name with
+an explicit `volumeName`.
+
+### Do not resume the Kustomization until the Restore completes
+
+The mover holds the PVC `ReadWriteOnce`. Starting the app while the mover has it mounted
+deadlocks both rather than producing a clear error.
+
+### Two failure modes seen during the migration
+
+- **Snapshot fails `disk quota exceeded`** — the `SnapshotPolicy` is missing
+  `mover.cache.capacity` (2Gi sufficed). Set it before snapshotting.
+- **Snapshot deletion hangs** — remove the `kopiur.home-operations.com/snapshot-cleanup`
+  finalizer by hand if the cleanup Job never starts.

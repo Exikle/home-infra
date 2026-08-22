@@ -11,7 +11,7 @@ Each tick shows only what **changed** since the last tick — not the full clust
 
 ## State Cache
 
-Store the previous snapshot at `/tmp/artemis-watch-deploys.json`. On first run (no cache), show full current state as the baseline and write cache.
+Store the previous snapshot at `/tmp/frostlink-watch-deploys.json`. On first run (no cache), show full current state as the baseline and write cache.
 
 ## What to Track
 

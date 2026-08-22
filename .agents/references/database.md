@@ -175,6 +175,34 @@ Two consequences worth keeping:
   privileged. That raises the ceiling in the namespace holding the PKI keys; a
   dedicated privileged namespace for the driver is the stricter alternative.
 
+## CNPG PKI gotchas
+
+Learned while standing the shared cluster up (2026-07-01) and still true of the live manifests.
+
+- **The replication cert chains from the *client* CA, not the server CA.** CNPG verifies
+  `certificates.replicationTLSSecret` against `clientCASecret` — replication is just another
+  `clientcert=verify-full` client connection. Only `serverTLSSecret` verifies against
+  `serverCASecret`. `cluster/certificate.yaml` issues `postgres-replication-cert` from the
+  `postgres-client-ca` ClusterIssuer for exactly this reason, while `serverCASecret` is `root-ca`.
+  Getting it backwards produces a confident-looking config that never connects.
+- **CNPG does not watch cert-manager secrets it merely references.** It re-runs `setupPostgresPKI`
+  on a Cluster-spec change or its own resync interval, not when an external secret's content
+  changes. After any CA or issuer change the Cluster keeps reporting the stale
+  `certificate signed by unknown authority` indefinitely. Force it:
+
+  ```bash
+  kubectl -n database annotate cluster postgres cnpg.io/reconciliationLoop="$(date +%s)" --overwrite
+  ```
+
+- **`spec.monitoring.enablePodMonitor` was deprecated in CNPG operator 0.29.0.** The `PodMonitor`
+  is created by hand instead — `cluster/podmonitor.yaml` and the second document in
+  `cluster/pooler.yaml`, selecting on `cnpg.io/cluster: <name>`, port `metrics`. Do not "restore"
+  the `enablePodMonitor` field.
+- **The Pooler apply-time warning is benign.** `the operator won't handle the Pooler ...
+  integration with the Cluster` is expected under the cert-auth pattern: the custom `authQuery`
+  plus `auth_type: cert` means CNPG's automatic pooler-secret wiring never applies. Not a bug, and
+  not something to silence by changing the Pooler.
+
 ## Still open
 
 Deleting a `Certificate` does not delete its Secret, so `postgres-atuin-cert`

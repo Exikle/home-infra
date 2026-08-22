@@ -1,6 +1,6 @@
 ---
 name: apoci-federation
-description: Set up or repair ActivityPub federation between apoci OCI registry instances — the cross-instance follow, artifact mirroring, and verification that peers see each other. Use for "federate apoci", "apoci ActivityPub follow", or "mirror apoci artifacts between instances". Scoped to the Frostlink cluster.
+description: Set up or repair ActivityPub federation between apoci OCI registry instances — the cross-instance follow, artifact mirroring, webfinger routing, and verification that peers see each other. Use for "federate apoci", "apoci ActivityPub follow", "mirror apoci artifacts between instances", "apoci federation peer", "add a federation peer", "webfinger 404", or "apoci webfinger not resolving". Scoped to the Frostlink cluster.
 ---
 
 # Skill: apoci Federation

@@ -1,6 +1,6 @@
 # Module: YAML Sorting Rules
 
-Authoritative sorting reference for all Kubernetes manifests in Artemis-Cluster.
+Authoritative sorting reference for all Kubernetes manifests in Frostlink.
 Supersedes `.agents/instructions/sorting-instructions.md` (kept for backwards compatibility).
 
 ---
