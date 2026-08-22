@@ -10,6 +10,12 @@ Upstream: <https://github.com/TecharoHQ/anubis>
 
 ## Component Shape
 
+The component is kept near-identical to Artemis's. `diff -ru` on 2026-08-22 shows exactly four
+deltas — 1Password item (`anubis-frostlink` vs `anubis-artemis`), skip-annotation domain
+(`*.frostlink.dev` vs `*.dcunha.io`), `$schema` URLs (`json.schemastore.org` vs
+`k8s-schemas.home-operations.com`), and `USE_REMOTE_ADDRESS`, which only Artemis sets and which
+must **not** be synced here (§ Client IP). Fix any other bug in both.
+
 `kubernetes/components/anubis/` is a flat kustomize Component with two jobs:
 
 ```text
@@ -161,12 +167,24 @@ little bypass surface for meaningful monitoring.
 Anubis reads the client IP from the `X-Real-Ip` header and returns **HTTP 500
 `[misconfiguration] X-Real-Ip header is not set`** if it cannot resolve one. It will derive the
 header from `X-Forwarded-For`, but `xff.Parse` returns the first **non-private** address, so an
-XFF chain containing only RFC1918 addresses yields nothing. Setting `XFF_STRIP_PRIVATE=false`
-does *not* help — that flag governs a different step.
+XFF chain containing only RFC1918 addresses yields nothing.
 
-Frostlink is unaffected: all external traffic arrives through the Cloudflare tunnel with a public
-client IP, so `X-Real-Ip` is always populated. A purely internal route in front of Anubis would
-hit this. See Artemis's copy of this doc — it is the open blocker there.
+`XFF_STRIP_PRIVATE=false` does *not* help, and the reason matters if you are tempted to try it:
+`XForwardedForUpdate` runs with `Flatten: true`, keeping only the **last** surviving entry of
+`[client..., remoteAddr]`. Stop stripping private addresses and that last entry becomes Envoy's
+own pod IP — so *every* client, external included, collapses onto one address. Strictly worse
+than doing nothing.
+
+**Frostlink is unaffected.** All external traffic arrives through the Cloudflare tunnel with a
+public client IP, so `X-Real-Ip` is always populated and Frostlink keeps real per-client
+identity. A purely internal route in front of Anubis would hit this.
+
+**Artemis solved it differently, and the divergence is deliberate.** `git.dcunha.io` also
+resolves to Artemis's `internal-gateway`, so LAN clients arrive with an all-private XFF chain and
+500 on every allowed route. Artemis therefore sets `USE_REMOTE_ADDRESS: "true"` — Anubis takes the
+TCP peer address, which is always present, at the cost of attributing every client to the Envoy
+pod IP. **Do not copy that env var here**: it would throw away the real client IPs Frostlink does
+get, for no benefit. Artemis's copy of this doc carries the full trade-off.
 
 ---
 

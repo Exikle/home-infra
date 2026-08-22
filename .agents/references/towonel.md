@@ -1,8 +1,14 @@
 # Reference: towonel — Frostlink
 
 towonel exposes HTTP(S) services that sit behind NAT/CGNAT without opening inbound
-ports at the origin. Frostlink runs the **hub** (control plane) and the **edge**
-(public listener); agents run elsewhere (Artemis) and dial in.
+ports **at the origin** — the edge itself very much does listen inbound, on this host.
+Frostlink runs the **hub** (control plane) and the **edge** (public listener); the
+Artemis agent dials in and has been connected since 2026-08-19.
+
+The agent side — which hostnames Artemis claims, how it maps them to its own
+`edge-gateway`, and the PROXY-protocol contract — is documented in the **Artemis** repo at
+`.agents/references/towonel-agent.md`. The two files describe two ends of one tunnel; when
+they disagree about a port, a DNS record, or who terminates TLS, one of them is wrong.
 
 Upstream: <https://codeberg.org/towonel/towonel> · charts `oci://codeberg.org/towonel/charts/`
 
@@ -18,7 +24,35 @@ One `towonel-node` release with **both roles enabled**, in its own `towonel` nam
 | Edge public  | `edge.frostlink.dev` → `40.233.88.33`, **DNS-only**     |
 | Hub API      | `hub.frostlink.dev` via cloudflared + Envoy             |
 | State        | sqlite on a kopiur-backed PVC                           |
-| TLS          | passthrough (origins keep their own certs)              |
+| TLS          | passthrough — **nothing here terminates it**            |
+
+### Nothing on this cluster terminates TLS for a tunnelled hostname
+
+The edge peeks at SNI on a raw TLS connection and forwards the bytes. For
+`jellyfin.frostlink.dev`, `eco.frostlink.dev` and `echo.frostlink.dev`, the certificate the
+public sees is **Artemis's own copy** of `*.frostlink.dev` — a separate issuance with its own
+key, imported from 1Password onto Artemis's `edge-gateway`. This cluster's `frostlink-dev-tls`
+is never presented for those names.
+
+Two consequences worth holding on to:
+
+- A certificate problem on a tunnelled hostname is an **Artemis** problem. Renewing the cert
+  here does not fix it, and cert-manager's expiry metrics on this cluster do not cover it.
+- A frostlink-issued cert appearing on a tunnelled hostname means the edge stopped passing
+  through and started terminating — a real misconfiguration, not a cosmetic one.
+
+### The edge sends a PROXY protocol v2 header, and Artemis requires it
+
+Passthrough services prepend a HAProxy **PROXY protocol v2** header by default
+(`proxy_protocol` defaults to `v2` for HTTPS services, `none` for TCP services). Artemis leaves
+that default in place and pairs it with `ClientTrafficPolicy/edge` on its `edge-gateway`, which
+sets `proxyProtocol.optional: false`.
+
+That is why real client IPs survive the tunnel — verified 2026-08-22, the Artemis agent logs a
+public client address per stream. It also means **the two ends are coupled**: turning the header
+off on one side without the other produces a TLS-shaped failure (`tlsv1 alert protocol version`,
+`Broken pipe`) that points nowhere near the cause. Nothing on this side needs changing to keep it
+working; just do not assume the header is off.
 
 ## Why its own namespace
 
@@ -110,7 +144,19 @@ providerSpecific:
 Verify with `dig +short edge.frostlink.dev @1.1.1.1` — a `172.64.x.x` answer means
 it is still proxied and SNI routing will not work.
 
+**The `*.frostlink.dev` wildcard is a second grey record, and it is not ours.** Artemis publishes
+it (a CNAME to `edge.frostlink.dev`) from its own `external-dns-frostlink` instance, owner id
+`artemis`. Two consequences: any hostname on this cluster that lacks an explicit record falls
+through the wildcard to Artemis's edge, and this cluster's external-dns must never be repointed at
+owner id `artemis` or prefix `k8s.artemis.%{record_type}-` — see `networking.md` § The
+`frostlink.dev` zone is shared with Artemis.
+
 ## Ports
+
+Two kinds: ports the DaemonSet declares and holds for its lifetime, and ports the edge binds
+**on demand** when an agent registers a TCP/UDP service.
+
+### Static — declared on the DaemonSet
 
 | Port      | Proto | Where            | Open on OCI? |
 | --------- | ----- | ---------------- | ------------ |
@@ -123,6 +169,34 @@ it is still proxied and SNI routing will not work.
 
 Missing the UDP half fails **silently**: QUIC never establishes and there is no error.
 
+### Dynamic — bound per agent service, absent from the DaemonSet spec
+
+| Port  | Proto | Service     | Origin                        |
+| ----- | ----- | ----------- | ----------------------------- |
+| 25565 | TCP   | `minecraft` | Artemis, via the towonel agent |
+| 3000  | UDP   | `eco`       | Artemis, via the towonel agent |
+
+These are real public listeners on this host, and they are invisible in
+`kubectl get ds -n towonel towonel -o yaml` — the `ports:` list stops at 9091. The edge logs
+them instead:
+
+```text
+edge tcp listener bound   port=25565 service=minecraft
+edge udp listener bound   port=3000  service=eco
+unbinding udp listener    port=3000  service=eco      # on session loss
+```
+
+Three things follow:
+
+- **They exist only while an agent session does.** Probing the port while the agent is down
+  proves nothing, and an OCI rule change cannot be validated against a disconnected edge.
+- **The OCI security list must allow them**, and they are not in the console reading recorded in
+  `networking.md` § Oracle Cloud VCN. Traffic evidently arrives, so the rules exist — but that
+  section is otherwise console-verified and this pair is inferred. Re-read the console.
+- **25565 attracts constant internet scanning.** A steady trickle of
+  `client->agent forward: Connection reset by peer (os error 104)` / `Connection timed out
+  (os error 110)` on `route_key: tcp:minecraft` is background noise, not a fault.
+
 ## Monitoring
 
 The chart ships hub alerts (`monitoring.prometheusRule.enabled`) and a
@@ -132,8 +206,11 @@ in the chart — they are lifted from `eleboucher/homelab` into
 `app/prometheusrule-edge.yaml` with the upstream `cluster="towonel-ops"` selector
 dropped (that exists only because their hub runs outside their cluster).
 
-`TowonelEdgeNoSessions` is deliberately omitted while there are no agents — zero
-sessions is the correct steady state until the Artemis agent lands. Re-enable it then.
+`TowonelEdgeNoSessions` was omitted while there were no agents; it was **enabled 2026-08-19**
+when the Artemis agent landed, and zero sessions stopped being a valid steady state. Leave it
+on. It is the only alert that catches a dead tunnel for the non-HTTP services — Artemis probes
+its own HTTPS hostnames, so those fail loudly, but `minecraft/tcp` and `eco/udp` would
+otherwise go dark silently. The `for: 10m` tolerates an agent rollout without flapping.
 
 ## Operating
 
@@ -147,15 +224,21 @@ kubectl -n towonel run q --rm -i --restart=Never --image=mirror.gcr.io/curlimage
   --command -- curl -s http://towonel.towonel.svc.cluster.local:9091/metrics \
   | grep towonel_hub_is_leader
 
-# edge reachable directly, and rejecting unknown SNI (expected with no agents)
+# how many agents are attached? (should be 1 — Artemis)
+kubectl -n towonel logs ds/towonel --tail=200 | grep 'agent session'
+
+# edge reachable directly, and rejecting SNI no agent claims
 openssl s_client -connect 40.233.88.33:443 -servername nope.frostlink.dev </dev/null
 
 # on-demand backup of the key material
 just kube backup towonel towonel
 ```
 
-Creating an invite for an agent (S8) uses the operator API key that the node
-generates into `/data`; the hub API is at `https://hub.frostlink.dev`.
+Creating an invite for an agent uses the operator API key that the node generates into `/data`
+(`/data/operator.key`); the hub API is at `https://hub.frostlink.dev`. **The invite carries the
+port grants**, not just the hostnames — Artemis's invite is scoped to `*.frostlink.dev` plus
+`tcp_ports: [25565]` and `udp_ports: [3000]`. Adding a TCP/UDP service on the agent side without
+a matching grant leaves the edge declining to bind the listener, with no error on either side.
 
 ## Gotchas
 

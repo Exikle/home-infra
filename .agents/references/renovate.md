@@ -5,6 +5,11 @@ prose; every "why" below used to be a comment block in it.
 
 Upstream presets: <https://github.com/home-operations/renovate-presets>
 
+**This repo is pinned at `8.0.0`; Artemis is at `8.1.0`.** The skew is not drift to be fixed on
+sight — bump only after checking the target tag is self-contained (below). The two repos also
+extend different `apps/` presets and made opposite signing choices; the full divergence table is
+in Artemis's `.agents/references/renovate.md` § Where Artemis and Frostlink deliberately differ.
+
 ---
 
 ## Preset Pinning
@@ -126,7 +131,7 @@ production unattended.
 tuppr turns a merged version bump into a real cluster upgrade. Frostlink is a **single node**, so
 both a Talos and a Kubernetes bump are full cluster downtime with nowhere to drain to.
 "Auto-merge all patch updates" matches on update type with no package filter, so without this
-guard `v1.13.4 ➔ v1.13.8` would merge and reboot the cluster unattended.
+guard a bump like `v1.14.0-rc.1 ➔ v1.14.0` would merge and reboot the cluster unattended.
 
 ```json5
 {
@@ -137,6 +142,27 @@ guard `v1.13.4 ➔ v1.13.8` would merge and reboot the cluster unattended.
 ```
 
 **Must stay after the auto-merge rules** — later `packageRules` win.
+
+#### It guards the file, not the package — and the talosctl pin is outside it
+
+`matchFileNames` scopes this to `kubernetes/apps/system-upgrade/tuppr/upgrades/**`. The Talos
+version is pinned in **two** places, and only one of them is in that directory:
+
+| Where | Datasource | Covered by the guard? |
+| ------------------------------------- | -------------------- | --------------------- |
+| `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory` | yes |
+| `talos = "1.14.0-rc.1"` in `.mise.toml` | `github-tags` (mise manager) | **no** |
+
+So a minor or patch bump to the talosctl **CLI** still matches "Auto-merge all patch/minor
+updates" and can land unattended, drifting the client away from the version the cluster runs.
+That matters here specifically: talosctl decodes config documents client-side, and a client older
+than the node rejects a v1.14 document (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`)
+before the node ever sees it — see `.agents/references/talos.md` § Client version matters.
+
+Artemis solved this with a package-level guard (`matchPackageNames: ["siderolabs/talos"]`,
+deliberately **not** datasource-scoped, for exactly this reason). Frostlink has no equivalent
+today. If a talosctl automerge ever breaks `just talos` here, that is the gap — add the
+package-level rule rather than widening `matchFileNames`.
 
 ### Artifact actions are disabled
 
@@ -179,10 +205,11 @@ the two halves in step.
 
 ## Lock File Maintenance
 
-All six tools in `.mise.toml` are `latest`, so `mise.lock` is the only thing pinning them and
-nothing was refreshing it — flate, minijinja, oxfmt, shellcheck, yayamlls and zizmor were frozen
-at whatever resolved when the lock was last written, and the lock still carried a
-`github:home-operations/yamlls` entry for a tool renamed out of `.mise.toml`.
+Six of the seven tools in `.mise.toml` are `latest` — `talos = "1.14.0-rc.1"` is the only pin —
+so `mise.lock` is the only thing pinning the rest, and nothing was refreshing it. flate,
+minijinja, oxfmt, shellcheck, yayamlls and zizmor were frozen at whatever resolved when the lock
+was last written, and the lock still carried a `github:home-operations/yamlls` entry for a tool
+renamed out of `.mise.toml`.
 
 It needs its **own schedule** — the top-level `"at any time"` would run this every pass.
 
@@ -193,3 +220,24 @@ ships an older mise, Renovate logs a warning and skips; it does not half-write t
 
 Left off automerge on purpose: these tools back the `just` recipes and the `flux-oci-push` CI
 workflow, so the monthly bump gets eyes on it.
+
+---
+
+## Merging a batch
+
+`.agents/instructions/commit-style.md` shows a single-PR merge with
+`merge_when_checks_succeed`. **Queue it on one PR at a time.** Every PR queued that way fires on
+the same status event and they race on the `main` ref; losers come back `merged=true` with a
+`merge_commit_sha` that is left dangling and never reaches `main`, with no error from the API.
+This bit Artemis on 2026-08-19 — nine queued, three lost. Frostlink's PR volume is lower, so it
+has not happened here yet; the mechanism is identical and the flag is the same.
+
+Two related traps: the flag never fires if the checks have **already** passed (no new status
+event arrives, so the PR just sits there looking queued), and `merged=true` is not proof the
+change reached `main`. For a batch, merge sequentially and verify each landed:
+
+```bash
+tea pr merge <PR_NUMBER> --style squash --login forgejo --repo Exikle/frostlink
+git fetch origin main && git branch -r --contains <merge_commit_sha> | grep -q origin/main \
+  && echo LANDED || echo LOST
+```

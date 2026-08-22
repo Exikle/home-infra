@@ -27,7 +27,7 @@ This repo has no staging cluster. `main` reconciles directly to production.
     git push origin main
     ```
 
-5. After push: `just kube sync <ocirepo|hr|ks|es|gitrepo>`
+5. After push: `just kube sync <ocirepo|hr|ks|es>`
 
 **Never commit or push until the user explicitly confirms the live deployment works.**
 

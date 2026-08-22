@@ -60,31 +60,44 @@ cluster:
 
 ## Schematic
 
-Current schematic ID: `e7f26ff1516313fd32b377e04c573728c7c942655ecb5580e728ab92bbf4cfc1`
+Schematic ID: `e7f26ff1516313fd32b377e04c573728c7c942655ecb5580e728ab92bbf4cfc1`
 
-Extensions installed:
-- `siderolabs/iscsi-tools`
-- `siderolabs/tailscale`
-- `siderolabs/util-linux-tools`
-- `siderolabs/zfs`
+Confirmed three ways on 2026-08-21 — they agree:
+
+| Source | How to read it |
+| ------------------------ | -------------------------------------------------------------------- |
+| `talos/schematic.yaml` | the header comment, and `just talos schematic-id` recomputes it |
+| the live node | `kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'` |
+| `talosctl get extensions` | lists the installed extensions themselves |
+
+Extensions installed — **four, and there is no `qemu-guest-agent`.** OCI A1.Flex does not need
+one, and Artemis's `worker`/`gpu` schematics do carry it, so do not copy an extension list
+across repos.
+
+| Extension | Note |
+| -------------------------- | ------------------------------------------------------------------ |
+| `siderolabs/iscsi-tools` | |
+| `siderolabs/tailscale` | all management access rides this; losing it strands the node |
+| `siderolabs/util-linux-tools` | |
+| `siderolabs/zfs` | **load-bearing** — the whole `openebs-zfs` storage layer depends on it |
 
 ZFS kernel module is loaded via `machine.kernel.modules: [{name: zfs}]`.
+
+### Never hand-edit a schematic ID, anywhere
+
+tuppr rebuilds the installer from the **node's recorded schematic**, not from
+`talos/schematic.yaml`. A stale or hand-written ID therefore silently reinstalls an extension you
+removed — or, worse, drops `zfs` and takes every PVC offline. Always derive the ID; never type it.
 
 To add or change an extension:
 
 1. Edit `talos/schematic.yaml`
-2. Generate new schematic ID:
-
-```bash
-just talos schematic-id
-```
-
-3. Update the schematic ID in `controlplane.yaml` or patch file
-4. Upgrade with the new schematic:
-
-```bash
-just talos upgrade <current-talos-version>
-```
+2. `just talos schematic-id` — recompute the ID (it is `[private]`; `just talos upgrade` calls it)
+3. Update the header comment in `talos/schematic.yaml` and the `Schematic:` line in `AGENTS.md`
+4. `just talos upgrade <current-talos-version>` — **required.** Editing `schematic.yaml` alone
+   changes nothing on the node, and tuppr will keep rebuilding from the old recorded ID until an
+   upgrade re-records it. Same Talos version is fine; the point is the reinstall.
+5. Re-read the node annotation and confirm it matches
 
 ## Talos + Kubernetes Upgrades — owned by tuppr
 
@@ -98,10 +111,33 @@ automatically — there is nowhere to drain to — and completion is tracked by
 polling node readiness after reboot.
 
 tuppr rebuilds the installer from the node's **runtime-reported schematic**, so
-extensions survive: `.machine.install.image` is rewritten to
-`factory.talos.dev/metal-installer/<schematic>:<version>`. If it cannot resolve a
-schematic it refuses rather than reinstalling from the generic installer and
-wiping extensions.
+extensions survive an upgrade with no repo change: `.machine.install.image` is
+rewritten to `factory.talos.dev/metal-installer/<schematic>:<version>`. If it
+cannot resolve a schematic it refuses rather than reinstalling from the generic
+installer and wiping extensions.
+
+The flip side: because the **node** is the authority, a schematic change that has
+not yet been applied to the node is invisible to tuppr, and an extension deleted
+from `talos/schematic.yaml` gets silently reinstalled on the next upgrade. See
+§ Schematic — the fix is to run `just talos upgrade` so the node re-records the
+new ID.
+
+Note the path is `metal-installer`. Artemis pins the legacy `installer/` prefix to
+match its tuppr `factory-url` annotation — **the two clusters differ here on
+purpose**, so do not "align" one to the other.
+
+**CSINode topology keys go stale across a tuppr reboot.** tuppr labels the node
+`tuppr.home-operations.com/upgrading` for the duration. If the node reboots while
+that label is set, zfs-localpv bakes it into CSINode's `topologyKeys`; once tuppr
+removes the label the capacity controller builds **0 topology segments**,
+publishes no `CSIStorageCapacity`, and then **no new PVC can schedule at all** —
+"node(s) did not have enough free storage" against a pool that is 90% free.
+After every Talos upgrade, verify a PVC can still bind. Fix:
+
+```bash
+kubectl -n openebs-system rollout restart ds/zfs-localpv-node
+kubectl -n openebs-system rollout restart deploy/zfs-localpv-controller
+```
 
 tuppr triggers on `currentVersion != targetVersion` — **not** a "newer than"
 check, and there is no downgrade guard. Never apply a version bump out of band
@@ -116,13 +152,22 @@ Only when tuppr is unavailable. Note this uses the legacy
 
 
 ```bash
-just talos upgrade v1.13.4   # reboots with --reboot-mode powercycle, 10m timeout
-just talos schematic-id       # get current schematic ID from factory.talos.dev
+just talos upgrade <version>   # reboots with --reboot-mode powercycle, 10m timeout
+just talos schematic-id        # recompute the schematic ID from talos/schematic.yaml
 ```
+
+`just talos upgrade` resolves the schematic from `talos/schematic.yaml` at run time, so it
+installs whatever is currently checked in — which is exactly what tuppr will **not** do. Use it
+deliberately, with the current version, and confirm the node annotation afterwards.
 
 No drain/uncordon needed — single node, all workloads restart automatically after reboot.
 
-## Kubernetes Upgrade
+## Kubernetes Upgrade — break-glass only
+
+tuppr's `KubernetesUpgrade` owns this; the CR currently targets `v1.36.1`, which is what the node
+runs. Bumping the CR is the normal path. Only reach for the command below when tuppr is
+unavailable — and expect the next Flux reconcile to fight you if the CR still names the old
+version.
 
 ```bash
 talosctl --context frostlink upgrade-k8s \

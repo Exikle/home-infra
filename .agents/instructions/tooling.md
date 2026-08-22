@@ -27,7 +27,7 @@ is ever added, load this file there too rather than copying its contents.
 just kube apply-ks <ns> <ks>              # render with flate + kubectl apply --server-side
 just kube render-local-ks <ns> <ks>       # validate with flate (offline, no cluster needed)
 just kube delete-ks <ns> <ks>             # delete a rendered Kustomization
-just kube sync <hr|ks|gitrepo|ocirepo|es> # force-sync every resource of that Flux kind
+just kube sync <hr|ks|ocirepo|es>        # force-sync every resource of that Flux kind
 just kube backup <ns> <claim>             # on-demand Kopiur snapshot, waits for it
 just kube restore <ns> <ks> <claim> [off] # restore a PVC from Kopiur (DESTRUCTIVE)
 just kube kopiur <suspend|resume>         # suspend/resume the Kopiur controller

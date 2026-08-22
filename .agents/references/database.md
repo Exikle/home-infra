@@ -185,19 +185,33 @@ Learned while standing the shared cluster up (2026-07-01) and still true of the 
   `serverCASecret`. `cluster/certificate.yaml` issues `postgres-replication-cert` from the
   `postgres-client-ca` ClusterIssuer for exactly this reason, while `serverCASecret` is `root-ca`.
   Getting it backwards produces a confident-looking config that never connects.
-- **CNPG does not watch cert-manager secrets it merely references.** It re-runs `setupPostgresPKI`
-  on a Cluster-spec change or its own resync interval, not when an external secret's content
-  changes. After any CA or issuer change the Cluster keeps reporting the stale
+- **CNPG does not watch a cert-manager secret it merely references.** It re-runs
+  `setupPostgresPKI` on a Cluster-spec change or its own resync interval, not when an external
+  secret's content changes. After any CA or issuer change the Cluster keeps reporting the stale
   `certificate signed by unknown authority` indefinitely. Force it:
 
   ```bash
   kubectl -n database annotate cluster postgres cnpg.io/reconciliationLoop="$(date +%s)" --overwrite
   ```
 
-- **`spec.monitoring.enablePodMonitor` was deprecated in CNPG operator 0.29.0.** The `PodMonitor`
-  is created by hand instead — `cluster/podmonitor.yaml` and the second document in
+  **"Merely references" is doing the work in that sentence.** Every Certificate in
+  `cluster/certificate.yaml` sets `secretTemplate.labels: {cnpg.io/reload: ""}`, and the live
+  `postgres-server-cert` / `postgres-replication-cert` secrets carry it — that label is what makes
+  CNPG watch a secret and push its **contents** to the instances, which is why a routine cert
+  renewal needs no intervention. What it does not do is re-derive trust when the **CA or issuer**
+  changes, which is the case the annotation above exists for. If you add a Certificate here, copy
+  the `cnpg.io/reload` label with it; without it even a plain renewal is invisible until the next
+  resync.
+- **`spec.monitoring.enablePodMonitor` is deprecated on the CNPG API itself** — not in a particular
+  chart release. `kubectl explain cluster.spec.monitoring.enablePodMonitor` returns "Deprecated:
+  This feature will be removed in an upcoming release. If you need this functionality, you can
+  create a PodMonitor manually." An earlier revision of this note said "deprecated in CNPG operator
+  0.29.0"; **0.29.0 is the `cloudnative-pg` Helm chart version, and the operator it ships is
+  1.30.0.** The two numbers version different things and neither is where the deprecation lives.
+  The `PodMonitor` is created by hand instead — `cluster/podmonitor.yaml` and the second document in
   `cluster/pooler.yaml`, selecting on `cnpg.io/cluster: <name>`, port `metrics`. Do not "restore"
-  the `enablePodMonitor` field.
+  the `enablePodMonitor` field. Artemis carries the identical rule against the identical
+  1.30.0 / 0.29.0 pair.
 - **The Pooler apply-time warning is benign.** `the operator won't handle the Pooler ...
   integration with the Cluster` is expected under the cert-auth pattern: the custom `authQuery`
   plus `auth_type: cert` means CNPG's automatic pooler-secret wiring never applies. Not a bug, and
@@ -205,12 +219,46 @@ Learned while standing the shared cluster up (2026-07-01) and still true of the 
 
 ## Still open
 
-Deleting a `Certificate` does not delete its Secret, so `postgres-atuin-cert`
-(tools), `postgres-gotosocial-cert` and `postgres-apoci-cert` (fediverse) are
-now orphaned and unreferenced. They are regenerable and safe to delete; the
-`postgres-atuin-cert` in `default` is older, from the namespace move.
+Deleting a `Certificate` does not delete its Secret. Four orphans remain, confirmed live
+2026-08-21 — no `Certificate` object exists for any of them (`kubectl get certificate -A` lists
+only the two CAs, the two `database` certs, and the two mautrix certs):
 
-`kube-apiserver` is the node's largest single consumer at ~1980Mi with **no** memory limit. The
-same shape caused OOM kills on Artemis. Not urgent at 43% node utilisation and unrelated to the
-restart loop above, but it has not been decided either way. The CNPG `Cluster` also sets no
-`resources` block, so `postgres-1` is BestEffort while the `Dragonfly` CR beside it is not.
+| Secret | Namespace | Age | Note |
+| --- | --- | --- | --- |
+| `postgres-apoci-cert` | `fediverse` | 51d | left by the move to `postgres/csi` |
+| `postgres-gotosocial-cert` | `fediverse` | 51d | same |
+| `postgres-atuin-cert` | `default` | 22d | from the namespace move |
+| `postgres-atuin-cert` | `tools` | **4d** | unexplained — see below |
+
+They are regenerable and safe to delete. **The `tools` one is 4 days old, which nothing here
+accounts for** — atuin has been on `postgres/csi` (no Secret) for longer than that, so something
+recreated it. Find out what before deleting it, or it will come back: check for a stray
+`Certificate` in a suspended Kustomization, or an ExternalSecret writing the same name.
+
+`kube-apiserver` is the node's largest single consumer — **1384Mi** as of 2026-08-21, down from
+the ~1980Mi recorded earlier — with a `requests.memory` of 512Mi and **no limit**. The same shape
+caused OOM kills on Artemis. Not urgent at 43% node utilisation (10179Mi of 24GB) and unrelated to
+the restart loop above, but it has not been decided either way; re-read the number rather than
+citing one, it moves with apiserver cache pressure. The CNPG `Cluster` sets no `resources` block at
+all, so `postgres-1` is **BestEffort** (confirmed: `.status.qosClass`) while the `Dragonfly` CR
+beside it is Burstable with a 512Mi limit. BestEffort is the first thing evicted under node memory
+pressure, and on a single node that is a full database outage — the same outage this whole file is
+about surviving.
+
+## The shared Dragonfly exists and has no consumers
+
+`Dragonfly/dragonfly` in `database` — `replicas: 1`, `limits.memory: 512Mi`,
+`--proactor_threads=2`, `networkPolicyEnabled: true`, no auth, no persistence. It is the
+cache/queue half of the shared data layer described in
+`.agents/instructions/cluster-conventions.md` § Database & Cache.
+
+**Nothing uses it today.** No manifest under `kubernetes/` references
+`dragonfly.database.svc.cluster.local`, and `redis-cli INFO keyspace` reports `db0` with 0 keys
+(2026-08-21). It is standing capacity for the next app that needs a cache, not a live dependency —
+so a Dragonfly restart currently breaks nothing, and its `replicas: 1` is not the availability risk
+`postgres`'s is.
+
+Artemis runs the same shared Dragonfly with a per-app **DB-index allocation table** and reserves
+index 0 as a forgot-to-configure tripwire. Frostlink has no such table because it has no consumers.
+**Start one in this file the moment a second app is onboarded** — with one app the index does not
+matter, and with two an unallocated index is a silent cross-app eviction.
