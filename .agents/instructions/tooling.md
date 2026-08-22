@@ -54,8 +54,21 @@ Notes that are easy to get wrong:
 ## kubectl and talosctl scoping
 
 `.mise.toml` sets `KUBECONFIG={{config_root}}/kubeconfig` and
-`TALOSCONFIG={{config_root}}/talosconfig`, so **anything run from this repo hits Frostlink with no
-`--context` flag and regardless of what the global `~/.kube/config` is pointing at**.
+`TALOSCONFIG={{config_root}}/talosconfig`. **That only applies where mise is actually activated —
+an interactive shell with the mise hook loaded.** It is not a property of the directory.
+
+**In a non-interactive shell — which is what an agent's tool calls are — `cd`ing here does
+nothing.** `cd ~/frostlink && kubectl config current-context` prints `artemis`, and a destructive
+command run that way lands on the wrong cluster with no warning. Verified 2026-08-22. Two safe
+forms:
+
+```bash
+KUBECONFIG=~/frostlink/kubeconfig kubectl ...   # explicit, works anywhere
+just kube <recipe>                               # kubernetes/mod.just hardcodes --context frostlink
+```
+
+`just` recipes are safe because they pin the context themselves. Bare `kubectl` after a `cd` is
+not.
 `kubernetes/mod.just` additionally hardcodes `kubectl --context frostlink`. Do not add `kubectx`
 steps or `--kubeconfig` paths to anything in this repo — they are redundant here and wrong
 everywhere else.
