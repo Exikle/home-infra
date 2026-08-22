@@ -210,8 +210,19 @@ data-loss failure that looks like success. Confirmed on continuwuity, whose Rest
 created 2026-07-09 and had been poisoned for 40 days.
 
 **Always delete and recreate the `Restore` CR before restoring** so it re-resolves against the
-current `SnapshotPolicy`. A healthy restore shows `status.resolved.resolution: Snapshot`; if it
-says `NoSnapshot`, the volume is empty — stop and use the retained PV.
+current `SnapshotPolicy`. There are three states, not two — read them like this:
+
+| `status.resolved.resolution` | Meaning |
+| ---------------------------- | --------- |
+| `Snapshot`                   | healthy — it resolved against a real snapshot and would restore data |
+| `NoSnapshot`                 | **poisoned** — the volume is empty. Stop and use the retained PV |
+| _absent_, `TargetAlreadyBound` | healthy — the PVC is already bound so there was nothing to populate, and nothing is pinned. It resolves fresh when a restore is actually needed |
+
+The third row is what remediating a poisoned `Restore` looks like while its PVC is still bound:
+deleting and recreating the CR clears the `NoSnapshot` pin, and because the live PVC needs no
+populating, the new CR settles unpinned rather than resolving to `Snapshot`. Do not read the
+absent field as a failure — the danger was never "no resolution", it was a resolution **pinned**
+to `NoSnapshot`.
 
 Audit the whole fleet in one command — the pin is invisible from `phase`, which reads `Completed`
 either way:
@@ -229,12 +240,13 @@ State as of 2026-08-21:
 | `matrix/continuwuity` | `Snapshot` | healthy |
 | `observability/server-volume-victoria-metrics-server-0` | `Snapshot` | healthy |
 | `fediverse/apoci-data` | _(none)_ | never resolved — `TargetAlreadyBound`, the PVC was already bound |
-| **`towonel/towonel`** | **`NoSnapshot`** | **poisoned** — pinned 2026-08-18 before its first snapshot |
+| `towonel/towonel` | _(none)_ | remediated 2026-08-22 — was `NoSnapshot`, pinned 2026-08-18 before its first snapshot |
 
-`towonel/towonel` is the live instance of the failure this section describes: its policy has been
-snapshotting hourly since 2026-08-18, and its `Restore` would still provision an empty volume and
-report success. It is harmless while the PVC stays bound, and becomes data loss the moment anyone
-deletes that PVC without recreating the `Restore` first. **Every app onboarded through the kopiur
+`towonel/towonel` was the live instance of the failure this section describes: its policy had been
+snapshotting hourly since 2026-08-18 while its `Restore` would still have provisioned an empty
+volume and reported success. Remediated 2026-08-22 by deleting the CR and letting Flux recreate
+it — the PVC stayed `Bound` and the pod never restarted. Note the Kustomization's interval is
+`1h`, so force a reconcile rather than waiting. **Every app onboarded through the kopiur
 component starts in this state** — the `Restore` is created on first deploy, before any snapshot
 exists — so treat `NoSnapshot` as the default, not the exception.
 
