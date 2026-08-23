@@ -5,7 +5,7 @@ metadata:
   name: onepassword-connect-credentials-secret
   namespace: external-secrets
 stringData:
-  1password-credentials.json: 'op://kubernetes/1password-frostlink/OP_CREDENTIALS_JSON' # quote
+  1password-credentials.json: 'op://frostlink/1password/OP_CREDENTIALS_JSON' # quote
 ---
 apiVersion: v1
 kind: Secret
@@ -22,8 +22,8 @@ metadata:
   namespace: flux-system
 type: Opaque
 stringData:
-  username: op://kubernetes/forgejo-frostlink/username
-  password: op://kubernetes/forgejo-frostlink/token
+  username: op://frostlink/forgejo/username
+  password: op://frostlink/forgejo/token
 ---
 apiVersion: v1
 kind: Secret
@@ -31,4 +31,4 @@ metadata:
   name: cloudflare-tunnel-id-secret
   namespace: network
 stringData:
-  CLOUDFLARE_TUNNEL_ID: op://kubernetes/cloudflare-frostlink/CLOUDFLARE_TUNNEL_ID
+  CLOUDFLARE_TUNNEL_ID: op://frostlink/cloudflare-frostlink/CLOUDFLARE_TUNNEL_ID

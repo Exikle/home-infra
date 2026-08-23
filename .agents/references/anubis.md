@@ -11,7 +11,7 @@ Upstream: <https://github.com/TecharoHQ/anubis>
 ## Component Shape
 
 The component is kept near-identical to Artemis's. `diff -ru` on 2026-08-22 shows exactly four
-deltas — 1Password item (`anubis-frostlink` vs `anubis-artemis`), skip-annotation domain
+deltas — 1Password item (`anubis` vs `anubis-artemis`), skip-annotation domain
 (`*.frostlink.dev` vs `*.dcunha.io`), `$schema` URLs (`json.schemastore.org` vs
 `k8s-schemas.home-operations.com`), and `USE_REMOTE_ADDRESS`, which only Artemis sets and which
 must **not** be synced here (§ Client IP). Fix any other bug in both.
@@ -198,7 +198,7 @@ get, for no benefit. Artemis's copy of this doc carries the full trade-off.
 - **Difficulty is set per-rule in the policy**, not via the `DIFFICULTY` env var. The env var
   route is a trap: `postBuild` substitution yields a bare integer, and container env values must
   be strings.
-- **Key material** comes from the 1Password item `anubis-frostlink`, field
+- **Key material** comes from the 1Password item `anubis`, field
   `ED25519_PRIVATE_KEY_HEX`. Rotating it invalidates every outstanding challenge cookie — which is
   harmless, users just re-solve.
 - **Cookie names are derived from cookie settings** since Anubis v1.27.0. Changing any cookie

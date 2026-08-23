@@ -41,7 +41,7 @@ config:
     talosctl --talosconfig /tmp/frostlink-bootstrap/talosconfig config endpoint "{{ init_ip }}"
 
     just log info "Appending Tailscale ExtensionServiceConfig..." "stage" "$(basename "$0")"
-    export TS_AUTHKEY="$(op read 'op://kubernetes/tailscale-frostlink/TS_AUTH_KEY')"
+    export TS_AUTHKEY="$(op read 'op://frostlink/tailscale/TS_AUTH_KEY')"
     {
         echo '---'
         echo 'apiVersion: v1alpha1'

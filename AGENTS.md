@@ -89,7 +89,7 @@ Bootstrap uses helmfile (not `flux bootstrap`) because the Forgejo repo must alr
 3. `talosctl gen config` with patches → `talosctl apply-config --insecure` → `talosctl bootstrap`
 4. Export kubeconfig: `talosctl kubeconfig`
 5. Apply bootstrap secrets: `KUBECONFIG=... just bootstrap base`
-   - Requires 1Password items: `1password-frostlink`, `forgejo-frostlink`, `cloudflare-frostlink`
+   - Requires 1Password items from the `frostlink` vault: `1password`, `access-token`, `forgejo`, `cloudflare-frostlink`
 6. Run `just bootstrap cni` — installs cilium, coredns, cert-manager directly via `helm upgrade --install` (NOT via helmfile — SSA conflict); reads chart/version/values straight from each app's `ocirepository.yaml`/`helmrelease.yaml`
 7. Run `just bootstrap apps` — installs external-secrets → onepassword-connect → flux-operator → flux-instance
 8. Commit and push repo to Forgejo → Flux reconciles everything from Git

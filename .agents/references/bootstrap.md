@@ -27,7 +27,7 @@ can still be invoked individually for a partial redo.
 
 | Recipe | What it does |
 | ------------ | -------------------------------------------------------------------------------- |
-| `config` | `talosctl gen config` with `talos/patches/controlplane.yaml` + a generated certSANs patch, into `/tmp/frostlink-bootstrap`, then **appends the Tailscale `ExtensionServiceConfig`** with `TS_AUTHKEY` read from `op://kubernetes/tailscale-frostlink/TS_AUTH_KEY` |
+| `config` | `talosctl gen config` with `talos/patches/controlplane.yaml` + a generated certSANs patch, into `/tmp/frostlink-bootstrap`, then **appends the Tailscale `ExtensionServiceConfig`** with `TS_AUTHKEY` read from `op://frostlink/tailscale/TS_AUTH_KEY` |
 | `apply` | `talosctl apply-config --insecure` against `FROSTLINK_INIT_IP` |
 | `k8s` | `talosctl bootstrap`, retried until it reports `AlreadyExists` |
 | `kubeconfig` | `talosctl kubeconfig --force-context-name frostlink` into the repo root |
@@ -41,12 +41,18 @@ node over its **public** IP — it works, but 6443/tcp was removed from the OCI 
 
 ## 1Password Items Required
 
+All live in the `frostlink` vault except where noted.
+
 | Item name              | Fields used                                          |
 | ---------------------- | ---------------------------------------------------- |
-| `1password-frostlink`  | `OP_CREDENTIALS_JSON`, `OP_CONNECT_TOKEN`            |
-| `forgejo-frostlink`    | `username` (exikle), `token` (Forgejo access token)  |
+| `1password`            | `OP_CREDENTIALS_JSON`                                |
+| `access-token`         | `credential` — the Connect server access token       |
+| `forgejo`              | `username` (exikle), `token` (Forgejo access token)  |
 | `cloudflare-frostlink` | `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_TUNNEL_TOKEN`    |
-| `tailscale-frostlink`  | `TS_AUTH_KEY` — read by `config`, not by `base`      |
+| `tailscale`            | `TS_AUTH_KEY` — read by `config`, not by `base`      |
+
+`cloudflare-frostlink` keeps its suffix deliberately: Artemis reads it for frostlink's DNS and
+certificates, and its own `cloudflare` item would outrank a renamed one in vault priority.
 
 ## bootstrap/resources.yaml.j2
 
@@ -98,7 +104,7 @@ stringData:
   password: <forgejo-token>
 ```
 
-This is created by `just bootstrap base` via `resources.yaml.j2` (references `op://kubernetes/forgejo-frostlink/token`).
+This is created by `just bootstrap base` via `resources.yaml.j2` (references `op://frostlink/forgejo/token`).
 
 ## Post-Bootstrap App Deployment Order
 
