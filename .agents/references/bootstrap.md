@@ -47,12 +47,18 @@ All live in the `frostlink` vault except where noted.
 | ---------------------- | ---------------------------------------------------- |
 | `1password`            | `OP_CREDENTIALS_JSON`                                |
 | `access-token`         | `credential` — the Connect server access token       |
-| `forgejo`              | `username` (exikle), `token` (Forgejo access token)  |
+| `forgejo-frostlink`    | `username` (exikle), `token` (Forgejo access token)  |
 | `cloudflare-frostlink` | `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_TUNNEL_TOKEN`    |
 | `tailscale`            | `TS_AUTH_KEY` — read by `config`, not by `base`      |
 
-`cloudflare-frostlink` keeps its suffix deliberately: Artemis reads it for frostlink's DNS and
-certificates, and its own `cloudflare` item would outrank a renamed one in vault priority.
+Two items keep the `-frostlink` suffix deliberately, for opposite reasons:
+
+- `cloudflare-frostlink` — **Artemis reads it** for frostlink's DNS and certificates. Artemis's
+  own `cloudflare` item would outrank a renamed one in its vault priority, so the distinct name
+  is the only way to express the cross-read.
+- `forgejo-frostlink` — **this cluster reads Artemis's `forgejo`** by the bare name, for
+  `FORGEJO_ADMIN_TOKEN` (see `konflate-webhook-token`). A frostlink item named `forgejo` sits at
+  priority 1 and shadows it.
 
 ## bootstrap/resources.yaml.j2
 
@@ -104,7 +110,7 @@ stringData:
   password: <forgejo-token>
 ```
 
-This is created by `just bootstrap base` via `resources.yaml.j2` (references `op://frostlink/forgejo/token`).
+This is created by `just bootstrap base` via `resources.yaml.j2` (references `op://frostlink/forgejo-frostlink/token`).
 
 ## Post-Bootstrap App Deployment Order
 
