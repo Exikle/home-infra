@@ -49,7 +49,7 @@ git push -u origin feat/<namespace>-<app>
 tea pulls create --title "feat(<namespace>): deploy <app>" --head feat/<namespace>-<app> --base main
 
 # Auto-merge squash — tea doesn't support merge_when_checks_succeed, use API
-FORGEJO_TOKEN=$(op read "op://kubernetes/forgejo/FORGEJO_ADMIN_TOKEN")
+FORGEJO_TOKEN=$(op read "op://artemis/forgejo/FORGEJO_ADMIN_TOKEN")
 curl -s -X POST "https://git.dcunha.io/api/v1/repos/Exikle/frostlink/pulls/<number>/merge" \
   -H "Authorization: token $FORGEJO_TOKEN" \
   -H "Content-Type: application/json" \
@@ -84,7 +84,7 @@ git push -u origin fix/<namespace>-<app>
 tea pulls create --title "fix(<namespace>): bring <app> manifests to convention" --head fix/<namespace>-<app> --base main
 
 # Auto-merge squash — use PR number from tea output above
-FORGEJO_TOKEN=$(op read "op://kubernetes/forgejo/FORGEJO_ADMIN_TOKEN")
+FORGEJO_TOKEN=$(op read "op://artemis/forgejo/FORGEJO_ADMIN_TOKEN")
 curl -s -X POST "https://git.dcunha.io/api/v1/repos/Exikle/frostlink/pulls/<number>/merge" \
   -H "Authorization: token $FORGEJO_TOKEN" \
   -H "Content-Type: application/json" \
