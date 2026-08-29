@@ -82,7 +82,7 @@ Registrations live in `.mcp.json` — three LiteLLM HTTP tiers plus the memini p
 | ----------------- | --------------------------------------------------------------------- |
 | `litellm-ops`     | k8s, Forgejo API, GitHub API, Home Assistant (Artemis-local)           |
 | `litellm-general` | SearXNG web search + URL fetch, VictoriaLogs (LogsQL), Context7 docs   |
-| `litellm-media`   | Arr stack / Jellyseerr — Artemis-local, nothing to do with this repo   |
+| `litellm-media`   | Arr stack / seerr — Artemis-local, nothing to do with this repo   |
 | `memini`          | Cross-session semantic memory                                         |
 
 > **The MCP k8s tools point at Artemis, not Frostlink.** They execute server-side on the LiteLLM
