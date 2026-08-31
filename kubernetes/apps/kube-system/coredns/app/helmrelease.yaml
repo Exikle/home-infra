@@ -41,6 +41,10 @@ spec:
               fallthrough in-addr.arpa ip6.arpa
           - name: autopath
             parameters: "@kubernetes"
+          - name: template
+            parameters: IN AAAA
+            configBlock: |-
+              rcode NOERROR
           - name: forward
             parameters: . 169.254.169.254
           - name: cache

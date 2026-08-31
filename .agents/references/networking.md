@@ -81,6 +81,36 @@ write it.
 
 `*.frostlink.dev` wildcard cert issued by cert-manager via Cloudflare DNS-01. Stored as `frostlink-dev-tls` in `cert-manager`, exported to the `network` namespace via PushSecret so the gateway can use it.
 
+## CoreDNS suppresses AAAA — the cluster is IPv4-only
+
+`cilium-config` has `enable-ipv6=false` and the node has a single IPv4 podCIDR
+(`10.244.0.0/24`); the node itself has no global IPv6 address. Pods therefore get a link-local
+`fe80::` on eth0 and nothing routable.
+
+CoreDNS forwards to `169.254.169.254`, which happily returns **AAAA** records for external names.
+A pod that dials one gets `connect: network is unreachable` instantly. Because the `loadbalance`
+plugin shuffles record order per response, this is a per-response dice roll rather than a
+deterministic failure — it bit roughly 6% of Kopiur backups to Cloudflare R2, which surfaced as
+`kopiaErrorClass: RepositoryUnavailable` /
+`dial tcp [2606:4700:113::1]:443: connect: network is unreachable` and looked for a long time like
+a credential or repository fault. It is neither.
+
+The `template IN AAAA` plugin with `rcode NOERROR` returns NODATA for every AAAA query, so no pod
+is ever handed an address it cannot reach. On an IPv4-only cluster this costs nothing — there is
+no client that could have used the answer.
+
+Two caveats worth keeping:
+
+- The `template` plugin runs **before** `kubernetes` in CoreDNS's fixed plugin chain (plugin
+  ordering comes from `plugin.cfg`, not from the order in the Corefile), so it also answers AAAA
+  for `cluster.local`. That is correct here — those services are IPv4-only too — but it means the
+  block is genuinely cluster-wide, not just external. Scope it with a zone argument
+  (`template IN AAAA cloudflarestorage.com`) if that ever becomes undesirable.
+- **Unexplained**: Go's dialer implements Happy Eyeballs and should fall back to IPv4 when the
+  AAAA dial returns `ENETUNREACH` immediately, yet kopia did not. Suppressing AAAA removes the
+  failure path regardless, so the fix stands on its own, but the underlying mechanism was never
+  pinned down. If AAAA suppression is ever reverted, expect the failures to return.
+
 ## Cloudflare Tunnel
 
 The tunnel sends `frostlink.dev` and `*.frostlink.dev` traffic to the `external-gateway` service in
