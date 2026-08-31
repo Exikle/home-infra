@@ -164,6 +164,31 @@ deliberately **not** datasource-scoped, for exactly this reason). Frostlink has 
 today. If a talosctl automerge ever breaks `just talos` here, that is the gap — add the
 package-level rule rather than widening `matchFileNames`.
 
+#### Kubernetes has the same split — hence the Kubernetes Group
+
+The Kubernetes version is pinned in **two** files, and the file-scoped guard only covers one:
+
+| Where | Package | Covered by the file guard? |
+| ------------------------------------------- | ------------------------------ | -------------------------- |
+| `tuppr/upgrades/kubernetesupgrade.yaml`      | `ghcr.io/siderolabs/kubelet`   | yes                        |
+| `talos/patches/controlplane.yaml`            | `registry.k8s.io/kube-proxy`   | **no**                     |
+
+The `kube-proxy` pin exists because Talos 1.14 requires an explicit `image:` on a **disabled**
+`KubeProxyConfig` — see `.agents/references/talos.md`. Left ungrouped it would bump on its own and
+drift away from the kubelet version.
+
+The **Kubernetes Group** rule solves it package-side rather than by widening `matchFileNames`:
+it groups `kubelet`, `kube-proxy`, `kube-apiserver`, `kube-controller-manager` and `kube-scheduler`
+into one PR, so both files always move together. It carries its own `automerge: false` and
+`minimumReleaseAge: "7 days"`, because a grouped PR touches `kubernetesupgrade.yaml` and merging it
+makes tuppr reboot the single node. Modelled on Artemis's rule, which does not include `kube-proxy`
+— Artemis lets it bump separately. **It must stay after the auto-merge rules**, like the guard
+above; later `packageRules` win.
+
+`registry.k8s.io/coredns/coredns` is deliberately **not** in the group. Its version is Talos's own
+pin (`v1.14.x`), not derived from the Kubernetes version, so grouping it would produce a PR mixing
+two unrelated version lines. It is also a disabled component, so a drifted tag pulls nothing.
+
 ### Artifact actions are disabled
 
 `actions/upload-artifact` and `actions/download-artifact` are pinned off entirely: Forgejo only

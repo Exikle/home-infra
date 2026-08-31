@@ -90,6 +90,24 @@
       minimumReleaseAge: "7 days",
     },
     {
+      description: "Kubernetes Group — kubelet and kube-proxy are one version, and live in two files",
+      groupName: "kubernetes",
+      matchDatasources: ["docker"],
+      matchPackageNames: [
+        "/siderolabs\\/kubelet/",
+        "/kube-apiserver/",
+        "/kube-controller-manager/",
+        "/kube-proxy/",
+        "/kube-scheduler/",
+      ],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+      minimumGroupSize: 2,
+      automerge: false,
+      minimumReleaseAge: "7 days",
+    },
+    {
       description: "Flux Operator Group",
       groupName: "flux-operator",
       matchDatasources: ["docker"],
