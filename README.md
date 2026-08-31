@@ -23,7 +23,7 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 | | |
 | --- | --- |
 | **Node** | VM.Standard.A1.Flex — 4 OCPU / 24 GB RAM (ARM64) |
-| **OS** | Talos Linux v1.14.0-rc.1 |
+| **OS** | Talos Linux v1.14.0-rc.2 |
 | **Kubernetes** | v1.36.1 |
 | **CNI** | Cilium 1.17.4 |
 | **GitOps** | Flux CD v2.8.8 via flux-operator |

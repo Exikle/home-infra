@@ -35,7 +35,7 @@ kubernetes/
 - **Public IP**: `40.233.88.33` (reserved) — DNS detail under § Networking
 - **Internal IP**: `10.0.0.203`
 - **Tailscale IP**: `100.67.108.103`
-- **Talos version**: v1.14.0-rc.1 | **Kubernetes**: v1.36.1 (confirm with `talosctl version` / `kubectl version`)
+- **Talos version**: v1.14.0-rc.2 | **Kubernetes**: v1.36.1 (confirm with `talosctl version` / `kubectl version`)
 - **Schematic**: `e7f26ff1516313fd32b377e04c573728c7c942655ecb5580e728ab92bbf4cfc1` — defined by `talos/schematic.yaml`; the node reports the same ID in its `extensions.talos.dev/schematic` annotation
 - **Extensions**: `iscsi-tools`, `tailscale`, `util-linux-tools`, `zfs` — **`zfs` is load-bearing**: the whole `openebs-zfs` storage layer depends on it
 - **Never hand-edit the schematic ID here.** tuppr rebuilds an upgrade from the *node's* schematic, so a stale or hand-written ID silently reinstalls a removed extension — or drops `zfs` and takes storage down. Derive it: `just talos schematic-id`, or read the node annotation with `kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`

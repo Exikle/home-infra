@@ -151,7 +151,7 @@ version is pinned in **two** places, and only one of them is in that directory:
 | Where | Datasource | Covered by the guard? |
 | ------------------------------------- | -------------------- | --------------------- |
 | `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory` | yes |
-| `talos = "1.14.0-rc.1"` in `.mise.toml` | `github-tags` (mise manager) | **no** |
+| `talos = "1.14.0-rc.2"` in `.mise.toml` | `github-tags` (mise manager) | **no** |
 
 So a minor or patch bump to the talosctl **CLI** still matches "Auto-merge all patch/minor
 updates" and can land unattended, drifting the client away from the version the cluster runs.
@@ -205,7 +205,7 @@ the two halves in step.
 
 ## Lock File Maintenance
 
-Six of the seven tools in `.mise.toml` are `latest` — `talos = "1.14.0-rc.1"` is the only pin —
+Six of the seven tools in `.mise.toml` are `latest` — `talos = "1.14.0-rc.2"` is the only pin —
 so `mise.lock` is the only thing pinning the rest, and nothing was refreshing it. flate,
 minijinja, oxfmt, shellcheck, yayamlls and zizmor were frozen at whatever resolved when the lock
 was last written, and the lock still carried a `github:home-operations/yamlls` entry for a tool

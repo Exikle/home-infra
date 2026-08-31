@@ -4,7 +4,7 @@
 
 | Node        | Role                            | IP (Tailscale)   | IP (OCI internal) | Talos  | K8s    |
 | ----------- | ------------------------------- | ---------------- | ----------------- | ------ | ------ |
-| `frostlink` | Control plane + worker (ARM64)  | `100.67.108.103` | `10.0.0.203`      | v1.14.0-rc.1 | v1.36.1|
+| `frostlink` | Control plane + worker (ARM64)  | `100.67.108.103` | `10.0.0.203`      | v1.14.0-rc.2 | v1.36.1|
 
 `allowSchedulingOnControlPlanes: true` — single node runs everything.
 
