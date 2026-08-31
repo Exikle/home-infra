@@ -12,6 +12,53 @@
 
 Frostlink uses **patch files** in `talos/patches/` — not Jinja2/render-config like Artemis.
 
+### Multi-document format (Talos 1.14)
+
+`talos/patches/controlplane.yaml` moved to the 1.14 typed-document layout on 2026-08-31. It is a
+patch over `talosctl gen config`, which on 1.14 already emits 28 typed documents on its own — so
+unlike Artemis this repo does not hand-author the mandatory
+`KubeAuthorizerConfig`/`KubeAuthenticationConfig` set. The patch adds only what differs from gen.
+
+Being a patch over gen rather than a whole config changes the merge semantics. Three of these are
+cluster-breaking if copied from Artemis verbatim:
+
+- **`taints: {$patch: delete}`, never `taints: {}`.** Gen emits
+  `KubeNodeConfig.taints: {node-role.kubernetes.io/control-plane: NoSchedule}`, and an empty map
+  merges as "add no keys" — the taint **survives** and nothing schedules on the only node.
+  Artemis's `taints: {}` is right there only because Artemis authors complete documents. This
+  replaces `cluster.allowSchedulingOnControlPlanes: true`.
+- **`HostnameConfig` needs `auto: {$patch: delete}`.** Gen emits `auto: stable`, and
+  `'auto' and 'hostname' cannot be set at the same time` is a hard validation error.
+- **`KubeFlannelCNIConfig` needs an explicit `$patch: delete`.** Gen renders it now, so "no CNI"
+  can no longer be expressed by omitting the document.
+
+Other notes:
+
+- `cluster.etcd.extraArgs` is the **only** v1alpha1 block left — there is no etcd document in 1.14.
+- Disabled `KubeProxyConfig`/`KubeCoreDNSConfig` still need an explicit `image:`, or the bootstrap
+  manifests controller panic-loops. CoreDNS's tag is **Talos's own pin**, not derived from the
+  Kubernetes version — read it from the node (`spec.coreDNSImage`), never guess. If Kubernetes
+  moves, both tags must be re-derived.
+- `machine.nodeLabels` must be dropped — it collides with `KubeNodeConfig.labels`
+  (`.machine.nodeLabels is already set in v1alpha1 config`).
+- `nodeIP` lives in `KubeNodeConfig` only; setting it on `machine.kubelet` too is an error.
+- `KernelModuleConfig name: zfs` carries the load-bearing zfs module. Do not drop it.
+- Deliberately **not** adopted: `KubeClusterConfig` (nil-derefs `secrets.RootKubernetesController`
+  and brings the control plane back with no apiserver — cost Artemis an outage) and
+  `DiscoveryServiceConfig` (would switch public discovery **on**; this cluster reports
+  `discoveryEnabled: false`).
+- No tuppr `KubeNodeConfig` annotations here, unlike Artemis — the schematic ID must never be
+  hand-written; `just talos schematic-id` derives it.
+
+**Migrating a running node is a full config replacement, not a patch.** Documents and their
+v1alpha1 equivalents cannot coexist. Never regenerate — that mints new PKI and destroys the
+cluster. Take the live `persistent` machine config, delete the migrated v1alpha1 keys, and splice
+in complete documents from a patched `gen config`, excluding every gen document carrying
+freshly-minted secrets (`KubeAPIServerCAConfig`, `KubeAggregatorCAConfig`,
+`KubeServiceAccountConfig`, `KubeEtcdEncryptionConfig`, `DiscoveryIdentityConfig`). Verify with
+`talosctl apply-config --dry-run` — and **redirect its output to a file**, because it prints every
+private key and token in the config to the terminal.
+
 - `talos/patches/controlplane.yaml` — main machine + cluster config
 - `talos/patches/tailscale.yaml.j2` — Tailscale extension service config (1Password auth key reference)
 
