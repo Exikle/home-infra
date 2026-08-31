@@ -30,7 +30,7 @@ spec:
     kubeProxyReplacement: true
     operator:
       replicas: 1
-    rollOutCiliumPods: true
+    rollOutCiliumPods: false
     sysctlfix:
       enabled: false
     securityContext:

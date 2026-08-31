@@ -111,6 +111,17 @@ Two caveats worth keeping:
   failure path regardless, so the fix stands on its own, but the underlying mechanism was never
   pinned down. If AAAA suppression is ever reverted, expect the failures to return.
 
+## cilium `rollOutCiliumPods` is false
+
+Set to `false` to match Artemis. With `true`, every cilium Helm reconcile restarts the agent, and
+during the restart the socketLB BPF service map is briefly empty — pod connects to a ClusterIP
+then fail with `EPERM` (`connect: operation not permitted`) rather than a refusal or timeout. On a
+single node there is nowhere to shift traffic while that happens, so the restart is a cluster-wide
+blip for no benefit. Rolling the agent on a values change is a convenience, not a requirement;
+restart it deliberately when a cilium change actually needs it.
+
+Read `EPERM` on a ClusterIP dial as "socketLB found zero backends", not as a NetworkPolicy denial.
+
 ## Cloudflare Tunnel
 
 The tunnel sends `frostlink.dev` and `*.frostlink.dev` traffic to the `external-gateway` service in
