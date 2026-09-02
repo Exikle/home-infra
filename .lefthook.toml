@@ -2,3 +2,11 @@
 git_url = "https://github.com/home-operations/.github"
 ref = "main"
 configs = ["lefthook.common.toml"]
+
+[pre-commit.commands.agent-hooks-generated]
+glob = [".claude/hooks/*"]
+run = "python3 .claude/hooks/gen-guards.py --check"
+
+[pre-commit.commands.agent-hooks-vendored]
+glob = [".claude/hooks/*"]
+run = 'if [ -d "$HOME/dotfiles/home/claude/agent-hooks" ]; then "$HOME/dotfiles/home/claude/agent-hooks/sync-hooks.sh" --check "$PWD"; fi'

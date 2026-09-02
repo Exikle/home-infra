@@ -1,65 +1,96 @@
 #!/usr/bin/env bash
-# PreToolUse:Bash — blocks destructive cluster operations that bypass GitOps or sanctioned just commands
+# GENERATED FILE — do not edit here.
+# Source:     .claude/hooks/guard-rules.json  (canonical: dotfiles/home/claude/agent-hooks/)
+# Regenerate: python3 .claude/hooks/gen-guards.py
+# Verified:   python3 .claude/hooks/gen-guards.py --check   (runs in pre-commit)
+#
+# PreToolUse:Bash — blocks destructive cluster operations that bypass GitOps or
+# the sanctioned just commands.
+
+# The rule patterns are single-quoted regexes, so a literal \$HOME in one is deliberate —
+# it must reach grep unexpanded. shellcheck reads it as a missed expansion.
+# shellcheck disable=SC2016
 set -euo pipefail
 
 INPUT=$(cat)
 
-# Fast path: skip the Python pass entirely when no rule below can possibly fire. The
-# extracted command is always a subset of this raw payload, so a keyword absent here
-# cannot appear in it. Saves ~60ms of interpreter startup on Bash calls that match no
-# rule at all.
+# Fast path: skip the Python pass entirely when no rule below can possibly fire.
+# The stripped command is always a subset of this raw payload, so a keyword absent
+# here cannot appear in it. Saves ~60ms of interpreter startup on Bash calls that
+# match no rule at all, which is most of them.
 [[ "$INPUT" =~ (kubectl|helm|flux|talosctl|(^|[^[:alnum:]_])rm[^[:alnum:]_]) ]] || exit 0
 
-COMMAND=$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null || echo "")
+# Strip heredoc BODIES before any rule sees the command; the opening line is kept,
+# so the real command on it (git commit -F - <<'MSG', python3 <<PY, ...) is checked.
+COMMAND=$(printf '%s' "$INPUT" | python3 -c 'import sys, json, re
+try:
+    cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "")
+except Exception:
+    print(""); sys.exit(0)
+lines = cmd.split("\n")
+kept, i = [], 0
+start = re.compile(r"<<-?[ \t]*([\x27\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+while i < len(lines):
+    line = lines[i]
+    kept.append(line)
+    i += 1
+    for _q, delim in start.findall(line):
+        while i < len(lines) and lines[i].strip() != delim:
+            i += 1
+        if i < len(lines):
+            i += 1
+print("\n".join(kept))' 2>/dev/null || echo "")
 
 block() {
     # Must be stderr: a PreToolUse hook's exit-2 reason only reaches the model on
-    # stderr. On stdout the call was still refused but the explanation was dropped,
+    # stderr. On stdout the call is still refused but the explanation is dropped,
     # surfacing as "No stderr output".
     echo "BLOCKED: $1" >&2
     echo "Alternative: $2" >&2
     exit 2
 }
 
-# Dry-run is always fine
-echo "$COMMAND" | grep -qE "\-\-dry-run" && exit 0
+# Read-only validation is always fine
+printf '%s' "$COMMAND" | grep -qE -- --dry-run && exit 0
 
-# Direct kubectl apply — use `just kube apply-ks <ns> <ks>` instead
-if echo "$COMMAND" | grep -qE "\bkubectl\b.*\bapply\b"; then
-    block "Direct kubectl apply bypasses the repo's render-and-apply path" "Use 'just kube apply-ks <ns> <ks>' to apply changes"
+# kubectl-apply
+if printf '%s' "$COMMAND" | grep -qE -- '\bkubectl\b.*\bapply\b'; then
+    block 'Direct kubectl apply bypasses GitOps' 'Use '"'"'just kube apply-ks <ns> <ks>'"'"' to apply changes via Flux'
 fi
 
-# kubectl delete of critical resources — must be explicit
-if echo "$COMMAND" | grep -qE "\bkubectl delete\b.*(namespace|pvc|pv|persistentvolumeclaim|node|deployment|secret|helmrelease|kustomization|gateway|httproute|clusterrole)\b"; then
-    block "Deleting a critical Kubernetes resource" "Confirm with the user before deleting cluster resources"
+# kubectl-delete-critical
+if printf '%s' "$COMMAND" | grep -qE -- '\bkubectl\b.*\bdelete\b.*\b(namespace|pvc|pv|persistentvolumeclaim|node|deployment|secret|helmrelease|kustomization|gateway|httproute|clusterrole)\b'; then
+    block 'Deleting a critical Kubernetes resource' 'Confirm with the user before deleting cluster resources'
 fi
 
-# Helm mutations — all config lives in HelmRelease manifests
-if echo "$COMMAND" | grep -qE "\bhelm\b.*(install|upgrade|uninstall|delete|rollback)\b"; then
-    block "Direct helm mutations are not allowed — config lives in HelmRelease manifests" "Edit the HelmRelease values and apply via Flux"
+# helm-mutation
+if printf '%s' "$COMMAND" | grep -qE -- '\bhelm\b.*\b(install|upgrade|uninstall|delete|rollback)\b'; then
+    block 'Direct helm mutations are not allowed — config lives in HelmRelease manifests' 'Edit the HelmRelease values and apply via Flux'
 fi
 
-# flux delete / uninstall
-if echo "$COMMAND" | grep -qE "\bflux\b.*(delete|uninstall)\b"; then
-    block "Destructive flux operation" "Confirm with the user before deleting Flux resources"
+# flux-destructive
+if printf '%s' "$COMMAND" | grep -qE -- '\bflux\b.*\b(delete|uninstall)\b'; then
+    block 'Destructive flux operation' 'Confirm with the user before deleting Flux resources'
 fi
 
-# talosctl: block patch machineconfig (causes array duplication) and reset/wipe
-if echo "$COMMAND" | grep -qE "\btalosctl\b.*patch\s+machineconfig\b"; then
-    block "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node" "Use a minimal DELTA patch file, or 'talosctl apply-config --file' for a full replacement — never pass talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node"
-fi
-if echo "$COMMAND" | grep -qE "\btalosctl\b.*(reset|wipe)\b"; then
-    block "talosctl reset/wipe is destructive and irreversible" "Confirm explicitly with the user before proceeding"
+# talosctl-patch-machineconfig
+if printf '%s' "$COMMAND" | grep -qE -- '\btalosctl\b.*patch\s+machineconfig\b'; then
+    block 'talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node' 'Use a minimal DELTA patch file, or '"'"'talosctl apply-config --file'"'"' for a full replacement — never pass talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node'
 fi
 
-# Single node: a bare upgrade or reboot is a full-cluster outage, not a rolling one
-if echo "$COMMAND" | grep -qE "\btalosctl\b.*\b(upgrade|upgrade-k8s|reboot|shutdown)\b"; then
-    block "Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to" "Use 'just talos upgrade <version>' (it resolves the schematic first), and only with the user watching"
+# talosctl-reset
+if printf '%s' "$COMMAND" | grep -qE -- '\btalosctl\b.*\b(reset|wipe)\b'; then
+    block 'talosctl reset/wipe is destructive and irreversible' 'Confirm explicitly with the user before proceeding'
 fi
 
-# Recursive delete on dangerous paths
-if echo "$COMMAND" | grep -qE "rm\s+-[a-zA-Z]*r[a-zA-Z]*f.*(~|\$HOME|/home|/etc|/var|/usr|\.\s*$|\.\.\s*$)"; then
-    block "Recursive delete on a sensitive path" "Confirm the exact path with the user before deleting"
+# talosctl-single-node-outage
+if printf '%s' "$COMMAND" | grep -qE -- '\btalosctl\b.*\b(upgrade|upgrade-k8s|reboot|shutdown)\b'; then
+    block 'Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to' 'Use '"'"'just talos upgrade <version>'"'"' (it resolves the schematic first), and only with the user watching'
+fi
+
+# rm-sensitive-path
+if printf '%s' "$COMMAND" | grep -qE -- 'rm\s+-[a-zA-Z]*r[a-zA-Z]*f.*(~|\$HOME|/home|/etc|/var|/usr|\.\s*$|\.\.\s*$)'; then
+    block 'Recursive delete on a sensitive path' 'Confirm the exact path with the user before deleting'
 fi
 
 exit 0
