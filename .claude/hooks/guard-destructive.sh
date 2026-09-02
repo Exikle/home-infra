@@ -3,11 +3,21 @@
 set -euo pipefail
 
 INPUT=$(cat)
+
+# Fast path: skip the Python pass entirely when no rule below can possibly fire. The
+# extracted command is always a subset of this raw payload, so a keyword absent here
+# cannot appear in it. Saves ~60ms of interpreter startup on Bash calls that match no
+# rule at all.
+[[ "$INPUT" =~ (kubectl|helm|flux|talosctl|(^|[^[:alnum:]_])rm[^[:alnum:]_]) ]] || exit 0
+
 COMMAND=$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null || echo "")
 
 block() {
-    echo "BLOCKED: $1"
-    echo "Alternative: $2"
+    # Must be stderr: a PreToolUse hook's exit-2 reason only reaches the model on
+    # stderr. On stdout the call was still refused but the explanation was dropped,
+    # surfacing as "No stderr output".
+    echo "BLOCKED: $1" >&2
+    echo "Alternative: $2" >&2
     exit 2
 }
 
