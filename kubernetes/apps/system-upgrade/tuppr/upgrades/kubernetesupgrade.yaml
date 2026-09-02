@@ -8,7 +8,7 @@ spec:
   kubernetes:
     # Frostlink is a single node — bumping this restarts the control plane.
     # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
-    version: v1.36.1
+    version: v1.37.0
   healthChecks:
     - apiVersion: kopiur.home-operations.com/v1alpha1
       kind: Snapshot
