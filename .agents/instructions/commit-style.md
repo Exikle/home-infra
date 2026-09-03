@@ -35,17 +35,10 @@ This repo has no staging cluster. `main` reconciles directly to production.
 
 ## Renovate PR auto-merge
 
-Renovate PRs auto-merge via squash. To manually trigger:
-
-```bash
-FORGEJO_TOKEN=$(op read 'op://artemis/forgejo/FORGEJO_ADMIN_TOKEN') && \
-curl -s -X POST "https://git.dcunha.io/api/v1/repos/Exikle/frostlink/pulls/<PR_NUMBER>/merge" \
-  -H "Authorization: Bearer $FORGEJO_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"Do":"squash","merge_when_checks_succeed":true,"delete_branch_after_merge":true}'
-```
-
-Squash lands as `title (#N)` on main, signed by git.dcunha.io Instance.
+Renovate PRs auto-merge via squash, landing as `title (#N)` on main, signed by git.dcunha.io
+Instance. To merge one by hand, use the `triage-renovate` skill — it carries the API call and
+merges one PR at a time, because queueing many with `merge_when_checks_succeed` races and
+silently drops commits from main.
 
 ---
 

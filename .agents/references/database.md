@@ -179,6 +179,12 @@ Two consequences worth keeping:
 
 Learned while standing the shared cluster up (2026-07-01) and still true of the live manifests.
 
+- **Changing a client cert's key encoding does not reissue it.** cert-manager treats
+  `privateKey.encoding` alone as a no-op on an existing Certificate. Force it by patching an
+  `Issuing: True` condition onto the Certificate's `.status`, which is what `cmctl renew` does.
+  A rustls client (atuin from 18.19.0) crashloops with `expected PKCS#8 PEM` until then.
+- **A HelmRelease stalled on `RetriesExceeded` will not retry by itself** once the cert is
+  fixed — clear it with `flux reconcile helmrelease <name> -n <ns> --reset`.
 - **The replication cert chains from the *client* CA, not the server CA.** CNPG verifies
   `certificates.replicationTLSSecret` against `clientCASecret` — replication is just another
   `clientcert=verify-full` client connection. Only `serverTLSSecret` verifies against

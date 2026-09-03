@@ -10,20 +10,6 @@ Single-node Talos Kubernetes cluster on Oracle Cloud Always Free Ampere A1 (ca-t
 
 ---
 
-## Repo Structure
-
-```text
-.agents/          # AI agent instructions, references, and skills
-talos/            # Talos schematic and patches
-bootstrap/        # helmfile.d/ and resources.yaml.j2 for one-time bootstrap
-kubernetes/
-  apps/           # App HelmReleases by namespace
-  components/     # Reusable Flux Components (postgres/cert, kopiur, anubis, alerts)
-  flux/sync/      # Entrypoint Kustomization → kubernetes/apps
-```
-
----
-
 ## Hardware
 
 ### Frostlink Node (Oracle Cloud)
@@ -82,18 +68,7 @@ a namespace run `ls kubernetes/apps/<namespace>/`; for a live version read the a
 
 ## Bootstrap Order
 
-Bootstrap uses helmfile (not `flux bootstrap`) because the Forgejo repo must already have content before Flux GitRepository can sync. See `.agents/references/bootstrap.md` for full detail.
-
-1. Import Talos custom image → launch VM.Standard.A1.Flex (4 OCPU / 24 GB, 50 GB boot)
-2. Attach reserved public IP; ensure security list allows 50000/tcp
-3. `talosctl gen config` with patches → `talosctl apply-config --insecure` → `talosctl bootstrap`
-4. Export kubeconfig: `talosctl kubeconfig`
-5. Apply bootstrap secrets: `KUBECONFIG=... just bootstrap base`
-   - Requires 1Password items from the `frostlink` vault: `1password`, `access-token`, `forgejo-frostlink`, `cloudflare-frostlink`
-6. Run `just bootstrap cni` — installs cilium, coredns, cert-manager directly via `helm upgrade --install` (NOT via helmfile — SSA conflict); reads chart/version/values straight from each app's `ocirepository.yaml`/`helmrelease.yaml`
-7. Run `just bootstrap apps` — installs external-secrets → onepassword-connect → flux-operator → flux-instance
-8. Commit and push repo to Forgejo → Flux reconciles everything from Git
-9. Deploy `network` namespace **first** (cert-manager clusterissuer → envoy-gateway → certificates → cloudflare-tunnel) before any app with an HTTPRoute
+Bootstrap uses helmfile (not `flux bootstrap`) because the Forgejo repo must already have content before Flux GitRepository can sync. The step-by-step order, the 1Password items it needs, and the `network`-namespace-first rule are in `.agents/references/bootstrap.md`.
 
 ---
 

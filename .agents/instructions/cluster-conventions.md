@@ -60,16 +60,9 @@ to them instead of provisioning their own.
   `spec.managed.roles` in `kubernetes/apps/database/postgres/cluster/cluster.yaml` — the
   `Database` CR only runs `CREATE DATABASE ... OWNER <app>`, it does not create the role itself.
   Skipping this fails with `role "<app>" does not exist (SQLSTATE 42704)`.
-- **Client key encoding — `POSTGRES_CERT_ENCODING`**: the component issues PKCS#1
-  (`BEGIN RSA PRIVATE KEY`) by default, which cert-manager emits unless told otherwise. Clients
-  on a **rustls** TLS stack reject that outright and crashloop with `expected PKCS#8 PEM` —
-  atuin does so from 18.19.0 onward. Set `POSTGRES_CERT_ENCODING: PKCS8` in that app's
-  `postBuild.substitute`. It is parameterised rather than switched cluster-wide because changing
-  the default reissues every client cert at once. Two gotchas when flipping it: cert-manager
-  does **not** reissue on an encoding change alone (force it by patching an `Issuing: True`
-  condition onto the Certificate's `.status`, which is what `cmctl renew` does), and a
-  HelmRelease already stalled on `RetriesExceeded` will not retry by itself — clear it with
-  `flux reconcile helmrelease <name> -n <ns> --reset`.
+- **Client key encoding**: the CSI path pins PKCS8 for every app; `POSTGRES_CERT_ENCODING` is
+  no longer set per app. Encoding history and the reissue gotchas are in
+  `.agents/references/database.md` § Client certificates and § CNPG PKI gotchas.
 - **Never connect directly to the `Cluster`** — always go through `pooler-rw.database.svc:5432`.
 - **Cache/queue**: shared `Dragonfly` CR in the `database` namespace (`dragonfly-operator`,
   `dragonfly-system` namespace). No app runs its own sidecar Redis/Valkey.
