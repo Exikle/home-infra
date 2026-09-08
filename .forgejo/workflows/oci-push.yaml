@@ -59,13 +59,6 @@ jobs:
               stringData:
                 config.json: |
                   {"auths":{"git.dcunha.io":{"username":"exikle","password":"${{ secrets.CI_TOKEN }}"},"registry.frostlink.dev":{"username":"exikle","password":"${{ secrets.REGISTRY_TOKEN }}"}}}
-          volumes: |
-            - name: source
-              spec:
-                accessModes: [ReadWriteOnce]
-                resources:
-                  requests:
-                    storage: 1Gi
 
       - name: Run oci-push Pipeline
         uses: tekton/pipeline@v0
@@ -99,8 +92,7 @@ jobs:
               value: oci://registry.frostlink.dev/exikle/frostlink
           workspaces: |
             - name: source
-              persistentVolumeClaim:
-                claimName: ${{ runner.setup.volumes['source'] }}
+              emptyDir: {}
             - name: basic-auth
               secret:
                 secretName: ${{ runner.setup.secrets['git-auth'] }}
