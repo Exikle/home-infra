@@ -97,7 +97,6 @@ spec:
                 type: CORS
       wellknown:
         annotations:
-          fingerjoin.naktis.eu/webfinger: "true"
           gatus.home-operations.com/enabled: "false"
         hostnames:
           - frostlink.dev
@@ -118,6 +117,8 @@ spec:
                 port: 8080
     service:
       app:
+        annotations:
+          fingerjoin.naktis.eu/webfinger: "true"
         ports:
           http:
             port: 8080
