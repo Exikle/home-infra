@@ -1,20 +1,19 @@
 {
   "//": "Canonical destructive-command rule table for both cluster repos. This file is the single source of truth: .claude/hooks/guard-destructive.sh and .opencode/plugins/guard-destructive.js are GENERATED from it by gen-guards.py, so the bash and JS guards cannot drift apart. Patterns are written in the intersection of POSIX ERE (grep -E) and JavaScript RegExp so one string serves both.",
-  "fast_path_keywords": [
-    "kubectl",
-    "helm",
-    "flux",
-    "talosctl"
-  ],
-  "fast_path_words": [
-    "rm",
-    "mv"
-  ],
+  "fast_path_keywords": ["kubectl", "helm", "flux", "talosctl", "just"],
+  "fast_path_words": ["rm", "mv"],
   "always_allow": {
     "pattern": "--dry-run",
     "//": "Read-only validation is never blocked, whatever else the command matches."
   },
   "rules": [
+    {
+      "id": "just-cluster-mutation-subagent",
+      "subagent_only": true,
+      "pattern": "\\bjust\\b.*\\b(kube\\s+(apply|delete|suspend|resume)-ks|talos\\s+apply-node)\\b",
+      "reason": "A subagent may not mutate the live cluster — these commands are the human's to run. The safety of 'just kube apply-ks' is not in the recipe, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.",
+      "alternative": "Write the manifests and validate them offline ('just kube render-ks <ns> <ks>' needs no cluster), or read live state with 'just kube diff-ks <ns> <ks>'. Report the change and let the human apply it."
+    },
     {
       "id": "kubectl-apply",
       "pattern": "\\bkubectl\\b.*\\bapply\\b",
@@ -24,8 +23,10 @@
     {
       "id": "kubectl-delete-critical",
       "pattern": "\\bkubectl\\b.*\\bdelete\\b.*\\b(namespace|pvc|pv|persistentvolumeclaim|node|deployment|secret|helmrelease|kustomization|gateway|httproute|clusterrole)\\b",
+      "exempt": "I_HAVE_A_KOPIUR_SNAPSHOT",
+      "exempt_reason": "PVC recreation (miroir StorageClass migrations, restore drills) is routine and always paired with a verified kopiur snapshot. The marker opts a single command out of THIS rule only -- every other rule, including talosctl reset/wipe, still applies. See .agents/skills/recreate-pvc/SKILL.md.",
       "reason": "Deleting a critical Kubernetes resource",
-      "alternative": "Confirm with the user before deleting cluster resources"
+      "alternative": "Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, append the marker documented in .agents/skills/recreate-pvc/SKILL.md"
     },
     {
       "id": "helm-mutation",
@@ -41,18 +42,14 @@
     },
     {
       "id": "talosctl-patch-machineconfig",
-      "repos": [
-        "artemis"
-      ],
+      "repos": ["artemis"],
       "pattern": "\\btalosctl\\b.*patch\\s+machineconfig\\b",
       "reason": "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
       "alternative": "Use 'just talos apply-node <node>' or talosctl apply-config --file for full config replacement"
     },
     {
       "id": "talosctl-patch-machineconfig",
-      "repos": [
-        "frostlink"
-      ],
+      "repos": ["frostlink"],
       "pattern": "\\btalosctl\\b.*patch\\s+machineconfig\\b",
       "reason": "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
       "alternative": "Use a minimal DELTA patch file, or 'talosctl apply-config --file' for a full replacement — never pass talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node"
@@ -65,9 +62,7 @@
     },
     {
       "id": "talosctl-single-node-outage",
-      "repos": [
-        "frostlink"
-      ],
+      "repos": ["frostlink"],
       "pattern": "\\btalosctl\\b.*\\b(upgrade|upgrade-k8s|reboot|shutdown)\\b",
       "reason": "Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to",
       "alternative": "Use 'just talos upgrade <version>' (it resolves the schematic first), and only with the user watching"
