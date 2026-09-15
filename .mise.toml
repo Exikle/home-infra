@@ -8,7 +8,7 @@ JUST_UNSTABLE = "1"
 # Frostlink runs Talos v1.14.0-rc.2, and talosctl decodes config documents client-side:
 # a v1.13 client rejects KubeTalosAPIAccessConfig with "not registered" before the node
 # ever sees it. Pinned here rather than globally so Artemis keeps the stable client.
-talos = "1.14.0-rc.2"
+talos = "1.14.1"
 "github:home-operations/flate" = "latest"
 "github:home-operations/yayamlls" = "latest"
 "github:mitsuhiko/minijinja" = "latest"
