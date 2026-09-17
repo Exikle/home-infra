@@ -50,5 +50,7 @@ not fire.
   matching a case's declared file — asks the questions in `.agents/evals/*.yaml`, and scores the
   replies. **`--ab <ref>`** runs the same suite against a git ref and reports regressions, which is
   the honest way to back a claim like "I cut N lines and nothing important went missing". It costs
-  tokens, so it is on demand and never in a hook. A single run is noisy — one FAIL means read the
-  reply with `--show-replies`; `--ab` is the signal.
+  tokens, so it is on demand and never in a hook. A single run is noisy, so `--runs N` scores each case N
+  times and takes a strict majority (an even split fails) — use it for any `--ab` you intend
+  to act on. One FAIL at `--runs 1` means read the reply with `--show-replies`, not that a
+  doc regressed.
