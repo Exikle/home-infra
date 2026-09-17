@@ -1,6 +1,7 @@
 ---
 name: restore-drill
-description: Verify Frostlink's backups are actually restorable — CNPG barman backup and WAL archiving status, Kopiur snapshot freshness, and the deep-verify scratch restore. Use for "backup health check", "CNPG backup status", "restore drill", "are backups working", "WAL archiving", or "is R2 up to date". Read-only. Scoped to the Frostlink cluster.
+description: Verify Frostlink's backups are actually restorable — CNPG barman backup and WAL archiving status, Kopiur snapshot freshness, and the deep-verify scratch restore. Use for "backup health check", "CNPG backup status", "restore drill", "are backups working", "WAL archiving", or "is R2 up to date". Read-only. Scoped to the Frostlink cluster. It reports; it does not restore — that is `kopiur-restore`. For overall cluster health rather than backups, use `cluster-status`.
+compatibility: Read-only. Requires the kopiur CRDs and CNPG barman objects; the deep-verify restore provisions a scratch PVC and removes it, and never touches the live volume.
 ---
 
 # Skill: Restore Drill

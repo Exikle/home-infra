@@ -1,6 +1,7 @@
 ---
 name: apoci-federation
 description: Set up or repair ActivityPub federation between apoci OCI registry instances — the cross-instance follow, artifact mirroring, webfinger routing, and verification that peers see each other. Use for "federate apoci", "apoci ActivityPub follow", "mirror apoci artifacts between instances", "apoci federation peer", "add a federation peer", "webfinger 404", or "apoci webfinger not resolving". Scoped to the Frostlink cluster.
+compatibility: Requires apoci running in the `fediverse` namespace and its hostname resolving publicly through the Cloudflare tunnel — webfinger and peer verification both need inbound reachability.
 ---
 
 # Skill: apoci Federation

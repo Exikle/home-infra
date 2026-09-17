@@ -1,6 +1,7 @@
 ---
 name: talos-ops
 description: Perform Talos node operations — apply a config change, add or change a system extension, upgrade Talos or Kubernetes, reboot or reset a node. Use for "apply talos config", "upgrade talos node", "reboot node", "add a talos extension", or "node config change". Scoped to the Frostlink cluster.
+compatibility: Single node — there is nothing to drain to, so any upgrade, reboot or reset is a FULL CLUSTER OUTAGE, not a rolling operation. The destructive guard blocks `talosctl upgrade`/`reboot` for that reason; use `just talos upgrade <version>` and only with the user watching. Requires talosctl and the repo-local talosconfig over Tailscale.
 ---
 
 # Skill: Talos Operations

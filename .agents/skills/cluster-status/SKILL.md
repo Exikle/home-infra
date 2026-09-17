@@ -1,6 +1,7 @@
 ---
 name: cluster-status
-description: Take a fast read on overall cluster health — failing pods, unready Flux resources, node and storage state — and report what is actually broken. Use for "cluster status", "what's broken", "health check", "anything down", or "quick status". Scoped to the Frostlink cluster.
+description: Take a fast read on overall cluster health — failing pods, unready Flux resources, node and storage state — and report what is actually broken. Use for "cluster status", "what's broken", "health check", "anything down", or "quick status". Scoped to the Frostlink cluster. Covers the whole cluster. If the problem is already known to be a stalled Flux reconcile, go straight to `fix-flux`; for backups specifically, `restore-drill`.
+compatibility: Read-only. Needs the repo-local kubeconfig (context `frostlink`) — the MCP k8s tools point at Artemis, not this cluster.
 ---
 
 # Skill: Cluster Status

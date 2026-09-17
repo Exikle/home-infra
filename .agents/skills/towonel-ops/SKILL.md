@@ -1,6 +1,7 @@
 ---
 name: towonel-ops
 description: Operate the towonel tunnel on Frostlink — check hub and edge health, issue or revoke an agent invite token, onboard a new origin/hostname, rotate the node's key material, or debug an agent that will not connect. Use for "towonel is down", "create a towonel invite", "add an agent", "expose X through towonel", "agent won't connect", "tunnel not routing", or "check the edge". Scoped to the Frostlink cluster.
+compatibility: Requires the towonel hub and edge running in the `towonel` namespace, and 1Password access for key material. The edge is the cluster's only direct inbound path (443/tcp + 51820/udp) — breaking it cuts external reachability.
 ---
 
 # Skill: towonel Operations

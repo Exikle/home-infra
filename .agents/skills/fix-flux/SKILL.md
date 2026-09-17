@@ -1,6 +1,7 @@
 ---
 name: fix-flux
-description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease stuck or not progressing, a Kustomization not reconciling, an OCIRepository not resolving, or an ExternalSecret not syncing. Use for "flux is broken", "HelmRelease stuck", "kustomization not reconciling", "ExternalSecret not syncing", or when flux get shows a resource not ready. Scoped to the Frostlink cluster.
+description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease stuck or not progressing, a Kustomization not reconciling, an OCIRepository not resolving, or an ExternalSecret not syncing. Use for "flux is broken", "HelmRelease stuck", "kustomization not reconciling", "ExternalSecret not syncing", or when flux get shows a resource not ready. Scoped to the Frostlink cluster. Scoped to a known-stalled Flux resource. If you do not yet know what is wrong, start with `cluster-status`.
+compatibility: Read-only diagnosis; any repair goes through git or `just kube apply-ks`, never a direct kubectl mutation.
 ---
 
 # Skill: Fix Flux

@@ -1,6 +1,6 @@
 ---
 name: deploy-app
-description: Deploy a new app into the Flux cluster end to end — scaffold the ks.yaml and app/ manifests, wire the OCIRepository, HelmRelease, routes, storage, and any ExternalSecret, then test-apply before committing. Use for "deploy X", "add app X", "set up X in namespace Y", "create a new app", or "onboard X to the cluster". Scoped to the Frostlink cluster.
+description: Deploy a new app into the Flux cluster end to end — scaffold the ks.yaml and app/ manifests, wire the OCIRepository, HelmRelease, routes, storage, and any ExternalSecret, then test-apply before committing. Use for "deploy X", "add app X", "set up X in namespace Y", "create a new app", or "onboard X to the cluster". Scoped to the Frostlink cluster. For an app that already exists, use `review-app`.
 ---
 
 # Skill: Deploy App

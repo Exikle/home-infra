@@ -1,6 +1,7 @@
 ---
 name: kopiur-restore
-description: Restore a PVC from its Kopiur backup in Cloudflare R2 — including the silent empty-restore failure mode. Use for "restore X from backup", "recover PVC", "roll back X's data", "kopiur restore", "restore from R2", or "the restored volume is empty". Scoped to the Frostlink cluster.
+description: Restore a PVC from its Kopiur backup in Cloudflare R2 — including the silent empty-restore failure mode. Use for "restore X from backup", "recover PVC", "roll back X's data", "kopiur restore", "restore from R2", or "the restored volume is empty". Scoped to the Frostlink cluster. This is the default for any restore request. Use `restore-drill` when the question is whether backups work rather than restoring one.
+compatibility: Requires the kopiur CRDs and the `r2` ClusterRepository (Cloudflare R2). Writes to a live PVC — the empty-restore failure mode is silent, so verify contents before declaring success.
 ---
 
 # Skill: Kopiur Restore
