@@ -1,3 +1,8 @@
+---
+paths:
+    - "kubernetes/**"
+---
+
 # Cluster Conventions — Frostlink
 
 ## App Directory Structure (canonical)
@@ -16,7 +21,7 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 
 ## Helm / app-template v5
 
-- Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` tag `5.1.0` (note: `-labs`, not `-bjw-s`)
+- Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` (note: `-labs`, not `-bjw-s`). Renovate bumps the tag fleet-wide, so read it from the tree rather than trusting a number here: `grep -h "tag:" kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1`
 - Every app gets its own standalone `OCIRepository` — never share or reuse one
 - `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`
 - Schema modeline on an app-template HelmRelease points at the **chart's own** HelmRelease schema

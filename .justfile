@@ -16,6 +16,10 @@ mod kube "kubernetes"
 [group: 'Talos']
 mod talos "talos"
 
+# Agent Recipes
+[group: 'Agent']
+mod ai "ai"
+
 [private]
 default:
     just -l

@@ -27,3 +27,7 @@ bootstrap/talosconfig
 # AI
 .claude/*
 !.claude/skills/
+
+# Byproduct of scripts/test-eval-scorer.py importing the eval harness by path
+__pycache__/
+*.pyc

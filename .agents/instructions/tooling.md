@@ -1,25 +1,12 @@
-# Tooling & Critical Rules — Frostlink
+# Tooling — Frostlink
 
-Production GitOps single-node cluster. Every push to `main` reconciles immediately to production
-via Flux. **No staging cluster — test with `just kube apply-ks` before committing.**
+Auto-loaded via `CLAUDE.md`. Frostlink has no `.opencode/` directory today; if one is ever added,
+load this file there rather than copying its contents.
 
-This file is auto-loaded via `CLAUDE.md`. Frostlink has no `.opencode/` directory today; if one
-is ever added, load this file there too rather than copying its contents.
-
-## Critical Rules
-
-- **No SOPS** — secrets via 1Password ExternalSecrets only (`ClusterSecretStore: onepassword-connect`)
-- **No TZ env var** — k8tz handles timezone cluster-wide; never set `TZ` in pod specs
-- **No shared OCIRepository** — every app gets its own standalone OCIRepository
-- **No external hostnames for cluster traffic** — always `<app>.<namespace>.svc.cluster.local`
-- **Routes in HelmRelease values** — `HTTPRoute` goes in helmrelease values, not standalone files
-- **Test before commit** — `just kube apply-ks <ns> <ks>` then wait for explicit user confirmation
-- **No `git add .` or `git add -A`** — stage specific files by name only
-- **Never apply cluster changes through MCP** — the MCP k8s tools do not even point at this
-  cluster (see § MCP servers); an MCP mutation here lands on Artemis
-- **Single node, no failover** — there is nothing to drain to. Any node reboot, Talos upgrade, or
-  `talosctl reset` is a full-cluster outage, not a rolling one. Never run `talosctl upgrade` or
-  `talosctl reboot` by hand; use `just talos upgrade <version>`, and only with the user watching.
+The rules that apply on every turn are in `AGENTS.md` § The rules that apply to every turn, and
+the manifest-authoring conventions (TZ, one OCIRepository per app, routes inline in helmrelease
+values) are in `cluster-conventions.md`, which loads when you touch `kubernetes/**`. Neither is
+restated here — that duplicate is what would drift.
 
 ## just commands
 

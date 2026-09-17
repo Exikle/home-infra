@@ -10,3 +10,18 @@ run = "python3 .claude/hooks/gen-guards.py --check"
 [pre-commit.commands.agent-hooks-vendored]
 glob = [".claude/hooks/*"]
 run = 'if [ -d "$HOME/dotfiles/home/claude/agent-hooks" ]; then "$HOME/dotfiles/home/claude/agent-hooks/sync-hooks.sh" --check "$PWD"; fi'
+
+# The agent config's own wiring: skill frontmatter and symlinks, CLAUDE.md @imports,
+# .claude/rules paths: scoping, and the AGENTS.md reference index vs what is on disk. Every one of
+# these fails silently — a skill with no symlink is simply never offered, and nothing errors.
+# Mutation-tested: all seven checks fire when the thing they guard is broken.
+[pre-commit.commands.agent-config]
+glob = ["AGENTS.md", "CLAUDE.md", ".agents/**", ".claude/**"]
+run = "python3 scripts/check-agent-config.py --quiet"
+
+# Scorer unit tests for the instruction eval. Offline and free — the eval itself costs tokens and
+# stays on demand (`just ai eval`), but its scoring logic is pinned here so a regression in the
+# negation handling cannot silently turn every case green.
+[pre-commit.commands.eval-scorer]
+glob = ["scripts/eval-instructions.py", "scripts/test-eval-scorer.py"]
+run = "python3 scripts/test-eval-scorer.py"

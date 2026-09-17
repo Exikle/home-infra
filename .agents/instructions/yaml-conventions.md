@@ -1,3 +1,9 @@
+---
+paths:
+    - "kubernetes/**/*.yaml"
+    - "kubernetes/**/*.yml"
+---
+
 # YAML Conventions — Frostlink
 
 All Kubernetes manifests follow these field ordering rules. Default is alphabetical at every level unless overridden below.
