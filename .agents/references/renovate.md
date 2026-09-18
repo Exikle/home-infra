@@ -5,6 +5,9 @@ prose; every "why" below used to be a comment block in it.
 
 Upstream presets: <https://github.com/home-operations/renovate-presets>
 
+Every PR against `main` also gets an AI review comment from `.forgejo/workflows/pr-review.yaml`.
+It is advisory only — a sticky comment, not a status check, so it never gates a merge.
+
 **This repo is pinned at `8.0.0`; Artemis is at `8.1.0`.** The skew is not drift to be fixed on
 sight — bump only after checking the target tag is self-contained (below). The two repos also
 extend different `apps/` presets and made opposite signing choices; the full divergence table is
