@@ -43,13 +43,5 @@ spec:
           memory: 256Mi
         limits:
           memory: 1Gi
-      route:
-        enabled: true
-        hostnames:
-          - vmsingle.frostlink.dev
-        parentRefs:
-          - name: external-gateway
-            namespace: network
-            sectionName: https
       serviceMonitor:
         enabled: true

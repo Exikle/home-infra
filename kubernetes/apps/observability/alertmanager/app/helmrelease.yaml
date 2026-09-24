@@ -81,22 +81,6 @@ spec:
           - path: /tmp
         type: emptyDir
 
-    route:
-      app:
-        annotations:
-          gatus.home-operations.com/endpoint: |-
-            conditions: ["[STATUS] == 200"]
-        hostnames:
-          - alertmanager.frostlink.dev
-        parentRefs:
-          - name: external-gateway
-            namespace: network
-            sectionName: https
-        rules:
-          - backendRefs:
-              - identifier: app
-                port: 9093
-
     service:
       app:
         ports:
