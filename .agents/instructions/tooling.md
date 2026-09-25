@@ -106,3 +106,5 @@ Read them there — none of it is restated here. Frostlink-specific additions:
   in the prompt itself.
 - **Tell it to use local `kubectl`, not MCP.** A subagent doing cluster inspection here will
   otherwise reach for the k8s MCP tools and silently report Artemis's state as Frostlink's.
+- **Edits go in a git worktree** (`~/.claude/CLAUDE.md` § Delegation and context). `just kube
+  apply-ks` applies the tree of the worktree you run it from.
