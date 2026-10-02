@@ -144,6 +144,23 @@ device — tailscale's 1280 — while `enp0s6` runs at 9000. Pinned since 2026-1
   each pod's own `eth0` keeps its old MTU until the pod is replaced. Check with
   `kubectl exec <pod> -- cat /sys/class/net/eth0/mtu`.
 
+## cilium cluster identity: `id: 2`, `name: frostlink-vps`
+
+Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique. Changed 2026-10-02 from
+`id: 1` / `frostlink`.
+
+- **Change the ID and the name together, never the ID alone.** The name is a pod identity label
+  (`io.cilium.k8s.policy.cluster`); the ID is not. With an ID-only change the existing identities
+  keep matching and Cilium reuses them, old numbers and all — restarting workloads does not help
+  (Cilium maintainer, cilium/cilium#48801). Changing the name forces new identities.
+- **No reboot.** Apply the values, then restart `deploy/cilium-operator` and `ds/cilium` by hand
+  (`rollOutCiliumPods` is false). Every endpoint re-identifies on the agent restart; old
+  identities are garbage-collected on their own.
+- Verify the range: cluster N identities are `N*65536 … N*65536+65535`, so cluster 2 is
+  `131072–196607`. `cilium-dbg endpoint list -o json` shows each endpoint's `identity.id`.
+- **Not supported once meshed** — changing ID or name on a cluster that is already connected
+  needs every peer disconnected first.
+
 ## Cloudflare Tunnel
 
 The tunnel sends `frostlink.dev` and `*.frostlink.dev` traffic to the `external-gateway` service in
