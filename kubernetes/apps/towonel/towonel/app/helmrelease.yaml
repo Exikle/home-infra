@@ -79,6 +79,12 @@ spec:
     # Hub control-plane API, published through the Cloudflare tunnel.
     route:
       hub:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            url: "http://towonel.towonel.svc.cluster.local:8443/v1/readyz"
+            conditions: ["[STATUS] == 200"]
+            client:
+              dns-resolver: ""
         hostnames:
           - hub.frostlink.dev
         parentRefs:
