@@ -39,8 +39,8 @@ Everything else is conditional. These are not.
    (`allowSchedulingOnControlPlanes: true`). Treat `talosctl upgrade`/`reboot` as an outage, not a
    rolling operation — the destructive guard blocks them for that reason.
 8. **Agents edit in a worktree, never the main checkout.** Before the first edit, run
-   `just wt new <agent>/<slug>` (agent = `claude`, `opencode`, …) and work only in the
-   `.worktrees/<agent>-<slug>` path it prints. One agent per worktree. `just wt rm <agent>/<slug>`
+   `just wt new <type>/<slug>` (`feat`, `fix`, `chore`, … as in commit subjects) and work only in
+   the `.worktrees/<type>-<slug>` path it prints. One agent per worktree. `just wt rm <type>/<slug>`
    when the branch is merged. A pre-commit check refuses agent commits made in the main checkout.
 
 A rule that has to hold is enforced, not just written: `guard-destructive.sh` hard-blocks the

@@ -4,7 +4,7 @@
 default:
     @just --list wt
 
-# Create .worktrees/<agent>-<slug> on branch <agent>/<slug>, with .worktreeinclude files copied in
+# Create .worktrees/<type>-<slug> on branch <type>/<slug>, with .worktreeinclude files copied in
 [group('wt')]
 new branch:
     #!/usr/bin/env bash

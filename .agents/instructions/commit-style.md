@@ -3,7 +3,7 @@
 ## Two-identity signing model
 
 | Identity               | How commits land on main            | Signed by                        |
-| ----------------------- | ----------------------------------- | -------------------------------- |
+| ---------------------- | ----------------------------------- | -------------------------------- |
 | Exikle (Dixon D'Cunha) | Push directly to main after testing | Exikle's personal GPG key        |
 | Renovate / dusk-bot    | Squash-merged PR                    | git.dcunha.io Instance (SSH key) |
 
@@ -48,7 +48,7 @@ silently drops commits from main.
 - Pre-merge corrections (wrong port, typo, image tag, ExternalSecret mismatch) → amend the local commit before pushing
 - Post-push discoveries → new commit on main, always
 
-## Branch naming (only needed for Renovate triage reference)
+## Branch naming (worktree branches and Renovate triage reference)
 
 ```text
 feat/network-envoy-gateway
