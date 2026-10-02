@@ -36,7 +36,7 @@ Renovate resolves an untagged nested preset against the preset repo's **default 
 the tag its parent was pinned at — so the pin was never real.
 
 When upstream deleted `config/`, `managers/`, `overrides/` and `policies/` from `main`
-(7.0.0, *"consolidate the general-purpose presets into default.json"*), this repo — still on
+(7.0.0, _"consolidate the general-purpose presets into default.json"_), this repo — still on
 4.0.0 — started 404ing on the nested fetch and **Renovate aborted in the init phase**. No
 dependency updates landed at all between 2026-08-05 and the bump to 7.0.0.
 
@@ -59,11 +59,11 @@ A silent abort looks exactly like "no updates were due" — check the Renovate l
 app-specific manager/datasource this repo depends on has to be listed explicitly. Dropping one
 is silent: the custom manager simply stops extracting and the dependency goes stale with no error.
 
-| Preset             | What it feeds here                                   |
-| ------------------ | ---------------------------------------------------- |
-| `cnpg.json5`       | `Cluster.spec.imageName` in `database/postgres`      |
-| `phanpy.json5`     | phanpy's `<calver>.<sha>` tags                       |
-| `talosFactory.json5` | the `custom.talos-factory` customDatasource        |
+| Preset               | What it feeds here                              |
+| -------------------- | ----------------------------------------------- |
+| `cnpg.json5`         | `Cluster.spec.imageName` in `database/postgres` |
+| `phanpy.json5`       | phanpy's `<calver>.<sha>` tags                  |
+| `talosFactory.json5` | the `custom.talos-factory` customDatasource     |
 
 Deliberately absent: `grafanaDashboards` (no dashboards here — VictoriaMetrics only),
 `searxng`, `llamacpp`.
@@ -109,13 +109,13 @@ Artemis dropped `platformCommit` and went squash-only. Here it is what keeps the
 Rules are ordered; later `packageRules` win. The guards at the bottom exist to override the
 broad automerge rules above them.
 
-| Rule                        | Effect                                                          |
-| --------------------------- | --------------------------------------------------------------- |
-| Trusted container digests   | automerge, `matchPackageNames: ["/home-operations/"]`           |
-| Forgejo Actions             | automerge minor/patch/digest after `minimumReleaseAge: 3 days`  |
-| Trusted Forgejo Actions     | `actions/*`, `renovatebot/*` — same, but 1 minute               |
-| All patch updates           | automerge                                                       |
-| All minor updates           | automerge **except** 0.x (see zer0ver below)                    |
+| Rule                      | Effect                                                         |
+| ------------------------- | -------------------------------------------------------------- |
+| Trusted container digests | automerge, `matchPackageNames: ["/home-operations/"]`          |
+| Forgejo Actions           | automerge minor/patch/digest after `minimumReleaseAge: 3 days` |
+| Trusted Forgejo Actions   | `actions/*`, `renovatebot/*` — same, but 1 minute              |
+| All patch updates         | automerge                                                      |
+| All minor updates         | automerge **except** 0.x (see zer0ver below)                   |
 
 ### The zer0ver guard
 
@@ -138,9 +138,9 @@ guard a bump like `v1.14.0-rc.1 ➔ v1.14.0` would merge and reboot the cluster 
 
 ```json5
 {
-  matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
-  automerge: false,
-  minimumReleaseAge: "7 days",
+    matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
+    automerge: false,
+    minimumReleaseAge: "7 days",
 }
 ```
 
@@ -151,10 +151,10 @@ guard a bump like `v1.14.0-rc.1 ➔ v1.14.0` would merge and reboot the cluster 
 `matchFileNames` scopes this to `kubernetes/apps/system-upgrade/tuppr/upgrades/**`. The Talos
 version is pinned in **two** places, and only one of them is in that directory:
 
-| Where | Datasource | Covered by the guard? |
-| ------------------------------------- | -------------------- | --------------------- |
-| `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory` | yes |
-| `talos = "1.14.0-rc.2"` in `.mise.toml` | `github-tags` (mise manager) | **no** |
+| Where                              | Datasource                   | Covered by the guard? |
+| ---------------------------------- | ---------------------------- | --------------------- |
+| `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory`       | yes                   |
+| `talos = "…"` in `.mise.toml`      | `github-tags` (mise manager) | **no**                |
 
 So a minor or patch bump to the talosctl **CLI** still matches "Auto-merge all patch/minor
 updates" and can land unattended, drifting the client away from the version the cluster runs.
@@ -171,10 +171,10 @@ package-level rule rather than widening `matchFileNames`.
 
 The Kubernetes version is pinned in **two** files, and the file-scoped guard only covers one:
 
-| Where | Package | Covered by the file guard? |
-| ------------------------------------------- | ------------------------------ | -------------------------- |
-| `tuppr/upgrades/kubernetesupgrade.yaml`      | `ghcr.io/siderolabs/kubelet`   | yes                        |
-| `talos/patches/controlplane.yaml`            | `registry.k8s.io/kube-proxy`   | **no**                     |
+| Where                                   | Package                      | Covered by the file guard? |
+| --------------------------------------- | ---------------------------- | -------------------------- |
+| `tuppr/upgrades/kubernetesupgrade.yaml` | `ghcr.io/siderolabs/kubelet` | yes                        |
+| `talos/patches/controlplane.yaml`       | `registry.k8s.io/kube-proxy` | **no**                     |
 
 The `kube-proxy` pin exists because Talos 1.14 requires an explicit `image:` on a **disabled**
 `KubeProxyConfig` — see `.agents/references/talos.md`. Left ungrouped it would bump on its own and
@@ -233,7 +233,7 @@ the two halves in step.
 
 ## Lock File Maintenance
 
-Six of the seven tools in `.mise.toml` are `latest` — `talos = "1.14.0-rc.2"` is the only pin —
+Six of the seven tools in `.mise.toml` are `latest` — `talos` is the only pin —
 so `mise.lock` is the only thing pinning the rest, and nothing was refreshing it. flate,
 minijinja, oxfmt, shellcheck, yayamlls and zizmor were frozen at whatever resolved when the lock
 was last written, and the lock still carried a `github:home-operations/yamlls` entry for a tool
