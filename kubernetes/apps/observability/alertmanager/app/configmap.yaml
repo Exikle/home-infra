@@ -31,6 +31,12 @@ data:
       group_interval: 5m
       repeat_interval: 12h
       routes:
+        - receiver: heartbeat
+          group_interval: 2m
+          group_wait: 0s
+          repeat_interval: 2m30s
+          matchers:
+            - alertname = Watchdog
         - receiver: chaski-critical
           matchers:
             - severity = critical
@@ -42,6 +48,12 @@ data:
             - severity = info
     receivers:
       - name: blackhole
+      - name: heartbeat
+        webhook_configs:
+          - url: https://status.dcunha.io/api/v1/endpoints/core_frostlink/external?success=true
+            http_config:
+              bearer_token_file: /etc/alertmanager-secrets/HEARTBEAT_FROSTLINK_TOKEN
+            send_resolved: false
       - name: chaski-critical
         webhook_configs:
           - url: http://chaski.observability.svc.cluster.local:8080/hooks/critical

@@ -76,6 +76,11 @@ spec:
         size: 1Gi
         storageClass: openebs-zfs
         type: persistentVolumeClaim
+      secrets:
+        globalMounts:
+          - path: /etc/alertmanager-secrets
+        name: alertmanager-secret
+        type: secret
       tmp:
         globalMounts:
           - path: /tmp

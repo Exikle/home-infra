@@ -46,3 +46,11 @@ external-endpoints:
       interval: 5m
     alerts:
       - type: pushover
+
+  - name: Artemis
+    group: core
+    token: ${HEARTBEAT_ARTEMIS_TOKEN}
+    heartbeat:
+      interval: 5m
+    alerts:
+      - type: pushover
