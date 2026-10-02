@@ -29,7 +29,7 @@ just bootstrap phase1 | phase2            # one-time bring-up only, both confirm
 Notes that are easy to get wrong:
 
 - **`apply-ks` does not suspend Flux.** It is a plain `flate build | kubectl apply --server-side
-  --force-conflicts`. Flux will happily reconcile over the result, so an applied-but-uncommitted
+--force-conflicts`. Flux will happily reconcile over the result, so an applied-but-uncommitted
   change is temporary. There is no `resume-ks` recipe here, and none is needed.
 - **`just talos schematic-id` is `[private]`** — it is called by `just talos upgrade`, not run
   directly.
@@ -65,16 +65,16 @@ everywhere else.
 Registrations live in `.mcp.json` — three LiteLLM HTTP tiers plus the memini plugin. The
 `headersHelper` shells out to `~/.claude/scripts/litellm-headers.mjs`.
 
-| Server            | Capability                                                            |
-| ----------------- | --------------------------------------------------------------------- |
-| `litellm-ops`     | k8s, Forgejo API, GitHub API, Home Assistant (Artemis-local)           |
-| `litellm-general` | SearXNG web search + URL fetch, VictoriaLogs (LogsQL), Context7 docs   |
-| `litellm-media`   | Arr stack / seerr — Artemis-local, nothing to do with this repo   |
-| `memini`          | Cross-session semantic memory                                         |
+| Server            | Capability                                                           |
+| ----------------- | -------------------------------------------------------------------- |
+| `litellm-ops`     | k8s, Forgejo API, GitHub API, Home Assistant (Artemis-local)         |
+| `litellm-general` | SearXNG web search + URL fetch, VictoriaLogs (LogsQL), Context7 docs |
+| `litellm-media`   | Arr stack / seerr — Artemis-local, nothing to do with this repo      |
+| `memini`          | Cross-session semantic memory                                        |
 
 > **The MCP k8s tools point at Artemis, not Frostlink.** They execute server-side on the LiteLLM
 > gateway and cannot see this repo's kubeconfig, so every `k8s-*` call lands on the gateway's own
-> context (`artemis`). Treat any MCP k8s result as *Artemis's* state unless you have proven
+> context (`artemis`). Treat any MCP k8s result as _Artemis's_ state unless you have proven
 > otherwise. **Use local `kubectl` here.** This inverts Artemis's guidance ("prefer the k8s MCP
 > tools over shelling out to kubectl") — that advice is Artemis-only.
 
@@ -106,5 +106,5 @@ Read them there — none of it is restated here. Frostlink-specific additions:
   in the prompt itself.
 - **Tell it to use local `kubectl`, not MCP.** A subagent doing cluster inspection here will
   otherwise reach for the k8s MCP tools and silently report Artemis's state as Frostlink's.
-- **Edits go in a git worktree** (`~/.claude/CLAUDE.md` § Delegation and context). `just kube
-  apply-ks` applies the tree of the worktree you run it from.
+- **Edits go in a git worktree** (`AGENTS.md` rule 8). `just kube apply-ks` applies the tree of
+  the worktree you run it from.

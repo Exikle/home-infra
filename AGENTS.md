@@ -31,13 +31,17 @@ Everything else is conditional. These are not.
 4. **Cluster traffic uses `<app>.<namespace>.svc.cluster.local`**, never an external hostname.
 5. **Stage files by name.** No `git add .`, no `git add -A`, no `--no-verify`. One-line semantic
    commit subject, no body, no `Co-Authored-By`.
-6. **Never hand-edit the Talos schematic ID.** tuppr rebuilds an upgrade from the *node's*
+6. **Never hand-edit the Talos schematic ID.** tuppr rebuilds an upgrade from the _node's_
    schematic, so a stale or hand-written ID silently reinstalls a removed extension — or drops
    `zfs` and takes all storage down. Derive it: `just talos schematic-id`, or read
    `kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`.
 7. **A reboot is a full outage.** Control plane and workload are the same machine
    (`allowSchedulingOnControlPlanes: true`). Treat `talosctl upgrade`/`reboot` as an outage, not a
    rolling operation — the destructive guard blocks them for that reason.
+8. **Agents edit in a worktree, never the main checkout.** Before the first edit, run
+   `just wt new <agent>/<slug>` (agent = `claude`, `opencode`, …) and work only in the
+   `.worktrees/<agent>-<slug>` path it prints. One agent per worktree. `just wt rm <agent>/<slug>`
+   when the branch is merged. A pre-commit check refuses agent commits made in the main checkout.
 
 A rule that has to hold is enforced, not just written: `guard-destructive.sh` hard-blocks the
 destructive verbs regardless of permission mode. If you find yourself reaching for a way around a
@@ -67,11 +71,11 @@ Everything else about the network — VCN, DNS records, the security-list ingres
 
 ## Namespaces
 
-`ls kubernetes/apps/` is the live list. The table below is kept only for the *purpose* column,
+`ls kubernetes/apps/` is the live list. The table below is kept only for the _purpose_ column,
 which no command recovers.
 
-| Namespace          | Purpose                                                                                       |
-| ------------------ | --------------------------------------------------------------------------------------------- |
+| Namespace          | Purpose                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
 | `cert-manager`     | cert-manager, ACME ClusterIssuer, CSI driver, internal Postgres CA, trust-manager              |
 | `cnpg-system`      | CloudNativePG operator + barman-cloud plugin                                                   |
 | `database`         | Shared CNPG Postgres `Cluster` + pgbouncer `Pooler`, shared Dragonfly                          |
@@ -135,8 +139,8 @@ trigger comes up.
 
 ### Always loaded
 
-| File                           | What it settles                                        |
-| ------------------------------ | ------------------------------------------------------ |
+| File                           | What it settles                                         |
+| ------------------------------ | ------------------------------------------------------- |
 | `instructions/tooling.md`      | `just` recipes, kubectl/talosctl scoping, the MCP tiers |
 | `instructions/commit-style.md` | The test-then-commit sequence and the signing model     |
 | `instructions/session.md`      | Journal format, memini vs `.agents/` boundary           |
@@ -156,18 +160,18 @@ confirm the rule loaded before assuming the convention changed.
 
 Open the file when its subject comes up. Do not read the whole directory.
 
-| Read this              | When                                                                      |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `anubis.md`            | Adding or tuning PoW scraper deterrence, or GoToSocial's allow policy     |
-| `bootstrap.md`         | Rebuilding from nothing — the helmfile order and the network-first rule   |
-| `claude-code-setup.md` | Touching a hook, a guard, a path-scoped rule, or a skill symlink          |
+| Read this              | When                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `anubis.md`            | Adding or tuning PoW scraper deterrence, or GoToSocial's allow policy         |
+| `bootstrap.md`         | Rebuilding from nothing — the helmfile order and the network-first rule       |
+| `claude-code-setup.md` | Touching a hook, a guard, a path-scoped rule, or a skill symlink              |
 | `database.md`          | Onboarding onto shared Postgres, pgbouncer tuning, CNPG PKI, primary restarts |
-| `flux-patterns.md`     | A reconcile is stuck, or you are wiring `dependsOn` across namespaces     |
-| `networking.md`        | Gateways, the OCI VCN rules, the Cloudflare tunnel, Tailscale             |
-| `renovate.md`          | Triaging the PR queue, or a per-app update guard (tuppr, zer0ver)         |
-| `storage.md`           | openebs-zfs, snapshot classes, the kopiur component, the restore path     |
-| `talos.md`             | Node config, the schematic, extensions, upgrade steps                     |
-| `towonel.md`           | towonel hub/edge — ports, grey-cloud DNS, key material, kopiur movers     |
+| `flux-patterns.md`     | A reconcile is stuck, or you are wiring `dependsOn` across namespaces         |
+| `networking.md`        | Gateways, the OCI VCN rules, the Cloudflare tunnel, Tailscale                 |
+| `renovate.md`          | Triaging the PR queue, or a per-app update guard (tuppr, zer0ver)             |
+| `storage.md`           | openebs-zfs, snapshot classes, the kopiur component, the restore path         |
+| `talos.md`             | Node config, the schematic, extensions, upgrade steps                         |
+| `towonel.md`           | towonel hub/edge — ports, grey-cloud DNS, key material, kopiur movers         |
 
 ### Skills
 

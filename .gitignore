@@ -6,6 +6,7 @@ Thumbs.db
 # Tools
 .task/
 .venv/
+.worktrees/
 
 # Kubernetes
 *.kubeconfig
