@@ -25,7 +25,7 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 | **Node**       | VM.Standard.A1.Flex — 4 OCPU / 24 GB RAM (ARM64)                                         |
 | **OS**         | Talos Linux — version: `kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` |
 | **Kubernetes** | version: `kubernetes/apps/system-upgrade/tuppr/upgrades/kubernetesupgrade.yaml`          |
-| **CNI**        | Cilium 1.17.4                                                                            |
+| **CNI**        | Cilium — version: `kubernetes/apps/kube-system/cilium/app/ocirepository.yaml`            |
 | **GitOps**     | Flux CD v2.8.8 via flux-operator                                                         |
 | **Secrets**    | 1Password ExternalSecret (no SOPS)                                                       |
 | **Ingress**    | Cloudflare tunnel (apps) + towonel edge on 443/tcp, 51820/udp (tunnelled origins)        |
