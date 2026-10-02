@@ -2,9 +2,9 @@
 
 ## Node Reference
 
-| Node        | Role                            | IP (Tailscale)   | IP (OCI internal) |
-| ----------- | ------------------------------- | ---------------- | ----------------- |
-| `frostlink` | Control plane + worker (ARM64)  | `100.67.108.103` | `10.0.0.203`      |
+| Node        | Role                           | IP (Tailscale)   | IP (OCI internal) |
+| ----------- | ------------------------------ | ---------------- | ----------------- |
+| `frostlink` | Control plane + worker (ARM64) | `100.67.108.103` | `10.0.0.203`      |
 
 Running Talos and Kubernetes versions: `kubectl --kubeconfig kubeconfig get nodes -o wide`
 (`OS-IMAGE` and `VERSION` columns).
@@ -89,9 +89,9 @@ For changes requiring a reboot: add `--mode reboot`.
 
 ```yaml
 machine:
-  features:
-    someField:
-      $patch: delete
+    features:
+        someField:
+            $patch: delete
 ```
 
 **Client version matters.** talosctl decodes config documents client-side, so a v1.13 client rejects a v1.14 document with `"KubeTalosAPIAccessConfig" "v1alpha1": not registered` before the node ever sees it. `.mise.toml` pins talosctl to match the cluster; use `mise exec -- talosctl`.
@@ -114,22 +114,22 @@ Schematic ID: `e7f26ff1516313fd32b377e04c573728c7c942655ecb5580e728ab92bbf4cfc1`
 
 Confirmed three ways on 2026-08-21 — they agree:
 
-| Source | How to read it |
-| ------------------------ | -------------------------------------------------------------------- |
-| `talos/schematic.yaml` | the header comment, and `just talos schematic-id` recomputes it |
-| the live node | `kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'` |
-| `talosctl get extensions` | lists the installed extensions themselves |
+| Source                    | How to read it                                                                                      |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `talos/schematic.yaml`    | the header comment, and `just talos schematic-id` recomputes it                                     |
+| the live node             | `kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'` |
+| `talosctl get extensions` | lists the installed extensions themselves                                                           |
 
 Extensions installed — **four, and there is no `qemu-guest-agent`.** OCI A1.Flex does not need
 one, and Artemis's `worker`/`gpu` schematics do carry it, so do not copy an extension list
 across repos.
 
-| Extension | Note |
-| -------------------------- | ------------------------------------------------------------------ |
-| `siderolabs/iscsi-tools` | |
-| `siderolabs/tailscale` | all management access rides this; losing it strands the node |
-| `siderolabs/util-linux-tools` | |
-| `siderolabs/zfs` | **load-bearing** — the whole `openebs-zfs` storage layer depends on it |
+| Extension                     | Note                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `siderolabs/iscsi-tools`      |                                                                        |
+| `siderolabs/tailscale`        | all management access rides this; losing it strands the node           |
+| `siderolabs/util-linux-tools` |                                                                        |
+| `siderolabs/zfs`              | **load-bearing** — the whole `openebs-zfs` storage layer depends on it |
 
 ZFS kernel module is loaded via `machine.kernel.modules: [{name: zfs}]`.
 
@@ -200,7 +200,6 @@ CR and tuppr downgrades the node. Either commit the bump, or
 Only when tuppr is unavailable. Note this uses the legacy
 `factory.talos.dev/installer/` path, while tuppr uses `metal-installer`:
 
-
 ```bash
 just talos upgrade <version>   # reboots with --reboot-mode powercycle, 10m timeout
 just talos schematic-id        # recompute the schematic ID from talos/schematic.yaml
@@ -243,4 +242,6 @@ talosctl --context frostlink get machineconfig -n 100.67.108.103 -o yaml
 - **ZFS disk quotas**: `features.diskQuotaSupport: true` — required for OpenEBS ZFS PVCs
 - **hostDNS**: `forwardKubeDNSToHost: true, resolveMemberNames: true` — pod DNS forwarded to host; node names resolve inside pods
 - **Cilium on Talos/OCI**: `sysctlfix.enabled: false` required in the Cilium HelmRelease — Talos has no `/etc/sysctl.d/`; cilium-agent init crashes otherwise
+- **The `tailscale` extension creates `tailscale0` (MTU 1280)**, which Cilium would auto-detect and use to cap every pod at 1280. The Cilium HelmRelease therefore pins `devices: enp0s6` and `MTU: 1500` — see `networking.md` § cilium `devices` and `MTU` are pinned. Changing or replacing the tailscale patch (e.g. pointing it at Headscale) does not need a Cilium change; adding another host interface that pods must route over does.
+- **Talos `clusterName` (`frostlink`) is not Cilium's cluster name.** Talos's comes from `talosctl gen config frostlink` and names the Kubernetes cluster; Cilium's (`frostlink-vps`, ID 2) is set only in the Cilium HelmRelease, for ClusterMesh — see `networking.md` § cilium cluster identity.
 - **Forgejo HTTPS only**: SSH unreachable from OCI; Flux uses HTTPS (`username` + `password` fields in secret `flux-system/flux-system`)
