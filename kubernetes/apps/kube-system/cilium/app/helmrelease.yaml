@@ -21,6 +21,7 @@ spec:
       name: frostlink
     cni:
       exclusive: false
+    devices: enp0s6
     hubble:
       enabled: false
     ipam:
@@ -28,6 +29,7 @@ spec:
     k8sServiceHost: 127.0.0.1
     k8sServicePort: 7445
     kubeProxyReplacement: true
+    MTU: 1500
     operator:
       replicas: 1
     rollOutCiliumPods: false
