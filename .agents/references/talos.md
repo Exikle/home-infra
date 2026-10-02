@@ -2,9 +2,12 @@
 
 ## Node Reference
 
-| Node        | Role                            | IP (Tailscale)   | IP (OCI internal) | Talos  | K8s    |
-| ----------- | ------------------------------- | ---------------- | ----------------- | ------ | ------ |
-| `frostlink` | Control plane + worker (ARM64)  | `100.67.108.103` | `10.0.0.203`      | v1.14.0-rc.2 | v1.36.1|
+| Node        | Role                            | IP (Tailscale)   | IP (OCI internal) |
+| ----------- | ------------------------------- | ---------------- | ----------------- |
+| `frostlink` | Control plane + worker (ARM64)  | `100.67.108.103` | `10.0.0.203`      |
+
+Running Talos and Kubernetes versions: `kubectl --kubeconfig kubeconfig get nodes -o wide`
+(`OS-IMAGE` and `VERSION` columns).
 
 `allowSchedulingOnControlPlanes: true` — single node runs everything.
 
@@ -211,9 +214,9 @@ No drain/uncordon needed — single node, all workloads restart automatically af
 
 ## Kubernetes Upgrade — break-glass only
 
-tuppr's `KubernetesUpgrade` owns this; the CR currently targets `v1.36.1`, which is what the node
-runs. Bumping the CR is the normal path. Only reach for the command below when tuppr is
-unavailable — and expect the next Flux reconcile to fight you if the CR still names the old
+tuppr's `KubernetesUpgrade` owns this; `kubectl --kubeconfig kubeconfig get kubernetesupgrades`
+shows its current and target version. Bumping the CR is the normal path. Only reach for the
+command below when tuppr is unavailable — and expect the next Flux reconcile to fight you if the CR still names the old
 version.
 
 ```bash

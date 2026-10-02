@@ -7,7 +7,7 @@ Frostlink has **one gateway**: `external-gateway` in the `network` namespace. Th
 - Service type: `ClusterIP` — not directly exposed; all traffic **to this gateway** arrives via
   the Cloudflare tunnel. It is not the only ingress on the host — see _Frostlink is not
   zero-inbound_ below.
-- TLS cert: `frostlink-dev-tls` (wildcard, exported into `network` namespace via PushSecret)
+- TLS cert: `frostlink-dev-tls` (wildcard, issued in `network` — see _Wildcard cert_ below)
 - HTTP listener: `allowedRoutes.namespaces.from: Same` (network namespace only) — handled by the HTTPS redirect HTTPRoute
 - HTTPS listener: `allowedRoutes.namespaces.from: All` — all namespaces can attach routes
 
@@ -40,7 +40,7 @@ verified 2026-08-22:
 | `--txt-owner-id` / `--txt-prefix`     | `frostlink` / `k8s.%{record_type}-`                |
 | `--cloudflare-proxied`                | set — records default to **orange**                |
 
-DNS target annotation on the gateway: `external-dns.alpha.kubernetes.io/target:
+DNS target annotation on the gateway: `external-dns.kubernetes.io/target:
 external.frostlink.dev`.
 
 **A `target` annotation on an individual HTTPRoute does not override that.** In the
@@ -79,7 +79,12 @@ write it.
 
 ### Wildcard cert
 
-`*.frostlink.dev` wildcard cert issued by cert-manager via Cloudflare DNS-01. Stored as `frostlink-dev-tls` in `cert-manager`, exported to the `network` namespace via PushSecret so the gateway can use it.
+`*.frostlink.dev` wildcard cert issued by cert-manager via Cloudflare DNS-01. The `Certificate`
+(`frostlink-dev`) lives in `network`, next to the gateway, and writes the secret
+`frostlink-dev-tls` there. A PushSecret backs that secret up to the 1Password item
+`frostlink-dev-tls`; on a rebuild the `certificates-import` ExternalSecret (`CreatedOnce`,
+`Orphan`) restores it from 1Password before `certificates-export` runs, so cert-manager adopts the
+existing cert instead of requesting a new one. Manifests: `kubernetes/apps/network/certificates/`.
 
 ## CoreDNS suppresses AAAA — the cluster is IPv4-only
 

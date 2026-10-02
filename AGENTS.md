@@ -8,7 +8,7 @@ else lives.
 - **User**: exikle (Dixon) — Mississauga ON (Eastern Time)
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets, no SOPS
-- **CNI**: Cilium | **Ingress**: Envoy Gateway (Gateway API / HTTPRoute via Cloudflare tunnel)
+- **CNI**: Cilium | **Ingress**: two paths — Envoy Gateway (HTTPRoute, via Cloudflare tunnel) and the towonel edge (SNI on host `:443`, bypasses Envoy)
 - **Inbound**: no longer zero — the towonel edge listens directly on 443/tcp + 51820/udp
 
 `ls` at the repo root is the map. Only `kubernetes/` reconciles through Flux.
@@ -212,8 +212,9 @@ reference doc. The machine-oriented exceptions are in `yaml-conventions.md`.
   only path in.
 - **Open 6443/tcp** — removed from the security list 2026-08-18. The API server is reachable over
   Tailscale only. 8443/tcp and 80/tcp are deliberately closed too.
-- **A wildcard DNS record** — there is none, even though the certificate *is* wildcard.
-  `edge.frostlink.dev` is a DNS-only A record; `frostlink.dev` and `external.frostlink.dev` are
-  proxied CNAMEs to the tunnel.
+- **A wildcard DNS record owned by this cluster** — there is none. The grey `*.frostlink.dev`
+  CNAME to `edge.frostlink.dev` exists but is owned by **Artemis** (towonel); every Frostlink app
+  still needs its own explicit record — see `networking.md`. `edge.frostlink.dev` is a DNS-only A
+  record; `frostlink.dev` and `external.frostlink.dev` are proxied CNAMEs to the tunnel.
 - **Relaxing PodSecurity on `network`** — rejected. towonel got its own `privileged` namespace
   instead, so the gateway namespace keeps `baseline`.
