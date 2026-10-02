@@ -36,7 +36,7 @@ mise exec -- flate test all --path ./kubernetes --allow-missing-secrets
 ## Diff Against Main (changed-only)
 
 ```bash
-git worktree add /tmp/frostlink-baseline main
+git worktree add --detach /tmp/frostlink-baseline main
 mise exec -- flate diff ks --path ./kubernetes --path-orig /tmp/frostlink-baseline/kubernetes
 git worktree remove /tmp/frostlink-baseline
 ```
