@@ -1,0 +1,33 @@
+{
+  "groups": {
+    "group:admin": ["exikle@"],
+  },
+
+  "tagOwners": {
+    "tag:home-router": ["group:admin"],
+    "tag:frostlink": ["group:admin"],
+  },
+
+  "autoApprovers": {
+    "routes": {
+      "10.10.99.0/24": ["tag:home-router"],
+    },
+  },
+
+  "grants": [
+    {
+      "src": ["autogroup:member"],
+      "dst": ["*"],
+      "ip": ["*"],
+    },
+  ],
+
+  "ssh": [
+    {
+      "action": "check",
+      "src": ["autogroup:member"],
+      "dst": ["autogroup:self"],
+      "users": ["autogroup:nonroot", "root"],
+    },
+  ],
+}

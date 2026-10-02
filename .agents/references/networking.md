@@ -239,6 +239,33 @@ matches one, and a stateless rule takes precedence over a stateful one.
 | towonel hub API   | Cloudflare tunnel → external-gateway   | `hub.frostlink.dev`                         |
 | Node debug        | Tailscale → talosctl                   | `100.67.108.103`                            |
 
-## kubectl context
+## Tailnet policy — moving from Tailscale SaaS to Headscale
+
+The tailnet is still Tailscale SaaS (tailnet `exikle.github`); the access rules live only in its
+admin console. The Headscale replacement policy is checked in, **not yet deployed**, at
+`kubernetes/apps/network/headscale/app/resources/policy.hujson` — nothing references that
+directory until the Headscale app lands, so Flux ignores it.
+
+Tag mapping, SaaS → Headscale (recorded 2026-10-02 from `tailscale status --json`):
+
+| Device                         | SaaS today                                  | Headscale                                                |
+| ------------------------------ | ------------------------------------------- | -------------------------------------------------------- |
+| Frostlink node                 | `tag:k8s`                                   | `tag:frostlink`                                          |
+| Artemis `tailscale-router` pod | `tag:artemis-router`, route `10.10.99.0/24` | retired — the UCG Max takes over as `tag:home-router`    |
+| UCG Max                        | —                                           | `tag:home-router`, route `10.10.99.0/24` (auto-approved) |
+| Arcana, iPhone                 | user `Exikle@github`                        | user `exikle` (`group:admin`)                            |
+
+**The policy is a 1:1 port of the SaaS rules exported 2026-10-02 — keep it that way until a phase
+needs more.** Only `autogroup:member` (your own devices) may open connections; tagged devices —
+Frostlink, the home router — can answer but never initiate. Frostlink → home LAN access for
+monitoring or ClusterMesh is a deliberate later addition, not a default. Tailscale SSH is
+`check`-mode to your own devices; Headscale's checker accepts that rule, but whether it enforces the
+re-authentication prompt at runtime the way SaaS does is unverified.
+
+Validate any policy edit with Headscale's own checker before committing. It needs a running
+server with the referenced user, so it is run in a throwaway container: start
+`docker.io/headscale/headscale:<version>` with a minimal config pointing `policy.path` at the
+file, `headscale users create exikle`, then `headscale policy check -f <file>`. A config with no
+DERP entry refuses to start — enable the embedded DERP server for the check.
 
 `kubernetes/mod.just` hardcodes `kubectl --context frostlink` — all `just kube` commands target Frostlink automatically. Bare `kubectl` commands need `--context frostlink` or `kubectx frostlink` first.
