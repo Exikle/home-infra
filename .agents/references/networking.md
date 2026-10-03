@@ -249,7 +249,8 @@ tailnet. If Headscale itself is down, the public Talos port is the only break-gl
 
 ## Tailnet policy — moving from Tailscale SaaS to Headscale
 
-Every device is on Headscale as of 2026-10-02. The SaaS tailnet (`exikle.github`) is kept for a
+Every device is on Headscale as of 2026-10-02 (grimoire, the Mac, joined 2026-10-03 — it was never
+on SaaS). The SaaS tailnet (`exikle.github`) is kept for a
 week as a rollback, then closed. The policy is checked in at
 `kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
 at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
@@ -262,6 +263,7 @@ Tag mapping, SaaS → Headscale (recorded 2026-10-02 from `tailscale status --js
 | Artemis `tailscale-router` pod | `tag:artemis-router`, route `10.10.99.0/24` | retired — the UCG Max takes over as `tag:home-router`    |
 | UCG Max                        | —                                           | `tag:home-router`, route `10.10.99.0/24` (auto-approved) |
 | Arcana, iPhone                 | user `Exikle@github`                        | user `exikle` (`group:admin`)                            |
+| grimoire (Mac)                 | —                                           | user `exikle` (`group:admin`)                            |
 
 **The policy is a 1:1 port of the SaaS rules exported 2026-10-02 — keep it that way until a phase
 needs more.** Only `autogroup:member` (your own devices) may open connections; tagged devices —
@@ -289,6 +291,10 @@ same as the SaaS tailnet did. That is how `*.dcunha.io` names resolve on a devic
 - **Devices that never leave home keep `--accept-routes` off.** With it on, Windows prefers the
   tailnet route for HME/LAB over the directly connected network, so LAN traffic loops through the
   UCG. Arcana runs with it off. Split DNS and tailnet IPs still work without it.
+- **Devices that roam keep it on.** The iPhone and grimoire (the Mac) need the routes away from
+  home. macOS keeps its own connected subnet on `en0`, so at home on HME only LAB
+  (`10.10.99.0/24`) and `10.0.0.203` go through the tailnet — a short hop to the UCG over the LAN
+  (`route -n get 10.10.99.1` shows `utun`, `10.10.1.1` shows `en0`).
 
 ## Headscale ingress
 
