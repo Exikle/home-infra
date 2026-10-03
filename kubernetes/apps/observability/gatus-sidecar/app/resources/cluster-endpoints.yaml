@@ -81,6 +81,7 @@ endpoints:
     interval: 10m
     client:
       dns-resolver: tcp://10.10.99.1:53
+      timeout: 15s
     headers:
       Authorization: Bearer ${MCP_OPS_KEY}
       Content-Type: application/json
