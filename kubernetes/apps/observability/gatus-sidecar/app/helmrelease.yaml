@@ -22,7 +22,7 @@ spec:
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
     gatus:
-      delayStartSeconds: "5"
+      delayStartSeconds: "20"
       envFrom:
         - secretRef:
             name: gatus
@@ -38,6 +38,35 @@ spec:
         - name: external-gateway
           namespace: network
           sectionName: https
+    initContainers:
+      - name: gatus-sidecar-artemis
+        image: ghcr.io/home-operations/gatus-sidecar:0.5.3@sha256:b52ae9161639c7453308096aa8f5095d540196d097f5e3c681465737f22e8e76
+        args:
+          - --output=/config/artemis-sidecar.yaml
+          - --default-interval=1m
+          - --probe-paths=true
+          - --log-level=info
+          - --enable-httproute
+          - --auto-httproute
+          - --enable-service
+        env:
+          - name: KUBECONFIG
+            value: /kube/config
+          - name: KUBERNETES_SERVICE_HOST
+            value: ""
+        restartPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+          - mountPath: /config
+            name: config
+          - mountPath: /kube
+            name: artemis-kubeconfig
+            readOnly: true
     monitoring:
       serviceMonitor:
         enabled: true
@@ -53,3 +82,7 @@ spec:
           enable: true
         service:
           enable: true
+    volumes:
+      - name: artemis-kubeconfig
+        secret:
+          secretName: gatus-artemis-kubeconfig
