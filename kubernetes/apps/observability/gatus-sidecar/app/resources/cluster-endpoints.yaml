@@ -50,6 +50,18 @@ endpoints:
     alerts:
       - type: pushover
 
+  - name: Headscale
+    group: core
+    url: https://headscale.frostlink.dev/health
+    interval: 1m
+    ui:
+      hide-url: true
+      hide-hostname: true
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: pushover
+
   - name: Status Page dcunha.io
     group: core
     url: https://status.dcunha.io
