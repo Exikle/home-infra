@@ -6,7 +6,6 @@ metadata:
   name: kubernetes
 spec:
   kubernetes:
-    # Frostlink is a single node — bumping this restarts the control plane.
     # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
     version: v1.37.1
   healthChecks:

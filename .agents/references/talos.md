@@ -186,6 +186,9 @@ Frostlink is a **single node**, so every upgrade is full cluster downtime
 automatically — there is nowhere to drain to — and completion is tracked by
 polling node readiness after reboot.
 
+The `TalosUpgrade` sets `policy.rebootMode: powercycle`, matching `just talos upgrade`: the OCI
+A1.Flex VM does not come back cleanly from a default (kexec) reboot.
+
 tuppr rebuilds the installer from the node's **runtime-reported schematic**, so
 extensions survive an upgrade with no repo change: `.machine.install.image` is
 rewritten to `factory.talos.dev/metal-installer/<schematic>:<version>`. If it

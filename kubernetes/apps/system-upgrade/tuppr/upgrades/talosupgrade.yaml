@@ -6,15 +6,10 @@ metadata:
   name: talos
 spec:
   talos:
-    # Frostlink is a single node — bumping this reboots the whole cluster.
     # renovate: datasource=custom.talos-factory depName=siderolabs/talos
     version: v1.14.2
   policy:
-    # Matches `just talos upgrade`, which OCI A1.Flex needs to come back cleanly.
     rebootMode: powercycle
-  # Draining is skipped automatically on single-node clusters — there is nowhere
-  # to drain to, and evicting the upgrade pod would strand the node. Completion is
-  # tracked by polling node readiness after reboot.
   healthChecks:
     - apiVersion: v1
       kind: Node
