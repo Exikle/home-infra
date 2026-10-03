@@ -276,6 +276,20 @@ server with the referenced user, so it is run in a throwaway container: start
 file, `headscale users create exikle`, then `headscale policy check -f <file>`. A config with no
 DERP entry refuses to start — enable the embedded DERP server for the check.
 
+### Split DNS
+
+`dns.nameservers.split` in the Headscale config sends `dcunha.io` to `10.10.99.1`, the UCG, the
+same as the SaaS tailnet did. That is how `*.dcunha.io` names resolve on a device away from home.
+
+- **The UCG's dnsmasq must listen on `tailscale0`.** UniFi generates an `interface=` list of LAN
+  bridges with `bind-dynamic`, so a query arriving over the tailnet gets no answer: UDP is
+  ignored and TCP is reset. Clients resolve via Tailscale's resolver, which forwards over the
+  tailnet, so this breaks name resolution for every Headscale client, even at home. The fix is an
+  `interface=tailscale0` drop-in, managed by Artemis's `ucg_tailscale` Ansible role.
+- **Devices that never leave home keep `--accept-routes` off.** With it on, Windows prefers the
+  tailnet route for HME/LAB over the directly connected network, so LAN traffic loops through the
+  UCG. Arcana runs with it off. Split DNS and tailnet IPs still work without it.
+
 ## Headscale ingress
 
 `headscale.frostlink.dev` is served by a **second towonel agent running on Frostlink itself**

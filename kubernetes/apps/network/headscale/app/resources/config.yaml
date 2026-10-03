@@ -45,7 +45,9 @@ dns:
   override_local_dns: false
   nameservers:
     global: []
-    split: {}
+    split:
+      dcunha.io:
+        - 10.10.99.1
   search_domains: []
   extra_records: []
 
