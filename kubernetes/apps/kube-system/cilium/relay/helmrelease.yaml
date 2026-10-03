@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: clustermesh-relay
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: clustermesh-relay
+  interval: 1h
+  values:
+    controllers:
+      clustermesh-relay:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          dnsPolicy: ClusterFirstWithHostNet
+          hostNetwork: true
+          securityContext:
+            runAsGroup: 99
+            runAsNonRoot: true
+            runAsUser: 99
+        containers:
+          app:
+            image:
+              repository: docker.io/library/haproxy
+              tag: 3.4.6-alpine@sha256:7af8255207ee9964ccb4eec8ce4b7a40b777769665e3ae83897fb01b24d8a43a
+            probes:
+              liveness: &probe
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 12379
+              readiness: *probe
+            resources:
+              requests:
+                cpu: 5m
+                memory: 16Mi
+              limits:
+                memory: 64Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+              readOnlyRootFilesystem: true
+    persistence:
+      config:
+        type: configMap
+        name: clustermesh-relay-config
+        globalMounts:
+          - path: /usr/local/etc/haproxy/haproxy.cfg
+            readOnly: true
+            subPath: haproxy.cfg
