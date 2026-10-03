@@ -26,6 +26,18 @@ endpoints:
     alerts:
       - type: pushover
 
+  - name: Home Link
+    group: core
+    url: tcp://10.10.99.1:443
+    interval: 1m
+    ui:
+      hide-url: true
+      hide-hostname: true
+    conditions:
+      - "[CONNECTED] == true"
+    alerts:
+      - type: pushover
+
   - name: Status Page
     group: core
     url: https://${STATUS_HOSTNAME}
