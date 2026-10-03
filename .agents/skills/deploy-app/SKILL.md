@@ -49,7 +49,7 @@ Invoke the `kubesearch` skill for the app name. Use the top result to fill in th
 | Container port         | `service.app.ports.http.port` in helmrelease |
 | Mount paths            | `persistence` block in helmrelease           |
 | App-specific env vars  | `containers.app.env` in helmrelease          |
-| Secret env var names   | `externalsecret.yaml` template fields        |
+| Secret env var names   | `values.externalSecrets` template fields     |
 
 Adapt any patterns from the reference to Frostlink conventions as documented in the kubesearch skill (remove TZ, replace HelmRepository with OCIRepository, replace Ingress with HTTPRoute, replace any block storage class with `openebs-zfs`). If the reference uses its own Postgres or Redis/Valkey, replace it with the shared `postgres/cert` component and the shared Dragonfly instance — see `.agents/instructions/cluster-conventions.md` "Database & Cache".
 
@@ -112,13 +112,13 @@ Flux auto-discovers the new namespace directory — no other wiring needed.
 
 Read the relevant template module for each file and write it:
 
-| File                      | Template module                                                               |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| `ks.yaml`                 | `.agents/skills/modules/templates/ks.md`                                      |
-| `app/kustomization.yaml`  | `.agents/skills/modules/templates/kustomization.md`                           |
-| `app/ocirepository.yaml`  | `.agents/skills/modules/templates/ocirepository.md`                           |
-| `app/helmrelease.yaml`    | `.agents/skills/modules/templates/helmrelease.md`                             |
-| `app/externalsecret.yaml` | `.agents/skills/modules/templates/externalsecret.md` (only if secrets needed) |
+| File                     | Template module                                                               |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `ks.yaml`                | `.agents/skills/modules/templates/ks.md`                                      |
+| `app/kustomization.yaml` | `.agents/skills/modules/templates/kustomization.md`                           |
+| `app/ocirepository.yaml` | `.agents/skills/modules/templates/ocirepository.md`                           |
+| `app/helmrelease.yaml`   | `.agents/skills/modules/templates/helmrelease.md`                             |
+| inline `externalSecrets` | `.agents/skills/modules/templates/externalsecret.md` (only if secrets needed) |
 
 All YAML must follow `.agents/skills/modules/sorting.md`.
 

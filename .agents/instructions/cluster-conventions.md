@@ -13,8 +13,7 @@ kubernetes/apps/<namespace>/<app>/
 └── app/
     ├── kustomization.yaml
     ├── ocirepository.yaml   # standalone OCIRepository — every app gets its own
-    ├── helmrelease.yaml     # HTTPRoutes defined in values here, not separate files
-    └── externalsecret.yaml  # only if secrets needed
+    └── helmrelease.yaml     # HTTPRoutes and ExternalSecrets defined in values here, not separate files
 ```
 
 Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` resources.
@@ -39,6 +38,13 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 - SOPS is not used — never suggest age encryption or `sops --encrypt`
 - All secrets: 1Password ExternalSecrets with `ClusterSecretStore: onepassword-connect`
 - ExternalSecret API version: `external-secrets.io/v1`
+- **app-template apps define their ExternalSecret inline**, under `values.externalSecrets.<id>` in
+  `helmrelease.yaml` — same as Artemis. Set `target.name` explicitly; with one entry the object is
+  named after the release, so `forceRename` is only needed to keep a pre-existing name.
+- A standalone `externalsecret.yaml` is kept only where inline is impossible: a non-app-template
+  chart, a directory with no HelmRelease (`clusterissuer`, `postgres`, `kopiur`, `certificates`), or
+  a Secret that Flux `postBuild.substituteFrom` reads before the HelmRelease exists
+  (`cloudflare-tunnel/app/externalsecret-id.yaml`).
 
 ## Storage
 
@@ -82,20 +88,20 @@ to them instead of provisioning their own.
 
 ## Common Mistakes — Quick Reference
 
-| Pattern                  | Correct                          | Wrong                                   |
-| ------------------------ | -------------------------------- | --------------------------------------- |
-| Secret store name        | `onepassword-connect`            | `onepassword`, `1password-connect`      |
-| Gateway                  | `external-gateway` — the only one | `internal-gateway` (does not exist here) |
-| Gateway namespace        | `network`                        | `default`, `networking`                 |
-| OCIRepository API        | `source.toolkit.fluxcd.io/v1`    | `v1beta2`                               |
-| ExternalSecret API       | `external-secrets.io/v1`         | `v1beta1`                               |
-| Flux Kustomization API   | `kustomize.toolkit.fluxcd.io/v1` | `v1beta2`                               |
-| Container image tag      | `v1.0.0@sha256:abc...`           | `latest`, bare `v1.0.0`                 |
-| OCIRepository chart tag  | bare version `2.5.0` (no SHA)    | SHA-pinned — not used for Helm charts   |
-| Timezone                 | never set `TZ` — k8tz handles it | `TZ: America/Toronto`                   |
-| HTTPRoute location       | inline in helmrelease values     | standalone HTTPRoute file               |
-| Cluster traffic          | `<app>.<ns>.svc.cluster.local`   | external hostname                       |
-| OCIRepository scope      | one per app                      | shared across apps                      |
-| Storage class            | `openebs-zfs`                    | `local-path`, `ceph-block`, `standard`  |
-| App database             | shared `postgres/cert` component | sidecar postgres, SQLite, app-specific CNPG |
-| App cache/queue          | shared Dragonfly (`database` ns) | sidecar Redis/Valkey                    |
+| Pattern                 | Correct                           | Wrong                                       |
+| ----------------------- | --------------------------------- | ------------------------------------------- |
+| Secret store name       | `onepassword-connect`             | `onepassword`, `1password-connect`          |
+| Gateway                 | `external-gateway` — the only one | `internal-gateway` (does not exist here)    |
+| Gateway namespace       | `network`                         | `default`, `networking`                     |
+| OCIRepository API       | `source.toolkit.fluxcd.io/v1`     | `v1beta2`                                   |
+| ExternalSecret API      | `external-secrets.io/v1`          | `v1beta1`                                   |
+| Flux Kustomization API  | `kustomize.toolkit.fluxcd.io/v1`  | `v1beta2`                                   |
+| Container image tag     | `v1.0.0@sha256:abc...`            | `latest`, bare `v1.0.0`                     |
+| OCIRepository chart tag | bare version `2.5.0` (no SHA)     | SHA-pinned — not used for Helm charts       |
+| Timezone                | never set `TZ` — k8tz handles it  | `TZ: America/Toronto`                       |
+| HTTPRoute location      | inline in helmrelease values      | standalone HTTPRoute file                   |
+| Cluster traffic         | `<app>.<ns>.svc.cluster.local`    | external hostname                           |
+| OCIRepository scope     | one per app                       | shared across apps                          |
+| Storage class           | `openebs-zfs`                     | `local-path`, `ceph-block`, `standard`      |
+| App database            | shared `postgres/cert` component  | sidecar postgres, SQLite, app-specific CNPG |
+| App cache/queue         | shared Dragonfly (`database` ns)  | sidecar Redis/Valkey                        |

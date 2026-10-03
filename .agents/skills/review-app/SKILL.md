@@ -38,7 +38,7 @@ cat kubernetes/apps/<namespace>/<app>/ks.yaml
 cat kubernetes/apps/<namespace>/<app>/app/kustomization.yaml
 cat kubernetes/apps/<namespace>/<app>/app/ocirepository.yaml
 cat kubernetes/apps/<namespace>/<app>/app/helmrelease.yaml
-# if present:
+# only for the exceptions in cluster-conventions.md § Secrets:
 cat kubernetes/apps/<namespace>/<app>/app/externalsecret.yaml
 ```
 
@@ -50,15 +50,15 @@ Read the files before evaluating — do not guess at their contents.
 
 Read each checklist module and work through every item. Mark each **PASS**, **FAIL**, or **N/A**.
 
-| Checklist                              | Module                                                |
-| -------------------------------------- | ----------------------------------------------------- |
-| Directory structure                    | `.agents/skills/modules/checklists/directory.md`      |
-| `ks.yaml`                              | `.agents/skills/modules/checklists/ks.md`             |
-| `app/ocirepository.yaml`               | `.agents/skills/modules/checklists/ocirepository.md`  |
-| `app/helmrelease.yaml`                 | `.agents/skills/modules/checklists/helmrelease.md`    |
-| `app/externalsecret.yaml` (if present) | `.agents/skills/modules/checklists/externalsecret.md` |
-| YAML sorting (all files)               | `.agents/skills/modules/checklists/yaml-sorting.md`   |
-| Advisory (optimizations)               | `.agents/skills/modules/checklists/advisory.md`       |
+| Checklist                             | Module                                                |
+| ------------------------------------- | ----------------------------------------------------- |
+| Directory structure                   | `.agents/skills/modules/checklists/directory.md`      |
+| `ks.yaml`                             | `.agents/skills/modules/checklists/ks.md`             |
+| `app/ocirepository.yaml`              | `.agents/skills/modules/checklists/ocirepository.md`  |
+| `app/helmrelease.yaml`                | `.agents/skills/modules/checklists/helmrelease.md`    |
+| ExternalSecret (inline or standalone) | `.agents/skills/modules/checklists/externalsecret.md` |
+| YAML sorting (all files)              | `.agents/skills/modules/checklists/yaml-sorting.md`   |
+| Advisory (optimizations)              | `.agents/skills/modules/checklists/advisory.md`       |
 
 Sorting rules reference: `.agents/skills/modules/sorting.md`
 

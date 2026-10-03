@@ -6,13 +6,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-    - ./ocirepository.yaml
     - ./helmrelease.yaml
-    # - ./externalsecret.yaml   # uncomment if using secrets
+    - ./ocirepository.yaml
 ```
 
 ## Notes
 
 - `apiVersion` is always `kustomize.config.k8s.io/v1beta1` — `v1` does not exist for this kind.
-- Include `externalsecret.yaml` in resources only when the file exists.
-- Resource order: ocirepository → helmrelease → externalsecret (alphabetical within type).
+- No `externalsecret.yaml`: app-template apps define secrets inline in the HelmRelease — see
+  `externalsecret.md`.
+- Resources are listed alphabetically.
