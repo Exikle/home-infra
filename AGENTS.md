@@ -55,12 +55,12 @@ One machine, so its facts are load-bearing rather than inventory.
 
 - **VM.Standard.A1.Flex** — 4 OCPU / 24 GB RAM, ARM64 Ampere A1, 50 GB boot volume (10 VPU)
 - **ca-toronto-1 AD-1**, instance `instance-20260612-2239`
-- **Public** `40.233.88.33` (reserved) · **Internal** `10.0.0.203` · **Tailscale** `100.67.108.103`
+- **Public** `40.233.88.33` (reserved) · **Internal** `10.0.0.203` — the management address, reached over the Headscale site link
 - **Extensions**: `iscsi-tools`, `tailscale`, `util-linux-tools`, `zfs` — **`zfs` is load-bearing**,
   the whole `openebs-zfs` storage layer depends on it
 - Live versions are a command, not a number: `talosctl version`, `kubectl version`
 
-Management access goes over the Tailscale IP. `.mise.toml` pins `KUBECONFIG` and `TALOSCONFIG` to
+Management access goes to `10.0.0.203` over the Headscale site link (from home only until devices join Headscale — `networking.md` § Access Methods). `.mise.toml` pins `KUBECONFIG` and `TALOSCONFIG` to
 the repo-local files, so **inside this repo the repo-local kubeconfig wins over `~/.kube/config`**
 — no `kubectx` or `--context` step. Context `frostlink`.
 
@@ -212,10 +212,10 @@ reference doc. The machine-oriented exceptions are in `yaml-conventions.md`.
 - **SOPS** — not used here. 1Password ExternalSecrets only.
 - **`flux bootstrap`** — bootstrap goes through helmfile instead, because the Forgejo repo must
   already have content before a Flux GitRepository can sync.
-- **SSH to the node** — Talos has no SSH, and 22/tcp is closed. `talosctl` over Tailscale is the
+- **SSH to the node** — Talos has no SSH, and 22/tcp is closed. `talosctl` over the Headscale site link is the
   only path in.
 - **Open 6443/tcp** — removed from the security list 2026-08-18. The API server is reachable over
-  Tailscale only. 8443/tcp and 80/tcp are deliberately closed too.
+  the Headscale site link only. 8443/tcp and 80/tcp are deliberately closed too.
 - **A wildcard DNS record owned by this cluster** — there is none. The grey `*.frostlink.dev`
   CNAME to `edge.frostlink.dev` exists but is owned by **Artemis** (towonel); every Frostlink app
   still needs its own explicit record — see `networking.md`. `edge.frostlink.dev` is a DNS-only A

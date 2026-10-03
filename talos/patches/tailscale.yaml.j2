@@ -1,7 +1,10 @@
-machine:
-  extensionServiceConfigs:
-    - name: tailscale
-      environment:
-        - TS_AUTHKEY=op://frostlink/tailscale/TS_AUTH_KEY
-        - TS_EXTRA_ARGS=--advertise-tags=tag:k8s
-        - TS_STATE_DIR=/var/lib/tailscale
+---
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: tailscale
+environment:
+  - TS_AUTHKEY=op://frostlink/headscale-frostlink/TS_AUTH_KEY
+  - TS_STATE_DIR=/var/lib/tailscale/headscale
+  - TS_HOSTNAME=frostlink
+  - TS_ROUTES=10.0.0.203/32,10.244.0.0/24
+  - TS_EXTRA_ARGS=--login-server=https://headscale.frostlink.dev --accept-routes --snat-subnet-routes=false

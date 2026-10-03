@@ -229,15 +229,23 @@ matches one, and a stateless rule takes precedence over a stateful one.
 
 ## Access Methods
 
-| Access type       | Method                                 | Address                                     |
-| ----------------- | -------------------------------------- | ------------------------------------------- |
-| Kubernetes API    | Tailscale                              | `100.67.108.103:6443`                       |
-| Talos API         | **Public IP** (`talosconfig` endpoint) | `40.233.88.33:50000`                        |
-| App traffic       | Cloudflare tunnel → external-gateway   | `*.frostlink.dev`                           |
-| Tunnelled origins | towonel edge, direct to the VPS        | `edge.frostlink.dev:443`                    |
-| Tunnelled TCP/UDP | towonel edge, per-service port         | `edge.frostlink.dev:25565/tcp`, `:3000/udp` |
-| towonel hub API   | Cloudflare tunnel → external-gateway   | `hub.frostlink.dev`                         |
-| Node debug        | Tailscale → talosctl                   | `100.67.108.103`                            |
+| Access type            | Method                                   | Address                                     |
+| ---------------------- | ---------------------------------------- | ------------------------------------------- |
+| Kubernetes API         | Headscale site link (from home)          | `10.0.0.203:6443`                           |
+| Talos API              | Headscale site link (from home)          | `10.0.0.203:50000`                          |
+| Talos API, break-glass | Public IP, while the OCI rule stays open | `40.233.88.33:50000`                        |
+| App traffic            | Cloudflare tunnel → external-gateway     | `*.frostlink.dev`                           |
+| Tunnelled origins      | towonel edge, direct to the VPS          | `edge.frostlink.dev:443`                    |
+| Tunnelled TCP/UDP      | towonel edge, per-service port           | `edge.frostlink.dev:25565/tcp`, `:3000/udp` |
+| towonel hub API        | Cloudflare tunnel → external-gateway     | `hub.frostlink.dev`                         |
+| Node debug             | Site link → talosctl                     | `10.0.0.203`                                |
+
+**How "from home" works:** your workstation (HME `10.10.1.0/24` or LAB `10.10.99.0/24`) sends to
+`10.0.0.203` via its default gateway, the UCG Max. The UCG is a Headscale subnet router that
+accepts Frostlink's advertised `10.0.0.203/32`, and the policy grants HME/LAB → `10.0.0.203/32`.
+SNAT is off on both routers, so Frostlink sees the real LAN source. **Away from home there is no
+path** until your devices join Headscale (cluster-link plan, Phase 5) — the public Talos port is
+the only break-glass.
 
 ## Tailnet policy — moving from Tailscale SaaS to Headscale
 

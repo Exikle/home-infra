@@ -2,9 +2,13 @@
 
 ## Node Reference
 
-| Node        | Role                           | IP (Tailscale)   | IP (OCI internal) |
-| ----------- | ------------------------------ | ---------------- | ----------------- |
-| `frostlink` | Control plane + worker (ARM64) | `100.67.108.103` | `10.0.0.203`      |
+| Node        | Role                           | Management address                                      |
+| ----------- | ------------------------------ | ------------------------------------------------------- |
+| `frostlink` | Control plane + worker (ARM64) | `10.0.0.203` (OCI internal), reached over the site link |
+
+The node's own tailnet address comes from Headscale and is not pinned —
+`kubectl -n network exec deploy/headscale -- headscale nodes list`. `kubeconfig` and `talosconfig`
+point at `10.0.0.203`, which Frostlink advertises as a route; see `networking.md` § Access Methods.
 
 Running Talos and Kubernetes versions: `kubectl --kubeconfig kubeconfig get nodes -o wide`
 (`OS-IMAGE` and `VERSION` columns).
@@ -65,6 +69,28 @@ private key and token in the config to the terminal.
 - `talos/patches/controlplane.yaml` — main machine + cluster config
 - `talos/patches/tailscale.yaml.j2` — Tailscale extension service config (1Password auth key reference)
 
+### Changing the Tailscale extension config (Headscale)
+
+`tailscale.yaml.j2` is the source for the live `ExtensionServiceConfig` (logged into Headscale
+since 2026-10-02; the bootstrap renders the same file). Rules that each cost a failed attempt:
+
+- **Replace the document, don't merge it.** Talos merges `environment` lists by appending, so a
+  plain patch keeps the old key and flags. Send a `$patch: delete` for the document and the new one
+  in the same call: `talosctl patch mc --patch @delete.yaml --patch @<rendered>.yaml`. Render with
+  `op inject` into a `chmod 600` temp file; never print it.
+- **No reboot** — Talos restarts `ext-tailscale` when the config changes.
+- **Use `--mode try --timeout 15m` first**, verify, then confirm. Confirming by re-running the same
+  `patch` with `--mode auto` does **not** work: talosctl sees no diff client-side and never calls
+  the API, so the rollback stays armed. Confirm by re-sending the active config:
+  `talosctl get machineconfig v1alpha1 -o jsonpath='{.spec}' > f` (600, has secrets) then
+  `talosctl apply-config --file f --mode no-reboot`.
+- **No `--advertise-tags`.** The node's tag (`tag:frostlink`) comes from the Headscale pre-auth key;
+  Headscale rejects any requested tag on a pre-auth-key registration.
+- **`TS_AUTH_ONCE` stays unset**, so every restart re-applies `TS_EXTRA_ARGS`. Headscale accepts a
+  re-used, already-spent key from a node that is already registered.
+- **New control server = new `TS_STATE_DIR`.** Pointing it at a fresh directory gives a clean
+  identity and leaves the previous one on disk for rollback.
+
 ### CRITICAL: never `apply-config` the patch file
 
 `talos/patches/controlplane.yaml` is a **gen-time config patch, not a full machine config**. It has no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` — the Tailscale auth key exists only in the node's live config, injected from 1Password during bootstrap and never persisted to the repo. `talosctl apply-config` REPLACES the whole config, so pointing it at this file strands the node.
@@ -76,7 +102,7 @@ To apply a change, patch the delta instead:
 ```bash
 # 1. write ONLY the changed fields to a patch file, then dry-run it
 mise exec -- talosctl --context frostlink patch machineconfig \
-  -n 40.233.88.33 --patch-file /tmp/delta.yaml --dry-run
+  -n 10.0.0.203 --patch-file /tmp/delta.yaml --dry-run
 
 # 2. read the printed diff, then re-run without --dry-run
 ```
@@ -221,16 +247,16 @@ version.
 ```bash
 talosctl --context frostlink upgrade-k8s \
   --to <k8s-version> \
-  -n 100.67.108.103
+  -n 10.0.0.203
 ```
 
 ## Node Health
 
 ```bash
-talosctl --context frostlink health -n 100.67.108.103
-talosctl --context frostlink dmesg -n 100.67.108.103 | tail -30
-talosctl --context frostlink version -n 100.67.108.103
-talosctl --context frostlink get machineconfig -n 100.67.108.103 -o yaml
+talosctl --context frostlink health -n 10.0.0.203
+talosctl --context frostlink dmesg -n 10.0.0.203 | tail -30
+talosctl --context frostlink version -n 10.0.0.203
+talosctl --context frostlink get machineconfig -n 10.0.0.203 -o yaml
 ```
 
 ## Known OCI / Talos Quirks
