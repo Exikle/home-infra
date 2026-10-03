@@ -8,8 +8,8 @@ Upstream presets: <https://github.com/home-operations/renovate-presets>
 Every PR against `main` also gets an AI review comment from `.forgejo/workflows/pr-review.yaml`.
 It is advisory only — a sticky comment, not a status check, so it never gates a merge.
 
-**This repo is pinned at `8.0.0`; Artemis is at `8.1.0`.** The skew is not drift to be fixed on
-sight — bump only after checking the target tag is self-contained (below). The two repos also
+**Both repos are pinned at `8.1.0`.** Bump only after checking the target tag is self-contained
+(below). The two repos also
 extend different `apps/` presets and made opposite signing choices; the full divergence table is
 in Artemis's `.agents/references/renovate.md` § Where Artemis and Frostlink deliberately differ.
 
@@ -19,10 +19,10 @@ in Artemis's `.agents/references/renovate.md` § Where Artemis and Frostlink del
 
 ```json5
 extends: [
-  "github>home-operations/renovate-presets#8.0.0",
-  "github>home-operations/renovate-presets//apps/cnpg.json5#8.0.0",
-  "github>home-operations/renovate-presets//apps/phanpy.json5#8.0.0",
-  "github>home-operations/renovate-presets//apps/talosFactory.json5#8.0.0",
+  "github>home-operations/renovate-presets#8.1.0",
+  "github>home-operations/renovate-presets//apps/cnpg.json5#8.1.0",
+  "github>home-operations/renovate-presets//apps/phanpy.json5#8.1.0",
+  "github>home-operations/renovate-presets//apps/talosFactory.json5#8.1.0",
   ":semanticCommits",
   ":timezone(America/Toronto)",
 ]
@@ -141,31 +141,45 @@ guard a bump like `v1.14.0-rc.1 ➔ v1.14.0` would merge and reboot the cluster 
     matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
     automerge: false,
     minimumReleaseAge: "7 days",
+    minimumReleaseAgeBehaviour: "timestamp-optional",
 }
 ```
 
 **Must stay after the auto-merge rules** — later `packageRules` win.
 
-#### It guards the file, not the package — and the talosctl pin is outside it
+#### `timestamp-optional` is what makes these PRs open at all
 
-`matchFileNames` scopes this to `kubernetes/apps/system-upgrade/tuppr/upgrades/**`. The Talos
-version is pinned in **two** places, and only one of them is in that directory:
+The `custom.talos-factory` datasource and the `ghcr.io/siderolabs/kubelet` /
+`registry.k8s.io/kube-proxy` docker tags return **no release timestamp**. Renovate's default
+`minimumReleaseAgeBehaviour: "timestamp-required"` then treats every release as too young, forever:
+the log says _"Marking N release(s) as pending … do not have a releaseTimestamp"_ and no PR ever
+opens. That is why Talos sat on `v1.14.0-rc.2` and Kubernetes on `v1.37.0` until they were bumped
+by hand on 2026-10-02 (frostlink#345).
 
-| Where                              | Datasource                   | Covered by the guard? |
-| ---------------------------------- | ---------------------------- | --------------------- |
-| `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory`       | yes                   |
-| `talos = "…"` in `.mise.toml`      | `github-tags` (mise manager) | **no**                |
+The cost: for those three packages the 7-day wait cannot be enforced, so their PRs open as soon as
+a release appears. `automerge: false` is what keeps them safe — nothing reboots the node until a
+human merges. The talosctl pin in `.mise.toml` does carry a timestamp, so its 7 days still apply.
 
-So a minor or patch bump to the talosctl **CLI** still matches "Auto-merge all patch/minor
-updates" and can land unattended, drifting the client away from the version the cluster runs.
-That matters here specifically: talosctl decodes config documents client-side, and a client older
-than the node rejects a v1.14 document (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`)
-before the node ever sees it — see `.agents/references/talos.md` § Client version matters.
+Tracking itself was never the problem: the default preset's generic `# renovate: datasource=…
+depName=…` manager scans every file and already extracts the tuppr annotations and the kube-proxy
+pin. No repo-local custom manager is needed (Artemis's own `custom.talos-factory` manager is
+redundant with it).
 
-Artemis solved this with a package-level guard (`matchPackageNames: ["siderolabs/talos"]`,
-deliberately **not** datasource-scoped, for exactly this reason). Frostlink has no equivalent
-today. If a talosctl automerge ever breaks `just talos` here, that is the gap — add the
-package-level rule rather than widening `matchFileNames`.
+#### The Talos rule is package-level, so it also covers the talosctl pin
+
+The Talos version is pinned in **two** places, and only one is under the tuppr directory:
+
+| Where                              | Datasource             |
+| ---------------------------------- | ---------------------- |
+| `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory` |
+| `talos = "…"` in `.mise.toml`      | mise manager           |
+
+A file-scoped guard would leave the talosctl **CLI** automerging and drifting from the node —
+which matters here, because talosctl decodes config documents client-side and an older client
+rejects a v1.14 document before the node sees it (`.agents/references/talos.md` § Client version
+matters). So the **Talos** rule matches `matchPackageNames: ["siderolabs/talos"]` (deliberately not
+datasource-scoped), sets `automerge: false`, and carries `groupName: talos` so the tuppr CR and the
+talosctl pin land in one PR. Same shape as Artemis's guard.
 
 #### Kubernetes has the same split — hence the Kubernetes Group
 
@@ -181,10 +195,11 @@ The `kube-proxy` pin exists because Talos 1.14 requires an explicit `image:` on 
 drift away from the kubelet version.
 
 The **Kubernetes Group** rule solves it package-side rather than by widening `matchFileNames`:
-it groups `kubelet`, `kube-proxy`, `kube-apiserver`, `kube-controller-manager` and `kube-scheduler`
-into one PR, so both files always move together. It carries its own `automerge: false` and
-`minimumReleaseAge: "7 days"`, because a grouped PR touches `kubernetesupgrade.yaml` and merging it
-makes tuppr reboot the single node. Modelled on Artemis's rule, which does not include `kube-proxy`
+it groups `kubelet` and `kube-proxy` into one PR, so both files always move together (the
+apiserver, controller-manager and scheduler entries were dropped — nothing in this repo pins
+them). It carries its own `automerge: false`, `minimumReleaseAge: "7 days"` and
+`minimumReleaseAgeBehaviour: "timestamp-optional"`, because a grouped PR touches
+`kubernetesupgrade.yaml` and merging it makes tuppr reboot the single node. Modelled on Artemis's rule, which does not include `kube-proxy`
 — Artemis lets it bump separately. **It must stay after the auto-merge rules**, like the guard
 above; later `packageRules` win.
 
@@ -201,8 +216,14 @@ supports up to v3, and v4+ uses a GHES-incompatible backend.
 
 ## Grouping
 
-`minimumGroupSize: 2` on flux-operator, cilium and envoy-gateway — these only group when both
-halves of the pair move together, otherwise they raise individually.
+`minimumGroupSize: 2` on flux-operator and envoy-gateway — these only group when both halves of
+the pair move together, otherwise they raise individually.
+
+**Cilium is not grouped.** It has exactly one dependency here (the chart's `OCIRepository`; the
+bootstrap helmfile reads its tag from that file), so a `minimumGroupSize: 2` group could never
+open a PR — that is why Frostlink sat on 1.17 while Artemis reached 1.20. It now has its own
+`automerge: false` rule instead: Cilium is the CNI of a single node, and a bad release takes every
+pod's networking down.
 
 ### CNPG group — the one that exists for blast radius, not tidiness
 
