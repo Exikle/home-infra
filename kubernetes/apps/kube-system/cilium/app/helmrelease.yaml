@@ -26,6 +26,7 @@ spec:
       enabled: false
     ipam:
       mode: kubernetes
+    ipv4NativeRoutingCIDR: 10.244.0.0/24
     k8sServiceHost: 127.0.0.1
     k8sServicePort: 7445
     kubeProxyReplacement: true
@@ -33,6 +34,7 @@ spec:
     operator:
       replicas: 1
     rollOutCiliumPods: false
+    routingMode: native
     securityContext:
       capabilities:
         ciliumAgent:
