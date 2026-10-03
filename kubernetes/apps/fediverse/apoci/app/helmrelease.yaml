@@ -54,6 +54,22 @@ spec:
               runAsGroup: 1000
               runAsUser: 1000
 
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: apoci
+        forceRename: apoci
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          name: apoci
+          template:
+            data:
+              APOCI_ADMIN_TOKEN: "{{ .ADMIN_TOKEN }}"
+              APOCI_REGISTRY_TOKEN: "{{ .REGISTRY_TOKEN }}"
+
     persistence:
       data:
         existingClaim: apoci-data

@@ -46,6 +46,25 @@ spec:
               capabilities:
                 drop:
                   - "ALL"
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: continuwuity
+        forceRename: continuwuity
+        refreshInterval: 1m
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          creationPolicy: Owner
+          name: continuwuity
+          template:
+            templateFrom:
+              - configMap:
+                  items:
+                    - key: conduwuit.toml
+                  name: continuwuity-configmap
     persistence:
       config:
         enabled: true

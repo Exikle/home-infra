@@ -70,6 +70,26 @@ spec:
               capabilities:
                 drop:
                   - "ALL"
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: mautrix-whatsapp
+        forceRename: mautrix-whatsapp
+        refreshInterval: 1m
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          creationPolicy: Owner
+          name: mautrix-whatsapp
+          template:
+            templateFrom:
+              - configMap:
+                  items:
+                    - key: config.yaml
+                    - key: registration.yaml
+                  name: mautrix-whatsapp-configmap
     persistence:
       config:
         type: secret

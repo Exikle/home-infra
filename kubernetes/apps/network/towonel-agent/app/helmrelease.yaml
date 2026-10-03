@@ -89,6 +89,22 @@ spec:
                 drop: ["ALL"]
               readOnlyRootFilesystem: true
 
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: towonel-agent-frostlink
+        forceRename: towonel-agent
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          name: towonel-agent
+          template:
+            data:
+              TOWONEL_INVITE_TOKEN: "{{ .TOWONEL_INVITE_TOKEN }}"
+            engineVersion: v2
+
     service:
       app:
         ports:

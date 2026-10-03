@@ -82,6 +82,21 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: cloudflare-frostlink
+        forceRename: cloudflare-tunnel
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          name: cloudflare-tunnel
+          template:
+            data:
+              TUNNEL_TOKEN: '{{ toJson (dict "a" .CLOUDFLARE_ACCOUNT_TAG "t" .CLOUDFLARE_TUNNEL_ID "s" .CLOUDFLARE_TUNNEL_SECRET) | b64enc }}'
+            engineVersion: v2
     persistence:
       config-file:
         type: configMap

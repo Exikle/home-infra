@@ -70,6 +70,26 @@ spec:
               capabilities:
                 drop:
                   - "ALL"
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: mautrix-signal
+        forceRename: mautrix-signal
+        refreshInterval: 1m
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          creationPolicy: Owner
+          name: mautrix-signal
+          template:
+            templateFrom:
+              - configMap:
+                  items:
+                    - key: config.yaml
+                    - key: registration.yaml
+                  name: mautrix-signal-configmap
     persistence:
       config:
         type: secret

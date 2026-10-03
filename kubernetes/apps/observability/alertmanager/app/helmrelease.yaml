@@ -63,6 +63,22 @@ spec:
                   - ALL
               readOnlyRootFilesystem: true
 
+    externalSecrets:
+      app:
+        dataFrom:
+          - extract:
+              key: gatus-crosslink
+        forceRename: alertmanager-secret
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          name: alertmanager-secret
+          template:
+            data:
+              HEARTBEAT_FROSTLINK_TOKEN: "{{ .HEARTBEAT_FROSTLINK_TOKEN }}"
+            engineVersion: v2
+
     persistence:
       config:
         globalMounts:
