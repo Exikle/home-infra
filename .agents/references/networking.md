@@ -242,9 +242,9 @@ matches one, and a stateless rule takes precedence over a stateful one.
 ## Tailnet policy — moving from Tailscale SaaS to Headscale
 
 The tailnet is still Tailscale SaaS (tailnet `exikle.github`); the access rules live only in its
-admin console. The Headscale replacement policy is checked in, **not yet deployed**, at
-`kubernetes/apps/network/headscale/app/resources/policy.hujson` — nothing references that
-directory until the Headscale app lands, so Flux ignores it.
+admin console. The Headscale replacement policy is checked in at
+`kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
+at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
 
 Tag mapping, SaaS → Headscale (recorded 2026-10-02 from `tailscale status --json`):
 
@@ -267,5 +267,35 @@ server with the referenced user, so it is run in a throwaway container: start
 `docker.io/headscale/headscale:<version>` with a minimal config pointing `policy.path` at the
 file, `headscale users create exikle`, then `headscale policy check -f <file>`. A config with no
 DERP entry refuses to start — enable the embedded DERP server for the check.
+
+## Headscale ingress
+
+`headscale.frostlink.dev` is served by a **second towonel agent running on Frostlink itself**
+(`kubernetes/apps/network/towonel-agent/`), with its own invite and tenant. It dials the local edge
+like any remote agent and forwards the raw TLS stream to `headscale.network.svc.cluster.local:443`.
+
+- **The exact host beats Artemis's `*.frostlink.dev`.** The edge looks up the exact name before the
+  wildcard, and the hub's invite conflict check is a literal string match, so the two tenants do
+  not collide. **If this agent is down, the connection fails — it does not fall back to Artemis.**
+  The exact route still exists, so the edge picks no agent and closes the connection.
+- **Headscale terminates TLS itself**, with the `frostlink-dev-tls` wildcard mounted from
+  `network`. It reads the certificate only at startup, so the Deployment carries
+  `reloader.stakater.com/auto` — a cert-manager renewal rewrites the Secret and Reloader restarts
+  the pod. Without that, Headscale serves the old certificate until it expires.
+- **No Envoy and no Cloudflare in the path.** The Tailscale control protocol is an HTTP upgrade
+  (`Upgrade: tailscale-control-protocol`) on a long-lived connection; Cloudflare's proxy and tunnel
+  break it, and Envoy would need extra upgrade policy for no benefit. So there is no HTTPRoute — an
+  HTTPRoute on `external-gateway` would also publish a **proxied** record to the tunnel. The record
+  is a grey `DNSEndpoint` CNAME to `edge.frostlink.dev` (`providerSpecific` proxied `"false"`, as in
+  `towonel.md` § DNS).
+- **DERP is Tailscale's public map**, embedded DERP off. The embedded server needs public
+  `3478/udp` for STUN, which is not open on OCI. Relayed traffic therefore crosses Tailscale Inc.'s
+  DERP servers, still end-to-end WireGuard-encrypted.
+- **PROXY protocol is off for this host** (`"proxy_protocol":"none"` in `TOWONEL_AGENT_SERVICES`).
+  Headscale does not parse a PROXY header and would read it as a broken TLS handshake. The cost is
+  cosmetic: Headscale logs the agent pod IP instead of the client's. This is per service, so it
+  does not touch the PROXY v2 contract Artemis relies on — see `towonel.md`.
+- **Agent → edge is a hairpin.** The hub advertises `edge.frostlink.dev`, the OCI 1:1-NAT public
+  IP, which is not on the node's interface. If the agent never connects, suspect that path first.
 
 `kubernetes/mod.just` hardcodes `kubectl --context frostlink` — all `just kube` commands target Frostlink automatically. Bare `kubectl` commands need `--context frostlink` or `kubectx frostlink` first.
