@@ -84,28 +84,32 @@
       ignoreTests: false,
     },
     {
+      description: "Never auto-merge Talos — one package-level rule covers the tuppr CR, the installer image and the talosctl pin; groupName keeps them in one PR",
+      matchPackageNames: ["siderolabs/talos"],
+      groupName: "talos",
+      automerge: false,
+      minimumReleaseAge: "7 days",
+      minimumReleaseAgeBehaviour: "timestamp-optional",
+    },
+    {
       description: "Never auto-merge tuppr-driven Talos or Kubernetes upgrades",
       matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
       automerge: false,
       minimumReleaseAge: "7 days",
+      minimumReleaseAgeBehaviour: "timestamp-optional",
     },
     {
       description: "Kubernetes Group — kubelet and kube-proxy are one version, and live in two files",
       groupName: "kubernetes",
       matchDatasources: ["docker"],
-      matchPackageNames: [
-        "/siderolabs\\/kubelet/",
-        "/kube-apiserver/",
-        "/kube-controller-manager/",
-        "/kube-proxy/",
-        "/kube-scheduler/",
-      ],
+      matchPackageNames: ["/siderolabs\\/kubelet/", "/kube-proxy/"],
       group: {
         commitMessageTopic: "{{{groupName}}} group",
       },
       minimumGroupSize: 2,
       automerge: false,
       minimumReleaseAge: "7 days",
+      minimumReleaseAgeBehaviour: "timestamp-optional",
     },
     {
       description: "Flux Operator Group",
@@ -118,14 +122,10 @@
       minimumGroupSize: 2,
     },
     {
-      description: "Cilium Group",
-      groupName: "cilium",
+      description: "Never auto-merge Cilium — the CNI of a single node; one dependency, so no group",
       matchDatasources: ["docker"],
-      matchPackageNames: ["/cilium\\/charts\\/cilium/", "/charts-mirror\\/cilium/"],
-      group: {
-        commitMessageTopic: "{{{groupName}}} group",
-      },
-      minimumGroupSize: 2,
+      matchPackageNames: ["/cilium\\/charts\\/cilium/"],
+      automerge: false,
     },
     {
       description: "Envoy Gateway Group",
