@@ -169,6 +169,7 @@ Open the file when its subject comes up. Do not read the whole directory.
 | `flux-patterns.md`     | A reconcile is stuck, or you are wiring `dependsOn` across namespaces         |
 | `networking.md`        | Gateways, the OCI VCN rules, the Cloudflare tunnel, Tailscale                 |
 | `renovate.md`          | Triaging the PR queue, or a per-app update guard (tuppr, zer0ver)             |
+| `status-page.md`       | `status.dcunha.io`: generated checks from both clusters, heartbeats, badges   |
 | `storage.md`           | openebs-zfs, snapshot classes, the kopiur component, the restore path         |
 | `talos.md`             | Node config, the schematic, extensions, upgrade steps                         |
 | `towonel.md`           | towonel hub/edge — ports, grey-cloud DNS, key material, kopiur movers         |
