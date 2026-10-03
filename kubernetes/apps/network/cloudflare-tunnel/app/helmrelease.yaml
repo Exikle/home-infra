@@ -34,6 +34,13 @@ spec:
                   originServerName: frostlink.dev
                   tcpKeepAlive: 7200s
                 service: https://external-gateway.{{ .Release.Namespace }}.svc.cluster.local:443
+              - hostname: "status.dcunha.io"
+                originRequest:
+                  http2Origin: true
+                  keepAliveTimeout: 3600s
+                  originServerName: status.dcunha.io
+                  tcpKeepAlive: 7200s
+                service: https://external-gateway.{{ .Release.Namespace }}.svc.cluster.local:443
               - service: http_status:404
     controllers:
       cloudflare-tunnel:

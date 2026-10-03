@@ -32,6 +32,7 @@ spec:
         gatus.home-operations.com/enabled: "false"
       hostnames:
         - gatus.frostlink.dev
+        - status.dcunha.io
         - status.frostlink.dev
       parentRefs:
         - name: external-gateway
