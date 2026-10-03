@@ -243,14 +243,14 @@ matches one, and a stateless rule takes precedence over a stateful one.
 **How "from home" works:** your workstation (HME `10.10.1.0/24` or LAB `10.10.99.0/24`) sends to
 `10.0.0.203` via its default gateway, the UCG Max. The UCG is a Headscale subnet router that
 accepts Frostlink's advertised `10.0.0.203/32`, and the policy grants HME/LAB → `10.0.0.203/32`.
-SNAT is off on both routers, so Frostlink sees the real LAN source. **Away from home there is no
-path** until your devices join Headscale (cluster-link plan, Phase 5) — the public Talos port is
-the only break-glass.
+SNAT is off on both routers, so Frostlink sees the real LAN source. **Away from home**, a
+Headscale device with subnet routes accepted (the iPhone) reaches `10.0.0.203` directly over the
+tailnet. If Headscale itself is down, the public Talos port is the only break-glass.
 
 ## Tailnet policy — moving from Tailscale SaaS to Headscale
 
-The tailnet is still Tailscale SaaS (tailnet `exikle.github`); the access rules live only in its
-admin console. The Headscale replacement policy is checked in at
+Every device is on Headscale as of 2026-10-02. The SaaS tailnet (`exikle.github`) is kept for a
+week as a rollback, then closed. The policy is checked in at
 `kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
 at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
 
