@@ -3,26 +3,31 @@ set quiet
 set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
-# OCI instance public IP — used for initial talosctl apply-config
+# OCI instance public IP — every rebuild step talks to the node here; the tailnet does not exist yet
 init_ip := env('FROSTLINK_INIT_IP', '')
-# Node IP for phase2 ops — defaults to OCI public IP; override with Tailscale IP once confirmed
+# Node IP for phase2/tailnet — the public IP during a rebuild; day-2 is 10.0.0.203 over the site link
 node_ip := env('FROSTLINK_NODE_IP', env('FROSTLINK_INIT_IP', ''))
+seed_tag := 'exikle/frostlink:main'
 
 [private]
 default:
     just -l bootstrap
 
-# Phase 1: generate config and apply to node via OCI public IP.
-# After this, wait for the node to appear in the Tailscale admin console,
-# then set FROSTLINK_NODE_IP to the Tailscale IP and run phase2.
+# Phase 1: generate config and apply to the node via the OCI public IP. No tailscale config —
+# the node joins Headscale later with `just bootstrap tailnet`, once Headscale is back.
 [confirm('Bootstrap Frostlink — Phase 1 (Talos config + apply)? [y|N]')]
 [doc('Render Talos config and apply to node via OCI public IP')]
 phase1: config apply
 
-# Phase 2: bootstrap Kubernetes, fetch kubeconfig, install base apps via Tailscale IP.
-[confirm('Bootstrap Frostlink — Phase 2 (k8s + helmfile)? [y|N]')]
-[doc('Bootstrap Kubernetes and install base apps (requires FROSTLINK_NODE_IP = Tailscale IP)')]
-phase2: k8s kubeconfig base cni apps
+# Phase 2: needs 6443/tcp open on the OCI security list to your home /32 (bootstrap.md).
+[confirm('Bootstrap Frostlink — Phase 2 (k8s + helmfile + seed)? [y|N]')]
+[doc('Bootstrap Kubernetes over the public IP, install base apps, seed Flux from the Forgejo artifact')]
+phase2: k8s kubeconfig talosconfig base cni seed apps
+
+# Tailnet: join the rebuilt node to the restored Headscale with a fresh one-hour key.
+[confirm('Join Frostlink to Headscale (mint key + patch Talos)? [y|N]')]
+[doc('Mint a one-time tag:frostlink key and apply talos/patches/tailscale.yaml.j2 to the node')]
+tailnet: tailnet-join
 
 [private]
 [script]
@@ -40,19 +45,6 @@ config:
 
     talosctl --talosconfig /tmp/frostlink-bootstrap/talosconfig config endpoint "{{ init_ip }}"
 
-    just log info "Appending Tailscale ExtensionServiceConfig..." "stage" "$(basename "$0")"
-    export TS_AUTHKEY="$(op read 'op://frostlink/tailscale/TS_AUTH_KEY')"
-    {
-        echo '---'
-        echo 'apiVersion: v1alpha1'
-        echo 'kind: ExtensionServiceConfig'
-        echo 'name: tailscale'
-        echo 'environment:'
-        printf '  - TS_AUTHKEY=%s\n' "${TS_AUTHKEY}"
-        echo '  - TS_EXTRA_ARGS=--advertise-tags=tag:k8s'
-        echo '  - TS_STATE_DIR=/var/lib/tailscale'
-    } >> /tmp/frostlink-bootstrap/controlplane.yaml
-
 [private]
 [script]
 apply:
@@ -61,12 +53,12 @@ apply:
         --insecure \
         --nodes "{{ init_ip }}" \
         --file /tmp/frostlink-bootstrap/controlplane.yaml
-    just log info "Node is rebooting. Check the Tailscale admin console for the new device IP, then set FROSTLINK_NODE_IP and run: just bootstrap phase2" "stage" "$(basename "$0")"
+    just log info "Node is rebooting. Next: open 6443/tcp on the OCI security list to your home /32, then run: just bootstrap phase2" "stage" "$(basename "$0")"
 
 [private]
 [script]
 k8s:
-    just log info "Bootstrapping Kubernetes via Tailscale IP ({{ node_ip }})..." "stage" "$(basename "$0")"
+    just log info "Bootstrapping Kubernetes via {{ node_ip }}..." "stage" "$(basename "$0")"
     until op=$(talosctl -n "{{ node_ip }}" \
         --talosconfig /tmp/frostlink-bootstrap/talosconfig \
         bootstrap 2>&1 || true) && [[ "$op" == *"AlreadyExists"* ]]; do
@@ -84,6 +76,12 @@ kubeconfig:
         --force \
         --force-context-name frostlink \
         "{{ source_dir() }}/.."
+
+[private]
+[script]
+talosconfig:
+    just log info "Installing the rebuild talosconfig at the repo root (endpoint {{ init_ip }})..." "stage" "$(basename "$0")"
+    install -m 600 /tmp/frostlink-bootstrap/talosconfig "{{ source_dir() }}/../talosconfig"
 
 [private]
 [script]
@@ -131,6 +129,42 @@ cni:
             just log fatal "Failed to install $name" "stage" "$(basename "$0")"
         fi
     done
+
+[private]
+[script]
+seed:
+    just log info "Starting the throwaway seed registry..." "stage" "$(basename "$0")"
+    kubectl apply --server-side --field-manager bootstrap -f "{{ source_dir() }}/seed-registry.yaml"
+    kubectl -n flux-system rollout status deploy/seed-registry --timeout=180s
+    work="$(mktemp -d)"
+    trap 'kill "${pf:-0}" 2>/dev/null || true; rm -rf "$work"' EXIT
+    just log info "Pulling the CI artifact from Forgejo (git.dcunha.io) over the home network..." "stage" "$(basename "$0")"
+    flux pull artifact "oci://git.dcunha.io/{{ seed_tag }}" --output "$work" \
+        --creds "exikle:$(op read 'op://artemis/forgejo/FORGEJO_PAT')"
+    kubectl -n flux-system port-forward svc/seed-registry 5000:5000 >/dev/null 2>&1 &
+    pf=$!
+    for _ in $(seq 1 20); do curl -fs http://127.0.0.1:5000/v2/ >/dev/null && break; sleep 1; done
+    just log info "Pushing it into the seed registry..." "stage" "$(basename "$0")"
+    flux push artifact "oci://127.0.0.1:5000/{{ seed_tag }}" --insecure-registry --path "$work" \
+        --source "https://git.dcunha.io/Exikle/frostlink" \
+        --revision "main@sha1:$(git -C "{{ source_dir() }}/.." rev-parse HEAD)"
+
+[private]
+[script]
+tailnet-join:
+    tmp="$(mktemp)"
+    trap 'shred -u "$tmp" 2>/dev/null || rm -f "$tmp"' EXIT
+    just log info "Minting a one-hour tag:frostlink pre-auth key on the restored Headscale..." "stage" "$(basename "$0")"
+    key="$(kubectl -n network exec deploy/headscale -c app -- \
+        headscale preauthkeys create --tags tag:frostlink --expiration 1h -o json | jq -r '.key')"
+    [[ -n "$key" && "$key" != "null" ]] || just log fatal "Headscale returned no key" "stage" "$(basename "$0")"
+    chmod 600 "$tmp"
+    sed "s|op://frostlink/headscale-frostlink/TS_AUTH_KEY|${key}|" \
+        "{{ source_dir() }}/../talos/patches/tailscale.yaml.j2" > "$tmp"
+    just log info "Applying the tailscale ExtensionServiceConfig to {{ node_ip }} (no reboot)..." "stage" "$(basename "$0")"
+    talosctl --talosconfig "{{ source_dir() }}/../talosconfig" -n "{{ node_ip }}" patch mc --patch @"$tmp"
+    just log info "Done. Delete the old frostlink node and check routes (bootstrap.md § Rebuild order, step 5):" "stage" "$(basename "$0")"
+    kubectl -n network exec deploy/headscale -c app -- headscale nodes list
 
 [private]
 [script]

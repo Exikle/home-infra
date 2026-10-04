@@ -1,0 +1,6 @@
+{{- /* flux-instance values for a rebuild: the real HelmRelease values, but syncing from the in-cluster seed registry over plain HTTP. Flux replaces this with the HelmRelease (registry.frostlink.dev) once apoci and cloudflare-tunnel are Ready — see bootstrap.md. */ -}}
+{{- $v := (fromYaml (readFile "../../../kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml")).spec.values -}}
+{{- $_ := set $v.instance.sync "url" "oci://seed-registry.flux-system.svc.cluster.local:5000/exikle/frostlink" -}}
+{{- $insecure := dict "patch" "- op: add\n  path: /spec/insecure\n  value: true" "target" (dict "kind" "OCIRepository" "name" "flux-system") -}}
+{{- $_ := set $v.instance.kustomize "patches" (append $v.instance.kustomize.patches $insecure) -}}
+{{ $v | toYaml }}
