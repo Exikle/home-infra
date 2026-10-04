@@ -266,18 +266,29 @@ Tag mapping, SaaS → Headscale (recorded 2026-10-02 from `tailscale status --js
 | Arcana, iPhone                 | user `Exikle@github`                        | user `exikle` (`group:admin`)                            |
 | grimoire (Mac)                 | —                                           | user `exikle` (`group:admin`)                            |
 
-**The policy is a 1:1 port of the SaaS rules exported 2026-10-02 — keep it that way until a phase
-needs more.** Only `autogroup:member` (your own devices) may open connections; tagged devices —
-Frostlink, the home router — can answer but never initiate. Frostlink → home LAN access for
-monitoring or ClusterMesh is a deliberate later addition, not a default. Tailscale SSH is
-`check`-mode to your own devices; Headscale's checker accepts that rule, but whether it enforces the
-re-authentication prompt at runtime the way SaaS does is unverified.
+**Subnet grants are port-scoped, not "any port" (tightened 2026-10-04).** The policy started as a
+1:1 port of the SaaS rules; since then:
 
-Validate any policy edit with Headscale's own checker before committing. It needs a running
-server with the referenced user, so it is run in a throwaway container: start
-`docker.io/headscale/headscale:<version>` with a minimal config pointing `policy.path` at the
-file, `headscale users create exikle`, then `headscale policy check -f <file>`. A config with no
-DERP entry refuses to start — enable the embedded DERP server for the check.
+- `autogroup:member` (your own devices) still reaches everything. A family device added to
+  Headscale would land here too, so give it its own grant instead.
+- HME/LAB → the Frostlink node allows only kubectl (6443), talosctl (50000), ClusterMesh (12379, 4240) and ICMP.
+- Frostlink pods → LAB allows only the specific host:port pairs the status page and ClusterMesh
+  use, plus ICMP. The list was built from the UCG's conntrack table
+  (`ssh root@10.10.99.1 conntrack -L -s 10.244.0.0/24`, sampled for 10 minutes), not guessed — a
+  new Frostlink → home dependency needs its own grant, and the symptom of a missing one is a
+  connection timeout from the pod, never an error.
+- Pod ⇄ pod (`10.244.0.0/24` ⇄ `10.42.0.0/16`) stays open on all ports for ClusterMesh global
+  services; `clustermesh.md` explains why.
+- The Tailscale SSH rule was removed — nothing used it.
+
+Tagged devices (Frostlink, the home router) can answer but never initiate except through these
+subnet grants.
+
+Validate any policy edit with Headscale's own checker before committing. The running server can
+check a file without loading it (the image has no shell, so pipe the file in):
+`kubectl --context frostlink -n network exec -i deploy/headscale -c app -- headscale policy check -f /dev/stdin < policy.hujson`.
+A policy change reaches the pod as a ConfigMap update and Reloader restarts Headscale; existing
+tailnet connections survive the restart.
 
 ### Split DNS
 
