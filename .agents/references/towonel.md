@@ -16,15 +16,15 @@ Upstream: <https://codeberg.org/towonel/towonel> · charts `oci://codeberg.org/t
 
 One `towonel-node` release with **both roles enabled**, in its own `towonel` namespace.
 
-| Thing        | Value                                                   |
-| ------------ | ------------------------------------------------------- |
-| Chart        | `oci://codeberg.org/towonel/charts/towonel-node`        |
-| Namespace    | `towonel` (not `network` — see below)                   |
-| Workload     | hostNetwork **DaemonSet** (an enabled edge forces this) |
-| Edge public  | `edge.frostlink.dev` → `40.233.88.33`, **DNS-only**     |
-| Hub API      | `hub.frostlink.dev` via cloudflared + Envoy             |
-| State        | sqlite on a kopiur-backed PVC                           |
-| TLS          | passthrough — **nothing here terminates it**            |
+| Thing       | Value                                                   |
+| ----------- | ------------------------------------------------------- |
+| Chart       | `oci://codeberg.org/towonel/charts/towonel-node`        |
+| Namespace   | `towonel` (not `network` — see below)                   |
+| Workload    | hostNetwork **DaemonSet** (an enabled edge forces this) |
+| Edge public | `edge.frostlink.dev` → `40.233.88.33`, **DNS-only**     |
+| Hub API     | `hub.frostlink.dev` via cloudflared + Envoy             |
+| State       | sqlite on a kopiur-backed PVC                           |
+| TLS         | passthrough — **nothing here terminates it**            |
 
 ### Nothing on this cluster terminates TLS for a tunnelled hostname
 
@@ -99,9 +99,9 @@ ignored and the keys regenerate on every restart. Always set both:
 
 ```yaml
 persistence:
-  data:
-    type: persistentVolumeClaim
-    existingClaim: towonel
+    data:
+        type: persistentVolumeClaim
+        existingClaim: towonel
 ```
 
 Do not add `globalMounts`/`advancedMounts`; the chart supplies a mount at
@@ -114,9 +114,9 @@ the component is pulled in **there** rather than via the Flux Kustomization's
 `components:` — patches in the app kustomization do not apply to resources a Flux
 `spec.components` introduces.
 
-| Mover   | Component default                | Why it fails                                                                                       |
-| ------- | -------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Restore | `inheritSecurityContextFrom.snapshot` | A first deploy has no recorded snapshot → `MissingRecordedIdentity`, the Restore holds, and the PVC never binds (the Restore is its populator). |
+| Mover   | Component default                        | Why it fails                                                                                                                                        |
+| ------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Restore | `inheritSecurityContextFrom.snapshot`    | A first deploy has no recorded snapshot → `MissingRecordedIdentity`, the Restore holds, and the PVC never binds (the Restore is its populator).     |
 | Backup  | `inheritSecurityContextFrom.pvcConsumer` | Inherits `NET_BIND_SERVICE` from the edge; kopiur treats any added capability as a privileged mover and refuses it (`PrivilegedMoverNotPermitted`). |
 
 Both are patched to a plain non-root context (uid/gid `10001`, matching the chart)
@@ -137,8 +137,8 @@ to be `providerSpecific` on the endpoint:
 
 ```yaml
 providerSpecific:
-  - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
-    value: "false"
+    - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+      value: "false"
 ```
 
 Verify with `dig +short edge.frostlink.dev @1.1.1.1` — a `172.64.x.x` answer means
@@ -158,21 +158,21 @@ Two kinds: ports the DaemonSet declares and holds for its lifetime, and ports th
 
 ### Static — declared on the DaemonSet
 
-| Port      | Proto | Where            | Open on OCI? |
-| --------- | ----- | ---------------- | ------------ |
-| 443       | TCP   | edge TLS (SNI)   | **yes**      |
-| 51820     | UDP   | iroh QUIC        | **yes**      |
-| 8443      | TCP   | hub API          | **no** — via cloudflared |
-| 80        | TCP   | edge HTTP/ACME   | no — origins use DNS-01 |
-| 51444     | TCP   | hub↔edge link    | no — single pod, disabled |
-| 9090/9091 | TCP   | edge/hub metrics | no — scraped in-cluster |
+| Port      | Proto | Where            | Open on OCI?                                                                   |
+| --------- | ----- | ---------------- | ------------------------------------------------------------------------------ |
+| 443       | TCP   | edge TLS (SNI)   | **yes**                                                                        |
+| 51820     | UDP   | iroh QUIC        | **yes**                                                                        |
+| 8443      | TCP   | hub API          | **no** — via cloudflared                                                       |
+| 80        | TCP   | edge HTTP        | **yes** (2026-10-04) — forwards by `Host` to the origin's `:80`, for redirects |
+| 51444     | TCP   | hub↔edge link    | no — single pod, disabled                                                      |
+| 9090/9091 | TCP   | edge/hub metrics | no — scraped in-cluster                                                        |
 
 Missing the UDP half fails **silently**: QUIC never establishes and there is no error.
 
 ### Dynamic — bound per agent service, absent from the DaemonSet spec
 
-| Port  | Proto | Service     | Origin                        |
-| ----- | ----- | ----------- | ----------------------------- |
+| Port  | Proto | Service     | Origin                         |
+| ----- | ----- | ----------- | ------------------------------ |
 | 25565 | TCP   | `minecraft` | Artemis, via the towonel agent |
 | 3000  | UDP   | `eco`       | Artemis, via the towonel agent |
 
@@ -195,7 +195,7 @@ Three things follow:
   section is otherwise console-verified and this pair is inferred. Re-read the console.
 - **25565 attracts constant internet scanning.** A steady trickle of
   `client->agent forward: Connection reset by peer (os error 104)` / `Connection timed out
-  (os error 110)` on `route_key: tcp:minecraft` is background noise, not a fault.
+(os error 110)` on `route_key: tcp:minecraft` is background noise, not a fault.
 
 ## Monitoring
 

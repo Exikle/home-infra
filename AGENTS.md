@@ -217,7 +217,8 @@ reference doc. The machine-oriented exceptions are in `yaml-conventions.md`.
 - **SSH to the node** — Talos has no SSH, and 22/tcp is closed. `talosctl` over the Headscale site link is the
   only path in.
 - **Open 6443/tcp** — removed from the security list 2026-08-18. The API server is reachable over
-  the Headscale site link only. 8443/tcp and 80/tcp are deliberately closed too.
+  the Headscale site link only. 8443/tcp is deliberately closed too. (80/tcp was opened
+  2026-10-04 for HTTP→HTTPS redirects — `networking.md` § Oracle Cloud VCN.)
 - **A wildcard DNS record owned by this cluster** — there is none. The grey `*.frostlink.dev`
   CNAME to `edge.frostlink.dev` exists but is owned by **Artemis** (towonel); every Frostlink app
   still needs its own explicit record — see `networking.md`. `edge.frostlink.dev` is a DNS-only A

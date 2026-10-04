@@ -197,28 +197,29 @@ Always use `svc.cluster.local` — never external hostnames:
 
 ## Oracle Cloud VCN
 
-Verified against the console 2026-08-18. The earlier version of this section was
-wrong in both directions — 80/443 were **not** open, and 50000/6443 were **not**
-scoped to a home IP.
+Verified against the console 2026-10-04 (first reading 2026-08-18, which corrected
+an earlier version that was wrong in both directions).
 
-- **Security list ingress** (all stateful, all `0.0.0.0/0` unless noted):
+- **Security list ingress** (all stateful, all `0.0.0.0/0`, source port **All**,
+  unless noted):
     - `443/tcp` — towonel edge, TLS with SNI routing
+    - `80/tcp` — towonel edge plain HTTP, opened 2026-10-04 for HTTP→HTTPS
+      redirects. The edge forwards by `Host` to the agent, which dials the origin's
+      `:80`; on Artemis that is `edge-gateway`'s `http` listener, which answers 301.
+      towonel itself never redirects; an unrouted `Host` gets its connection dropped.
+      **Source port must be All** — a rule with source port `80` matches almost
+      nothing, because clients send from an ephemeral port.
     - `51820/udp` — towonel iroh QUIC. **Missing the UDP half fails silently.**
     - `50000/tcp` — Talos API. `talosconfig` points at the **public** IP, not
       Tailscale, so closing this locks out `talosctl` until that is repointed.
     - `22/tcp` — dead weight; Talos runs no SSH daemon
     - `icmp` 3,4 (path MTU) and `icmp` 3 from `10.0.0.0/16`
     - `25565/tcp` and `3000/udp` — towonel per-service listeners for Artemis's
-      minecraft and eco. Not in the 2026-08-18 console reading, but demonstrably
-      reachable: on 2026-08-22 the edge logged unsolicited public peers arriving on
-      `tcp:minecraft` from several unrelated internet addresses. **Re-read the console
-      and record the actual rule** — the list above is otherwise console-verified and
-      this entry is inferred.
+      minecraft and eco. Confirmed in the 2026-10-04 console reading.
 - **Deliberately closed**:
     - `8443/tcp` — the towonel hub API is bound on the host but speaks plain HTTP.
       It is reached through cloudflared at `hub.frostlink.dev` instead. Opening this
       exposes the operator API in cleartext.
-    - `80/tcp` — the towonel edge binds it, but origins use DNS-01, not HTTP-01.
     - `6443/tcp` — removed 2026-08-18. `kubeconfig` uses the Tailscale address, so
       the Kubernetes API never needed to be public.
 - **Security list egress**: all allowed — this is what carries Tailscale, which is
