@@ -9,7 +9,7 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 [![Kubernetes](https://kromgo.frostlink.dev/badges/kubernetes_version)](https://kubernetes.io)&nbsp;&nbsp;
 [![Flux](https://kromgo.frostlink.dev/badges/flux_version)](https://fluxcd.io)
 
-[![Status Page](https://kromgo.frostlink.dev/badges/core_status_page)](https://status.frostlink.dev)
+[![Status Page](https://kromgo.frostlink.dev/badges/core_status_page)](https://status.dcunha.io)
 
 [![Age](https://kromgo.frostlink.dev/badges/cluster_birth_age)](https://github.com/home-operations/kromgo)&nbsp;&nbsp;
 [![Pods](https://kromgo.frostlink.dev/badges/cluster_pod_count)](https://github.com/home-operations/kromgo)&nbsp;&nbsp;
@@ -28,7 +28,7 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 | **CNI**        | Cilium — version: `kubernetes/apps/kube-system/cilium/app/ocirepository.yaml`            |
 | **GitOps**     | Flux CD v2.8.8 via flux-operator                                                         |
 | **Secrets**    | 1Password ExternalSecret (no SOPS)                                                       |
-| **Ingress**    | Cloudflare tunnel (apps) + towonel edge on 443/tcp, 51820/udp (tunnelled origins)        |
+| **Ingress**    | Cloudflare tunnel (apps) + towonel edge on 80+443/tcp, 51820/udp (tunnelled origins)     |
 
 ## Structure
 

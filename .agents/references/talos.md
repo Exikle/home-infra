@@ -96,7 +96,7 @@ follow the rules below, each of which cost a failed attempt:
 
 ### CRITICAL: never `apply-config` the patch file
 
-`talos/patches/controlplane.yaml` is a **gen-time config patch, not a full machine config**. It has no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` — the Tailscale auth key exists only in the node's live config, injected from 1Password during bootstrap and never persisted to the repo. `talosctl apply-config` REPLACES the whole config, so pointing it at this file strands the node.
+`talos/patches/controlplane.yaml` is a **gen-time config patch, not a full machine config**. It has no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` — the Headscale auth key exists only in the node's live config — minted by `just bootstrap tailnet` on a rebuild, or rendered via `op inject` for day-2 changes — and never persisted to the repo. `talosctl apply-config` REPLACES the whole config, so pointing it at this file strands the node.
 
 There is no way to regenerate a complete config for this node from the repo alone.
 

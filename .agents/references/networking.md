@@ -163,17 +163,22 @@ Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique. Change
 
 ## Cloudflare Tunnel
 
-The tunnel sends `frostlink.dev` and `*.frostlink.dev` traffic to the `external-gateway` service in
-the `network` namespace. It carries **most** ingress, and everything this cluster serves itself.
+The tunnel sends `frostlink.dev`, `*.frostlink.dev` and `status.dcunha.io` traffic to the
+`external-gateway` service in the `network` namespace. It carries every hostname this cluster
+serves through Envoy. `headscale.frostlink.dev` is the exception — it rides the towonel edge via
+the local `network/towonel-agent`. Artemis's public names (the grey `*.frostlink.dev` wildcard and
+`*.dcunha.io`) arrive through the towonel edge, not this tunnel.
 
 ## Frostlink is not zero-inbound — the edge listens directly
 
 This changed when towonel landed (2026-08-18) and it is the first thing to correct in any older
-mental model of this host. Two ports are open on the OCI security list and bound on the node:
+mental model of this host. The edge's fixed ports are open on the OCI security list and bound on
+the node (the full ingress set, Talos `50000/tcp` included, is § Oracle Cloud VCN):
 
 | Port        | Bound by                      | What breaks if it is closed                              |
 | ----------- | ----------------------------- | -------------------------------------------------------- |
 | `443/tcp`   | towonel edge (hostNetwork DS) | every tunnelled origin — SNI routing has nowhere to land |
+| `80/tcp`    | towonel edge, plain HTTP      | HTTP→HTTPS redirects for tunnelled origins               |
 | `51820/udp` | towonel edge, iroh QUIC       | agents fall back to relay or never connect, **silently** |
 
 Consequences that are easy to get wrong:
@@ -224,8 +229,8 @@ an earlier version that was wrong in both directions).
     - `8443/tcp` — the towonel hub API is bound on the host but speaks plain HTTP.
       It is reached through cloudflared at `hub.frostlink.dev` instead. Opening this
       exposes the operator API in cleartext.
-    - `6443/tcp` — removed 2026-08-18. `kubeconfig` uses the Tailscale address, so
-      the Kubernetes API never needed to be public.
+    - `6443/tcp` — removed 2026-08-18. `kubeconfig` uses `10.0.0.203` over the
+      Headscale site link, so the Kubernetes API never needed to be public.
 - **Security list egress**: all allowed — this is what carries Tailscale, which is
   outbound-initiated and has no ingress rule of its own.
 
@@ -255,14 +260,14 @@ tailnet. If Headscale itself is down, the public Talos port is the only break-gl
 ## Tailnet policy — moving from Tailscale SaaS to Headscale
 
 Every device is on Headscale as of 2026-10-02 (grimoire, the Mac, joined 2026-10-03 — it was never
-on SaaS). The SaaS tailnet (`exikle.github`) is kept for a
-week as a rollback, then closed. The policy is checked in at
+on SaaS). No device uses the SaaS tailnet (`exikle.github`) any more; the account closes on or
+after 2026-10-09 (frostlink#348). The policy is checked in at
 `kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
 at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
 
 Tag mapping, SaaS → Headscale (recorded 2026-10-02 from `tailscale status --json`):
 
-| Device                         | SaaS today                                  | Headscale                                                |
+| Device                         | SaaS (retired)                              | Headscale                                                |
 | ------------------------------ | ------------------------------------------- | -------------------------------------------------------- |
 | Frostlink node                 | `tag:k8s`                                   | `tag:frostlink`                                          |
 | Artemis `tailscale-router` pod | `tag:artemis-router`, route `10.10.99.0/24` | retired — the UCG Max takes over as `tag:home-router`    |

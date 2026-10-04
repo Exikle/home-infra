@@ -1,7 +1,7 @@
 ---
 name: towonel-ops
 description: Operate the towonel tunnel on Frostlink — check hub and edge health, issue or revoke an agent invite token, onboard a new origin/hostname, rotate the node's key material, or debug an agent that will not connect. Use for "towonel is down", "create a towonel invite", "add an agent", "expose X through towonel", "agent won't connect", "tunnel not routing", or "check the edge". Scoped to the Frostlink cluster.
-compatibility: Requires the towonel hub and edge running in the `towonel` namespace, and 1Password access for key material. The edge is the cluster's only direct inbound path (443/tcp + 51820/udp) — breaking it cuts external reachability.
+compatibility: Requires the towonel hub and edge running in the `towonel` namespace, and 1Password access for key material. The edge is the cluster's main direct inbound path (80+443/tcp and 51820/udp, plus 25565/tcp and 3000/udp on demand; full list in networking.md § Oracle Cloud VCN) — breaking it cuts external reachability, including Headscale.
 ---
 
 # Skill: towonel Operations
@@ -42,7 +42,7 @@ kubectl -n towonel run q --rm -i --restart=Never --image=mirror.gcr.io/curlimage
 ```
 
 - `towonel_hub_is_leader 1` — the hub holds leadership. `0` means route rebuilds stall.
-- `towonel_edge_active_sessions` — registered agents. **0 is correct until an agent exists.**
+- `towonel_edge_active_sessions` — registered agents. **Expect 2** (Artemis + the local `network/towonel-agent` for Headscale); 0 or 1 is an outage.
 
 ## Step 3 — Is the edge actually reachable?
 

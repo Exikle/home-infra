@@ -1,7 +1,7 @@
 ---
 name: talos-ops
 description: Perform Talos node operations — apply a config change, add or change a system extension, upgrade Talos or Kubernetes, reboot or reset a node. Use for "apply talos config", "upgrade talos node", "reboot node", "add a talos extension", or "node config change". Scoped to the Frostlink cluster.
-compatibility: Single node — there is nothing to drain to, so any upgrade, reboot or reset is a FULL CLUSTER OUTAGE, not a rolling operation. The destructive guard blocks `talosctl upgrade`/`reboot` for that reason; use `just talos upgrade <version>` and only with the user watching. Requires talosctl and the repo-local talosconfig over Tailscale.
+compatibility: Single node — there is nothing to drain to, so any upgrade, reboot or reset is a FULL CLUSTER OUTAGE, not a rolling operation. The destructive guard blocks `talosctl upgrade`/`reboot` for that reason; use `just talos upgrade <version>` and only with the user watching. Requires talosctl and the repo-local talosconfig, reaching 10.0.0.203 over the Headscale site link.
 ---
 
 # Skill: Talos Operations
@@ -12,9 +12,12 @@ Node operations for Frostlink (single-node ARM64, Oracle Cloud, Talos Linux).
 
 ## Node Reference
 
-| Node        | Role                         | IP (Tailscale)   |
-| ----------- | ---------------------------- | ---------------- |
-| `frostlink` | Control plane + worker (ARM64) | 100.67.108.103 |
+| Node        | Role                           | Management address                                        |
+| ----------- | ------------------------------ | --------------------------------------------------------- |
+| `frostlink` | Control plane + worker (ARM64) | `10.0.0.203` (OCI internal), over the Headscale site link |
+
+The public IP `40.233.88.33` is only for a rebuild (`bootstrap.md`) or break-glass when the tailnet
+is down (`networking.md` § Access Methods). Every command below uses `10.0.0.203`.
 
 `allowSchedulingOnControlPlanes: true` — the single node runs everything.
 
@@ -26,7 +29,7 @@ Frostlink uses patch files in `talos/patches/` — no Jinja2/render-config templ
 
 ### NEVER `apply-config` the patch file
 
-`talos/patches/controlplane.yaml` is a **gen-time patch, not a full machine config** — no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` (the Tailscale auth key lives only on the node, injected from 1Password at bootstrap). `apply-config` replaces the entire config, so pointing it at that file strands the node. Unlike Artemis, this repo cannot regenerate a complete config.
+`talos/patches/controlplane.yaml` is a **gen-time patch, not a full machine config** — no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` (the Headscale auth key exists only in the node's live config — minted by `just bootstrap tailnet` on a rebuild, or rendered via `op inject` for day-2 changes). `apply-config` replaces the entire config, so pointing it at that file strands the node. Unlike Artemis, this repo cannot regenerate a complete config.
 
 ### Applying a change
 
@@ -35,7 +38,7 @@ Frostlink uses patch files in `talos/patches/` — no Jinja2/render-config templ
 
 ```bash
 mise exec -- talosctl --context frostlink patch machineconfig \
-  -n 40.233.88.33 --patch-file /tmp/delta.yaml --dry-run
+  -n 10.0.0.203 --patch-file /tmp/delta.yaml --dry-run
 ```
 
 3. Read the printed diff — it shows exactly what changes and whether a reboot is needed — then re-run without `--dry-run`. The diff contains the Tailscale auth key; never paste it anywhere.
@@ -50,9 +53,9 @@ A plain `null` is ignored and JSON6902 patches are rejected (the config is multi
 
 ```yaml
 machine:
-  features:
-    someField:
-      $patch: delete
+    features:
+        someField:
+            $patch: delete
 ```
 
 ### certSANs patch (minimal delta)
@@ -117,7 +120,6 @@ CR and tuppr downgrades the node. Either commit the bump, or
 Only when tuppr is unavailable. Note this uses the legacy
 `factory.talos.dev/installer/` path, while tuppr uses `metal-installer`:
 
-
 ```bash
 # Get current schematic ID
 just talos schematic-id
@@ -133,10 +135,10 @@ No drain/uncordon needed — single node, all workloads restart automatically af
 ## Node Health
 
 ```bash
-talosctl --context frostlink health -n 100.67.108.103
-talosctl --context frostlink dmesg -n 100.67.108.103 | tail -30
-talosctl --context frostlink version -n 100.67.108.103
-talosctl --context frostlink get machineconfig -n 100.67.108.103 -o yaml
+talosctl --context frostlink health -n 10.0.0.203
+talosctl --context frostlink dmesg -n 10.0.0.203 | tail -30
+talosctl --context frostlink version -n 10.0.0.203
+talosctl --context frostlink get machineconfig -n 10.0.0.203 -o yaml
 ```
 
 ## Kubernetes Upgrade
@@ -144,5 +146,5 @@ talosctl --context frostlink get machineconfig -n 100.67.108.103 -o yaml
 ```bash
 talosctl --context frostlink upgrade-k8s \
   --to <k8s-version> \
-  -n 100.67.108.103
+  -n 10.0.0.203
 ```

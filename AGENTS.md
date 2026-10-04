@@ -9,7 +9,7 @@ else lives.
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets, no SOPS
 - **CNI**: Cilium | **Ingress**: two paths — Envoy Gateway (HTTPRoute, via Cloudflare tunnel) and the towonel edge (SNI on host `:443`, bypasses Envoy)
-- **Inbound**: no longer zero — the towonel edge listens directly on 443/tcp + 51820/udp
+- **Inbound**: no longer zero — the towonel edge listens directly on 80+443/tcp and 51820/udp, plus 25565/tcp and 3000/udp on demand; Talos 50000/tcp is break-glass. Full list: `networking.md` § Oracle Cloud VCN
 
 `ls` at the repo root is the map. Only `kubernetes/` reconciles through Flux.
 
@@ -87,7 +87,7 @@ which no command recovers.
 | `kopiur-system`    | Kopiur backup controller + the `r2` ClusterRepository (Cloudflare R2)                          |
 | `kube-system`      | Cilium, CoreDNS, k8tz, ksgate, metrics-server, reloader                                        |
 | `matrix`           | continuwuity, mautrix-signal, mautrix-whatsapp                                                 |
-| `network`          | Envoy Gateway, wildcard certificates, cloudflare-tunnel, cloudflare-dns                        |
+| `network`          | Envoy Gateway, wildcard certs, cloudflare-tunnel, cloudflare-dns, headscale, towonel-agent     |
 | `observability`    | VictoriaMetrics stack, alertmanager, node-exporter, kube-state-metrics, kromgo, gatus, chaski  |
 | `openebs-system`   | zfs-localpv CSI — provides the default `openebs-zfs` StorageClass                              |
 | `system-upgrade`   | tuppr — Talos and Kubernetes upgrade controller                                                |
@@ -111,8 +111,8 @@ Each of these cost real time to find. None is recoverable by reading the tree.
   SSA ownership that then conflicts on retry.
 - **`talosctl patch machineconfig --patch` expects a DELTA**, only changed fields. Passing a full
   config duplicates array fields (e.g. `machine.files`) and breaks the node on next boot. Use a
-  minimal patch file, or `talosctl apply-config --file` for a full replacement. The Tailscale
-  certSANs patch is six lines for exactly this reason.
+  minimal patch file, or `talosctl apply-config --file` for a full replacement. A certSANs patch,
+  for example, is six lines (`talos.md` § certSANs minimal patch).
 - **Forgejo auth is HTTPS, not SSH** — SSH is unreachable from OCI. Flux uses secret
   `flux-system/flux-system` with `username` + `password`.
 - **PodSecurity + hostNetwork**: `network` carries no PSS label so it inherits `baseline`, which
@@ -214,8 +214,8 @@ reference doc. The machine-oriented exceptions are in `yaml-conventions.md`.
 - **SOPS** — not used here. 1Password ExternalSecrets only.
 - **`flux bootstrap`** — bootstrap goes through helmfile instead, because the Forgejo repo must
   already have content before a Flux GitRepository can sync.
-- **SSH to the node** — Talos has no SSH, and 22/tcp is closed. `talosctl` over the Headscale site link is the
-  only path in.
+- **SSH to the node** — Talos has no SSH daemon (22/tcp is open on the security list, but nothing
+  listens). `talosctl` over the Headscale site link is the only path in.
 - **Open 6443/tcp** — removed from the security list 2026-08-18. The API server is reachable over
   the Headscale site link only. 8443/tcp is deliberately closed too. (80/tcp was opened
   2026-10-04 for HTTP→HTTPS redirects — `networking.md` § Oracle Cloud VCN.)

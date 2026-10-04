@@ -23,7 +23,7 @@ just kube debug-node <node>               # sysadmin-profile debug pod
 just kube prune-pods                      # drop Failed/Pending/Succeeded pods
 just kube view-secret <ns> <secret>
 just talos upgrade <version>              # upgrade Talos — REBOOTS the single node = full outage
-just bootstrap phase1 | phase2            # one-time bring-up only, both confirm-gated
+just bootstrap phase1 | phase2 | tailnet  # one-time bring-up only, confirm-gated
 ```
 
 Notes that are easy to get wrong:

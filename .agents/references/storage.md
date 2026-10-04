@@ -28,17 +28,17 @@ It is the **only** class on this cluster; there is no RWX class and no second ti
 Both repos have a `storage.md` describing kopiur. The kopiur semantics are shared; the storage
 substrate is not, and two of the differences change operational rules outright:
 
-| | Frostlink | Artemis |
-| --- | --- | --- |
-| Class | `openebs-zfs` (only class) | `ceph-block` (only class — `ceph-filesystem` does not exist) |
-| Provisioner | `zfs.csi.openebs.io`, node-local ZFS | `rook-ceph.rbd.csi.ceph.com`, 3× replicated RBD |
-| `volumeBindingMode` | **`WaitForFirstConsumer`** | **`Immediate`** |
-| Reclaim policy | `Delete` | `Delete` |
-| kopiur backend | Cloudflare R2 (`ClusterRepository/r2`) | NFS on TrueNAS (`ClusterRepository/atlas`) |
-| kopiur substitute var | `${KOPIUR_APP}` | `${APP}` |
-| kopia identity | `<ns>-<policy>@<ns>` | `<policy>@<ns>` |
-| Repo secret reach | `credentialProjection` from `kopiur-system` | a `kopiur/secret` component per namespace |
-| `ssa: ignore` on kopiur resources | **none** (removed 2026-08-18) | on the `Restore` only |
+|                                   | Frostlink                                   | Artemis                                                      |
+| --------------------------------- | ------------------------------------------- | ------------------------------------------------------------ |
+| Class                             | `openebs-zfs` (only class)                  | `ceph-block` (only class — `ceph-filesystem` does not exist) |
+| Provisioner                       | `zfs.csi.openebs.io`, node-local ZFS        | `rook-ceph.rbd.csi.ceph.com`, 3× replicated RBD              |
+| `volumeBindingMode`               | **`WaitForFirstConsumer`**                  | **`Immediate`**                                              |
+| Reclaim policy                    | `Delete`                                    | `Delete`                                                     |
+| kopiur backend                    | Cloudflare R2 (`ClusterRepository/r2`)      | NFS on TrueNAS (`ClusterRepository/atlas`)                   |
+| kopiur substitute var             | `${KOPIUR_APP}`                             | `${APP}`                                                     |
+| kopia identity                    | `<ns>-<policy>@<ns>`                        | `<policy>@<ns>`                                              |
+| Repo secret reach                 | `credentialProjection` from `kopiur-system` | a `kopiur/secret` component per namespace                    |
+| `ssa: ignore` on kopiur resources | **none** (removed 2026-08-18)               | on the `Restore` only                                        |
 
 The binding-mode row is the one that bites. **"The workload must be scaled back up to drive the
 restore" is a `WaitForFirstConsumer` rule and is true only here.** On Artemis a PVC provisions
@@ -70,16 +70,16 @@ spec:
 
 And in `postBuild.substitute`:
 
-| Variable                | Default             | What it names                                    |
-| ----------------------- | ------------------- | ------------------------------------------------ |
-| `KOPIUR_APP`            | **none — required** | every Kopiur resource: PVC, SnapshotPolicy, SnapshotSchedule, Restore |
-| `KOPIUR_CAPACITY`       | `5Gi`               | PVC size                                          |
-| `KOPIUR_STORAGECLASS`   | `openebs-zfs`       | PVC and mover-cache class                         |
-| `KOPIUR_SNAPSHOTCLASS`  | `zfs-snapshotclass` | `volumeSnapshotClassName`                         |
-| `KOPIUR_CACHE_CAPACITY` | `2Gi`               | mover cache — do not go lower                     |
-| `KOPIUR_ACCESSMODES`    | `ReadWriteOnce`     | PVC access modes                                  |
-| `KOPIUR_SCHEDULE`       | `H * * * *`         | `SnapshotSchedule` cron (jitter `2m`, `America/Toronto`) |
-| `KOPIUR_KEEP_LATEST/HOURLY/DAILY/WEEKLY/MONTHLY` | `3` / `24` / `7` / `4` / `3` | retention |
+| Variable                                         | Default                      | What it names                                                         |
+| ------------------------------------------------ | ---------------------------- | --------------------------------------------------------------------- |
+| `KOPIUR_APP`                                     | **none — required**          | every Kopiur resource: PVC, SnapshotPolicy, SnapshotSchedule, Restore |
+| `KOPIUR_CAPACITY`                                | `5Gi`                        | PVC size                                                              |
+| `KOPIUR_STORAGECLASS`                            | `openebs-zfs`                | PVC and mover-cache class                                             |
+| `KOPIUR_SNAPSHOTCLASS`                           | `zfs-snapshotclass`          | `volumeSnapshotClassName`                                             |
+| `KOPIUR_CACHE_CAPACITY`                          | `2Gi`                        | mover cache — do not go lower                                         |
+| `KOPIUR_ACCESSMODES`                             | `ReadWriteOnce`              | PVC access modes                                                      |
+| `KOPIUR_SCHEDULE`                                | `H * * * *`                  | `SnapshotSchedule` cron (jitter `2m`, `America/Toronto`)              |
+| `KOPIUR_KEEP_LATEST/HOURLY/DAILY/WEEKLY/MONTHLY` | `3` / `24` / `7` / `4` / `3` | retention                                                             |
 
 **The variable is `KOPIUR_APP`, not `APP`.** Every resource in `components/kopiur/` interpolates
 `${KOPIUR_APP}` with no default, so an app that substitutes `APP` instead renders literal
@@ -115,17 +115,20 @@ Artemis's component keeps 30 daily / 8 weekly / 6 monthly with no `keepLatest` o
 it writes to NFS on a 41 TB array, this one writes to a metered R2 bucket. The two retention
 policies are deliberately different; do not align them.
 
-The fleet is five policies (`kubectl get snapshotpolicy -A`): `fediverse/gotosocial`,
-`fediverse/apoci-data`, `matrix/continuwuity`, `observability/server-volume-victoria-metrics-server-0`,
-`towonel/towonel`. `towonel` was added 2026-08-18 and runs on the hourly default.
+The fleet is six policies (`kubectl get snapshotpolicy -A`): `fediverse/gotosocial`,
+`fediverse/apoci-data`, `matrix/continuwuity`, `network/headscale`,
+`observability/server-volume-victoria-metrics-server-0`, `towonel/towonel`. `towonel` was added
+2026-08-18 and `headscale` 2026-10-02; both run on the hourly default. Headscale's matters more
+than its size suggests: if its restore comes back empty, every device has to re-register
+(`bootstrap.md`).
 
 Both cadence and retention are per-app overridable from `postBuild.substitute` —
 `KOPIUR_SCHEDULE`, `KOPIUR_KEEP_LATEST/HOURLY/DAILY/WEEKLY/MONTHLY`. Current overrides:
 
-| App | Schedule | Why |
-| --- | --- | --- |
+| App         | Schedule               | Why                                                                                                                                                                                                                 |
+| ----------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `vm-single` | `H 3 * * *`, 1/0/7/0/0 | VictoriaMetrics' TSDB rewrites its parts continuously, so hourly snapshots deduplicated poorly and dominated churn in the R2 repository. Metrics are the most reconstructible data here — daily, 7 deep, is enough. |
-| `apoci` | `H */6 * * *` | Registry blobs are content-addressed and effectively immutable, so hourly bought almost nothing over 6-hourly. Retention left at the component default (~30 restore points). |
+| `apoci`     | `H */6 * * *`          | Registry blobs are content-addressed and effectively immutable, so hourly bought almost nothing over 6-hourly. Retention left at the component default (~30 restore points).                                        |
 
 > Changing a `KOPIUR_SCHEDULE` means updating that policy's branch in `KopiurPolicyBackupStale`
 > too — see "Backup staleness alerting is per-policy" below. Nothing derives it automatically,
@@ -139,7 +142,7 @@ item plainly named `kopiur` belongs to **Artemis**. Pointing this key at the wro
 cleanly and only fails later, at connect time, with `invalid repository password`.
 
 A kopia repository cannot be opened without its original password and does not store it, so a
-wrong-but-valid-looking value here is **unrecoverable**. Compounding it: an *erroring*
+wrong-but-valid-looking value here is **unrecoverable**. Compounding it: an _erroring_
 ExternalSecret leaves its target Secret untouched, so a broken ES is often the only thing
 preserving the live credential — "fixing" the error is what destroys it.
 
@@ -152,7 +155,7 @@ the deleted item in its trash.
 The shared Postgres cluster archives WAL to the same bucket under `barman/`
 (`kubernetes/apps/database/postgres/cluster/objectstore.yaml`). `retentionPolicy: 14d` — ample
 PITR for a single-node homelab VPS, and it roughly halves both the `barman/` footprint and its
-object count. WAL segments dominate the bucket's *object count* even though they are a small
+object count. WAL segments dominate the bucket's _object count_ even though they are a small
 share of its bytes. `data.compression` is `gzip`: the CRD enum is `[bzip2, gzip, lz4, snappy]`,
 so zstd is not available there (it is for `wal.compression`, which uses it).
 
@@ -212,10 +215,10 @@ created 2026-07-09 and had been poisoned for 40 days.
 **Always delete and recreate the `Restore` CR before restoring** so it re-resolves against the
 current `SnapshotPolicy`. There are three states, not two — read them like this:
 
-| `status.resolved.resolution` | Meaning |
-| ---------------------------- | --------- |
-| `Snapshot`                   | healthy — it resolved against a real snapshot and would restore data |
-| `NoSnapshot`                 | **poisoned** — the volume is empty. Stop and use the retained PV |
+| `status.resolved.resolution`   | Meaning                                                                                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Snapshot`                     | healthy — it resolved against a real snapshot and would restore data                                                                            |
+| `NoSnapshot`                   | **poisoned** — the volume is empty. Stop and use the retained PV                                                                                |
 | _absent_, `TargetAlreadyBound` | healthy — the PVC is already bound so there was nothing to populate, and nothing is pinned. It resolves fresh when a restore is actually needed |
 
 The third row is what remediating a poisoned `Restore` looks like while its PVC is still bound:
@@ -234,13 +237,13 @@ RESOLUTION:.status.resolved.resolution,PINNED:.status.resolved.pinnedAt,PHASE:.s
 
 State as of 2026-08-21:
 
-| Restore | `resolution` | Meaning |
-| --- | --- | --- |
-| `fediverse/gotosocial` | `Snapshot` | healthy — would restore real data |
-| `matrix/continuwuity` | `Snapshot` | healthy |
-| `observability/server-volume-victoria-metrics-server-0` | `Snapshot` | healthy |
-| `fediverse/apoci-data` | _(none)_ | never resolved — `TargetAlreadyBound`, the PVC was already bound |
-| `towonel/towonel` | _(none)_ | remediated 2026-08-22 — was `NoSnapshot`, pinned 2026-08-18 before its first snapshot |
+| Restore                                                 | `resolution` | Meaning                                                                               |
+| ------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------- |
+| `fediverse/gotosocial`                                  | `Snapshot`   | healthy — would restore real data                                                     |
+| `matrix/continuwuity`                                   | `Snapshot`   | healthy                                                                               |
+| `observability/server-volume-victoria-metrics-server-0` | `Snapshot`   | healthy                                                                               |
+| `fediverse/apoci-data`                                  | _(none)_     | never resolved — `TargetAlreadyBound`, the PVC was already bound                      |
+| `towonel/towonel`                                       | _(none)_     | remediated 2026-08-22 — was `NoSnapshot`, pinned 2026-08-18 before its first snapshot |
 
 `towonel/towonel` was the live instance of the failure this section describes: its policy had been
 snapshotting hourly since 2026-08-18 while its `Restore` would still have provisioned an empty
@@ -271,7 +274,7 @@ existing claim, so a capacity bump would silently do nothing. Dropping the annot
 is correct — but only once **every** live PVC already matches its rendered manifest.
 
 > **The prerequisite is real.** `spec.dataSourceRef` is immutable once bound, and Flux applies
-> a Kustomization atomically, so one rejected PVC blocks the *entire* Kustomization (a safe
+> a Kustomization atomically, so one rejected PVC blocks the _entire_ Kustomization (a safe
 > failure — the app keeps running — but nothing else in that Kustomization reconciles either).
 > On 2026-08-18 both `vm-single` and `gotosocial` had PVCs predating the component and lacking
 > `dataSourceRef`; each had to be recreated through `just kube restore` before the annotation
@@ -327,16 +330,16 @@ All three restores below were run on 2026-08-18, single-node ARM to Cloudflare R
 end-to-end column is the whole `just kube restore` run: scale down, delete, Flux recreate,
 repopulate, roll out.
 
-| App | Size / files | Backup | Restore (end to end) |
-| --- | --- | --- | --- |
-| `matrix/continuwuity` | 0.49Gi / 2662 | ~49s | 54s to `Bound`, +4s serving |
-| `observability/vm-single` | 3.18Gi / — | ~53s | ~2m |
-| `fediverse/gotosocial` | 0.37Gi / 3163 | ~58s | **1m14s** |
+| App                       | Size / files  | Backup | Restore (end to end)        |
+| ------------------------- | ------------- | ------ | --------------------------- |
+| `matrix/continuwuity`     | 0.49Gi / 2662 | ~49s   | 54s to `Bound`, +4s serving |
+| `observability/vm-single` | 3.18Gi / —    | ~53s   | ~2m                         |
+| `fediverse/gotosocial`    | 0.37Gi / 3163 | ~58s   | **1m14s**                   |
 
 Roughly ~16s of fixed overhead (prime PVC, Job scheduling, kopia connect) plus transfer. Do
 not extrapolate linearly — continuwuity and gotosocial are metadata-heavy workloads with
 thousands of small files, where per-file overhead dominates over raw bytes. Note that
-gotosocial moved *more* files than continuwuity in less time despite being smaller, because
+gotosocial moved _more_ files than continuwuity in less time despite being smaller, because
 media files are large and contiguous where RocksDB SSTs are not.
 
 Verification results, for confidence in the path:
@@ -393,15 +396,15 @@ Two layers now:
 2. **`KopiurPolicyBackupStale` in the `baseline` VMRule** (`kopiur-overrides.rules`) — the real
    detector, with a per-policy allowance of roughly one interval plus grace:
 
-   | Policy | Schedule | Allowance |
-   | --- | --- | --- |
-   | `gotosocial`, `continuwuity`, `towonel` | hourly | 6h (default) |
-   | `apoci-data` | `H */6 * * *` | 8h (28800s) |
-   | `server-volume-victoria-metrics-server-0` | `H 3 * * *` | 26h (93600s) |
+    | Policy                                               | Schedule      | Allowance    |
+    | ---------------------------------------------------- | ------------- | ------------ |
+    | `gotosocial`, `continuwuity`, `headscale`, `towonel` | hourly        | 6h (default) |
+    | `apoci-data`                                         | `H */6 * * *` | 8h (28800s)  |
+    | `server-volume-victoria-metrics-server-0`            | `H 3 * * *`   | 26h (93600s) |
 
-   Only the two exceptions appear as `or` branches in the rule; `towonel` and the hourly policies
-   fall through to the 21600s catch-all, which is correct and needs no edit. Verified against the
-   live `baseline` VMRule 2026-08-21 — the expression carries exactly those two `policy=` selectors.
+    Only the two exceptions appear as `or` branches in the rule; `towonel` and the hourly policies
+    fall through to the 21600s catch-all, which is correct and needs no edit. Verified against the
+    live `baseline` VMRule 2026-08-21 — the expression carries exactly those two `policy=` selectors.
 
 The threshold is built by `or`-chaining constant vectors off the metric itself, so the label
 sets match and the comparison joins cleanly:
@@ -421,7 +424,6 @@ The chart rule is left enabled rather than replaced because it carries ten other
 (`KopiurRepositoryNotReady`, `KopiurSnapshotFailed`, `KopiurRestoreFailed`, leader-election
 health, and so on). Vendoring a copy to edit one expression would fork all of them and drift on
 every Renovate chart bump.
-
 
 ## Gotcha: stale CSINode topology keys block every new PVC
 
@@ -503,14 +505,14 @@ deadlocks both rather than producing a clear error.
 
 ### Not every PVC is backed up, and nothing warns you
 
-kopiur only protects a PVC that has a `SnapshotPolicy`. Live coverage 2026-08-21 — 8 PVCs, 5
+kopiur only protects a PVC that has a `SnapshotPolicy`. Live coverage 2026-10-04 — 10 PVCs, 6
 policies:
 
-| PVC | Protected by |
-| --- | --- |
-| `fediverse/gotosocial`, `fediverse/apoci-data`, `matrix/continuwuity`, `observability/server-volume-victoria-metrics-server-0`, `towonel/towonel` | kopiur → R2 |
-| `database/postgres-1` | **not kopiur** — barman WAL + base backups to `s3://frostlink-kopiur/barman/` |
-| `observability/alertmanager`, `observability/gatus-sidecar` | **nothing** — accepted as reconstructible state |
+| PVC                                                                                                                                                                    | Protected by                                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `fediverse/gotosocial`, `fediverse/apoci-data`, `matrix/continuwuity`, `network/headscale`, `observability/server-volume-victoria-metrics-server-0`, `towonel/towonel` | kopiur → R2                                                                   |
+| `database/postgres-1`                                                                                                                                                  | **not kopiur** — barman WAL + base backups to `s3://frostlink-kopiur/barman/` |
+| `observability/alertmanager`, `observability/gatus-sidecar`                                                                                                            | **nothing** — accepted as reconstructible state                               |
 
 `postgres-1` is deliberately not kopiur-backed: a filesystem snapshot of a running Postgres data
 directory is not a consistent backup, and barman already produces one. Do not "fix" the gap by

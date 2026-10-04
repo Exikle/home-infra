@@ -16,13 +16,13 @@ Local `kubectl` is already scoped to Frostlink by `.mise.toml` — no `--context
 
 ## What exists to check
 
-| Path | Resources | Destination |
-| --- | --- | --- |
+| Path     | Resources                                                                                                                              | Destination                                             |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Database | `Cluster/postgres` + `ScheduledBackup/postgres-backup` in `database`, via the `barman-cloud.cnpg.io` plugin and `ObjectStore/r2-store` | `s3://frostlink-kopiur/barman/`, `retentionPolicy: 14d` |
-| PVCs | Kopiur `SnapshotPolicy`/`SnapshotSchedule`/`Restore` from `components/kopiur` | `ClusterRepository/r2` (Cloudflare R2) |
+| PVCs     | Kopiur `SnapshotPolicy`/`SnapshotSchedule`/`Restore` from `components/kopiur`                                                          | `ClusterRepository/r2` (Cloudflare R2)                  |
 
 Apps currently backed by Kopiur: `fediverse/gotosocial` (also `kopiur-deep-verify`),
-`fediverse/apoci`, `matrix/continuwuity`, `observability/vm-single`, `towonel/towonel`. Confirm
+`fediverse/apoci`, `matrix/continuwuity`, `network/headscale`, `observability/vm-single`, `towonel/towonel`. Confirm
 rather than trusting this list: `grep -rl components/kopiur kubernetes/apps/`.
 
 ## Step 1 — CNPG backups exist and are recent
@@ -111,7 +111,7 @@ base backups are listed.
 CNPG backups:   ✅ 12 completed; oldest 2026-08-07
 WAL archiving:  ✅ ContinuousArchivingSuccess
 Data volume:    ✅ 31% used (3.1Gi / 10Gi)
-Kopiur:         ✅ 5 policies, newest snapshot 42m ago; vm-single 9h (daily, expected)
+Kopiur:         ✅ 6 policies, newest snapshot 42m ago; vm-single 9h (daily, expected)
 Deep verify:    ⚠️  gotosocial last deep verify 38 days ago
 PITR window:    ✅ 14d (ObjectStore retentionPolicy)
 

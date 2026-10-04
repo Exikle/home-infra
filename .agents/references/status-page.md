@@ -8,7 +8,7 @@
 ## How a request reaches it
 
 `status.dcunha.io` is a proxied Cloudflare CNAME to Frostlink's tunnel. **The record is owned by
-Artemis** (`network/cloudflare-tunnel/app/dnsendpoint.yaml`, target
+Artemis** (`network/cloudflare-dns/app/dnsendpoint.yaml`, target
 `${FROSTLINK_TUNNEL_ID}.cfargotunnel.com`), because Artemis's external-dns owns the `dcunha.io`
 zone. Frostlink's `cloudflare-tunnel` has an ingress rule for the name, and `external-gateway`
 serves it with `dcunha-io-tls`, imported from 1Password by `certificates/import`. The LAN gets the

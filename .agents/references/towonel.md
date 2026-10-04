@@ -3,7 +3,8 @@
 towonel exposes HTTP(S) services that sit behind NAT/CGNAT without opening inbound
 ports **at the origin** — the edge itself very much does listen inbound, on this host.
 Frostlink runs the **hub** (control plane) and the **edge** (public listener); the
-Artemis agent dials in and has been connected since 2026-08-19.
+Artemis agent dials in and has been connected since 2026-08-19. A second agent,
+Frostlink's own `network/towonel-agent`, carries `headscale.frostlink.dev`.
 
 The agent side — which hostnames Artemis claims, how it maps them to its own
 `edge-gateway`, and the PROXY-protocol contract — is documented in the **Artemis** repo at
@@ -32,7 +33,9 @@ The edge peeks at SNI on a raw TLS connection and forwards the bytes. For
 `jellyfin.frostlink.dev`, `eco.frostlink.dev` and `echo.frostlink.dev`, the certificate the
 public sees is **Artemis's own copy** of `*.frostlink.dev` — a separate issuance with its own
 key, imported from 1Password onto Artemis's `edge-gateway`. This cluster's `frostlink-dev-tls`
-is never presented for those names.
+is never presented for those names. The same passthrough carries Artemis's `dcunha.io` names —
+`git.dcunha.io` and `registry.dcunha.io` are CNAMEs to `edge.frostlink.dev` — whose certificate
+also lives on Artemis.
 
 Two consequences worth holding on to:
 
@@ -190,9 +193,8 @@ Three things follow:
 
 - **They exist only while an agent session does.** Probing the port while the agent is down
   proves nothing, and an OCI rule change cannot be validated against a disconnected edge.
-- **The OCI security list must allow them**, and they are not in the console reading recorded in
-  `networking.md` § Oracle Cloud VCN. Traffic evidently arrives, so the rules exist — but that
-  section is otherwise console-verified and this pair is inferred. Re-read the console.
+- **The OCI security list must allow them**, and it does (console-verified 2026-10-04 —
+  `networking.md` § Oracle Cloud VCN).
 - **25565 attracts constant internet scanning.** A steady trickle of
   `client->agent forward: Connection reset by peer (os error 104)` / `Connection timed out
 (os error 110)` on `route_key: tcp:minecraft` is background noise, not a fault.
@@ -224,7 +226,7 @@ kubectl -n towonel run q --rm -i --restart=Never --image=mirror.gcr.io/curlimage
   --command -- curl -s http://towonel.towonel.svc.cluster.local:9091/metrics \
   | grep towonel_hub_is_leader
 
-# how many agents are attached? (should be 1 — Artemis)
+# how many agents are attached? (should be 2 — Artemis + the local network/towonel-agent for headscale)
 kubectl -n towonel logs ds/towonel --tail=200 | grep 'agent session'
 
 # edge reachable directly, and rejecting SNI no agent claims
@@ -236,8 +238,10 @@ just kube backup towonel towonel
 
 Creating an invite for an agent uses the operator API key that the node generates into `/data`
 (`/data/operator.key`); the hub API is at `https://hub.frostlink.dev`. **The invite carries the
-port grants**, not just the hostnames — Artemis's invite is scoped to `*.frostlink.dev` plus
-`tcp_ports: [25565]` and `udp_ports: [3000]`. Adding a TCP/UDP service on the agent side without
+port grants**, not just the hostnames — Artemis's agent claims `*.frostlink.dev`, `*.dcunha.io`
+and `dcunha.io` (its `towonel-agent/app/helmrelease.yaml`), so its invite covers all three plus
+`tcp_ports: [25565]` and `udp_ports: [3000]`. Frostlink's own `network/towonel-agent` claims only
+`headscale.frostlink.dev`. Adding a TCP/UDP service on the agent side without
 a matching grant leaves the edge declining to bind the listener, with no error on either side.
 
 ## Gotchas
