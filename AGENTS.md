@@ -165,6 +165,7 @@ Open the file when its subject comes up. Do not read the whole directory.
 | `anubis.md`            | Adding or tuning PoW scraper deterrence, or GoToSocial's allow policy         |
 | `bootstrap.md`         | Rebuilding from nothing — the helmfile order and the network-first rule       |
 | `claude-code-setup.md` | Touching a hook, a guard, a path-scoped rule, or a skill symlink              |
+| `clustermesh.md`       | Cilium ClusterMesh with Artemis — routing, relay, shared CA, global services  |
 | `database.md`          | Onboarding onto shared Postgres, pgbouncer tuning, CNPG PKI, primary restarts |
 | `flux-patterns.md`     | A reconcile is stuck, or you are wiring `dependsOn` across namespaces         |
 | `networking.md`        | Gateways, the OCI VCN rules, the Cloudflare tunnel, Tailscale                 |

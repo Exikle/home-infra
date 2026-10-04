@@ -135,10 +135,10 @@ device — tailscale's 1280 — while `enp0s6` runs at 9000. Pinned since 2026-1
 
 - **Why 1500, not 9000:** 1500 is the internet path MTU out of the OCI VCN, so pod egress never
   depends on path-MTU discovery. Nothing on this single node needs jumbo frames between pods.
-- **Dropping `tailscale0` is safe** because no pod traffic routes over it — the node only carries
-  routes to individual tailnet peers, and no manifest addresses a tailnet or Artemis-LAN IP. If a
-  pod ever needs to reach the tailnet, add the device back (`devices: enp0s6,tailscale0`) **and**
-  keep `MTU` pinned, or the 1280 floor returns.
+- **`tailscale0` stays out of `devices` even though pod traffic now uses it.** Pod egress to the
+  home LAN and Artemis pods reaches `tailscale0` through tailscale's policy table 52, without
+  Cilium attached there — which is also what keeps that traffic unmasqueraded. See
+  `clustermesh.md` before adding it back.
 - **An MTU change only reaches existing pods when they are recreated.** The agent restart
   (needed here because `rollOutCiliumPods` is false) moves the host-side `lxc*` interfaces, but
   each pod's own `eth0` keeps its old MTU until the pod is replaced. Check with
@@ -159,7 +159,7 @@ Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique. Change
 - Verify the range: cluster N identities are `N*65536 … N*65536+65535`, so cluster 2 is
   `131072–196607`. `cilium-dbg endpoint list -o json` shows each endpoint's `identity.id`.
 - **Not supported once meshed** — changing ID or name on a cluster that is already connected
-  needs every peer disconnected first.
+  needs every peer disconnected first. Meshed with Artemis since 2026-10-03: `clustermesh.md`.
 
 ## Cloudflare Tunnel
 
