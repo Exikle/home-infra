@@ -72,9 +72,10 @@ private key and token in the config to the terminal.
 ### Changing the Tailscale extension config (Headscale)
 
 `tailscale.yaml.j2` is the source for the live `ExtensionServiceConfig` (logged into Headscale
-since 2026-10-02). **`just bootstrap phase1` does not render it** — it still appends a hand-written
-SaaS config (`op://frostlink/tailscale`, `tag:k8s`); the rebuild path is open in frostlink#347.
-Rules that each cost a failed attempt:
+since 2026-10-02). A rebuild applies it with `just bootstrap tailnet`, which substitutes a freshly
+minted one-hour key for the `op://` reference — a fresh node has no tailscale document yet, so a
+plain patch is correct there (`bootstrap.md` § Rebuild order). Day-2 changes to the running node
+follow the rules below, each of which cost a failed attempt:
 
 - **Replace the document, don't merge it.** Talos merges `environment` lists by appending, so a
   plain patch keeps the old key and flags. Send a `$patch: delete` for the document and the new one

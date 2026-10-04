@@ -210,8 +210,12 @@ an earlier version that was wrong in both directions).
       **Source port must be All** — a rule with source port `80` matches almost
       nothing, because clients send from an ephemeral port.
     - `51820/udp` — towonel iroh QUIC. **Missing the UDP half fails silently.**
-    - `50000/tcp` — Talos API. `talosconfig` points at the **public** IP, not
-      Tailscale, so closing this locks out `talosctl` until that is repointed.
+    - `50000/tcp` — Talos API. Day-2 `talosconfig` points at `10.0.0.203` over the
+      site link; this public rule is the break-glass when the tailnet is down, and the
+      only way in during a rebuild (`bootstrap.md` § Rebuild order). Closing it removes
+      both.
+    - `6443/tcp` is **closed**, and is opened to your home /32 only for the length of a
+      rebuild.
     - `22/tcp` — dead weight; Talos runs no SSH daemon
     - `icmp` 3,4 (path MTU) and `icmp` 3 from `10.0.0.0/16`
     - `25565/tcp` and `3000/udp` — towonel per-service listeners for Artemis's
