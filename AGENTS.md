@@ -5,7 +5,6 @@ reconciled by Flux CD. This file is the entry point for every AI agent working h
 deliberately short: it holds what is true on **every** turn, plus an index of where everything
 else lives.
 
-- **User**: exikle (Dixon) — Mississauga ON (Eastern Time)
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets, no SOPS
 - **CNI**: Cilium | **Ingress**: two paths — Envoy Gateway (HTTPRoute, via Cloudflare tunnel) and the towonel edge (SNI on host `:443`, bypasses Envoy)
@@ -20,8 +19,10 @@ else lives.
 Everything else is conditional. These are not.
 
 1. **`main` is production, and there is one node.** No staging cluster, and nothing to fail over
-   to. Suspend the root **and** the target Kustomization, `just kube apply-ks`, then wait for the
-   user to confirm the live deployment before committing. Two suspends, not one.
+   to. Test with `just kube apply-ks <ns> <ks>`, then wait for the user to confirm the live
+   deployment before committing. `apply-ks` does **not** suspend Flux and there is no
+   `resume-ks` — the test-apply is temporary, Flux reconciles over it (`tooling.md` § just
+   commands). Do not `flux suspend` the root by hand: flux-operator recreates it.
 2. **Never apply cluster changes through an MCP tool — here that is worse than it sounds.** The
    MCP k8s tools do not point at this cluster at all; they point at **Artemis**. An MCP mutation
    run from this repo lands on the wrong cluster. Writes go through git, or `just kube apply-ks`
@@ -29,16 +30,14 @@ Everything else is conditional. These are not.
 3. **Secrets are 1Password ExternalSecrets.** SOPS is not used here — never suggest age
    encryption or `sops --encrypt`.
 4. **Cluster traffic uses `<app>.<namespace>.svc.cluster.local`**, never an external hostname.
-5. **Stage files by name.** No `git add .`, no `git add -A`, no `--no-verify`. One-line semantic
-   commit subject, no body, no `Co-Authored-By`.
-6. **Never hand-edit the Talos schematic ID.** tuppr rebuilds an upgrade from the _node's_
+5. **Never hand-edit the Talos schematic ID.** tuppr rebuilds an upgrade from the _node's_
    schematic, so a stale or hand-written ID silently reinstalls a removed extension — or drops
    `zfs` and takes all storage down. Derive it: `just talos schematic-id`, or read
    `kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`.
-7. **A reboot is a full outage.** Control plane and workload are the same machine
+6. **A reboot is a full outage.** Control plane and workload are the same machine
    (`allowSchedulingOnControlPlanes: true`). Treat `talosctl upgrade`/`reboot` as an outage, not a
    rolling operation — the destructive guard blocks them for that reason.
-8. **Agents edit in a worktree, never the main checkout.** Before the first edit, run
+7. **Agents edit in a worktree, never the main checkout.** Before the first edit, run
    `just wt new <type>/<slug>` (`feat`, `fix`, `chore`, … as in commit subjects) and work only in
    the `.worktrees/<type>-<slug>` path it prints. One agent per worktree. `just wt rm <type>/<slug>`
    when the branch is merged. A pre-commit check refuses agent commits made in the main checkout.
@@ -62,7 +61,8 @@ One machine, so its facts are load-bearing rather than inventory.
 
 Management access goes to `10.0.0.203` over the Headscale site link (from home via the UCG, away via your own Headscale devices — `networking.md` § Access Methods). `.mise.toml` pins `KUBECONFIG` and `TALOSCONFIG` to
 the repo-local files, so **inside this repo the repo-local kubeconfig wins over `~/.kube/config`**
-— no `kubectx` or `--context` step. Context `frostlink`.
+— no `kubectx` or `--context` step. Context `frostlink`. That holds only where mise is active; an
+agent's tool calls are not, so use the forms in `tooling.md` § kubectl and talosctl scoping.
 
 Everything else about the network — VCN, DNS records, the security-list ingress set, the tunnel:
 `networking.md`.

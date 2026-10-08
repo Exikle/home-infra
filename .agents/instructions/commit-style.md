@@ -1,5 +1,8 @@
 # Commit Style — Frostlink
 
+Commit hygiene and the message format are in the global `~/.agents/AGENTS.md` § Commit Hygiene
+and § Commit Message Format. This file covers only the Frostlink sequence and signing model.
+
 ## Two-identity signing model
 
 | Identity               | How commits land on main            | Signed by                        |
@@ -16,7 +19,8 @@ Squash merge always creates a new server-side commit — it cannot be signed by 
 This repo has no staging cluster. `main` reconciles directly to production.
 
 1. Write changes locally
-2. Apply to live cluster: `just kube apply-ks <ns> <ks-name>`
+2. Apply to live cluster: `just kube apply-ks <ns> <ks-name>` — no suspend step here; the apply is
+   temporary until the commit lands (`tooling.md` § just commands)
 3. Wait for **explicit user confirmation** that it works
 4. Stage specific files, commit, and push directly to `main`:
 

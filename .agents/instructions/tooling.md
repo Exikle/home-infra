@@ -29,8 +29,10 @@ just bootstrap phase1 | phase2 | tailnet  # one-time bring-up only, confirm-gate
 Notes that are easy to get wrong:
 
 - **`apply-ks` does not suspend Flux.** It is a plain `flate build | kubectl apply --server-side
---force-conflicts`. Flux will happily reconcile over the result, so an applied-but-uncommitted
-  change is temporary. There is no `resume-ks` recipe here, and none is needed.
+--force-conflicts --field-manager=kustomize-controller` (`kubernetes/mod.just`, `apply-ks` and
+  `render-local-ks`). Flux will happily reconcile over the result, so an applied-but-uncommitted
+  change is temporary. There is no `suspend-ks` or `resume-ks` recipe here, and none is needed.
+  The Artemis comparison is in `flux-patterns.md`.
 - **`just talos schematic-id` is `[private]`** — it is called by `just talos upgrade`, not run
   directly.
 - **`just kube restore` carries a long ordering rationale in its recipe comments.** Read them, and
@@ -44,21 +46,21 @@ Notes that are easy to get wrong:
 `TALOSCONFIG={{config_root}}/talosconfig`. **That only applies where mise is actually activated —
 an interactive shell with the mise hook loaded.** It is not a property of the directory.
 
-**In a non-interactive shell — which is what an agent's tool calls are — `cd`ing here does
-nothing.** `cd ~/frostlink && kubectl config current-context` prints `artemis`, and a destructive
-command run that way lands on the wrong cluster with no warning. Verified 2026-08-22. Two safe
-forms:
+**In a non-interactive shell — which is what an agent's tool calls are — being in this directory
+does nothing.** Outside mise, `~/.zshenv` sets `KUBECONFIG` to a merged Artemis + Frostlink list
+whose current context is `artemis`, so bare `kubectl config current-context` prints `artemis` even
+from this repo, and a destructive command run that way lands on the wrong cluster with no warning.
+Verified 2026-08-22. Safe forms, one command each (`~/.agents/rules/bash-calls.md`):
 
 ```bash
-KUBECONFIG=~/frostlink/kubeconfig kubectl ...   # explicit, works anywhere
-just kube <recipe>                               # kubernetes/mod.just hardcodes --context frostlink
+just kube <recipe>                                   # kubernetes/mod.just hardcodes --context frostlink
+kubectl get pods -A --context frostlink              # flag after the verb, so `Bash(kubectl get:*)` still matches
+talosctl version --talosconfig /home/exikle/frostlink/talosconfig   # talosctl has no merged fallback
 ```
 
-`just` recipes are safe because they pin the context themselves. Bare `kubectl` after a `cd` is
-not.
-`kubernetes/mod.just` additionally hardcodes `kubectl --context frostlink`. Do not add `kubectx`
-steps or `--kubeconfig` paths to anything in this repo — they are redundant here and wrong
-everywhere else.
+`just` recipes are safe because they pin the context themselves. Bare `kubectl` is not. Do not
+add `kubectx` steps or `--kubeconfig` paths to anything in this repo — they are redundant here
+and wrong everywhere else.
 
 ## MCP servers
 
@@ -94,17 +96,13 @@ frontmatter — without the frontmatter a skill can only be invoked by typing it
 
 ### Subagents in this repo
 
-General subagent guidance is in the global `~/.claude/CLAUDE.md` § Subagents, the context cost
-that motivates it in § Context Economy, and how to publish a subagent's findings in § Artifacts.
-Read them there — none of it is restated here. Frostlink-specific additions:
+When to spawn, read-only recon by default, worktrees, and stating the safety rules in the prompt
+are in the global `~/.agents/AGENTS.md` § Delegation and context; where findings get published is
+`~/.claude/CLAUDE.md` § Artifacts. None of it is restated here. Frostlink-specific additions:
 
-- **Default to read-only recon.** The commit rule (stage by name, never commit unasked) and the
-  apply rule (test, then wait for explicit user confirmation) both require a human in the loop, so
-  a subagent should produce a report and let the spawning session apply it.
-- **State the safety rules in the prompt every time.** A fresh agent inherits none of this file.
-  Spell out "do not commit, do not push, do not `just kube apply-ks`, do not mutate the cluster"
-  in the prompt itself.
-- **Tell it to use local `kubectl`, not MCP.** A subagent doing cluster inspection here will
-  otherwise reach for the k8s MCP tools and silently report Artemis's state as Frostlink's.
-- **Edits go in a git worktree** (`AGENTS.md` rule 8). `just kube apply-ks` applies the tree of
-  the worktree you run it from.
+- **Name the Frostlink safety rules in the prompt:** "do not commit, do not push, do not
+  `just kube apply-ks`, do not mutate the cluster".
+- **Tell it to use local `kubectl --context frostlink`, not MCP.** A subagent doing cluster
+  inspection here will otherwise reach for the k8s MCP tools and silently report Artemis's state
+  as Frostlink's.
+- **`just kube apply-ks` applies the tree of the worktree you run it from** (`AGENTS.md` rule 7).

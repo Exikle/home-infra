@@ -1,22 +1,20 @@
 # Session Journal — Frostlink
 
-The journal format, the trigger list for when to write an entry, the entry template, and the
-`## Current State` convention are defined once in the global agent context (`~/.claude/CLAUDE.md`
-§ Session Journal). They are not repeated here — a second copy is exactly the drift this repo has
-already been bitten by.
-
-Related global sections worth having loaded before a long session: § Context Economy (what the
-journal is protecting you from re-deriving) and § Artifacts (where a plan or audit goes when a
-later session, not just a later context window, will need it).
+The journal format, the entry template, and the `## Current State` convention are defined once in
+the global `~/.agents/AGENTS.md` § Memory; what survives a compaction is `~/.claude/CLAUDE.md`
+§ Compaction, and where a plan or audit goes when a later session will need it is
+`~/.claude/CLAUDE.md` § Artifacts. They are not repeated here — a second copy is exactly the drift
+this repo has already been bitten by.
 
 ## Repo specifics
 
 - The journal is `.claude/session-journal.md`. `.claude/.gitignore` denies everything by default,
   so it is **gitignored** and never leaves this machine — it can hold detail that would be
   inappropriate in a public commit message.
-- **There is no `PreCompact` hook here** (Artemis has one; this repo's `.claude/settings.json`
-  wires only `SessionStart`, `PreToolUse`, and `PostToolUse`). Nothing trims the journal for you,
-  so keep entries to 2–4 bullets and prune the `## Log` tail by hand when it grows unwieldy.
+- **The compaction hooks are global, not repo-level.** This repo's `.claude/settings.json` wires
+  none, but `~/.claude/settings.json` fires in every repo: a `PreCompact` hook trims `## Log` to
+  its newest 250 lines once the file passes 300 (one `.bak` kept), and a `SessionStart` `compact`
+  hook re-injects only `## Current State`. Keep that section current; do not prune by hand.
 - Because there is no staging cluster, the WHY behind a live-cluster change matters more than
   usual. Record what was applied with `just kube apply-ks`, and what the user confirmed. An
   applied-but-uncommitted change here is temporary — Flux reconciles over it — so an unrecorded
