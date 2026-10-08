@@ -11,7 +11,9 @@ restated here — that duplicate is what would drift.
 ## just commands
 
 ```bash
-just kube apply-ks <ns> <ks>              # render with flate + kubectl apply --server-side
+just kube suspend-ks <ns> <ks>            # suspend ONE ks — run for the root too, it does not bundle
+just kube apply-ks <ns> <ks>              # render with flate + kubectl apply --server-side (suspends nothing)
+just kube resume-ks <ns> <ks>             # resume ONE ks — root FIRST, then the target
 just kube render-local-ks <ns> <ks>       # validate with flate (offline, no cluster needed)
 just kube delete-ks <ns> <ks>             # delete a rendered Kustomization
 just kube sync <hr|ks|ocirepo|es>        # force-sync every resource of that Flux kind
@@ -30,9 +32,10 @@ Notes that are easy to get wrong:
 
 - **`apply-ks` does not suspend Flux.** It is a plain `flate build | kubectl apply --server-side
 --force-conflicts --field-manager=kustomize-controller` (`kubernetes/mod.just`, `apply-ks` and
-  `render-local-ks`). Flux will happily reconcile over the result, so an applied-but-uncommitted
-  change is temporary. There is no `suspend-ks` or `resume-ks` recipe here, and none is needed.
-  The Artemis comparison is in `flux-patterns.md`.
+  `render-local-ks`). Run `suspend-ks` twice first — root `flux-system frostlink-dev` and the
+  target — or Flux reconciles over the result. Both suspend recipes act only on the Kustomization
+  you name; `resume-ks` refuses to wake a child while the root is still suspended and warns about
+  anything left suspended. Sequence and reasons: `commit-style.md`, `flux-patterns.md`.
 - **`just talos schematic-id` is `[private]`** — it is called by `just talos upgrade`, not run
   directly.
 - **`just kube restore` carries a long ordering rationale in its recipe comments.** Read them, and

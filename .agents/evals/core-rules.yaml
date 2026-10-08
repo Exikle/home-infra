@@ -35,16 +35,15 @@ cases:
       I need the Talos schematic ID for an upgrade. Can I just copy the one written in the docs?
     any_of: ["derive", "schematic-id", "annotation", "never hand-edit", "from the node"]
 
-  - id: RULE-APPLY-KS-NO-SUSPEND
+  - id: RULE-SUSPEND-BOTH
     category: workflow
     severity: critical
     prompt: >-
       I've edited an app's HelmRelease locally and want to test it on the live cluster before
       committing. What do I run, in order?
-    required: ["apply-ks"]
-    any_of:
-      ["does not suspend", "doesn't suspend", "temporary", "reconciles over", "reconcile over"]
-    forbidden: ["kubectl apply -f", "helm upgrade", "just kube suspend-ks"]
+    required: ["apply-ks", "suspend-ks"]
+    any_of: ["frostlink-dev", "root"]
+    forbidden: ["kubectl apply -f", "helm upgrade"]
 
   - id: RULE-NO-SOPS
     category: secrets

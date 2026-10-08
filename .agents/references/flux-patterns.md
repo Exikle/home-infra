@@ -5,9 +5,13 @@
 Test live before committing — `main` goes directly to production:
 
 ```bash
-just kube apply-ks <ns> <ks-name>   # apply live; wait for user confirmation before committing
+just kube suspend-ks flux-system frostlink-dev  # REQUIRED — root
+just kube suspend-ks <ns> <ks-name>             # REQUIRED — target
+just kube apply-ks <ns> <ks-name>               # apply live; wait for user confirmation before committing
 # ...commit and push, then wait for the OCI artifact build to go green...
-just kube sync ocirepo              # force-sync all OCIRepositories — repeat until the digest moves
+just kube sync ocirepo                          # force-sync all OCIRepositories — repeat until the digest moves
+just kube resume-ks flux-system frostlink-dev   # root FIRST
+just kube resume-ks <ns> <ks-name>              # then the target
 ```
 
 Other force-sync targets:
@@ -43,22 +47,33 @@ Live anchors (verified 2026-08-21): distribution `2.x`; controllers source `v1.9
 HelmRelease `helm.toolkit.fluxcd.io/v2`, OCIRepository `source.toolkit.fluxcd.io/v1`,
 ExternalSecret `external-secrets.io/v1`.
 
-### `apply-ks` does NOT suspend here — unlike Artemis
+### Suspend before a test-apply — same as Artemis
 
-Artemis's `just kube apply-ks` suspends the root Kustomization plus the target child and
-**requires** a matching `just kube resume-ks` afterwards. **Frostlink's does neither.** It is a
-plain `flate build` piped into a server-side apply, there is no `resume-ks` recipe in
-`kubernetes/mod.just`, and none is needed.
+`apply-ks` suspends nothing. **Both suspend recipes are narrow** — they act only on the
+Kustomization you name, so the root is always a separate call. Going in, order does not matter;
+`suspend-ks` on a child only warns if the root is still running. Coming out, order is enforced:
+`resume-ks` refuses to wake a child while the root is still suspended, because the child would
+reconcile its old spec and write stale values straight back. It also warns about anything left
+suspended when it finishes — read its last line. Never resume before CI has rebuilt the artifact.
 
-| | Artemis | Frostlink |
-| ------------------------------ | -------------------------------------------------- | ------------------------------------------- |
-| `apply-ks` suspends Flux | yes (root `artemis-cluster` + child) | **no** |
-| `resume-ks` required after | yes — skipping leaves Flux suspended cluster-wide | n/a, no such recipe |
-| Applied-but-uncommitted change | survives until you resume | **temporary** — the root reconciles over it |
+**Suspending the root survives — flux-operator does not recreate it.** An earlier version of this
+file said it did. Checked read-only on 2026-10-07, against both clusters:
 
-So on Frostlink an applied-but-uncommitted change decays on its own. Do not copy Artemis's
-suspend/resume sequence into this repo, and do not `flux suspend` the root by hand as a
-substitute — flux-operator recreates `frostlink-dev` from the FluxInstance within seconds.
+- `FluxInstance/flux` inventory holds only `Kustomization/flux-system` and
+  `OCIRepository/flux-system`. `frostlink-dev` is not in it, and has no ownerReference.
+- `frostlink-dev` carries `kustomize.toolkit.fluxcd.io/name: flux-system` — it is applied by the
+  `flux-system` Kustomization from `kubernetes/flux/sync/cluster.yaml`, which sets no `suspend`.
+- Its `kustomize-controller` server-side-apply field set does not include `spec.suspend`, so a
+  re-apply leaves a `flux suspend` in place.
+- Artemis's `artemis-cluster` is wired identically on every point above, and its two-suspend
+  sequence is routine there.
+
+Check it yourself:
+
+```bash
+kubectl get fluxinstance flux -n flux-system --context frostlink -o jsonpath='{.status.inventory.entries[*].id}'
+kubectl get ks frostlink-dev -n flux-system --context frostlink --show-managed-fields -o yaml
+```
 
 ## Stuck HelmRelease
 
@@ -154,7 +169,7 @@ Kustomization with `wait: true` hangs on health checks for the full timeout — 
 indefinitely. `fediverse/apoci` flapped `DependencyNotReady` 58128 times over 12 days on exactly
 this, and while stuck on a stale revision it silently re-applied an old cron over a change.
 
-- **`healthCheckExprs` does not help.** The generation precondition is evaluated *before* the CEL
+- **`healthCheckExprs` does not help.** The generation precondition is evaluated _before_ the CEL
   expressions, so the stale field still wins. Verified live, not assumed.
 - **Fix: drop `wait: true` and gate on the HelmRelease** via explicit `spec.healthChecks` — that
   is what "the app is up" actually means. Applied to `fediverse/apoci`, `fediverse/gotosocial`
@@ -170,9 +185,10 @@ this, and while stuck on a stale revision it silently re-applied an old cron ove
 ## ks.yaml changes cannot be tested locally
 
 `just kube apply-ks <ns> <ks>` renders and applies the app **path** — it does not touch the
-Kustomization CR itself. Patching the live CR does not work either: `frostlink-dev` reverts it
-within seconds, and suspending `frostlink-dev` does not help because flux-operator recreates it
-from the FluxInstance. **Pushing is the only way to test a ks.yaml change**, so budget for
+Kustomization CR itself. Patching the live CR does not work either: a running `frostlink-dev`
+reverts it. (flux-operator does **not** recreate `frostlink-dev` — § Suspend before a test-apply —
+but whether a CR patch holds under a suspended root has not been tested.) **Pushing is the only
+proven way to test a ks.yaml change**, so budget for
 verifying after the push rather than before. Two test results were silently invalidated by this
 before it was noticed.
 

@@ -19,8 +19,16 @@ Squash merge always creates a new server-side commit — it cannot be signed by 
 This repo has no staging cluster. `main` reconciles directly to production.
 
 1. Write changes locally
-2. Apply to live cluster: `just kube apply-ks <ns> <ks-name>` — no suspend step here; the apply is
-   temporary until the commit lands (`tooling.md` § just commands)
+2. Suspend the root **and** the target — two calls, order does not matter, both idempotent — then
+   apply to the live cluster. `apply-ks` suspends nothing; skip a suspend and Flux silently
+   reverts the edit (`flux-patterns.md` § Suspend before a test-apply):
+
+    ```bash
+    just kube suspend-ks flux-system frostlink-dev
+    just kube suspend-ks <ns> <ks-name>
+    just kube apply-ks <ns> <ks-name>
+    ```
+
 3. Wait for **explicit user confirmation** that it works
 4. Stage specific files, commit, and push directly to `main`:
 
@@ -31,7 +39,16 @@ This repo has no staging cluster. `main` reconciles directly to production.
     git push origin main
     ```
 
-5. After push: `just kube sync <ocirepo|hr|ks|es>`
+5. After push, once CI has rebuilt the artifact: `just kube sync ocirepo` until the `flux-system`
+   digest moves, then resume — **root first, then the target**, as two calls:
+
+    ```bash
+    just kube resume-ks flux-system frostlink-dev
+    just kube resume-ks <ns> <ks-name>
+    ```
+
+    Do not resume before the artifact is rebuilt — that applies the pre-commit revision and
+    reverts what you just landed. `resume-ks` refuses a child while the root is still suspended.
 
 **Never commit or push until the user explicitly confirms the live deployment works.**
 

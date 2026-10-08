@@ -19,10 +19,9 @@ else lives.
 Everything else is conditional. These are not.
 
 1. **`main` is production, and there is one node.** No staging cluster, and nothing to fail over
-   to. Test with `just kube apply-ks <ns> <ks>`, then wait for the user to confirm the live
-   deployment before committing. `apply-ks` does **not** suspend Flux and there is no
-   `resume-ks` — the test-apply is temporary, Flux reconciles over it (`tooling.md` § just
-   commands). Do not `flux suspend` the root by hand: flux-operator recreates it.
+   to. Suspend the root **and** the target Kustomization, `just kube apply-ks`, then wait for the
+   user to confirm the live deployment before committing. Two suspends, not one — `apply-ks`
+   suspends nothing, and a child reconciling on its own interval silently reverts your edits.
 2. **Never apply cluster changes through an MCP tool — here that is worse than it sounds.** The
    MCP k8s tools do not point at this cluster at all; they point at **Artemis**. An MCP mutation
    run from this repo lands on the wrong cluster. Writes go through git, or `just kube apply-ks`

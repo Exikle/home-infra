@@ -3,12 +3,15 @@ set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
 kubectl := "kubectl --context frostlink"
+flux := "flux --context frostlink"
+root_ks := "frostlink-dev"
+root_ns := "flux-system"
 
 [private]
 default:
     just -l kube
 
-[doc('Apply local Flux Kustomization')]
+[doc('Apply local Flux Kustomization — run suspend-ks first')]
 apply-ks ns ks:
     just kube render-local-ks "{{ ns }}" "{{ ks }}" | {{ kubectl }} apply --server-side --force-conflicts --field-manager=kustomize-controller -f /dev/stdin
 
@@ -24,7 +27,7 @@ debug-node node:
     trap '{{ kubectl }} delete pod -n default -l app.kubernetes.io/managed-by=kubectl-debug --field-selector spec.nodeName={{ node }} --ignore-not-found --wait=false' EXIT
     {{ kubectl }} debug node/{{ node }} -n default -it --image=mirror.gcr.io/alpine:latest --profile=sysadmin
 
-[doc('Delete local Flux Kustomization')]
+[doc('Delete local Flux Kustomization — run suspend-ks first')]
 delete-ks ns ks:
     just kube render-local-ks "{{ ns }}" "{{ ks }}" | {{ kubectl }} delete -f /dev/stdin
 
@@ -41,6 +44,55 @@ kopiur state:
     flux -n kopiur-system {{ state }} kustomization kopiur
     flux -n kopiur-system {{ state }} helmrelease kopiur
     {{ kubectl }} -n kopiur-system scale deployment kopiur-controller --replicas {{ if state != "suspend" { "1" } else { "0" } }}
+
+[doc('Suspend one Flux Kustomization — suspend the root separately, or it reverts your edits')]
+[script]
+suspend-ks ns ks:
+    just log info "Suspending" ns "{{ ns }}" ks "{{ ks }}"
+
+    case "$({{ kubectl }} -n {{ ns }} get kustomization {{ ks }} -o jsonpath='{.spec.suspend}' 2>/dev/null || echo missing)" in
+        true) just log info "Already suspended" ns "{{ ns }}" ks "{{ ks }}" ;;
+        missing)
+            [[ "{{ ns }}/{{ ks }}" != "{{ root_ns }}/{{ root_ks }}" ]] \
+                || just log fatal "Root Kustomization not found — wrong context?" ns "{{ ns }}" ks "{{ ks }}"
+            just log warn "Not in cluster yet, nothing to suspend" ns "{{ ns }}" ks "{{ ks }}" ;;
+        *)
+            {{ flux }} -n {{ ns }} suspend kustomization {{ ks }} >/dev/null 2>&1 \
+                || just log fatal "Could not suspend" ns "{{ ns }}" ks "{{ ks }}"
+            just log info "Suspended" ns "{{ ns }}" ks "{{ ks }}" ;;
+    esac
+
+    # Suspending the root is a separate call. Left running it re-applies every child's spec on
+    # the next artifact and reverts the uncommitted edits apply-ks just wrote. Warn, do not act.
+    if [[ "{{ ns }}/{{ ks }}" != "{{ root_ns }}/{{ root_ks }}" ]]; then
+        root="$({{ kubectl }} -n {{ root_ns }} get kustomization {{ root_ks }} \
+            -o jsonpath='{.spec.suspend}' 2>/dev/null || true)"
+        [[ "$root" == "true" ]] || just log warn \
+            "Root NOT suspended, it will revert your edits: just kube suspend-ks {{ root_ns }} {{ root_ks }}"
+    fi
+
+[doc('Resume one Flux Kustomization — resume the root first if it is also suspended')]
+[script]
+resume-ks ns ks:
+    just log info "Resuming" ns "{{ ns }}" ks "{{ ks }}"
+
+    # Refuse to wake a child while the root is still suspended. The child would reconcile its
+    # OLD spec and write stale values straight back. Resuming the root is a separate call.
+    if [[ "{{ ns }}/{{ ks }}" != "{{ root_ns }}/{{ root_ks }}" ]]; then
+        root="$({{ kubectl }} -n {{ root_ns }} get kustomization {{ root_ks }} \
+            -o jsonpath='{.spec.suspend}' 2>/dev/null || true)"
+        [[ "$root" != "true" ]] || just log fatal \
+            "Root still suspended, resume it first: just kube resume-ks {{ root_ns }} {{ root_ks }}"
+    fi
+
+    {{ flux }} -n {{ ns }} resume kustomization {{ ks }} --timeout 10m \
+        || just log fatal "Could not resume" ns "{{ ns }}" ks "{{ ks }}"
+    just log info "Resumed" ns "{{ ns }}" ks "{{ ks }}"
+
+    # Narrow by design, but never leave anything suspended silently.
+    left="$({{ kubectl }} get kustomization -A \
+        -o jsonpath='{range .items[?(@.spec.suspend==true)]}{.metadata.namespace}/{.metadata.name} {end}')"
+    [[ -z "$left" ]] || just log warn "Still suspended — resume these too" targets "$left"
 
 [arg('resource', pattern='hr|ks|gitrepo|ocirepo|es')]
 [doc('Sync a resource')]
