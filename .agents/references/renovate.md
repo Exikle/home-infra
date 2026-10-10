@@ -158,7 +158,7 @@ by hand on 2026-10-02 (frostlink#345).
 
 The cost: for those three packages the 7-day wait cannot be enforced, so their PRs open as soon as
 a release appears. `automerge: false` is what keeps them safe — nothing reboots the node until a
-human merges. The talosctl pin in `.mise.toml` does carry a timestamp, so its 7 days still apply.
+human merges. The talosctl pin in `.mise/config.toml` does carry a timestamp, so its 7 days still apply.
 
 Tracking itself was never the problem: the default preset's generic `# renovate: datasource=…
 depName=…` manager scans every file and already extracts the tuppr annotations and the kube-proxy
@@ -169,10 +169,10 @@ redundant with it).
 
 The Talos version is pinned in **two** places, and only one is under the tuppr directory:
 
-| Where                              | Datasource             |
-| ---------------------------------- | ---------------------- |
-| `tuppr/upgrades/talosupgrade.yaml` | `custom.talos-factory` |
-| `talos = "…"` in `.mise.toml`      | mise manager           |
+| Where                                | Datasource             |
+| ------------------------------------ | ---------------------- |
+| `tuppr/upgrades/talosupgrade.yaml`   | `custom.talos-factory` |
+| `talos = "…"` in `.mise/config.toml` | mise manager           |
 
 A file-scoped guard would leave the talosctl **CLI** automerging and drifting from the node —
 which matters here, because talosctl decodes config documents client-side and an older client
@@ -254,11 +254,11 @@ the two halves in step.
 
 ## Lock File Maintenance
 
-Six of the seven tools in `.mise.toml` are `latest` — `talos` is the only pin —
-so `mise.lock` is the only thing pinning the rest, and nothing was refreshing it. flate,
+Six of the seven tools in `.mise/config.toml` are `latest` — `talos` is the only pin —
+so `.mise/mise.lock` is the only thing pinning the rest, and nothing was refreshing it. flate,
 minijinja, oxfmt, shellcheck, yayamlls and zizmor were frozen at whatever resolved when the lock
 was last written, and the lock still carried a `github:home-operations/yamlls` entry for a tool
-renamed out of `.mise.toml`.
+renamed out of the mise config.
 
 It needs its **own schedule** — the top-level `"at any time"` would run this every pass.
 

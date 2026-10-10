@@ -32,7 +32,7 @@ every constraint below. Read it before deviating from this procedure.
 - **`inheritSecurityContextFrom: pvcConsumer` is backup-only** — the webhook rejects it on a
   `Restore`. The component uses `snapshot: {}` there, which replays the UID/GID recorded on the
   snapshot and needs no live pod.
-- Local `kubectl` is already scoped to Frostlink by `.mise.toml`. Do not add `--kubeconfig` or
+- Local `kubectl` is already scoped to Frostlink by `.mise/config.toml`. Do not add `--kubeconfig` or
   `--context`, and do not use the k8s MCP tools — they act on Artemis.
 
 ## Step 1 — Confirm with the user

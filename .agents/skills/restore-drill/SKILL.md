@@ -11,7 +11,7 @@ Kopiur snapshots to R2 for PVCs — are alive and that a recovery path exists. *
 restore.** This matters more here than on a multi-node cluster: there is one node, one Postgres
 instance, and nothing to fail over to.
 
-Local `kubectl` is already scoped to Frostlink by `.mise.toml` — no `--context`, no
+Local `kubectl` is already scoped to Frostlink by `.mise/config.toml` — no `--context`, no
 `--kubeconfig`, and do not use the k8s MCP tools (they act on Artemis).
 
 ## What exists to check

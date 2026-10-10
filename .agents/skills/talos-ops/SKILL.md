@@ -45,7 +45,7 @@ mise exec -- talosctl --context frostlink patch machineconfig \
 
 For changes requiring a reboot, add `--mode reboot`.
 
-Use `mise exec -- talosctl`: the client decodes config documents locally, so a mismatched client rejects valid documents (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`) before the node sees them. `.mise.toml` pins the matching version.
+Use `mise exec -- talosctl`: the client decodes config documents locally, so a mismatched client rejects valid documents (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`) before the node sees them. `.mise/config.toml` pins the matching version.
 
 ### Deleting a field
 

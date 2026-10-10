@@ -58,7 +58,7 @@ One machine, so its facts are load-bearing rather than inventory.
   the whole `openebs-zfs` storage layer depends on it
 - Live versions are a command, not a number: `talosctl version`, `kubectl version`
 
-Management access goes to `10.0.0.203` over the Headscale site link (from home via the UCG, away via your own Headscale devices — `networking.md` § Access Methods). `.mise.toml` pins `KUBECONFIG` and `TALOSCONFIG` to
+Management access goes to `10.0.0.203` over the Headscale site link (from home via the UCG, away via your own Headscale devices — `networking.md` § Access Methods). `.mise/config.toml` pins `KUBECONFIG` and `TALOSCONFIG` to
 the repo-local files, so **inside this repo the repo-local kubeconfig wins over `~/.kube/config`**
 — no `kubectx` or `--context` step. Context `frostlink`. That holds only where mise is active; an
 agent's tool calls are not, so use the forms in `tooling.md` § kubectl and talosctl scoping.

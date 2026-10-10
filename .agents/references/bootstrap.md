@@ -117,7 +117,7 @@ Creates the following secrets before Flux and ExternalSecrets are running:
 
 Applied by `just bootstrap base`, which also creates every namespace under `kubernetes/apps/`
 first and applies the CRDs from `bootstrap/helmfile.d/00-crds.yaml` afterwards. Inside this repo
-`.mise.toml` already pins `KUBECONFIG`, so no `KUBECONFIG=` prefix is needed — but during a real
+`.mise/config.toml` already pins `KUBECONFIG`, so no `KUBECONFIG=` prefix is needed — but during a real
 bootstrap the repo-root `kubeconfig` does not exist until `just bootstrap kubeconfig` has run.
 
 ## Cilium / CoreDNS / cert-manager — Install Directly

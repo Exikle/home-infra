@@ -123,7 +123,7 @@ machine:
             $patch: delete
 ```
 
-**Client version matters.** talosctl decodes config documents client-side, so a v1.13 client rejects a v1.14 document with `"KubeTalosAPIAccessConfig" "v1alpha1": not registered` before the node ever sees it. `.mise.toml` pins talosctl to match the cluster; use `mise exec -- talosctl`.
+**Client version matters.** talosctl decodes config documents client-side, so a v1.13 client rejects a v1.14 document with `"KubeTalosAPIAccessConfig" "v1alpha1": not registered` before the node ever sees it. `.mise/config.toml` pins talosctl to match the cluster; use `mise exec -- talosctl`.
 
 ### certSANs minimal patch
 

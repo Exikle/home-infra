@@ -53,7 +53,7 @@ commits (`type(scope): subject`).
 
 ## kubectl and talosctl scoping
 
-`.mise.toml` sets `KUBECONFIG={{config_root}}/kubeconfig` and
+`.mise/config.toml` sets `KUBECONFIG={{config_root}}/kubeconfig` and
 `TALOSCONFIG={{config_root}}/talosconfig`. **That only applies where mise is actually activated —
 an interactive shell with the mise hook loaded.** It is not a property of the directory.
 

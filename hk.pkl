@@ -24,12 +24,12 @@ local linters = new Mapping<String, Step> {
   }
   // mise fmt rewrites the config in place; a mise lock reading it mid-rewrite prunes the
   // lockfile, so lock waits for fmt.
-  ["mise-fmt"] = (Builtins.mise) { glob = List(".mise.toml", ".mise/config.toml", ".mise/conf.d/*.toml") }
+  ["mise-fmt"] = (Builtins.mise) { glob = List(".mise/config.toml", ".mise/conf.d/*.toml") }
   ["mise-lock"] {
-    glob = List(".mise.toml", ".mise/config.toml", ".mise/conf.d/*.toml")
+    glob = List(".mise/config.toml", ".mise/conf.d/*.toml")
     depends = "mise-fmt"
     fix = "mise lock"
-    stage = List("mise.lock", ".mise/**")
+    stage = List(".mise/mise.lock", ".mise/locks/**")
   }
 
   // --- Linters ----------------------------------------------------------------------------
