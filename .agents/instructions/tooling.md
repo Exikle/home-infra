@@ -31,7 +31,7 @@ just bootstrap phase1 | phase2 | tailnet  # one-time bring-up only, confirm-gate
 Notes that are easy to get wrong:
 
 - **`apply-ks` does not suspend Flux.** It is a plain `flate build | kubectl apply --server-side
---force-conflicts --field-manager=kustomize-controller` (`kubernetes/mod.just`, `apply-ks` and
+  --force-conflicts --field-manager=kustomize-controller` (`kubernetes/mod.just`, `apply-ks` and
   `render-local-ks`). Run `suspend-ks` twice first — root `flux-system frostlink-dev` and the
   target — or Flux reconciles over the result. Both suspend recipes act only on the Kustomization
   you name; `resume-ks` refuses to wake a child while the root is still suspended and warns about
@@ -42,6 +42,14 @@ Notes that are easy to get wrong:
   `.agents/references/storage.md` § Restore, before running it. It exists specifically to catch a
   restore that "succeeds" onto an empty volume.
 - Full recipe list: `bootstrap/mod.just`, `kubernetes/mod.just`, `talos/mod.just`.
+
+## Git hooks
+
+`hk.pkl` is the single config for the pre-commit and commit-msg hooks, for `hk check` / `hk fix`,
+and for CI. Install once per clone with `hk install --mise` (linked worktrees share it).
+`hk check --all` runs every check by hand and `hk fix --all` applies the formatters. Skip one step
+with `HK_SKIP_STEPS=<name>`, never `--no-verify`. Commit subjects must parse as conventional
+commits (`type(scope): subject`).
 
 ## kubectl and talosctl scoping
 

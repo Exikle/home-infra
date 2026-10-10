@@ -17,7 +17,7 @@ every constraint below. Read it before deviating from this procedure.
   importantly, **asserts the restore actually came from a snapshot** before declaring success.
   Do not hand-roll the sequence unless the recipe itself is broken.
 - **The `Restore` CR pins its snapshot resolution at creation and never re-evaluates it.** A CR
-  created before the app's first snapshot pins `resolution: NoSnapshot` *forever*, and because the
+  created before the app's first snapshot pins `resolution: NoSnapshot` _forever_, and because the
   component sets `onMissingSnapshot: Continue` it then provisions an **empty** volume, runs no
   mover, and reports `phase: Completed`. Always delete and recreate the Restore CR, then assert
   `status.resolved.resolution == Snapshot`.
@@ -93,7 +93,7 @@ kubectl -n openebs-system delete zfsvolume <pv-name>
 
 Skipping this leaks the space permanently.
 
-To inspect a restored volume *before* the app touches it, make a throwaway pod the first consumer
+To inspect a restored volume _before_ the app touches it, make a throwaway pod the first consumer
 instead of the app:
 
 ```bash
@@ -112,9 +112,9 @@ just kube browse-pvc <ns> <claim>
 - **`disk quota exceeded`** — mover cache below 2Gi; raise `KOPIUR_CACHE_CAPACITY`.
 - **Snapshot stuck with a `snapshot-cleanup` finalizer**:
 
-  ```bash
-  kubectl -n <ns> patch snapshot <name> --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
-  ```
+    ```bash
+    kubectl -n <ns> patch snapshot <name> --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
+    ```
 
 - **Whole Kustomization stops reconciling after a restore** — `spec.dataSourceRef` is immutable
   once bound, and Flux applies a Kustomization atomically, so one rejected PVC blocks all of it.

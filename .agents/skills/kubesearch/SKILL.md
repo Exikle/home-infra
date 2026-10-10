@@ -69,15 +69,15 @@ Show the fetched YAML and note the source URL. Identify the key patterns:
 
 Adapt to Frostlink conventions:
 
-| Theirs                                      | Frostlink equivalent                                                                  |
-| ------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `HelmRepository` + `chart:`                 | Standalone `OCIRepository` → `oci://ghcr.io/bjw-s-labs/helm/app-template` v5.1.0     |
-| Any `TZ:` env var                           | Remove — k8tz handles timezone cluster-wide                                           |
-| `secretRef` / `envFrom`                     | `ExternalSecret` via `onepassword-connect` ClusterSecretStore                         |
-| `Ingress`                                   | `HTTPRoute` inline in helmrelease values via `external-gateway` (the only gateway)    |
+| Theirs                                                   | Frostlink equivalent                                                                                                                                              |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HelmRepository` + `chart:`                              | Standalone `OCIRepository` → `oci://ghcr.io/bjw-s-labs/helm/app-template` v5.1.0                                                                                  |
+| Any `TZ:` env var                                        | Remove — k8tz handles timezone cluster-wide                                                                                                                       |
+| `secretRef` / `envFrom`                                  | `ExternalSecret` via `onepassword-connect` ClusterSecretStore                                                                                                     |
+| `Ingress`                                                | `HTTPRoute` inline in helmrelease values via `external-gateway` (the only gateway)                                                                                |
 | `dependsOn: mariadb`, `postgres`, or `dragonfly-cluster` | Shared `postgres/cert` component (Postgres) or the shared Dragonfly instance (cache/queue) — see `.agents/instructions/cluster-conventions.md` "Database & Cache" |
-| Block storage class                         | `openebs-zfs` (no Rook-Ceph on Frostlink)                                             |
-| Any namespace                               | Match user's target namespace for this cluster                                        |
+| Block storage class                                      | `openebs-zfs` (no Rook-Ceph on Frostlink)                                                                                                                         |
+| Any namespace                                            | Match user's target namespace for this cluster                                                                                                                    |
 
 If the source already uses `app-template`, carry their `controllers`/`containers`/`persistence` structure directly — just update image and secrets pattern.
 

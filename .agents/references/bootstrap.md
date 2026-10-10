@@ -45,7 +45,7 @@ Then, in order:
    credential or repository yields an **empty volume, not an error**. For Headscale that means a
    new noise key and an empty database: every device would have to re-register.
 3. **Check Headscale came back with its devices:** `kubectl -n network exec deploy/headscale -c app
--- headscale nodes list` shows the UCG and your devices; the UCG reconnects on its own.
+   -- headscale nodes list` shows the UCG and your devices; the UCG reconnects on its own.
 4. `just bootstrap tailnet` — mints a one-hour, one-time `tag:frostlink` key, substitutes it into
    `talos/patches/tailscale.yaml.j2` in a 600 temp file, and patches it onto the node over the
    public Talos API (no reboot). The key is never written to 1Password; it is spent on first use.

@@ -5,8 +5,8 @@ set shell := ['bash', '-euo', 'pipefail', '-c']
 default:
     just -l talos
 
-[private]
 [doc('Get schematic ID from factory.talos.dev for the current schematic')]
+[private]
 schematic-id:
     curl -sX POST --data-binary @"{{ source_dir() }}/schematic.yaml" "https://factory.talos.dev/schematics" | jq -r '.id'
 

@@ -36,9 +36,9 @@ components/anubis/
 
 ### Why the skip annotation exists
 
-The route patch targets *all* HelmReleases in the build — including Anubis's own, which would
+The route patch targets _all_ HelmReleases in the build — including Anubis's own, which would
 make it proxy to itself. It cannot exclude Anubis by name, because `${APP}` is substituted by Flux
-at `postBuild` time, *after* kustomize has already run, so a `name: ${APP}-anubis` target matches
+at `postBuild` time, _after_ kustomize has already run, so a `name: ${APP}-anubis` target matches
 nothing during the build.
 
 So the component's own HelmRelease carries
@@ -58,11 +58,11 @@ gotosocial's CORS filter, which Phanpy depends on.
 
 ```yaml
 components:
-  - ../../../../components/anubis
+    - ../../../../components/anubis
 postBuild:
-  substitute:
-    ANUBIS_TARGET: http://gotosocial.fediverse.svc.cluster.local:8080
-    APP: gotosocial
+    substitute:
+        ANUBIS_TARGET: http://gotosocial.fediverse.svc.cluster.local:8080
+        APP: gotosocial
 ```
 
 Only `APP` and `ANUBIS_TARGET` are needed. The app's ks must already have
@@ -94,14 +94,14 @@ Browser traffic sends `Accept: text/html` and still gets challenged.
 
 On top of that, these paths are allowed because clients and tooling break without them:
 
-| Path                      | Why                                            |
-| ------------------------- | ---------------------------------------------- |
+| Path                         | Why                                           |
+| ---------------------------- | --------------------------------------------- |
 | `/api/`, `/oauth/`, `/auth/` | Mastodon client API — Phanpy, all mobile apps |
-| `/fileserver/`            | GtS media; challenged media = broken images    |
-| `/users/`, `/emoji/`      | ActivityPub actors, collections, custom emoji  |
-| `/nodeinfo/`              | Instance discovery                             |
-| `/authorize_interaction`  | Remote follow flow                             |
-| `/settings`, `/assets/`   | Settings panel and static assets               |
+| `/fileserver/`               | GtS media; challenged media = broken images   |
+| `/users/`, `/emoji/`         | ActivityPub actors, collections, custom emoji |
+| `/nodeinfo/`                 | Instance discovery                            |
+| `/authorize_interaction`     | Remote follow flow                            |
+| `/settings`, `/assets/`      | Settings panel and static assets              |
 
 `.well-known` is **not** in the policy because it never reaches Anubis at all — gotosocial's
 `route.wellknown` is a separate HTTPRoute that the component's patch does not touch, so WebFinger
@@ -135,7 +135,7 @@ rate-limiting speed bump, not a wall.
 
 ## Component Interactions — all three bit during the first deploy
 
-Adding a second workload to an app's Kustomization means every *other* component's patch sees it
+Adding a second workload to an app's Kustomization means every _other_ component's patch sees it
 too. Three separate things broke before this worked:
 
 **1. `postgres/cert` injected a Postgres client cert into Anubis.** Its patch in
@@ -156,7 +156,7 @@ general lesson, not just for fingerjoin.
 **3. Gatus was getting challenged.** The `allow-gatus-monitoring` rule
 (`userAgent.startsWith("Gatus/")`) exists because otherwise the health check measures the
 challenge page rather than GoToSocial. Worse than a false alarm: the interstitial returns HTTP
-200, so a `[STATUS] == 200` check goes *green* while the app behind it is unverified. Note this
+200, so a `[STATUS] == 200` check goes _green_ while the app behind it is unverified. Note this
 allow is user-agent based and therefore trivially spoofable — it is a deliberate trade of a
 little bypass surface for meaningful monitoring.
 
@@ -169,10 +169,10 @@ Anubis reads the client IP from the `X-Real-Ip` header and returns **HTTP 500
 header from `X-Forwarded-For`, but `xff.Parse` returns the first **non-private** address, so an
 XFF chain containing only RFC1918 addresses yields nothing.
 
-`XFF_STRIP_PRIVATE=false` does *not* help, and the reason matters if you are tempted to try it:
+`XFF_STRIP_PRIVATE=false` does _not_ help, and the reason matters if you are tempted to try it:
 `XForwardedForUpdate` runs with `Flatten: true`, keeping only the **last** surviving entry of
 `[client..., remoteAddr]`. Stop stripping private addresses and that last entry becomes Envoy's
-own pod IP — so *every* client, external included, collapses onto one address. Strictly worse
+own pod IP — so _every_ client, external included, collapses onto one address. Strictly worse
 than doing nothing.
 
 **Frostlink is unaffected.** All external traffic arrives through the Cloudflare tunnel with a

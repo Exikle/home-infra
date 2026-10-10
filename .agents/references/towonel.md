@@ -197,7 +197,7 @@ Three things follow:
   `networking.md` § Oracle Cloud VCN).
 - **25565 attracts constant internet scanning.** A steady trickle of
   `client->agent forward: Connection reset by peer (os error 104)` / `Connection timed out
-(os error 110)` on `route_key: tcp:minecraft` is background noise, not a fault.
+  (os error 110)` on `route_key: tcp:minecraft` is background noise, not a fault.
 
 ## Monitoring
 

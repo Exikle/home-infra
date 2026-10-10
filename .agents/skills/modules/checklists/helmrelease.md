@@ -4,13 +4,13 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 ## Structure & schema
 
-| #   | Check                                                                                                                                        | Result |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| #   | Check                                                                                                                                                                                                                                                                                        | Result |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | H1  | Schema comment present. app-template apps use the chart's own schema (`.../helm-charts/app-template-<version>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`); any other chart uses `https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json` |        |
-| H2  | `apiVersion: helm.toolkit.fluxcd.io/v2`                                                                                                      |        |
-| H3  | `chartRef.kind: OCIRepository`, `chartRef.name: <app>` (references own OCIRepository)                                                        |        |
-| H4  | `interval: 1h`                                                                                                                               |        |
-| H5  | `spec` field order: `chartRef → interval → dependsOn → install → upgrade → values`                                                           |        |
+| H2  | `apiVersion: helm.toolkit.fluxcd.io/v2`                                                                                                                                                                                                                                                      |        |
+| H3  | `chartRef.kind: OCIRepository`, `chartRef.name: <app>` (references own OCIRepository)                                                                                                                                                                                                        |        |
+| H4  | `interval: 1h`                                                                                                                                                                                                                                                                               |        |
+| H5  | `spec` field order: `chartRef → interval → dependsOn → install → upgrade → values`                                                                                                                                                                                                           |        |
 
 ## spec.values ordering
 
@@ -71,7 +71,7 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 ## Route
 
-| #   | Check                                                                                                      | Result |
-| --- | ---------------------------------------------------------------------------------------------------------- | ------ |
+| #   | Check                                                                                                               | Result |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------ |
 | H30 | If route present: `parentRefs` references `external-gateway` in `namespace: network` (there is no internal gateway) |        |
-| H31 | Route defined under `route.app:` in values — not a standalone HTTPRoute file                               |        |
+| H31 | Route defined under `route.app:` in values — not a standalone HTTPRoute file                                        |        |

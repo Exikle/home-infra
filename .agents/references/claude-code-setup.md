@@ -35,7 +35,7 @@ not fire.
   dangling symlinks, skills without `name:`/`description:`, dangling `@imports`, an instruction
   file wired twice or not at all, a reference doc absent from the AGENTS.md index, and an index row
   naming a file that does not exist. Every one of those fails **silently** — a skill with no
-  symlink is simply never offered, and nothing errors. It runs in lefthook on any `.agents/`,
+  symlink is simply never offered, and nothing errors. It runs in the hk pre-commit hook on any `.agents/`,
   `.claude/`, `AGENTS.md` or `CLAUDE.md` change.
 
     The frontmatter parser is a regex, not a YAML parser (there is no `yaml` module on this box),
@@ -45,7 +45,7 @@ not fire.
     invocable. Use an em dash, or quote the value.
 
 - **`just ai eval`** (`scripts/eval-instructions.py`) is the behavioural counterpart: the lint
-  proves a file is *wired*, the eval proves the wiring carries meaning. It assembles the real
+  proves a file is _wired_, the eval proves the wiring carries meaning. It assembles the real
   context an agent gets — CLAUDE.md with `@` imports expanded, plus the `paths:`-scoped rules
   matching a case's declared file — asks the questions in `.agents/evals/*.yaml`, and scores the
   replies. **`--ab <ref>`** runs the same suite against a git ref and reports regressions, which is

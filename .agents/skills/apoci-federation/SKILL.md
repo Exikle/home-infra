@@ -17,9 +17,10 @@ Each apoci instance is an ActivityPub actor (`@registry@<domain>`). Federation i
 - `autoAccept: mutual` (set on both Artemis and Frostlink) auto-accepts a follow-back if you already follow them
 
 **Instances:**
-| Instance | Registry URL | Actor |
-|----------|-------------|-------|
-| Artemis | `https://registry.dcunha.io` | `@registry@dcunha.io` |
+
+| Instance  | Registry URL                     | Actor                     |
+| --------- | -------------------------------- | ------------------------- |
+| Artemis   | `https://registry.dcunha.io`     | `@registry@dcunha.io`     |
 | Frostlink | `https://registry.frostlink.dev` | `@registry@frostlink.dev` |
 
 The `apoci` binary is present in each pod. Use `-c /apoci/config/apoci.yaml` — the config already has the endpoint and admin token path wired up.

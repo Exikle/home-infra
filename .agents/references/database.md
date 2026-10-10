@@ -54,11 +54,11 @@ and raising it back toward the default reintroduces the crash loop.
 
 ## Settings that exist only for this, and must not be "tidied" back
 
-| Where                                              | Setting                                     | Why |
-| -------------------------------------------------- | ------------------------------------------- | --- |
-| `apps/database/postgres/cluster/pooler.yaml`       | `server_login_retry: "0"`                   | Stops pgbouncer serving a cached login failure after the primary returns. At the default `15` the bridges crash-loop for the whole window. Measured: 3 restarts → 0. |
-| `apps/matrix/mautrix-{signal,whatsapp}` helmrelease | `timeoutSeconds: 5`, `failureThreshold: 6`  | The liveness probe is a bare TCP connect with `periodSeconds: 30`. Unset, it defaults to a 1s timeout and 3 strikes — 90s of tolerance, less than one Postgres restart. Now 180s. |
-| `.renovaterc.json5`                                | CNPG group, `schedule: ["* 4-6 * * 6"]`     | Batches the bumps that recreate the primary into one weekly window, so the outage is predictable and infrequent. It does not prevent it. |
+| Where                                               | Setting                                    | Why                                                                                                                                                                               |
+| --------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/database/postgres/cluster/pooler.yaml`        | `server_login_retry: "0"`                  | Stops pgbouncer serving a cached login failure after the primary returns. At the default `15` the bridges crash-loop for the whole window. Measured: 3 restarts → 0.              |
+| `apps/matrix/mautrix-{signal,whatsapp}` helmrelease | `timeoutSeconds: 5`, `failureThreshold: 6` | The liveness probe is a bare TCP connect with `periodSeconds: 30`. Unset, it defaults to a 1s timeout and 3 strikes — 90s of tolerance, less than one Postgres restart. Now 180s. |
+| `.renovaterc.json5`                                 | CNPG group, `schedule: ["* 4-6 * * 6"]`    | Batches the bumps that recreate the primary into one weekly window, so the outage is predictable and infrequent. It does not prevent it.                                          |
 
 A liveness probe should catch **deadlock**, not dependency outage — a database being briefly gone
 belongs to readiness. The probes are kept, loosened, because the bridges do not currently prove
@@ -101,7 +101,7 @@ exists to enforce.
 
 **2. The secret lands in the wrong namespace.** `DatabaseRole.spec.cluster` is a
 `LocalObjectReference` — name only, no namespace — so a `DatabaseRole` must live beside the
-`Cluster` in `database`. CNPG writes the cert to `<databaserole-name>-client-cert` in *that*
+`Cluster` in `database`. CNPG writes the cert to `<databaserole-name>-client-cert` in _that_
 namespace, but the pod that mounts it is in the app's namespace (`matrix`, `fediverse`, `tools`).
 Secrets are namespace-scoped and no reflector/replicator is installed. cert-manager does not have
 this problem because the `Certificate` is created by the app's own Flux Kustomization, so the
@@ -130,10 +130,10 @@ scheduling gates, the `root-ca` mount, the connection-URL ConfigMap and the
 `Database`/`DatabaseRole` — lives in `base/`, so the two differ only in how
 `postgres-certs` is produced.
 
-| App | Mechanism | Postgres driver |
-| --- | --- | --- |
-| atuin, gotosocial, apoci | `postgres/csi` | Rust sqlx-postgres 0.9.0; jackc/pgx v5.10.0 |
-| mautrix-signal, mautrix-whatsapp | `postgres/cert` | lib/pq v1.11.2 |
+| App                              | Mechanism       | Postgres driver                             |
+| -------------------------------- | --------------- | ------------------------------------------- |
+| atuin, gotosocial, apoci         | `postgres/csi`  | Rust sqlx-postgres 0.9.0; jackc/pgx v5.10.0 |
+| mautrix-signal, mautrix-whatsapp | `postgres/cert` | lib/pq v1.11.2                              |
 
 **The bridges are not on CSI because of a lib/pq file-mode check, not anything
 about CSI.** The driver mounts `tls.key` at `0440` root:`fsGroup`. lib/pq
@@ -185,7 +185,7 @@ Learned while standing the shared cluster up (2026-07-01) and still true of the 
   A rustls client (atuin from 18.19.0) crashloops with `expected PKCS#8 PEM` until then.
 - **A HelmRelease stalled on `RetriesExceeded` will not retry by itself** once the cert is
   fixed — clear it with `flux reconcile helmrelease <name> -n <ns> --reset`.
-- **The replication cert chains from the *client* CA, not the server CA.** CNPG verifies
+- **The replication cert chains from the _client_ CA, not the server CA.** CNPG verifies
   `certificates.replicationTLSSecret` against `clientCASecret` — replication is just another
   `clientcert=verify-full` client connection. Only `serverTLSSecret` verifies against
   `serverCASecret`. `cluster/certificate.yaml` issues `postgres-replication-cert` from the
@@ -196,18 +196,19 @@ Learned while standing the shared cluster up (2026-07-01) and still true of the 
   secret's content changes. After any CA or issuer change the Cluster keeps reporting the stale
   `certificate signed by unknown authority` indefinitely. Force it:
 
-  ```bash
-  kubectl -n database annotate cluster postgres cnpg.io/reconciliationLoop="$(date +%s)" --overwrite
-  ```
+    ```bash
+    kubectl -n database annotate cluster postgres cnpg.io/reconciliationLoop="$(date +%s)" --overwrite
+    ```
 
-  **"Merely references" is doing the work in that sentence.** Every Certificate in
-  `cluster/certificate.yaml` sets `secretTemplate.labels: {cnpg.io/reload: ""}`, and the live
-  `postgres-server-cert` / `postgres-replication-cert` secrets carry it — that label is what makes
-  CNPG watch a secret and push its **contents** to the instances, which is why a routine cert
-  renewal needs no intervention. What it does not do is re-derive trust when the **CA or issuer**
-  changes, which is the case the annotation above exists for. If you add a Certificate here, copy
-  the `cnpg.io/reload` label with it; without it even a plain renewal is invisible until the next
-  resync.
+    **"Merely references" is doing the work in that sentence.** Every Certificate in
+    `cluster/certificate.yaml` sets `secretTemplate.labels: {cnpg.io/reload: ""}`, and the live
+    `postgres-server-cert` / `postgres-replication-cert` secrets carry it — that label is what makes
+    CNPG watch a secret and push its **contents** to the instances, which is why a routine cert
+    renewal needs no intervention. What it does not do is re-derive trust when the **CA or issuer**
+    changes, which is the case the annotation above exists for. If you add a Certificate here, copy
+    the `cnpg.io/reload` label with it; without it even a plain renewal is invisible until the next
+    resync.
+
 - **`spec.monitoring.enablePodMonitor` is deprecated on the CNPG API itself** — not in a particular
   chart release. `kubectl explain cluster.spec.monitoring.enablePodMonitor` returns "Deprecated:
   This feature will be removed in an upcoming release. If you need this functionality, you can
@@ -229,12 +230,12 @@ Deleting a `Certificate` does not delete its Secret. Four orphans remain, confir
 2026-08-21 — no `Certificate` object exists for any of them (`kubectl get certificate -A` lists
 only the two CAs, the two `database` certs, and the two mautrix certs):
 
-| Secret | Namespace | Age | Note |
-| --- | --- | --- | --- |
-| `postgres-apoci-cert` | `fediverse` | 51d | left by the move to `postgres/csi` |
-| `postgres-gotosocial-cert` | `fediverse` | 51d | same |
-| `postgres-atuin-cert` | `default` | 22d | from the namespace move |
-| `postgres-atuin-cert` | `tools` | **4d** | unexplained — see below |
+| Secret                     | Namespace   | Age    | Note                               |
+| -------------------------- | ----------- | ------ | ---------------------------------- |
+| `postgres-apoci-cert`      | `fediverse` | 51d    | left by the move to `postgres/csi` |
+| `postgres-gotosocial-cert` | `fediverse` | 51d    | same                               |
+| `postgres-atuin-cert`      | `default`   | 22d    | from the namespace move            |
+| `postgres-atuin-cert`      | `tools`     | **4d** | unexplained — see below            |
 
 They are regenerable and safe to delete. **The `tools` one is 4 days old, which nothing here
 accounts for** — atuin has been on `postgres/csi` (no Secret) for longer than that, so something
