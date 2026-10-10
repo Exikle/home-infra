@@ -175,6 +175,9 @@ url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/5990597
 provenance = "cosign"
 
 [tools.talos."platforms.linux-arm64-musl"]
+checksum = "sha256:5b7119f9cc68c1e6dcd394564208a9ae417c5cc9e8e2585fa173082e53f5e6d7"
+url = "https://github.com/siderolabs/talos/releases/download/v1.14.2/talosctl-linux-arm64"
+url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/599059725"
 provenance = "cosign"
 
 [tools.talos."platforms.linux-x64"]
@@ -184,6 +187,9 @@ url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/5990597
 provenance = "cosign"
 
 [tools.talos."platforms.linux-x64-musl"]
+checksum = "sha256:c6c9552b0e5f767352c595fa1c0af4f186f697488646872955057d23990a66c4"
+url = "https://github.com/siderolabs/talos/releases/download/v1.14.2/talosctl-linux-amd64"
+url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/599059721"
 provenance = "cosign"
 
 [tools.talos."platforms.macos-arm64"]
@@ -193,9 +199,15 @@ url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/5990597
 provenance = "cosign"
 
 [tools.talos."platforms.macos-x64"]
+checksum = "sha256:250525ff19b32ebf25e90d8943d88870f40f39618007fcba70b524efa5549a0c"
+url = "https://github.com/siderolabs/talos/releases/download/v1.14.2/talosctl-darwin-amd64"
+url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/599059728"
 provenance = "cosign"
 
 [tools.talos."platforms.windows-x64"]
+checksum = "sha256:0f0b6fc765f78a78161f01c70f044c73e70536b772fd0ea023918849e9744998"
+url = "https://github.com/siderolabs/talos/releases/download/v1.14.2/talosctl-windows-amd64.exe"
+url_api = "https://api.github.com/repos/siderolabs/talos/releases/assets/599059709"
 provenance = "cosign"
 
 [[tools.zizmor]]
@@ -209,6 +221,9 @@ url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/552067
 provenance = "github-attestations"
 
 [tools.zizmor."platforms.linux-arm64-musl"]
+checksum = "sha256:7ff1dce33bdd18fd2a4affe63bdd47efcccca97b2cec1c1863ec26e9e2647540"
+url = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/552067643"
 provenance = "github-attestations"
 
 [tools.zizmor."platforms.linux-x64"]
@@ -218,6 +233,9 @@ url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/552067
 provenance = "github-attestations"
 
 [tools.zizmor."platforms.linux-x64-musl"]
+checksum = "sha256:e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a"
+url = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/zizmorcore/zizmor/releases/assets/552067642"
 provenance = "github-attestations"
 
 [tools.zizmor."platforms.macos-arm64"]
