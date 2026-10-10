@@ -12,10 +12,11 @@ local linters = new Mapping<String, Step> {
 
   // --- Formatters -------------------------------------------------------------------------
   // JSON, Markdown and YAML only — TOML is mise's, and mise lock sidecars are digest-pinned,
-  // so reformatting them breaks `mise install --locked`.
+  // so reformatting them breaks `mise install --locked`. Claude Code rewrites
+  // .claude/settings.json in its own layout, so formatting it only churns.
   ["oxfmt"] = (Builtins.oxfmt) {
     glob = List("**/*.json", "**/*.json5", "**/*.jsonc", "**/*.md", "**/*.markdown", "**/*.mdx", "**/*.yaml", "**/*.yml")
-    exclude = ".mise/locks/**"
+    exclude = List(".mise/locks/**", ".claude/settings.json")
   }
   ["just"] {
     glob = List("**/.justfile", "**/justfile", "**/*.just")
