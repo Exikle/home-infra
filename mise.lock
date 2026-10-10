@@ -122,7 +122,7 @@ version = "0.53.0"
 backend = "npm:oxfmt"
 
 [[tools.oxfmt]]
-version = "0.68.0"
+version = "0.72.0"
 backend = "npm:oxfmt"
 
 [[tools.shellcheck]]
