@@ -41,8 +41,8 @@ prune-pods:
 [arg('state', pattern='suspend|resume')]
 [doc('Suspend or resume Kopiur')]
 kopiur state:
-    flux -n kopiur-system {{ state }} kustomization kopiur
-    flux -n kopiur-system {{ state }} helmrelease kopiur
+    {{ flux }} -n kopiur-system {{ state }} kustomization kopiur
+    {{ flux }} -n kopiur-system {{ state }} helmrelease kopiur
     {{ kubectl }} -n kopiur-system scale deployment kopiur-controller --replicas {{ if state != "suspend" { "1" } else { "0" } }}
 
 [doc('Suspend one Flux Kustomization — suspend the root separately, or it reverts your edits')]
@@ -161,7 +161,7 @@ restore ns ks claim offset='0':
     {{ kubectl }} -n {{ ns }} delete restore "$PVC" --ignore-not-found --timeout=5m
 
     # The component carries no ssa annotation, so Flux recreates both normally.
-    flux -n {{ ns }} reconcile kustomization {{ ks }}
+    {{ flux }} -n {{ ns }} reconcile kustomization {{ ks }}
     {{ kubectl }} -n {{ ns }} wait restore "$PVC" --for=create --timeout=5m
     {{ kubectl }} -n {{ ns }} wait pvc "$PVC" --for=create --timeout=5m
 

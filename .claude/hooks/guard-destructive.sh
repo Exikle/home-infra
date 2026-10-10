@@ -59,9 +59,9 @@ block() {
 # Read-only validation is always fine
 printf '%s' "$COMMAND" | grep -qE -- --dry-run && exit 0
 
-# just-cluster-mutation-subagent — fires only inside a subagent; the main thread is never blocked
+# just-cluster-mutation-subagent-frostlink — fires only inside a subagent; the main thread is never blocked
 if [ -n "$AGENT_ID" ] && printf '%s' "$COMMAND" | grep -qE -- '\bjust\b.*\b(kube\s+(apply|delete|suspend|resume)-ks|talos\s+apply-node)\b'; then
-    block 'A subagent may not mutate the live cluster — these commands are the human'"'"'s to run. The safety of '"'"'just kube apply-ks'"'"' is not in the recipe, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.' 'Write the manifests and validate them offline ('"'"'just kube render-ks <ns> <ks>'"'"' needs no cluster), or read live state with '"'"'just kube diff-ks <ns> <ks>'"'"'. Report the change and let the human apply it.'
+    block 'A subagent may not mutate the live cluster — these commands are the human'"'"'s to run. The safety of '"'"'just kube apply-ks'"'"' is not in the recipe, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.' 'Write the manifests and validate them offline ('"'"'just kube render-local-ks <ns> <ks>'"'"' needs no cluster), or read live state with '"'"'kubectl get <kind> -n <ns> <name> --context frostlink'"'"'. Report the change and let the human apply it.'
 fi
 
 # git-write-subagent — fires only inside a subagent; the main thread is never blocked
