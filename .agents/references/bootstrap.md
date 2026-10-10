@@ -94,8 +94,7 @@ All live in the `frostlink` vault except where noted.
 | `cloudflare-frostlink` | `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_TUNNEL_TOKEN`                 |
 | `artemis/forgejo`      | `FORGEJO_PAT` — `seed` pulls the CI artifact from Forgejo with it |
 
-The tailnet key is minted fresh by `just bootstrap tailnet`; no 1Password item is read for it. The
-old SaaS item `tailscale` is unused and goes once the SaaS account closes (frostlink#348).
+The tailnet key is minted fresh by `just bootstrap tailnet`; no 1Password item is read for it.
 
 Two items keep the `-frostlink` suffix deliberately, for opposite reasons:
 

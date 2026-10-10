@@ -257,23 +257,21 @@ SNAT is off on both routers, so Frostlink sees the real LAN source. **Away from 
 Headscale device with subnet routes accepted (the iPhone) reaches `10.0.0.203` directly over the
 tailnet. If Headscale itself is down, the public Talos port is the only break-glass.
 
-## Tailnet policy — moving from Tailscale SaaS to Headscale
+## Tailnet policy — Headscale
 
-Every device is on Headscale as of 2026-10-02 (grimoire, the Mac, joined 2026-10-03 — it was never
-on SaaS). No device uses the SaaS tailnet (`exikle.github`) any more; the account closes on or
-after 2026-10-09 (frostlink#348). The policy is checked in at
+Every device is on Headscale as of 2026-10-02 (grimoire, the Mac, joined 2026-10-03). The Tailscale
+SaaS tailnet (`exikle.github`) was closed on 2026-10-10 (frostlink#348). The policy is checked in at
 `kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
 at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
 
-Tag mapping, SaaS → Headscale (recorded 2026-10-02 from `tailscale status --json`):
+Device identities (recorded 2026-10-02 from `tailscale status --json`):
 
-| Device                         | SaaS (retired)                              | Headscale                                                |
-| ------------------------------ | ------------------------------------------- | -------------------------------------------------------- |
-| Frostlink node                 | `tag:k8s`                                   | `tag:frostlink`                                          |
-| Artemis `tailscale-router` pod | `tag:artemis-router`, route `10.10.99.0/24` | retired — the UCG Max takes over as `tag:home-router`    |
-| UCG Max                        | —                                           | `tag:home-router`, route `10.10.99.0/24` (auto-approved) |
-| Arcana, iPhone                 | user `Exikle@github`                        | user `exikle` (`group:admin`)                            |
-| grimoire (Mac)                 | —                                           | user `exikle` (`group:admin`)                            |
+| Device         | Headscale                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| Frostlink node | `tag:frostlink`                                                                                  |
+| UCG Max        | `tag:home-router`, route `10.10.99.0/24` (auto-approved) — replaced Artemis's `tailscale-router` |
+| Arcana, iPhone | user `exikle` (`group:admin`)                                                                    |
+| grimoire (Mac) | user `exikle` (`group:admin`)                                                                    |
 
 **Subnet grants are port-scoped, not "any port" (tightened 2026-10-04).** The policy started as a
 1:1 port of the SaaS rules; since then:
