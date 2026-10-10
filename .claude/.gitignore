@@ -3,6 +3,8 @@
 !skills/*
 !hooks/
 !hooks/*
+!rules/
+!rules/*
 !settings.json
 !agents/
 !agents/*
