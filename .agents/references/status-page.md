@@ -22,7 +22,7 @@ new record. `dig status.dcunha.io @1.1.1.1` and `@10.10.99.1` before and after.
 
 | Source                                 | What                                                                                                       | Alerts   |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- |
-| `app/resources/cluster-endpoints.yaml` | Hand-written: core (ping, Home Link, status page, Headscale), the three Litellm MCP checks, the heartbeats | Pushover |
+| `app/resources/cluster-endpoints.yaml` | Hand-written: core (ping, home-link, status-page, headscale), the three Litellm MCP checks, the heartbeats | Pushover |
 | `gatus-sidecar` container              | Generated from Frostlink's own HTTPRoutes and Services                                                     | none     |
 | `gatus-sidecar-artemis` container      | Generated from **Artemis's** HTTPRoutes and Services                                                       | none     |
 

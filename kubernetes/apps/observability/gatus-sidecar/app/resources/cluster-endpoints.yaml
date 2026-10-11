@@ -14,7 +14,7 @@ alerting:
     user-key: ${PUSHOVER_USER_KEY}
 
 endpoints:
-  - name: Ping
+  - name: ping
     group: core
     url: icmp://${DDNS_HOSTNAME}
     interval: 1m
@@ -26,7 +26,7 @@ endpoints:
     alerts:
       - type: pushover
 
-  - name: Home Link
+  - name: home-link
     group: core
     url: tcp://10.10.99.1:443
     interval: 1m
@@ -38,33 +38,21 @@ endpoints:
     alerts:
       - type: pushover
 
-  - name: Status Page
-    group: core
-    url: https://${STATUS_HOSTNAME}
-    interval: 1m
-    ui:
-      hide-url: true
-      hide-hostname: true
-    conditions:
-      - "[STATUS] == 200"
-    alerts:
-      - type: pushover
-
-  - name: Headscale
-    group: core
-    url: https://headscale.frostlink.dev/health
-    interval: 1m
-    ui:
-      hide-url: true
-      hide-hostname: true
-    conditions:
-      - "[STATUS] == 200"
-    alerts:
-      - type: pushover
-
-  - name: Status Page dcunha.io
+  - name: status-page
     group: core
     url: https://status.dcunha.io
+    interval: 1m
+    ui:
+      hide-url: true
+      hide-hostname: true
+    conditions:
+      - "[STATUS] == 200"
+    alerts:
+      - type: pushover
+
+  - name: headscale
+    group: core
+    url: https://headscale.frostlink.dev/health
     interval: 1m
     ui:
       hide-url: true
@@ -147,7 +135,7 @@ endpoints:
       - type: pushover
 
 external-endpoints:
-  - name: Heartbeat
+  - name: heartbeat
     group: core
     token: ${HEARTBEAT_TOKEN}
     heartbeat:
@@ -155,7 +143,7 @@ external-endpoints:
     alerts:
       - type: pushover
 
-  - name: Artemis
+  - name: artemis
     group: core
     token: ${HEARTBEAT_ARTEMIS_TOKEN}
     heartbeat:
@@ -163,7 +151,7 @@ external-endpoints:
     alerts:
       - type: pushover
 
-  - name: Frostlink
+  - name: frostlink
     group: core
     token: ${HEARTBEAT_FROSTLINK_TOKEN}
     heartbeat:

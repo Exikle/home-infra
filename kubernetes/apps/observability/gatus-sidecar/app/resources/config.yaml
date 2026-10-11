@@ -4,28 +4,6 @@ connectivity:
     target: 1.1.1.1:53
     interval: 1m
 
-endpoints:
-  - name: Cloudflare
-    group: connectivity
-    url: icmp://1.1.1.1
-    interval: 1m
-    conditions:
-      - "[CONNECTED] == true"
-
-  - name: Google
-    group: connectivity
-    url: icmp://8.8.8.8
-    interval: 1m
-    conditions:
-      - "[CONNECTED] == true"
-
-  - name: Quad9
-    group: connectivity
-    url: icmp://9.9.9.9
-    interval: 1m
-    conditions:
-      - "[CONNECTED] == true"
-
 metrics: true
 
 storage:
@@ -34,14 +12,74 @@ storage:
   path: ${GATUS_CONFIG_PATH}/gatus.db
 
 ui:
-  title: Status | Frostlink
-  header: FrostLink.dev
-  description: "Real-time health monitoring for Frostlink"
-  link: https://status.frostlink.dev
   buttons:
-    - name: Homelab
+    - name: Artemis
       link: https://git.dcunha.io/Exikle/Artemis-Cluster
+    - name: Frostlink
+      link: https://git.dcunha.io/Exikle/frostlink
+  custom-css: |
+    html:root {
+      --background: 210 16.7% 97.6%;
+      --foreground: 216 7.5% 13.1%;
+      --card: 0 0% 98.8%;
+      --card-foreground: 216 7.5% 13.1%;
+      --popover: 0 0% 98.8%;
+      --popover-foreground: 216 7.5% 13.1%;
+      --primary: 35 100% 32%;
+      --primary-foreground: 0 0% 100%;
+      --secondary: 204 14.3% 93.1%;
+      --secondary-foreground: 210 5.2% 38%;
+      --muted: 204 14.3% 93.1%;
+      --muted-foreground: 215.2 13.1% 56.7%;
+      --accent: 204 14.3% 93.1%;
+      --accent-foreground: 216 7.5% 13.1%;
+      --destructive: 0 75% 60.8%;
+      --destructive-foreground: 0 0% 100%;
+      --border: 210 15.4% 89.8%;
+      --input: 215 13% 82%;
+      --ring: 35 89.3% 52.2%;
+    }
+    html:root.dark {
+      --background: 222 27.8% 7.1%;
+      --foreground: 45 13.8% 88.6%;
+      --card: 220 27.3% 8.6%;
+      --card-foreground: 46.7 6.6% 73.1%;
+      --popover: 221.5 24.5% 10.4%;
+      --popover-foreground: 46.7 6.6% 73.1%;
+      --primary: 40 75% 60.8%;
+      --primary-foreground: 222 27.8% 7.1%;
+      --secondary: 222.9 20.6% 13.3%;
+      --secondary-foreground: 46.7 6.6% 73.1%;
+      --muted: 222.9 20.6% 13.3%;
+      --muted-foreground: 218.6 11.1% 49.4%;
+      --accent: 222.4 19.5% 17.1%;
+      --accent-foreground: 45 13.8% 88.6%;
+      --destructive: 0 63.1% 59.6%;
+      --destructive-foreground: 222 27.8% 7.1%;
+      --border: 222.9 20.6% 13.3%;
+      --input: 222.4 19.5% 17.1%;
+      --ring: 40 75% 60.8%;
+    }
+    .bg-green-400, .bg-green-500, .bg-green-600, .bg-green-700 { background-color: #86b300 !important; }
+    .bg-red-400, .bg-red-500, .bg-red-600, .bg-red-700 { background-color: #f07171 !important; }
+    .bg-yellow-400, .bg-yellow-500 { background-color: #eba400 !important; }
+    .text-green-500, .text-green-600, .text-green-700 { color: #86b300 !important; }
+    .text-red-500, .text-red-600, .text-red-700 { color: #e65050 !important; }
+    .text-yellow-500, .text-yellow-600, .text-yellow-700 { color: #eba400 !important; }
+    .dark .bg-green-400, .dark .bg-green-500, .dark .bg-green-600, .dark .bg-green-700 { background-color: #aad94c !important; }
+    .dark .bg-red-400, .dark .bg-red-500, .dark .bg-red-600, .dark .bg-red-700 { background-color: #f07178 !important; }
+    .dark .bg-yellow-400, .dark .bg-yellow-500 { background-color: #ffb454 !important; }
+    .dark .text-green-500, .dark .text-green-400 { color: #aad94c !important; }
+    .dark .text-red-500, .dark .text-red-400 { color: #f07178 !important; }
+    .dark .text-yellow-500, .dark .text-yellow-400 { color: #ffb454 !important; }
+    ::selection { background-color: rgb(230 180 80 / 30%); }
+  dashboard-heading: Service Status
+  dashboard-subheading: Live health of every service on Artemis (home) and Frostlink (cloud)
   default-sort-by: group
+  description: Live health checks for services on Artemis and Frostlink
+  header: dcunha.io
+  link: https://status.dcunha.io
+  title: Status | dcunha.io
 
 web:
   port: ${GATUS_WEB_PORT}
