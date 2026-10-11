@@ -140,7 +140,7 @@ seed:
     trap 'kill "${pf:-0}" 2>/dev/null || true; rm -rf "$work"' EXIT
     just log info "Pulling the CI artifact from Forgejo (git.dcunha.io) over the home network..." "stage" "$(basename "$0")"
     flux pull artifact "oci://git.dcunha.io/{{ seed_tag }}" --output "$work" \
-        --creds "exikle:$(op read 'op://artemis/forgejo/FORGEJO_PAT')"
+        --creds "exikle:$(op read 'op://infrastructure/forgejo/EXIKLE_CLI_TOKEN')"
     kubectl -n flux-system port-forward svc/seed-registry 5000:5000 >/dev/null 2>&1 &
     pf=$!
     for _ in $(seq 1 20); do curl -fs http://127.0.0.1:5000/v2/ >/dev/null && break; sleep 1; done

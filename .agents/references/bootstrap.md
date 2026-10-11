@@ -86,13 +86,13 @@ to the apiserver certificate automatically (checked against the served cert 2026
 
 All live in the `frostlink` vault except where noted.
 
-| Item name              | Fields used                                                       |
-| ---------------------- | ----------------------------------------------------------------- |
-| `1password`            | `OP_CREDENTIALS_JSON`                                             |
-| `access-token`         | `credential` — the Connect server access token                    |
-| `forgejo-frostlink`    | `username` (exikle), `token` (Forgejo access token)               |
-| `cloudflare-frostlink` | `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_TUNNEL_TOKEN`                 |
-| `artemis/forgejo`      | `FORGEJO_PAT` — `seed` pulls the CI artifact from Forgejo with it |
+| Item name                | Fields used                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| `1password`              | `OP_CREDENTIALS_JSON`                                                                       |
+| `access-token`           | `credential` — the Connect server access token                                              |
+| `forgejo-frostlink`      | `username`, `token` — the Flux pull secret; apoci serves pulls anonymously and ignores both |
+| `cloudflare-frostlink`   | `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_TUNNEL_TOKEN`                                           |
+| `infrastructure/forgejo` | `EXIKLE_CLI_TOKEN` — `seed` pulls the CI artifact from Forgejo with it                      |
 
 The tailnet key is minted fresh by `just bootstrap tailnet`; no 1Password item is read for it.
 
@@ -101,9 +101,9 @@ Two items keep the `-frostlink` suffix deliberately, for opposite reasons:
 - `cloudflare-frostlink` — **Artemis reads it** for frostlink's DNS and certificates. Artemis's
   own `cloudflare` item would outrank a renamed one in its vault priority, so the distinct name
   is the only way to express the cross-read.
-- `forgejo-frostlink` — **this cluster reads Artemis's `forgejo`** by the bare name, for
-  `FORGEJO_ADMIN_TOKEN` (see `konflate-webhook-token`). A frostlink item named `forgejo` sits at
-  priority 1 and shadows it.
+- `forgejo-frostlink` — **both clusters read `infrastructure/forgejo`** by the bare name, for
+  `DUSK_BOT_CLUSTER_TOKEN` and `FLUX_WEBHOOK_TOKEN`. A frostlink item named `forgejo` would sit at
+  priority 1 and shadow it.
 
 ## bootstrap/resources.yaml.j2
 
