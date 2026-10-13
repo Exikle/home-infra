@@ -264,18 +264,10 @@ two halves in step.
 
 ## Lock File Maintenance
 
-The schedule and the enable flag are in the cluster preset. Every tool in `.mise/config.toml` is pinned to an exact version, so `.mise/mise.lock` is what
-records what those versions resolved to, and nothing else refreshes it.
-
-It needs its **own schedule** — the top-level `"at any time"` would run this every pass.
-
-Renovate runs `mise lock --bump` for this, which needs the mise binary. It is deliberately **not**
-added to `allowedUnsafeExecutions` — mise >= 2026.7.12 gets safe mode (`MISE_SAFE=1`) instead,
-which resolves versions over HTTP without letting project config shell out. If the runner ever
-ships an older mise, Renovate logs a warning and skips; it does not half-write the lock.
-
-Left off automerge on purpose: these tools back the `just` recipes and the `flux-oci-push` CI
-workflow, so the monthly bump gets eyes on it.
+The schedule and the enable flag are in the cluster preset, which Artemis also extends. This repo
+has no lock files for it to refresh: there is deliberately no `.mise/mise.lock`
+(`lockfile = false` in `.mise/config.toml`), because every mise tool is an exact pin that the Mise
+Tools Group bumps and a lock only added churn. The block is a no-op here.
 
 ---
 

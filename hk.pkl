@@ -11,27 +11,18 @@ local linters = new Mapping<String, Step> {
   ["private-key"] = Builtins.detect_private_key
 
   // --- Formatters -------------------------------------------------------------------------
-  // JSON, Markdown and YAML only — TOML is mise's, and mise lock sidecars are digest-pinned,
-  // so reformatting them breaks `mise install --locked`. Claude Code rewrites
+  // JSON, Markdown and YAML only — TOML is mise's. Claude Code rewrites
   // .claude/settings.json in its own layout, so formatting it only churns.
   ["oxfmt"] = (Builtins.oxfmt) {
     glob = List("**/*.json", "**/*.json5", "**/*.jsonc", "**/*.md", "**/*.markdown", "**/*.mdx", "**/*.yaml", "**/*.yml")
-    exclude = List(".mise/locks/**", ".claude/settings.json")
+    exclude = List(".claude/settings.json")
   }
   ["just"] {
     glob = List("**/.justfile", "**/justfile", "**/*.just")
     check = #"for f in {{files}}; do just --justfile "$f" --fmt --check --unstable || exit 1; done"#
     fix = #"for f in {{files}}; do just --justfile "$f" --fmt --unstable; done"#
   }
-  // mise fmt rewrites the config in place; a mise lock reading it mid-rewrite prunes the
-  // lockfile, so lock waits for fmt.
   ["mise-fmt"] = (Builtins.mise) { glob = List(".mise/config.toml", ".mise/conf.d/*.toml") }
-  ["mise-lock"] {
-    glob = List(".mise/config.toml", ".mise/conf.d/*.toml")
-    depends = "mise-fmt"
-    fix = "mise lock"
-    stage = List(".mise/mise.lock", ".mise/locks/**")
-  }
 
   // --- Linters ----------------------------------------------------------------------------
   // Jinja *.j2 templates can carry a shebang but are not shell.

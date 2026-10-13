@@ -4,6 +4,12 @@ MINIJINJA_CONFIG_FILE = "{{config_root}}/.minijinja.toml"
 TALOSCONFIG = "{{config_root}}/talosconfig"
 JUST_UNSTABLE = "1"
 
+[settings]
+# No mise.lock here. Every tool below is an exact pin that Renovate bumps, and mise still
+# verifies signatures at install. The global config says the same; this holds it for
+# CI and machines without it.
+lockfile = false
+
 [tools]
 # Frostlink runs Talos v1.14, and talosctl decodes config documents client-side:
 # a v1.13 client rejects KubeTalosAPIAccessConfig with "not registered" before the node
