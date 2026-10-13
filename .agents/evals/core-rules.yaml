@@ -1,8 +1,4 @@
-# Behavioural tests for Frostlink's always-loaded instruction set.
-#
-# These target the facts the 2026-09-17 refactor MOVED or DELETED — the point is to back the claim
-# that cutting the always-loaded set from 600 to ~440 lines lost nothing, with `--ab <ref>` rather
-# than with assertion.
+# Behavioural tests for Frostlink's always-loaded instruction set, run with `just ai eval`.
 #
 # Scoring is substring matching, case-insensitive, and `forbidden` only counts an AFFIRMATIVE use
 # (a correct answer usually has to name a thing to rule it out). Keep `required` to terms a correct
@@ -103,7 +99,7 @@ cases:
     severity: major
     prompt: >-
       towonel needs hostNetwork. Should I relax the PodSecurity level on the network namespace?
-    any_of: ["privileged namespace", "own namespace", "no", "baseline"]
+    any_of: ["privileged namespace", "own namespace", "baseline"]
 
   - id: INDEX-TOWONEL
     category: routing

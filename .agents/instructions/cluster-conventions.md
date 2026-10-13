@@ -18,7 +18,7 @@ kubernetes/apps/<namespace>/<app>/
 
 Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` resources.
 
-## Helm / app-template v5
+## Helm / app-template
 
 - Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` (note: `-labs`, not `-bjw-s`). Renovate bumps the tag fleet-wide, so read it from the tree rather than trusting a number here: `grep -h "tag:" kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1`
 - Every app gets its own standalone `OCIRepository` — never share or reuse one
@@ -35,7 +35,6 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 
 ## Secrets
 
-- SOPS is not used — never suggest age encryption or `sops --encrypt`
 - All secrets: 1Password ExternalSecrets with `ClusterSecretStore: onepassword-connect`
 - ExternalSecret API version: `external-secrets.io/v1`
 - **app-template apps define their ExternalSecret inline**, under `values.externalSecrets.<id>` in
@@ -50,13 +49,12 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 
 - **No Rook-Ceph** (single node)
 - Primary storage class: `openebs-zfs` (ZFS-backed, cluster default) — see `.agents/references/storage.md`
-- Backups: Kopiur to Cloudflare R2 (Kopiur replaced VolSync; there are no `ReplicationSource`s)
+- Backups: Kopiur to Cloudflare R2 — `storage.md` § Backups via Kopiur
 
 ## Database & Cache
 
-Reversed 2026-07-01: apps no longer default to SQLite or an app-specific/sidecar database.
-Frostlink runs one shared CNPG Postgres cluster and one shared Dragonfly instance; apps attach
-to them instead of provisioning their own.
+Apps attach to one shared CNPG Postgres cluster and one shared Dragonfly instance instead of
+provisioning their own (`database.md`).
 
 - **Postgres**: shared `Cluster/postgres` + `Pooler/pooler-rw` in the `database` namespace
   (CNPG, `cnpg-system` namespace). No app runs its own sidecar `postgres:` container or an
@@ -73,17 +71,14 @@ to them instead of provisioning their own.
   Skipping this fails with `role "<app>" does not exist (SQLSTATE 42704)`.
 - **Client key encoding**: the CSI path pins PKCS8 for every app; `POSTGRES_CERT_ENCODING` is
   no longer set per app. Encoding history and the reissue gotchas are in
-  `.agents/references/database.md` § Client certificates and § CNPG PKI gotchas.
+  `.agents/references/database.md` § Client certificates: CSI for most apps and § CNPG PKI gotchas.
 - **Never connect directly to the `Cluster`** — always go through `pooler-rw.database.svc:5432`.
 - **Cache/queue**: shared `Dragonfly` CR in the `database` namespace (`dragonfly-operator`,
   `dragonfly-system` namespace). No app runs its own sidecar Redis/Valkey.
-- **Backups**: the shared Postgres cluster backs up via the `barman-cloud` CNPG plugin to
-  `s3://frostlink-kopiur/barman/` — same R2 bucket Kopiur uses for PVC snapshots, isolated by
-  the `barman/` prefix (Kopia writes to the bucket root with no prefix, so there's no collision).
 
 ## Single-Node Notes
 
-- `allowSchedulingOnControlPlanes: true` — set in `talos/patches/controlplane.yaml`
+- Workloads schedule on the control plane (`taints: $patch: delete` in `talos/patches/controlplane.yaml`)
 - No nodeSelector needed for any workload — the single node runs everything
 
 ## Common Mistakes — Quick Reference

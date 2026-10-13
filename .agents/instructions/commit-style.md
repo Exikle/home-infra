@@ -10,7 +10,7 @@ and § Commit Message Format. This file covers only the Frostlink sequence and s
 | Exikle (Dixon D'Cunha) | Push directly to main after testing | Exikle's personal GPG key        |
 | Renovate / dusk-bot    | Squash-merged PR                    | git.dcunha.io Instance (SSH key) |
 
-Squash merge always creates a new server-side commit — it cannot be signed by Exikle's local key. So Exikle **never** goes through a PR merge for their own work. PRs are for Renovate only.
+Squash merge always creates a new server-side commit — it cannot be signed by Exikle's local key. So Exikle **never** goes through a PR merge for their own work. PRs are for Renovate only; to merge one by hand, use the `triage-renovate` skill.
 
 ---
 
@@ -29,16 +29,8 @@ This repo has no staging cluster. `main` reconciles directly to production.
     just kube apply-ks <ns> <ks-name>
     ```
 
-3. Wait for **explicit user confirmation** that it works
-4. Stage specific files, commit, and push directly to `main`:
-
-    ```bash
-    git add <specific files>
-    git diff --staged          # verify — check for secrets, debug output
-    git commit -m "feat(scope): ..."
-    git push origin main
-    ```
-
+3. Wait for **explicit user confirmation** that it works. Never commit or push before it.
+4. Commit and push directly to `main`.
 5. After push, once CI has rebuilt the artifact: `just kube sync ocirepo` until the `flux-system`
    digest moves, then resume — **root first, then the target**, as two calls:
 
@@ -50,17 +42,6 @@ This repo has no staging cluster. `main` reconciles directly to production.
     Do not resume before the artifact is rebuilt — that applies the pre-commit revision and
     reverts what you just landed. `resume-ks` refuses a child while the root is still suspended.
 
-**Never commit or push until the user explicitly confirms the live deployment works.**
-
----
-
-## Renovate PR auto-merge
-
-Renovate PRs auto-merge via squash, landing as `title (#N)` on main, signed by git.dcunha.io
-Instance. To merge one by hand, use the `triage-renovate` skill — it carries the API call and
-merges one PR at a time, because queueing many with `merge_when_checks_succeed` races and
-silently drops commits from main.
-
 ---
 
 ## Squash rules
@@ -69,7 +50,7 @@ silently drops commits from main.
 - Pre-merge corrections (wrong port, typo, image tag, ExternalSecret mismatch) → amend the local commit before pushing
 - Post-push discoveries → new commit on main, always
 
-## Branch naming (worktree branches and Renovate triage reference)
+## Branch naming (worktree branches)
 
 ```text
 feat/network-envoy-gateway

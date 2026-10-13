@@ -97,10 +97,7 @@ Three exceptions, all machine-oriented:
 | YAML anchor markers where the anchor is subtle   | reading aid for `&name` / `*name` pairs    |
 | Renovate directives (`# renovate: datasource=…`) | consumed by Renovate                       |
 
-When a value is non-obvious enough to feel like it needs a comment, that is the signal to
-write it up in the matching reference doc instead — then, if the constraint is genuinely
-dangerous to violate, the doc is what gets cited in review. Example: the kopiur R2 credential
-key is unrecoverable if repointed at the wrong 1Password item, and that warning lives in
-`.agents/references/storage.md` § kopiur, not in the ExternalSecret.
-
-Mirrors the identical rule in Artemis-Cluster — the two repos share this convention.
+When a value is non-obvious enough to feel like it needs a comment, write it up in the matching
+reference doc instead. Example: the kopiur R2 credential key warning lives in
+`.agents/references/storage.md` § The R2 credential key is unrecoverable if repointed, not in the
+ExternalSecret.
