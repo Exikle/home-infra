@@ -8,39 +8,27 @@ Upstream presets: <https://github.com/home-operations/renovate-presets>
 Every PR against `main` also gets an AI review comment from `.forgejo/workflows/pr-review.yaml`.
 It is advisory only — a sticky comment, not a status check, so it never gates a merge.
 
-**Both repos are pinned at `8.1.0`.** Bump only after checking the target tag is self-contained
-(below). The two repos also
-extend different `apps/` presets and made opposite signing choices; the full divergence table is
-in Artemis's `.agents/references/renovate.md` § Where Artemis and Frostlink deliberately differ.
+The preset pin and the `extends` list are in `.renovaterc.json5` (both repos pin the same tag).
+Bump only after checking the target tag is self-contained (below). The two repos extend different
+`apps/` presets and made opposite signing choices; the divergence table is in Artemis's
+`.agents/references/renovate.md` § Where Artemis and Frostlink deliberately differ.
 
 ---
 
 ## Preset Pinning
 
-```json5
-extends: [
-  "github>home-operations/renovate-presets#8.1.0",
-  "github>home-operations/renovate-presets//apps/cnpg.json5#8.1.0",
-  "github>home-operations/renovate-presets//apps/phanpy.json5#8.1.0",
-  "github>home-operations/renovate-presets//apps/talosFactory.json5#8.1.0",
-  ":semanticCommits",
-  ":timezone(America/Toronto)",
-]
-```
+The `extends` list is in `.renovaterc.json5`: the root preset, three `apps/` presets, and the
+semantic-commit and timezone presets, every entry pinned to the same tag.
 
 ### Why every entry carries an explicit tag
 
-Up to and including **6.0.0**, `default.json` reached its content through nested
-`github>home-operations/renovate-presets//config/...` references that carried **no tag**.
-Renovate resolves an untagged nested preset against the preset repo's **default branch**, not
-the tag its parent was pinned at — so the pin was never real.
+`default.json` used to reach its content through nested `github>home-operations/renovate-presets//config/...`
+references that carried **no tag**. Renovate resolves an untagged nested preset against the preset
+repo's **default branch**, not the tag its parent was pinned at, so the pin was never real. When
+upstream deleted those directories from `main`, this repo started 404ing on the nested fetch and
+**Renovate aborted in the init phase** — no dependency updates landed at all until the pin moved.
 
-When upstream deleted `config/`, `managers/`, `overrides/` and `policies/` from `main`
-(7.0.0, _"consolidate the general-purpose presets into default.json"_), this repo — still on
-4.0.0 — started 404ing on the nested fetch and **Renovate aborted in the init phase**. No
-dependency updates landed at all between 2026-08-05 and the bump to 7.0.0.
-
-**7.0.0 is the first release whose files are self-contained.** Before bumping this pin to any
+**Since 7.0.0 the files are self-contained.** Before bumping this pin to any
 new tag, verify the target tag has no self-references:
 
 ```bash
@@ -55,15 +43,12 @@ A silent abort looks exactly like "no updates were due" — check the Renovate l
 
 ### Why the apps/ presets are listed individually
 
-**6.0.0 made the `apps/` presets opt-in** — the root preset no longer pulls them in, so every
+**The `apps/` presets are opt-in** — the root preset no longer pulls them in, so every
 app-specific manager/datasource this repo depends on has to be listed explicitly. Dropping one
 is silent: the custom manager simply stops extracting and the dependency goes stale with no error.
 
-| Preset               | What it feeds here                              |
-| -------------------- | ----------------------------------------------- |
-| `cnpg.json5`         | `Cluster.spec.imageName` in `database/postgres` |
-| `phanpy.json5`       | phanpy's `<calver>.<sha>` tags                  |
-| `talosFactory.json5` | the `custom.talos-factory` customDatasource     |
+`cnpg.json5` feeds `Cluster.spec.imageName` in `database/postgres`, `phanpy.json5` phanpy's
+`<calver>.<sha>` tags, and `talosFactory.json5` the `custom.talos-factory` customDatasource.
 
 Deliberately absent: `grafanaDashboards` (no dashboards here — VictoriaMetrics only),
 `searxng`, `llamacpp`.
@@ -74,18 +59,13 @@ default preset's generic `# renovate:` annotation manager (which scans every fil
 marker against this datasource. Drop the preset and the marker in `talosupgrade.yaml` silently
 stops resolving.
 
-### 7.0.0 ➔ 8.0.0 — the helm-values narrowing
+### The helm-values manager is narrowed to `helmrelease.yaml`
 
-The entire diff is one change in `default.json`: the `helm-values` manager's scope narrows from
-the broad `/\.ya?ml(?:\.j2)?$/` glob to only `values.yaml`, `helmrelease.yaml` and `hr.yaml`
-(plus `.yml` / `.j2` variants). Upstream's reason is that bare `image:` lines were being
-double-extracted alongside the `kubernetes` manager, inflating grouped-update counts against
-`minimumGroupSize`.
-
-**This is a no-op here only because every HelmRelease in this repo is named `helmrelease.yaml`.**
-The `kubernetes` manager still uses the old broad glob, so it covers everything helm-values gave
-up. If a HelmRelease is ever added under a different filename, its `spec.values.image.*` block
-stops being extracted — with no error.
+Since 8.0.0 the `helm-values` manager only scans `values.yaml`, `helmrelease.yaml` and `hr.yaml`
+(plus `.yml` / `.j2` variants). **This is a no-op here only because every HelmRelease in this repo
+is named `helmrelease.yaml`.** The `kubernetes` manager still uses the old broad glob, so it covers
+what helm-values gave up; but a HelmRelease added under a different filename stops having its
+`spec.values.image.*` block extracted, with no error.
 
 ---
 
@@ -106,16 +86,10 @@ Artemis dropped `platformCommit` and went squash-only. Here it is what keeps the
 
 ## Automerge Policy
 
-Rules are ordered; later `packageRules` win. The guards at the bottom exist to override the
-broad automerge rules above them.
-
-| Rule                      | Effect                                                         |
-| ------------------------- | -------------------------------------------------------------- |
-| Trusted container digests | automerge, `matchPackageNames: ["/home-operations/"]`          |
-| Forgejo Actions           | automerge minor/patch/digest after `minimumReleaseAge: 3 days` |
-| Trusted Forgejo Actions   | `actions/*`, `renovatebot/*` — same, but 1 minute              |
-| All patch updates         | automerge                                                      |
-| All minor updates         | automerge **except** 0.x (see zer0ver below)                   |
+Rules are ordered; later `packageRules` win. The automerge rules (trusted container digests,
+Forgejo Actions, all patch updates, all minor updates except 0.x) and the guards that override
+them are in `.renovaterc.json5`; the guards at the bottom exist to override the broad automerge
+rules above them.
 
 ### The zer0ver guard
 
@@ -153,8 +127,7 @@ The `custom.talos-factory` datasource and the `ghcr.io/siderolabs/kubelet` /
 `registry.k8s.io/kube-proxy` docker tags return **no release timestamp**. Renovate's default
 `minimumReleaseAgeBehaviour: "timestamp-required"` then treats every release as too young, forever:
 the log says _"Marking N release(s) as pending … do not have a releaseTimestamp"_ and no PR ever
-opens. That is why Talos sat on `v1.14.0-rc.2` and Kubernetes on `v1.37.0` until they were bumped
-by hand on 2026-10-02 (frostlink#345).
+opens. That is why Talos and Kubernetes once sat on old versions until they were bumped by hand.
 
 The cost: for those three packages the 7-day wait cannot be enforced, so their PRs open as soon as
 a release appears. `automerge: false` is what keeps them safe — nothing reboots the node until a
@@ -176,8 +149,7 @@ The Talos version is pinned in **two** places, and only one is under the tuppr d
 
 A file-scoped guard would leave the talosctl **CLI** automerging and drifting from the node —
 which matters here, because talosctl decodes config documents client-side and an older client
-rejects a v1.14 document before the node sees it (`.agents/references/talos.md` § Client version
-matters). So the **Talos** rule matches `matchPackageNames: ["siderolabs/talos"]` (deliberately not
+rejects a v1.14 document before the node sees it (`.agents/references/talos.md`, the "Client version matters" note). So the **Talos** rule matches `matchPackageNames: ["siderolabs/talos"]` (deliberately not
 datasource-scoped), sets `automerge: false`, and carries `groupName: talos` so the tuppr CR and the
 talosctl pin land in one PR. Same shape as Artemis's guard.
 
@@ -199,8 +171,7 @@ it groups `kubelet` and `kube-proxy` into one PR, so both files always move toge
 apiserver, controller-manager and scheduler entries were dropped — nothing in this repo pins
 them). It carries its own `automerge: false`, `minimumReleaseAge: "7 days"` and
 `minimumReleaseAgeBehaviour: "timestamp-optional"`, because a grouped PR touches
-`kubernetesupgrade.yaml` and merging it makes tuppr reboot the single node. Modelled on Artemis's rule, which does not include `kube-proxy`
-— Artemis lets it bump separately. **It must stay after the auto-merge rules**, like the guard
+`kubernetesupgrade.yaml` and merging it makes tuppr reboot the single node. **It must stay after the auto-merge rules**, like the guard
 above; later `packageRules` win.
 
 `registry.k8s.io/coredns/coredns` is deliberately **not** in the group. Its version is Talos's own
@@ -229,20 +200,16 @@ branch below its minimum group size is **not** raised individually: Renovate hol
 
 **A one-dependency group never opens a PR.** That is why Cilium and Envoy Gateway are not grouped.
 Each has exactly one dependency here (the chart's `OCIRepository`; the bootstrap helmfile reads
-Cilium's tag from that file). Cilium sat on 1.17 while Artemis reached 1.20 for this reason, and
-envoy-gateway's 1.9.0 ➔ 1.9.2 sat held the same way (frostlink#13). Cilium has its own
+Cilium's tag from that file), so a group would hold their updates forever. Cilium has its own
 `automerge: false` rule instead: it is the CNI of a single node, and a bad release takes every
 pod's networking down. Envoy Gateway follows the normal automerge rules.
 
 ### CNPG group — the one that exists for blast radius, not tidiness
 
-Every update to `Cluster.spec.imageName` recreates `postgres-1`, and `instances: 1` means that is
-a **full outage**, not a switchover. The mautrix bridges exit fatally when their DB goes away and
-then crash-loop against pgbouncer until it stops serving the cached login failure, so each bump
-costs ~3 bridge restarts. Three landed in August 2026 alone, at arbitrary times.
-
-Grouping them with the operator behind `schedule: ["* 4-6 * * 6"]` makes the outage predictable
-and less frequent. **It does not prevent it.**
+Every update to `Cluster.spec.imageName` rolls the instances and moves the primary, which clients
+feel as an outage. Grouping them with the operator behind `schedule: ["* 4-6 * * 6"]` makes it
+predictable and less frequent. **It does not prevent it.** Why the clients care:
+`database.md` § Why clients must tolerate a primary change.
 
 ---
 
@@ -256,18 +223,15 @@ when the file was written and drifts every time the chart moves.
 
 It uses the same `depName` as the per-app `ocirepository.yaml`, so the schema bump rides along
 with the chart bump rather than arriving as a second, separate PR. This matters because the chart
-version lives in **22 places** here — 11 OCIRepositories and 11 modelines — and only this keeps
-the two halves in step.
+version lives in two places per app (the OCIRepository and the modeline) and only this keeps the
+two halves in step.
 
 ---
 
 ## Lock File Maintenance
 
-Six of the seven tools in `.mise/config.toml` are `latest` — `talos` is the only pin —
-so `.mise/mise.lock` is the only thing pinning the rest, and nothing was refreshing it. flate,
-minijinja, oxfmt, shellcheck, yayamlls and zizmor were frozen at whatever resolved when the lock
-was last written, and the lock still carried a `github:home-operations/yamlls` entry for a tool
-renamed out of the mise config.
+Every tool in `.mise/config.toml` is pinned to an exact version, so `.mise/mise.lock` is what
+records what those versions resolved to, and nothing else refreshes it.
 
 It needs its **own schedule** — the top-level `"at any time"` would run this every pass.
 
@@ -283,19 +247,6 @@ workflow, so the monthly bump gets eyes on it.
 
 ## Merging a batch
 
-`.agents/instructions/commit-style.md` shows a single-PR merge with
-`merge_when_checks_succeed`. **Queue it on one PR at a time.** Every PR queued that way fires on
-the same status event and they race on the `main` ref; losers come back `merged=true` with a
-`merge_commit_sha` that is left dangling and never reaches `main`, with no error from the API.
-This bit Artemis on 2026-08-19 — nine queued, three lost. Frostlink's PR volume is lower, so it
-has not happened here yet; the mechanism is identical and the flag is the same.
-
-Two related traps: the flag never fires if the checks have **already** passed (no new status
-event arrives, so the PR just sits there looking queued), and `merged=true` is not proof the
-change reached `main`. For a batch, merge sequentially and verify each landed:
-
-```bash
-tea pr merge <PR_NUMBER> --style squash --login forgejo --repo Exikle/frostlink
-git fetch origin main && git branch -r --contains <merge_commit_sha> | grep -q origin/main \
-  && echo LANDED || echo LOST
-```
+Merge Renovate PRs with the `triage-renovate` skill: one PR at a time, verifying each landed on
+`main`. Queueing several with `merge_when_checks_succeed` races on the `main` ref and silently
+drops commits (`commit-style.md` § Renovate PR auto-merge).

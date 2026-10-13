@@ -2,24 +2,14 @@
 
 ## Core Workflow
 
-Test live before committing — `main` goes directly to production:
+The test-apply → confirm → commit → resume sequence is `commit-style.md` § Exikle workflow. After
+the push, force-sync until the digest moves (see below):
 
 ```bash
-just kube suspend-ks flux-system frostlink-dev  # REQUIRED — root
-just kube suspend-ks <ns> <ks-name>             # REQUIRED — target
-just kube apply-ks <ns> <ks-name>               # apply live; wait for user confirmation before committing
-# ...commit and push, then wait for the OCI artifact build to go green...
-just kube sync ocirepo                          # force-sync all OCIRepositories — repeat until the digest moves
-just kube resume-ks flux-system frostlink-dev   # root FIRST
-just kube resume-ks <ns> <ks-name>              # then the target
-```
-
-Other force-sync targets:
-
-```bash
-just kube sync hr                   # all HelmReleases
-just kube sync ks                   # all Kustomizations
-just kube sync es                   # all ExternalSecrets
+just kube sync ocirepo   # all OCIRepositories
+just kube sync hr        # all HelmReleases
+just kube sync ks        # all Kustomizations
+just kube sync es        # all ExternalSecrets
 ```
 
 ### There is no `GitRepository` — the source is OCI
@@ -29,8 +19,9 @@ at `interval: 1m`, built and pushed by CI. `kubectl get gitrepository -A` return
 **`just kube sync gitrepo` has no live target** — it is a no-op that looks like it worked. The
 only `kind: GitRepository` anywhere in the repo is
 `kubernetes/components/alerts/alertmanager/alert.yaml`, where it is a notification `eventSource`
-selector, unrelated to Kustomization sources. All 53 `ks.yaml` use
-`kind: OCIRepository, name: flux-system, namespace: flux-system`.
+selector, unrelated to Kustomization sources. Every `ks.yaml` uses
+`sourceRef: kind: OCIRepository, name: flux-system, namespace: flux-system`, and app
+Kustomizations live in their app namespace, not `flux-system`.
 
 **Do not sync before CI has rebuilt the artifact.** The OCIRepository is built from the pushed
 commit; syncing immediately after `git push` re-resolves the **pre-commit** digest and silently
@@ -42,12 +33,12 @@ kubectl -n flux-system get ocirepository flux-system \
   -o jsonpath='{.status.artifact.revision}{"\n"}'
 ```
 
-Live anchors (verified 2026-08-21): distribution `2.x`; controllers source `v1.9.4`, kustomize
-`v1.9.4`, helm `v1.6.3`, notification `v1.9.3`. Kustomization API `kustomize.toolkit.fluxcd.io/v1`,
-HelmRelease `helm.toolkit.fluxcd.io/v2`, OCIRepository `source.toolkit.fluxcd.io/v1`,
-ExternalSecret `external-secrets.io/v1`.
+Versions are a command, not a number:
+`kubectl get fluxinstance flux -n flux-system --context frostlink -o jsonpath='{.status.components}'`.
+Kustomization API `kustomize.toolkit.fluxcd.io/v1`, HelmRelease `helm.toolkit.fluxcd.io/v2`,
+OCIRepository `source.toolkit.fluxcd.io/v1`, ExternalSecret `external-secrets.io/v1`.
 
-### Suspend before a test-apply — same as Artemis
+### Suspend before a test-apply
 
 `apply-ks` suspends nothing. **Both suspend recipes are narrow** — they act only on the
 Kustomization you name, so the root is always a separate call. Going in, order does not matter;
@@ -56,19 +47,11 @@ Kustomization you name, so the root is always a separate call. Going in, order d
 reconcile its old spec and write stale values straight back. It also warns about anything left
 suspended when it finishes — read its last line. Never resume before CI has rebuilt the artifact.
 
-**Suspending the root survives — flux-operator does not recreate it.** An earlier version of this
-file said it did. Checked read-only on 2026-10-07, against both clusters:
-
-- `FluxInstance/flux` inventory holds only `Kustomization/flux-system` and
-  `OCIRepository/flux-system`. `frostlink-dev` is not in it, and has no ownerReference.
-- `frostlink-dev` carries `kustomize.toolkit.fluxcd.io/name: flux-system` — it is applied by the
-  `flux-system` Kustomization from `kubernetes/flux/sync/cluster.yaml`, which sets no `suspend`.
-- Its `kustomize-controller` server-side-apply field set does not include `spec.suspend`, so a
-  re-apply leaves a `flux suspend` in place.
-- Artemis's `artemis-cluster` is wired identically on every point above, and its two-suspend
-  sequence is routine there.
-
-Check it yourself:
+**Suspending the root survives — flux-operator does not recreate it.** `FluxInstance/flux`
+inventory holds only `Kustomization/flux-system` and `OCIRepository/flux-system`; `frostlink-dev`
+is applied by the `flux-system` Kustomization from `kubernetes/flux/sync/cluster.yaml`, which sets
+no `suspend`, and its server-side-apply field set does not include `spec.suspend`, so a re-apply
+leaves a `flux suspend` in place. Check it yourself:
 
 ```bash
 kubectl get fluxinstance flux -n flux-system --context frostlink -o jsonpath='{.status.inventory.entries[*].id}'
@@ -89,17 +72,18 @@ flux resume helmrelease <app> -n <ns>
 flux reconcile kustomization <name> -n <namespace>
 ```
 
-Kustomizations live in their **target namespace** (e.g. `network`, `fediverse`), NOT always `flux-system`.
+Kustomizations live in their **target namespace** (e.g. `network`, `fediverse`), NOT `flux-system`.
 
 ## Key Rules
 
 - `prune: false` on `flux-instance` Kustomization — never prune Flux itself. `kube-system/coredns`
   is the only other `prune: false`; everything else prunes.
 - `dependsOn` must list actual runtime dependencies, not just chart sources
-- `interval: 1h` is standard — 50 of 53 `ks.yaml` use it, 3 use `30m`
+- `interval: 1h` is standard; a few infrastructure ks.yaml use `30m`
+  (`grep -rh 'interval:' kubernetes/apps/*/*/ks.yaml | sort | uniq -c`)
 - **`retryInterval: 1m` is injected by the root Kustomization's patch block**, so an explicit one
-  in a child is redundant. Only 8 of 53 set it by hand (2 of those override to `2m`); the rest
-  inherit `1m` whether or not the file says so. Do not add it "because it's missing" — it isn't.
+  in a child is redundant. Most children inherit it whether or not the file says so; a few
+  override it. Do not add it "because it's missing" — it isn't.
 
 ## The root Kustomization overwrites every child's `spec.patches`
 
@@ -116,39 +100,27 @@ parent patch either, so `just kube render-local-ks` makes the override look like
 
 Put per-app kustomize overrides in the app's own `app/kustomization.yaml` (`patches:` there is
 evaluated by the child's own kustomize build and is untouched by the parent). Do not add
-`spec.patches` to a `ks.yaml`. Identical mechanism and identical rule on Artemis, where it cost a
-full afternoon during a namespace move before it was identified.
+`spec.patches` to a `ks.yaml`. Same mechanism and rule on Artemis.
 
-## Cross-Namespace Kustomization Gotchas
+## flate `dependsOn` Namespace
 
-When a `Kustomization` lives outside `flux-system` (e.g. in `fediverse` or `network`), both references must be explicit:
+A `Kustomization` outside `flux-system` (e.g. in `fediverse` or `network`) needs both references
+explicit, or reconciliation fails with a "not found" error. `just kube apply-ks` uses flate, which
+resolves `dependsOn` by `targetNamespace`, so without `namespace:` it looks in the current ks's own
+`targetNamespace` and fails with "dependency not found":
 
 ```yaml
 spec:
     sourceRef:
         kind: OCIRepository
         name: flux-system
-        namespace: flux-system # REQUIRED — omitting causes "OCIRepository not found"
+        namespace: flux-system
     dependsOn:
-        - name: cert-manager
-          namespace: cert-manager # REQUIRED for cross-namespace deps
+        - name: clusterissuer
+          namespace: cert-manager
+        - name: onepassword-connect
+          namespace: external-secrets
 ```
-
-Missing either causes a silent "not found" reconciliation failure.
-
-## flate `dependsOn` Namespace
-
-`just kube apply-ks` uses flate, which resolves dependencies by `targetNamespace`. Cross-namespace refs require `namespace: <targetNamespace>` in `dependsOn`:
-
-```yaml
-dependsOn:
-    - name: cert-manager
-      namespace: cert-manager
-    - name: onepassword-connect
-      namespace: external-secrets
-```
-
-Without the `namespace:` field, flate looks in the current ks's own `targetNamespace` and fails silently.
 
 ## CRD Timing Race
 
@@ -166,19 +138,16 @@ kopiur writes `status.observedGeneration` on a `SnapshotSchedule` at its **first
 never again. Edit the schedule spec afterwards and the object sits at
 `generation != observedGeneration` permanently. kstatus reads that as `InProgress`, so a
 Kustomization with `wait: true` hangs on health checks for the full timeout — every cycle,
-indefinitely. `fediverse/apoci` flapped `DependencyNotReady` 58128 times over 12 days on exactly
+indefinitely. `fediverse/apoci` once flapped `DependencyNotReady` tens of thousands of times on exactly
 this, and while stuck on a stale revision it silently re-applied an old cron over a change.
 
 - **`healthCheckExprs` does not help.** The generation precondition is evaluated _before_ the CEL
   expressions, so the stale field still wins. Verified live, not assumed.
 - **Fix: drop `wait: true` and gate on the HelmRelease** via explicit `spec.healthChecks` — that
   is what "the app is up" actually means. Applied to `fediverse/apoci`, `fediverse/gotosocial`
-  and `matrix/continuwuity`; the latter two carried the same latent fault and only escaped it
-  because their schedules had never been edited.
-- `SnapshotPolicy` tracks `observedGeneration` correctly. `Restore` does **not**, but the
-  component annotates it `kustomize.toolkit.fluxcd.io/ssa: ignore`, so Flux reports it `skipped`
-  and excludes it from health checks. Artemis-Cluster lacked that annotation and stalled
-  `arcade/eco` for 24 days the same way — keep it.
+  and `matrix/continuwuity`.
+- `SnapshotPolicy` tracks `observedGeneration` correctly. The component carries no `ssa: ignore`
+  annotation on `Restore` — see `storage.md` § No `ssa:` annotation.
 - Diagnostic: `kubectl get snapshotschedule -A -o json` and compare
   `.metadata.generation` against `.status.observedGeneration`.
 
@@ -186,16 +155,6 @@ this, and while stuck on a stale revision it silently re-applied an old cron ove
 
 `just kube apply-ks <ns> <ks>` renders and applies the app **path** — it does not touch the
 Kustomization CR itself. Patching the live CR does not work either: a running `frostlink-dev`
-reverts it. (flux-operator does **not** recreate `frostlink-dev` — § Suspend before a test-apply —
-but whether a CR patch holds under a suspended root has not been tested.) **Pushing is the only
+reverts it. (Whether a CR patch holds under a suspended root has not been tested.) **Pushing is the only
 proven way to test a ks.yaml change**, so budget for
-verifying after the push rather than before. Two test results were silently invalidated by this
-before it was noticed.
-
-## Common Anti-Patterns
-
-- **Sharing OCIRepository**: every app needs its own — never reuse
-- **HTTPRoute as standalone file**: goes in helmrelease values
-- **SOPS**: fully removed — do not introduce
-- **External hostnames for cluster traffic**: always `svc.cluster.local`
-- **`git add .` / `git add -A`**: always stage specific files by name
+verifying after the push rather than before.

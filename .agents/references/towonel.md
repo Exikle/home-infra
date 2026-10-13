@@ -3,7 +3,7 @@
 towonel exposes HTTP(S) services that sit behind NAT/CGNAT without opening inbound
 ports **at the origin** — the edge itself very much does listen inbound, on this host.
 Frostlink runs the **hub** (control plane) and the **edge** (public listener); the
-Artemis agent dials in and has been connected since 2026-08-19. A second agent,
+Artemis agent dials in. A second agent,
 Frostlink's own `network/towonel-agent`, carries `headscale.frostlink.dev`.
 
 The agent side — which hostnames Artemis claims, how it maps them to its own
@@ -52,8 +52,8 @@ that default in place and pairs it with `ClientTrafficPolicy/edge` on its `edge-
 that policy is set, and why, is Artemis's to document: Artemis `.agents/references/towonel-agent.md`
 § PROXY protocol — that file wins over anything here.
 
-That is why real client IPs survive the tunnel — verified 2026-08-22, the Artemis agent logs a
-public client address per stream. Turning the header off fails **silently**: TLS still works, but
+That is why real client IPs survive the tunnel — the Artemis agent logs a public client address
+per stream. Turning the header off fails **silently**: TLS still works, but
 Artemis sees every public request as coming from the agent pod, which loses the real client IP and
 blinds Artemis's CrowdSec (the agent pod is exempt). Nothing on this side needs changing to keep
 it working; just do not assume the header is off.
@@ -86,7 +86,7 @@ The hub supports `postgres`, but:
 
 - Coupling the tunnel control plane to Postgres means a Renovate CNPG image bump
   can take **ingress** down. That failure mode already cost us the mautrix bridges
-  (see `references/database.md`).
+  (see `database.md` § Why clients must tolerate a primary change).
 - The Postgres advisory lock only matters for multi-replica hub HA, and a single
   node cannot have that.
 - The node already needs a persistent volume for its keys, so sqlite adds no new
@@ -162,14 +162,14 @@ Two kinds: ports the DaemonSet declares and holds for its lifetime, and ports th
 
 ### Static — declared on the DaemonSet
 
-| Port      | Proto | Where            | Open on OCI?                                                                   |
-| --------- | ----- | ---------------- | ------------------------------------------------------------------------------ |
-| 443       | TCP   | edge TLS (SNI)   | **yes**                                                                        |
-| 51820     | UDP   | iroh QUIC        | **yes**                                                                        |
-| 8443      | TCP   | hub API          | **no** — via cloudflared                                                       |
-| 80        | TCP   | edge HTTP        | **yes** (2026-10-04) — forwards by `Host` to the origin's `:80`, for redirects |
-| 51444     | TCP   | hub↔edge link    | no — single pod, disabled                                                      |
-| 9090/9091 | TCP   | edge/hub metrics | no — scraped in-cluster                                                        |
+| Port      | Proto | Where            | Open on OCI?                                                      |
+| --------- | ----- | ---------------- | ----------------------------------------------------------------- |
+| 443       | TCP   | edge TLS (SNI)   | **yes**                                                           |
+| 51820     | UDP   | iroh QUIC        | **yes**                                                           |
+| 8443      | TCP   | hub API          | **no** — via cloudflared                                          |
+| 80        | TCP   | edge HTTP        | **yes** — forwards by `Host` to the origin's `:80`, for redirects |
+| 51444     | TCP   | hub↔edge link    | no — single pod, disabled                                         |
+| 9090/9091 | TCP   | edge/hub metrics | no — scraped in-cluster                                           |
 
 Missing the UDP half fails **silently**: QUIC never establishes and there is no error.
 
@@ -194,7 +194,7 @@ Three things follow:
 
 - **They exist only while an agent session does.** Probing the port while the agent is down
   proves nothing, and an OCI rule change cannot be validated against a disconnected edge.
-- **The OCI security list must allow them**, and it does (console-verified 2026-10-04 —
+- **The OCI security list must allow them**, and it does (console-verified —
   `networking.md` § Oracle Cloud VCN).
 - **25565 attracts constant internet scanning.** A steady trickle of
   `client->agent forward: Connection reset by peer (os error 104)` / `Connection timed out
@@ -202,18 +202,15 @@ Three things follow:
 
 ## Monitoring
 
-The chart ships hub alerts (`monitoring.prometheusRule.enabled`) and a
-ServiceMonitor; vm-operator's prometheus converter turns both into `VMRule` /
-`VMServiceScrape`, and vmalert has `selectAllByDefault: true`. Edge alerts are **not**
-in the chart — they are lifted from `eleboucher/homelab` into
-`app/prometheusrule-edge.yaml` with the upstream `cluster="towonel-ops"` selector
-dropped (that exists only because their hub runs outside their cluster).
+The chart ships hub alerts and a ServiceMonitor, which vm-operator converts into `VMRule` /
+`VMServiceScrape`. Edge alerts are **not** in the chart — they are lifted from `eleboucher/homelab`
+into `app/prometheusrule-edge.yaml` with the upstream `cluster="towonel-ops"` selector dropped
+(that exists only because their hub runs outside their cluster).
 
-`TowonelEdgeNoSessions` was omitted while there were no agents; it was **enabled 2026-08-19**
-when the Artemis agent landed, and zero sessions stopped being a valid steady state. Leave it
-on. It is the only alert that catches a dead tunnel for the non-HTTP services — Artemis probes
-its own HTTPS hostnames, so those fail loudly, but `minecraft/tcp` and `eco/udp` would
-otherwise go dark silently. The `for: 10m` tolerates an agent rollout without flapping.
+Leave `TowonelEdgeNoSessions` on: zero sessions is not a valid steady state now that agents exist.
+It is the only alert that catches a dead tunnel for the non-HTTP services — Artemis probes its own
+HTTPS hostnames, so those fail loudly, but `minecraft/tcp` and `eco/udp` would otherwise go dark
+silently. The `for: 10m` tolerates an agent rollout without flapping.
 
 ## Operating
 
@@ -248,12 +245,8 @@ a matching grant leaves the edge declining to bind the listener, with no error o
 ## Gotchas
 
 - **`helm show chart oci://codeberg.org/towonel/charts/towonel` 404s** — the chart is
-  `towonel-node` (hub and/or edge); the agent chart is `towonel-agent`.
+  `towonel-node` (hub and/or edge). This cluster's own agent (`network/towonel-agent`) is plain
+  app-template, not a towonel chart.
 - **The chart's derived probes use `timeoutSeconds: 1`** — the same too-tight setting
   that let a brief Postgres blip kill the mautrix bridges. They are loosened in the
   HelmRelease; do not let a chart bump quietly reset them.
-- **`edge_link listen_addr and psk must both be set; edge_link disabled`** is expected
-  and harmless here — that link only matters for remote edges in other regions.
-- **`Insecure TLS config: server certificates will be trusted without verification`**
-  comes from `iroh_relay::tls` on startup. It is the iroh relay client's default and
-  is not towonel's public TLS path.

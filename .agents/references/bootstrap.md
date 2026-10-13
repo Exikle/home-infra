@@ -1,10 +1,8 @@
 # Bootstrap Reference — Frostlink
 
-Rebuilding the cluster from nothing. **Status: operational, not historical** — every recipe named
-here still exists in `bootstrap/mod.just` and was re-checked against it on 2026-08-21. But the
-cluster has been up since 2026-06-13, so nothing on this page is exercised in normal work: treat
-it as a disaster-recovery runbook, and re-read `bootstrap/mod.just` before running any of it
-rather than trusting the summaries here.
+Rebuilding the cluster from nothing. Nothing on this page is exercised in normal work: treat it as
+a disaster-recovery runbook, and re-read `bootstrap/mod.just` (`just --list bootstrap`) before
+running any of it rather than trusting the summaries here.
 
 ## Two circles a rebuild has to break (frostlink#347)
 
@@ -14,8 +12,8 @@ rather than trusting the summaries here.
    and must be opened to your home /32 for the duration. The node joins Headscale last, with a
    freshly minted key (`just bootstrap tailnet`).
 2. **The Flux source runs on this cluster.** `registry.frostlink.dev` is apoci on Frostlink, and
-   since 2026-10-04 every `*.dcunha.io` name (Forgejo, Artemis's apoci) is served through
-   Frostlink's towonel edge. Nothing at home is reachable from a rebuilding node. So the **first**
+   every `*.dcunha.io` name (Forgejo, Artemis's apoci) is served through Frostlink's towonel
+   edge. Nothing at home is reachable from a rebuilding node. So the **first**
    artifact comes from your PC: `just bootstrap seed` pulls CI's copy from Forgejo
    (`oci://git.dcunha.io/exikle/frostlink:main`) over the home network and pushes it into a
    throwaway in-cluster registry (`bootstrap/seed-registry.yaml`). The bootstrap FluxInstance syncs
@@ -39,13 +37,14 @@ just bootstrap phase2        # k8s, kubeconfig, talosconfig, base, cni, seed, ap
 Then, in order:
 
 1. **Watch Flux reconcile from the seed.** `kubectl -n flux-system get ocirepository flux-system`
-   shows the `seed-registry` URL until `flux-instance` switches it to `registry.frostlink.dev`.
+   shows the `seed-registry` URL until `flux-instance` switches it to `registry.frostlink.dev`
+   (add `--context frostlink`).
 2. **Check every kopiur restore pulled a real snapshot** before trusting the apps —
-   `kubectl get restore -A`. The component uses `onMissingSnapshot: Continue`, so a wrong R2
+   `kubectl get restore -A --context frostlink`. The component uses `onMissingSnapshot: Continue`, so a wrong R2
    credential or repository yields an **empty volume, not an error**. For Headscale that means a
    new noise key and an empty database: every device would have to re-register.
 3. **Check Headscale came back with its devices:** `kubectl -n network exec deploy/headscale -c app
-   -- headscale nodes list` shows the UCG and your devices; the UCG reconnects on its own.
+   --context frostlink -- headscale nodes list` shows the UCG and your devices; the UCG reconnects on its own.
 4. `just bootstrap tailnet` — mints a one-hour, one-time `tag:frostlink` key, substitutes it into
    `talos/patches/tailscale.yaml.j2` in a 600 temp file, and patches it onto the node over the
    public Talos API (no reboot). The key is never written to 1Password; it is spent on first use.
@@ -64,46 +63,26 @@ its routes; kopiur's restore waiting for the repository instead of racing to an 
 towonel hub restore still accepting the agent invite (Headscale ingress rides on it). Check each
 as you go.
 
-Recipes (all `[private]` except the three entry points):
-
-| Recipe         | What it does                                                                                                                       |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `config`       | `talosctl gen config` with `talos/patches/controlplane.yaml` + a certSANs patch for the public IP, into `/tmp/frostlink-bootstrap` |
-| `apply`        | `talosctl apply-config --insecure` against `FROSTLINK_INIT_IP`                                                                     |
-| `k8s`          | `talosctl bootstrap`, retried until it reports `AlreadyExists`                                                                     |
-| `kubeconfig`   | `talosctl kubeconfig --force-context-name frostlink` into the repo root                                                            |
-| `talosconfig`  | installs the rebuild talosconfig at the repo root (endpoint = public IP)                                                           |
-| `base`         | namespaces → bootstrap secrets → CRDs from `bootstrap/helmfile.d/00-crds.yaml`                                                     |
-| `cni`          | cilium, coredns, cert-manager via direct `helm upgrade --install`                                                                  |
-| `seed`         | seed registry up, `flux pull artifact` from Forgejo, `flux push artifact --insecure-registry` into it                              |
-| `apps`         | `helmfile -f bootstrap/helmfile.d/01-apps.yaml sync`                                                                               |
-| `tailnet-join` | the `tailnet` entry point's body — mint key, render, `talosctl patch mc`                                                           |
+Recipes: `phase1`, `phase2` and `tailnet` are the entry points; the rest are `[private]` steps
+(`config apply k8s kubeconfig talosconfig base cni seed apps tailnet-join`) — `just --list
+bootstrap` and `bootstrap/mod.just` say what each does.
 
 No certSAN step is needed for `10.0.0.203` or any tailnet IP: Talos adds the node's own addresses
-to the apiserver certificate automatically (checked against the served cert 2026-10-04).
+to the apiserver certificate automatically (checked against the served cert).
 
 ## 1Password Items Required
 
-All live in the `frostlink` vault except where noted.
+`grep -rn 'op://' bootstrap` lists them. Two naming rules have no other home:
 
-| Item name                | Fields used                                                            |
-| ------------------------ | ---------------------------------------------------------------------- |
-| `1password`              | `OP_CREDENTIALS_JSON`                                                  |
-| `access-token`           | `credential` — the Connect server access token                         |
-| `cloudflare-frostlink`   | `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_TUNNEL_TOKEN`                      |
-| `infrastructure/forgejo` | `EXIKLE_CLI_TOKEN` — `seed` pulls the CI artifact from Forgejo with it |
+- `cloudflare-frostlink` keeps its suffix deliberately: **Artemis reads it** for frostlink's DNS and
+  certificates. Artemis's own `cloudflare` item would outrank a renamed one in its vault priority, so
+  the distinct name is the only way to express the cross-read.
+- Never create a frostlink item named `forgejo`: both clusters read `infrastructure/forgejo` by the
+  bare name, and a frostlink one would sit at priority 1 and shadow it.
 
-The tailnet key is minted fresh by `just bootstrap tailnet`; no 1Password item is read for it.
-
-`cloudflare-frostlink` keeps its suffix deliberately: **Artemis reads it** for frostlink's DNS and
-certificates. Artemis's own `cloudflare` item would outrank a renamed one in its vault priority, so
-the distinct name is the only way to express the cross-read.
-
-Never create a frostlink item named `forgejo`: both clusters read `infrastructure/forgejo` by the
-bare name, and a frostlink one would sit at priority 1 and shadow it.
-
-The Flux pull secret needs no item. apoci serves pulls anonymously and ignores the credentials, so
-`resources.yaml.j2` writes a fixed placeholder.
+The tailnet key is minted fresh by `just bootstrap tailnet`, and the Flux pull secret needs no item
+(apoci serves pulls anonymously and ignores the credentials, so `resources.yaml.j2` writes a fixed
+placeholder).
 
 ## bootstrap/resources.yaml.j2
 
@@ -115,17 +94,23 @@ Creates the following secrets before Flux and ExternalSecrets are running:
 - `network/cloudflare-tunnel-id-secret` — Cloudflare tunnel ID
 
 Applied by `just bootstrap base`, which also creates every namespace under `kubernetes/apps/`
-first and applies the CRDs from `bootstrap/helmfile.d/00-crds.yaml` afterwards. Inside this repo
-`.mise/config.toml` already pins `KUBECONFIG`, so no `KUBECONFIG=` prefix is needed — but during a real
+first and applies the CRDs from `bootstrap/helmfile.d/00-crds.yaml` afterwards. During a real
 bootstrap the repo-root `kubeconfig` does not exist until `just bootstrap kubeconfig` has run.
 
 ## Cilium / CoreDNS / cert-manager — Install Directly
 
 These three are NOT in `bootstrap/helmfile.d/01-apps.yaml`. `just bootstrap cni` (wired into `phase2` between `base` and `apps`) installs all three directly via `helm upgrade --install`, one per iteration, reading `chart`/`version` from each app's `ocirepository.yaml` and `values` from its `helmrelease.yaml` — so the bootstrap-time install always matches whatever is currently checked in, with nothing hardcoded to go stale.
 
-**Why not helmfile**: Talos pre-installs Cilium and CoreDNS using field manager `helm-controller`. Helmfile v4 also uses `helm-controller`. Applying both results in SSA ownership conflicts. cert-manager's `startupapicheck` Job also conflicts. Install all three with direct `helm` CLI calls instead — its default field manager (`helm`) avoids the collision.
+**Why not helmfile**: Talos pre-installs Cilium and CoreDNS using field manager `helm-controller`, and
+Helmfile v4 uses the same one, so applying both gives SSA ownership conflicts (cert-manager's
+`startupapicheck` Job conflicts too). Direct `helm` CLI calls use the default field manager
+(`helm`) and avoid the collision. Never add `--cleanup-on-fail` to a helmfile release: on failure
+it deletes cluster-scoped resources and leaves orphaned SSA ownership that then conflicts on retry.
 
-**Important**: `cluster.network.cni.name: none`, `cluster.coreDNS.disabled: true`, and `machine.kubelet.disableManifestsDirectory: true` are all set in `talos/patches/controlplane.yaml`. Together these stop Talos from ever applying its own CNI/CoreDNS/flannel bootstrap manifests, so there's nothing to clean up manually before Cilium and CoreDNS take over.
+Talos itself never applies its own CNI, CoreDNS or kube-proxy manifests, because
+`talos/patches/controlplane.yaml` disables them with typed documents (`KubeFlannelCNIConfig`
+`$patch: delete`, `KubeCoreDNSConfig` and `KubeProxyConfig` `enabled: false`), so there is nothing
+to clean up before Cilium and CoreDNS take over.
 
 ## OCI DNS — CoreDNS Forward Target
 
@@ -137,53 +122,22 @@ These three are NOT in `bootstrap/helmfile.d/01-apps.yaml`. `just bootstrap cni`
 
 **Not a Git credential.** The Flux source is an **OCIRepository**, not a GitRepository —
 `FluxInstance/flux` syncs `oci://registry.frostlink.dev/exikle/frostlink` (apoci on this cluster —
-CI pushes there and to Forgejo's registry) and names this same secret as its `sync.pullSecret`. The Forgejo username/token happen
-to authenticate both the repo and its registry, which is why one secret covers it. There is no
-`GitRepository` object in the cluster; see `.agents/references/flux-patterns.md`.
+CI pushes there and to Forgejo's registry) and names this same secret as its `sync.pullSecret`.
+There is no `GitRepository` object in the cluster; see `flux-patterns.md`.
 
-The secret is `Opaque` with `username` + `password` keys:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-    name: flux-system
-    namespace: flux-system
-type: Opaque
-stringData:
-    username: exikle
-    password: unused-apoci-allows-anonymous-pulls
-```
-
-This is created by `just bootstrap base` via `resources.yaml.j2` (a fixed placeholder; apoci ignores it).
+Forgejo auth is HTTPS, not SSH (SSH is unreachable from OCI), so the secret `flux-system/flux-system`
+is `Opaque` with `username` + `password` keys. `just bootstrap base` creates it via
+`resources.yaml.j2` as a fixed placeholder; apoci ignores it.
 
 ## Post-Bootstrap App Deployment Order
 
-Deploy the `network` namespace **before any app that has an HTTPRoute**. Apps with `web.httpRoute.enabled: true` (e.g. flux-operator) will create an HTTPRoute but traffic cannot flow until envoy-gateway and cloudflare-tunnel are running.
-
-Correct order after Flux is reconciling:
-
-1. `cert-manager/clusterissuer` — ExternalSecret + ClusterIssuer (dependsOn: cert-manager, onepassword-connect)
-2. `network/envoy-gateway` — Envoy Gateway + GatewayClass + external-gateway (ClusterIP)
-3. `network/certificates` — wildcard cert `frostlink.dev` / `*.frostlink.dev` (dependsOn: clusterissuer)
-4. `network/cloudflare-tunnel` — routes `*.frostlink.dev` to envoy internally (dependsOn: envoy-gateway, certificates)
-5. All other apps with HTTPRoutes (any order)
-
-**flate dependsOn namespace rule**: `just kube apply-ks` uses `flate` which resolves `dependsOn` by `targetNamespace`, not `flux-system`. Cross-namespace dependencies require an explicit `namespace:` field matching the dependency's `targetNamespace`:
-
-```yaml
-dependsOn:
-    - name: clusterissuer
-      namespace: cert-manager # matches clusterissuer ks targetNamespace
-    - name: onepassword-connect
-      namespace: external-secrets
-```
-
-Without `namespace:`, flate looks in the current kustomization's own `targetNamespace` and fails with "dependency not found".
+Deploy the `network` namespace **before any app that has an HTTPRoute**: the route is created, but
+traffic cannot flow until envoy-gateway and cloudflare-tunnel are running. Everything else is
+ordered by `dependsOn` in each `ks.yaml`; a cross-namespace ref needs an explicit `namespace:`
+(`flux-patterns.md` § flate `dependsOn` Namespace).
 
 ## After Flux is up — do not sync early
 
-The OCI artifact is built by CI from the pushed commit. Syncing the `flux-system` OCIRepository
-before that build goes green re-resolves the **pre-commit** digest and silently applies old state.
-This applies during bootstrap as much as during normal work — see
-`.agents/references/flux-patterns.md` § There is no `GitRepository`.
+Syncing the `flux-system` OCIRepository before CI has built the artifact re-resolves the
+**pre-commit** digest and silently applies old state — during bootstrap as much as in normal work
+(`flux-patterns.md` § There is no `GitRepository`).

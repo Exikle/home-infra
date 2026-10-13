@@ -10,23 +10,11 @@ Upstream: <https://github.com/TecharoHQ/anubis>
 
 ## Component Shape
 
-The component is kept near-identical to Artemis's. `diff -ru` on 2026-08-22 shows exactly four
-deltas — 1Password item (`anubis` vs `anubis-artemis`), skip-annotation domain
-(`*.frostlink.dev` vs `*.dcunha.io`), `$schema` URLs (`json.schemastore.org` vs
-`k8s-schemas.home-operations.com`), and `USE_REMOTE_ADDRESS`, which only Artemis sets and which
-must **not** be synced here (§ Client IP). Fix any other bug in both.
+The component is kept near-identical to Artemis's: only the 1Password item, the skip-annotation
+domain, the `$schema` URLs and `USE_REMOTE_ADDRESS` differ. That last one is Artemis-only and must
+**not** be synced here (§ Client IP). Fix any other bug in both.
 
-`kubernetes/components/anubis/` is a flat kustomize Component with two jobs:
-
-```text
-components/anubis/
-├── kustomization.yaml     # Component — pulls in ./base, applies the route patch
-└── base/
-    ├── kustomization.yaml
-    ├── externalsecret.yaml
-    ├── helmrelease.yaml
-    └── ocirepository.yaml
-```
+`kubernetes/components/anubis/` is a kustomize Component with two jobs:
 
 1. **Add the workload.** `base/` holds the OCIRepository, HelmRelease and ExternalSecret for
    `${APP}-anubis`. They are built inline into the consuming app's Kustomization, so they land in
@@ -46,9 +34,6 @@ So the component's own HelmRelease carries
 `annotationSelector: "!anubis.frostlink.dev/skip-route-patch"`. That is the only thing keeping the
 patch off Anubis itself — **do not remove that annotation.** The same key is the escape hatch for
 any other HelmRelease that should be exempt.
-
-(Upstream examples solve this by hiding Anubis behind a nested Flux Kustomization instead. The
-annotation achieves the same thing without the extra directory level and extra reconciliation.)
 
 The patch replaces only `backendRefs`, not the whole `rules` array. Replacing `rules` wholesale
 (as some upstream examples do) silently drops sibling `filters` — it would have destroyed
@@ -92,16 +77,19 @@ identified by content type, not by path.** Any request whose `Accept` or `Conten
 Signature. Server-to-server traffic therefore cannot be broken by a path allow-list going stale.
 Browser traffic sends `Accept: text/html` and still gets challenged.
 
-On top of that, these paths are allowed because clients and tooling break without them:
+On top of that, these paths are allowed because clients and tooling break without them (the full
+list is `apps/fediverse/gotosocial/app/anubis-policy.yaml`; this table is the rationale):
 
-| Path                         | Why                                           |
-| ---------------------------- | --------------------------------------------- |
-| `/api/`, `/oauth/`, `/auth/` | Mastodon client API — Phanpy, all mobile apps |
-| `/fileserver/`               | GtS media; challenged media = broken images   |
-| `/users/`, `/emoji/`         | ActivityPub actors, collections, custom emoji |
-| `/nodeinfo/`                 | Instance discovery                            |
-| `/authorize_interaction`     | Remote follow flow                            |
-| `/settings`, `/assets/`      | Settings panel and static assets              |
+| Path                           | Why                                             |
+| ------------------------------ | ----------------------------------------------- |
+| `/api/`, `/oauth/`, `/auth/`   | Mastodon client API — Phanpy, all mobile apps   |
+| `/fileserver/`                 | GtS media; challenged media = broken images     |
+| `/users/`, `/emoji/`           | ActivityPub actors, collections, custom emoji   |
+| `/nodeinfo/`                   | Instance discovery                              |
+| `/authorize_interaction`       | Remote follow flow                              |
+| `/settings`, `/assets/`        | Settings panel and static assets                |
+| `/signup`, `/check_your_input` | Sign-up flow                                    |
+| `/inbox`, `/custom_css`        | ActivityPub inbox (exact), instance CSS (exact) |
 
 `.well-known` is **not** in the policy because it never reaches Anubis at all — gotosocial's
 `route.wellknown` is a separate HTTPRoute that the component's patch does not touch, so WebFinger
@@ -121,15 +109,10 @@ and host-meta go straight to the backend. Leave that route alone.
 
 ### How effective is this, really?
 
-Worth being honest about. GoToSocial shipped its own PoW deterrence (`nollamas`) and then
-**removed it in September 2025**
-([#4433](https://codeberg.org/superseriousbusiness/gotosocial/issues/4433)); the maintainer cited
-[pow-buster](https://github.com/eternal-flame-AD/pow-buster), a SIMD solver with explicit Anubis
-coverage, and wrote that "both our hacky implementation especially, and more popular ones (like
-anubis) aren't looking too great on the deterrent front."
-
-Anubis raises the cost for low-effort crawlers. It does not stop a determined one. Treat it as a
-rate-limiting speed bump, not a wall.
+GoToSocial removed its own PoW deterrence in September 2025
+([#4433](https://codeberg.org/superseriousbusiness/gotosocial/issues/4433)) because solvers such
+as [pow-buster](https://github.com/eternal-flame-AD/pow-buster) cover Anubis too. Treat Anubis as
+a rate-limiting speed bump for low-effort crawlers, not a wall.
 
 ---
 
@@ -140,7 +123,7 @@ too. Three separate things broke before this worked:
 
 **1. `postgres/cert` injected a Postgres client cert into Anubis.** Its patch in
 `components/postgres/base/patch/` targeted all HelmReleases and mounts
-`postgres-{{ .Release.Name }}-cert`, so Anubis waited forever on a nonexistent
+`postgres-${APP}-cert`, so Anubis waited forever on a nonexistent
 `postgres-gotosocial-anubis-cert` and sat in `Init:0/1`. Fixed by giving that patch
 `annotationSelector: "!postgres.frostlink.dev/skip-cert-patch"` and annotating Anubis's
 HelmRelease. Any future sidecar added via a component needs the same annotation.
@@ -192,8 +175,7 @@ get, for no benefit. Artemis's copy of this doc carries the full trade-off.
 
 - **Store is in-memory.** No `store` block is configured, so challenge state is lost on restart
   and users re-solve once. This is deliberate: it avoids a dependency on the `database` Dragonfly,
-  which currently has no other consumer on Frostlink and whose operator-owned NetworkPolicy
-  behaviour is untested for this path. Add a `store.backend: valkey` block pointing at
+  which has no other consumer on Frostlink. Add a `store.backend: valkey` block pointing at
   `redis://dragonfly.database.svc.cluster.local:6379/<db>` if challenge persistence is wanted.
 - **Difficulty is set per-rule in the policy**, not via the `DIFFICULTY` env var. The env var
   route is a trap: `postBuild` substitution yields a bare integer, and container env values must

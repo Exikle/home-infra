@@ -1,11 +1,11 @@
 # ClusterMesh — Frostlink ⇄ Artemis
 
 Cilium ClusterMesh joins Frostlink (`frostlink-vps`, id 2) and Artemis (`artemis-cluster`, id 1)
-over the Headscale site link. Live since 2026-10-03. It gives **global services**: the same
+over the Headscale site link. It gives **global services**: the same
 Service name and namespace in both clusters, with backends from either. This file is canonical
 for both repos; Artemis's `networking.md` § ClusterMesh holds only its side's specifics.
 
-Health: `kubectl -n kube-system exec deploy/clustermesh-apiserver -c kvstoremesh -- clustermesh-apiserver kvstoremesh-dbg status`
+Health: `kubectl --context frostlink -n kube-system exec deploy/clustermesh-apiserver -c kvstoremesh -- clustermesh-apiserver kvstoremesh-dbg status`
 on either cluster — `1/1 remote clusters ready`. `cilium-dbg status | grep ClusterMesh` on any agent.
 
 ## How traffic crosses
@@ -77,24 +77,21 @@ metadata:
 Same name and namespace in both clusters. **Artemis uses DSR**, and DSR to a remote backend
 breaks (the reply leaves Oracle's default route), so an externally reachable global service on
 Artemis needs `forwarding-mode: snat` (`bpf.lbModeAnnotation` is on). Pod → ClusterIP is fine.
-`policyDefaultLocalCluster` is on: a NetworkPolicy matches only local pods unless it names a
-cluster.
-
-Proven 2026-10-03 with a throwaway echo service: 10/10 to Artemis, Artemis copy deleted → 10/10
-to Frostlink, back → 10/10 Artemis.
+`policyDefaultLocalCluster` is on (the chart default; `policy-default-local-cluster` in the
+`cilium-config` ConfigMap): a NetworkPolicy matches only local pods unless it names a cluster.
 
 ## Traps hit building it
 
 - **MTU stays 1500 on Frostlink.** Cross-site TCP is covered by the UCG MSS clamp; large UDP from
   a Frostlink pod to home can still drop silently. Changing Cilium's `MTU` on a live cluster moves
-  the host devices at once but not existing pods — on 2026-10-03 a 1500→1280 change stalled every
-  public Frostlink site on large responses for ~7 minutes until reverted.
+  the host devices at once but not existing pods — a 1500→1280 change once stalled every
+  public Frostlink site on large responses until reverted.
 - **`just kube apply-ks` cannot render a HelmRelease whose `valuesFrom` reads a Secret** (flate
   feeds a placeholder; `buildCustomCert: unable to decode base64 certificate`). Flux itself is
   fine. To test-apply by hand: `kustomize build <dir> | kubectl -n kube-system apply --server-side --force-conflicts --field-manager=kustomize-controller -f -`.
 - **Never drop the `-n`.** The Cilium app's `kustomization.yaml` has no `namespace:`; without
   `-n kube-system` everything lands in `default`, a second Cilium Helm release installs there and
-  takes over Cilium's ClusterRoleBindings (Artemis, 2026-10-03). Recovery: suspend the stray HR,
+  takes over Cilium's ClusterRoleBindings (seen on Artemis). Recovery: suspend the stray HR,
   repoint the bindings, remove its finalizer and delete it — never `helm uninstall`, which deletes
   the shared cluster-scoped objects.
 - **app-template `configMaps` trims the trailing newline**, which haproxy rejects; the relay

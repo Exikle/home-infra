@@ -1,7 +1,6 @@
 # Status page — Frostlink hosts it for both clusters
 
-`status.dcunha.io` is Frostlink's Gatus (`observability/gatus-sidecar`). It moved off Artemis on
-2026-10-03 so the page stays up when the house is down. It is also served at
+`status.dcunha.io` is Frostlink's Gatus (`observability/gatus-sidecar`). It moved off Artemis so the page stays up when the house is down. It is also served at
 `gatus-sidecar.frostlink.dev`; `status.frostlink.dev` was dropped. Live check count:
 `curl -s 'https://status.dcunha.io/api/v1/endpoints/statuses?pageSize=500' | jq length`.
 

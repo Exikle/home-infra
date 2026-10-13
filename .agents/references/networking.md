@@ -11,43 +11,24 @@ Frostlink has **one gateway**: `external-gateway` in the `network` namespace. Th
 - HTTP listener: `allowedRoutes.namespaces.from: Same` (network namespace only) — handled by the HTTPS redirect HTTPRoute
 - HTTPS listener: `allowedRoutes.namespaces.from: All` — all namespaces can attach routes
 
-### Route parentRef
-
-All HTTPRoutes attach to `external-gateway`:
-
-```yaml
-parentRefs:
-    - name: external-gateway
-      namespace: network
-```
-
-Routes are defined **inline in helmrelease values** under `route.app:` — not as standalone HTTPRoute files.
+Routes attach to `external-gateway` in `network` and are defined **inline in helmrelease values**
+under `route.app:` (`cluster-conventions.md`).
 
 ## DNS
 
 ### external-dns-cloudflare
 
 The app directory is `kubernetes/apps/network/cloudflare-dns/`; the **Deployment is named
-`external-dns-cloudflare`** — search for the latter when inspecting the cluster. Live flags,
-verified 2026-08-22:
+`external-dns-cloudflare`** — search for the latter when inspecting the cluster. Flags are in
+`cloudflare-dns/app/helmrelease.yaml`; the ones that bite: `--policy sync` (it **deletes** records
+it believes it owns), `--gateway-name external-gateway` (routes on no other gateway), and
+`--cloudflare-proxied` (records default to **orange**).
 
-| Flag                              | Value                                               |
-| --------------------------------- | --------------------------------------------------- |
-| `--source`                        | `crd`, `gateway-httproute`                          |
-| `--gateway-name`                  | `external-gateway` (routes on no other gateway)     |
-| `--domain-filter`                 | `frostlink.dev`                                     |
-| `--policy`                        | `sync` — it **deletes** records it believes it owns |
-| `--txt-owner-id` / `--txt-prefix` | `frostlink` / `k8s.%{record_type}-`                 |
-| `--cloudflare-proxied`            | set — records default to **orange**                 |
-
-DNS target annotation on the gateway: `external-dns.kubernetes.io/target:
-external.frostlink.dev`.
+DNS target annotation on the gateway: `external-dns.kubernetes.io/target: external.frostlink.dev`.
 
 **A `target` annotation on an individual HTTPRoute does not override that.** In the
 `gateway-httproute` source the target comes from the _Gateway_, and the per-route annotation is
-ignored — verified the hard way on Artemis 2026-08-19, where it published a record pointing at the
-wrong tunnel. An earlier revision of this file showed exactly that annotation as the way to
-override a route's target; it does not work. If a record needs a different target, put it in a
+ignored (on Artemis it published a record pointing at the wrong tunnel). If a record needs a different target, put it in a
 `DNSEndpoint` and let the `crd` source publish it.
 
 Two records are deliberately **grey**, via `providerSpecific` on the `DNSEndpoint` (an annotation
@@ -95,7 +76,7 @@ existing cert instead of requesting a new one. Manifests: `kubernetes/apps/netwo
 CoreDNS forwards to `169.254.169.254`, which happily returns **AAAA** records for external names.
 A pod that dials one gets `connect: network is unreachable` instantly. Because the `loadbalance`
 plugin shuffles record order per response, this is a per-response dice roll rather than a
-deterministic failure — it bit roughly 6% of Kopiur backups to Cloudflare R2, which surfaced as
+deterministic failure — it hit Kopiur backups to Cloudflare R2 intermittently, surfacing as
 `kopiaErrorClass: RepositoryUnavailable` /
 `dial tcp [2606:4700:113::1]:443: connect: network is unreachable` and looked for a long time like
 a credential or repository fault. It is neither.
@@ -111,10 +92,7 @@ Two caveats worth keeping:
   for `cluster.local`. That is correct here — those services are IPv4-only too — but it means the
   block is genuinely cluster-wide, not just external. Scope it with a zone argument
   (`template IN AAAA cloudflarestorage.com`) if that ever becomes undesirable.
-- **Unexplained**: Go's dialer implements Happy Eyeballs and should fall back to IPv4 when the
-  AAAA dial returns `ENETUNREACH` immediately, yet kopia did not. Suppressing AAAA removes the
-  failure path regardless, so the fix stands on its own, but the underlying mechanism was never
-  pinned down. If AAAA suppression is ever reverted, expect the failures to return.
+- If AAAA suppression is ever reverted, expect the Kopiur failures to return.
 
 ## cilium `rollOutCiliumPods` is false
 
@@ -131,7 +109,7 @@ Read `EPERM` on a ClusterIP dial as "socketLB found zero backends", not as a Net
 
 `devices: enp0s6` and `MTU: 1500` in the Cilium HelmRelease. Without them, device auto-detection
 picks up `tailscale0` too, and Cilium sizes every pod interface to the **smallest** detected
-device — tailscale's 1280 — while `enp0s6` runs at 9000. Pinned since 2026-10-02.
+device — tailscale's 1280 — while `enp0s6` runs at 9000.
 
 - **Why 1500, not 9000:** 1500 is the internet path MTU out of the OCI VCN, so pod egress never
   depends on path-MTU discovery. Nothing on this single node needs jumbo frames between pods.
@@ -146,8 +124,7 @@ device — tailscale's 1280 — while `enp0s6` runs at 9000. Pinned since 2026-1
 
 ## cilium cluster identity: `id: 2`, `name: frostlink-vps`
 
-Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique. Changed 2026-10-02 from
-`id: 1` / `frostlink`.
+Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique.
 
 - **Change the ID and the name together, never the ID alone.** The name is a pod identity label
   (`io.cilium.k8s.policy.cluster`); the ID is not. With an ID-only change the existing identities
@@ -159,7 +136,7 @@ Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique. Change
 - Verify the range: cluster N identities are `N*65536 … N*65536+65535`, so cluster 2 is
   `131072–196607`. `cilium-dbg endpoint list -o json` shows each endpoint's `identity.id`.
 - **Not supported once meshed** — changing ID or name on a cluster that is already connected
-  needs every peer disconnected first. Meshed with Artemis since 2026-10-03: `clustermesh.md`.
+  needs every peer disconnected first. This cluster is meshed with Artemis: `clustermesh.md`.
 
 ## Cloudflare Tunnel
 
@@ -171,15 +148,10 @@ the local `network/towonel-agent`. Artemis's public names (the grey `*.frostlink
 
 ## Frostlink is not zero-inbound — the edge listens directly
 
-This changed when towonel landed (2026-08-18) and it is the first thing to correct in any older
-mental model of this host. The edge's fixed ports are open on the OCI security list and bound on
+This is the first thing to correct in any older mental model of this host. The edge's fixed ports are open on the OCI security list and bound on
 the node (the full ingress set, Talos `50000/tcp` included, is § Oracle Cloud VCN):
 
-| Port        | Bound by                      | What breaks if it is closed                              |
-| ----------- | ----------------------------- | -------------------------------------------------------- |
-| `443/tcp`   | towonel edge (hostNetwork DS) | every tunnelled origin — SNI routing has nowhere to land |
-| `80/tcp`    | towonel edge, plain HTTP      | HTTP→HTTPS redirects for tunnelled origins               |
-| `51820/udp` | towonel edge, iroh QUIC       | agents fall back to relay or never connect, **silently** |
+The ports (443/tcp, 80/tcp, 51820/udp) are in § Oracle Cloud VCN.
 
 Consequences that are easy to get wrong:
 
@@ -192,23 +164,14 @@ Consequences that are easy to get wrong:
   currently `25565/tcp` (minecraft) and `3000/udp` (eco), both Artemis origins. Those are
   additional public listeners on this host. `towonel.md` § Ports carries the full table.
 
-## Cluster-Internal Traffic
-
-Always use `svc.cluster.local` — never external hostnames:
-
-```text
-<app>.<namespace>.svc.cluster.local
-```
-
 ## Oracle Cloud VCN
 
-Verified against the console 2026-10-04 (first reading 2026-08-18, which corrected
-an earlier version that was wrong in both directions).
+Console-verified.
 
 - **Security list ingress** (all stateful, all `0.0.0.0/0`, source port **All**,
   unless noted):
     - `443/tcp` — towonel edge, TLS with SNI routing
-    - `80/tcp` — towonel edge plain HTTP, opened 2026-10-04 for HTTP→HTTPS
+    - `80/tcp` — towonel edge plain HTTP, for HTTP→HTTPS
       redirects. The edge forwards by `Host` to the agent, which dials the origin's
       `:80`; on Artemis that is `edge-gateway`'s `http` listener, which answers 301.
       towonel itself never redirects; an unrouted `Host` gets its connection dropped.
@@ -224,12 +187,12 @@ an earlier version that was wrong in both directions).
     - `22/tcp` — dead weight; Talos runs no SSH daemon
     - `icmp` 3,4 (path MTU) and `icmp` 3 from `10.0.0.0/16`
     - `25565/tcp` and `3000/udp` — towonel per-service listeners for Artemis's
-      minecraft and eco. Confirmed in the 2026-10-04 console reading.
+      minecraft and eco.
 - **Deliberately closed**:
     - `8443/tcp` — the towonel hub API is bound on the host but speaks plain HTTP.
       It is reached through cloudflared at `hub.frostlink.dev` instead. Opening this
       exposes the operator API in cleartext.
-    - `6443/tcp` — removed 2026-08-18. `kubeconfig` uses `10.0.0.203` over the
+    - `6443/tcp` — removed. `kubeconfig` uses `10.0.0.203` over the
       Headscale site link, so the Kubernetes API never needed to be public.
 - **Security list egress**: all allowed — this is what carries Tailscale, which is
   outbound-initiated and has no ingress rule of its own.
@@ -239,16 +202,11 @@ matches one, and a stateless rule takes precedence over a stateful one.
 
 ## Access Methods
 
-| Access type            | Method                                   | Address                                     |
-| ---------------------- | ---------------------------------------- | ------------------------------------------- |
-| Kubernetes API         | Headscale site link (from home)          | `10.0.0.203:6443`                           |
-| Talos API              | Headscale site link (from home)          | `10.0.0.203:50000`                          |
-| Talos API, break-glass | Public IP, while the OCI rule stays open | `40.233.88.33:50000`                        |
-| App traffic            | Cloudflare tunnel → external-gateway     | `*.frostlink.dev`                           |
-| Tunnelled origins      | towonel edge, direct to the VPS          | `edge.frostlink.dev:443`                    |
-| Tunnelled TCP/UDP      | towonel edge, per-service port           | `edge.frostlink.dev:25565/tcp`, `:3000/udp` |
-| towonel hub API        | Cloudflare tunnel → external-gateway     | `hub.frostlink.dev`                         |
-| Node debug             | Site link → talosctl                     | `10.0.0.203`                                |
+| Access type            | Method                                   | Address              |
+| ---------------------- | ---------------------------------------- | -------------------- |
+| Kubernetes API         | Headscale site link (from home)          | `10.0.0.203:6443`    |
+| Talos API              | Headscale site link (from home)          | `10.0.0.203:50000`   |
+| Talos API, break-glass | Public IP, while the OCI rule stays open | `40.233.88.33:50000` |
 
 **How "from home" works:** your workstation (HME `10.10.1.0/24` or LAB `10.10.99.0/24`) sends to
 `10.0.0.203` via its default gateway, the UCG Max. The UCG is a Headscale subnet router that
@@ -259,22 +217,14 @@ tailnet. If Headscale itself is down, the public Talos port is the only break-gl
 
 ## Tailnet policy — Headscale
 
-Every device is on Headscale as of 2026-10-02 (grimoire, the Mac, joined 2026-10-03). The Tailscale
-SaaS tailnet (`exikle.github`) was closed on 2026-10-10 (frostlink#348). The policy is checked in at
+Every device is on Headscale; no Tailscale SaaS tailnet remains. The policy is checked in at
 `kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
 at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
+`kubectl --context frostlink -n network exec deploy/headscale -c app -- headscale nodes list`
+shows the live devices (the node is `tag:frostlink`, the UCG Max `tag:home-router`, the rest user
+`exikle`).
 
-Device identities (recorded 2026-10-02 from `tailscale status --json`):
-
-| Device         | Headscale                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| Frostlink node | `tag:frostlink`                                                                                  |
-| UCG Max        | `tag:home-router`, route `10.10.99.0/24` (auto-approved) — replaced Artemis's `tailscale-router` |
-| Arcana, iPhone | user `exikle` (`group:admin`)                                                                    |
-| grimoire (Mac) | user `exikle` (`group:admin`)                                                                    |
-
-**Subnet grants are port-scoped, not "any port" (tightened 2026-10-04).** The policy started as a
-1:1 port of the SaaS rules; since then:
+**Subnet grants are port-scoped, not "any port".**
 
 - `autogroup:member` (your own devices) still reaches everything. A family device added to
   Headscale would land here too, so give it its own grant instead.
@@ -334,7 +284,7 @@ like any remote agent and forwards the raw TLS stream to `headscale.network.svc.
   break it, and Envoy would need extra upgrade policy for no benefit. So there is no HTTPRoute — an
   HTTPRoute on `external-gateway` would also publish a **proxied** record to the tunnel. The record
   is a grey `DNSEndpoint` CNAME to `edge.frostlink.dev` (`providerSpecific` proxied `"false"`, as in
-  `towonel.md` § DNS).
+  `towonel.md` § DNS must be grey-cloud).
 - **DERP is Tailscale's public map**, embedded DERP off. The embedded server needs public
   `3478/udp` for STUN, which is not open on OCI. Relayed traffic therefore crosses Tailscale Inc.'s
   DERP servers, still end-to-end WireGuard-encrypted.
@@ -345,4 +295,4 @@ like any remote agent and forwards the raw TLS stream to `headscale.network.svc.
 - **Agent → edge is a hairpin.** The hub advertises `edge.frostlink.dev`, the OCI 1:1-NAT public
   IP, which is not on the node's interface. If the agent never connects, suspect that path first.
 
-`kubernetes/mod.just` hardcodes `kubectl --context frostlink` — all `just kube` commands target Frostlink automatically. Bare `kubectl` commands need `--context frostlink` or `kubectx frostlink` first.
+`kubernetes/mod.just` hardcodes `kubectl --context frostlink`, so `just kube` recipes target Frostlink automatically. Bare `kubectl` needs `--context frostlink` (`tooling.md` § kubectl and talosctl scoping).
