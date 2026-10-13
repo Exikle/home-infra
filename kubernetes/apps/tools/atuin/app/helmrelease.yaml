@@ -28,25 +28,13 @@ spec:
               tag: 18.23.0@sha256:f232feeead54a0a13132b9cd477e312c3380e9dc90f1db24c4f79ce6c8e034ea
             args: ["start"]
             env:
-              # Cert-based auth against the shared CNPG cluster. sqlx (which
-              # atuin uses) accepts the libpq sslcert/sslkey/sslrootcert names
-              # this DSN carries, so no password is involved — the role is
-              # created with disablePassword.
               ATUIN_DB_URI:
                 valueFrom:
                   configMapKeyRef:
                     name: atuin-postgres
                     key: url
               ATUIN_HOST: "0.0.0.0"
-              # MUST stay false. This cluster has only external-gateway, so
-              # atuin is published publicly and open registration would let
-              # anyone create an account. Flip true only long enough to run
-              # `atuin register`, then back.
               ATUIN_OPEN_REGISTRATION: "false"
-              # atuin's own default. Upstream home-ops binds 80, which only
-              # works because Kubernetes defaults
-              # net.ipv4.ip_unprivileged_port_start=0 — with runAsUser 1000 and
-              # every capability dropped, a high port avoids depending on that.
               ATUIN_PORT: &port 8888
             probes:
               liveness:
@@ -80,20 +68,10 @@ spec:
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
     persistence:
-      # No PVC: history lives in the shared Postgres cluster, which is backed
-      # up by the barman-cloud plugin. The postgres/cert component adds the
-      # cert mounts.
-      #
-      # atuin writes a default server.toml on every start and aborts if it
-      # cannot, so /config has to be writable even with an external database.
-      # Ephemeral is correct here — every real setting comes from env, and the
-      # file is regenerated on each start.
       config:
         type: emptyDir
         globalMounts:
           - path: /config
-      # readOnlyRootFilesystem is set, so anything writing outside /config
-      # needs somewhere to go.
       tmpfs:
         type: emptyDir
         globalMounts:

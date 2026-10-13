@@ -27,6 +27,13 @@ One `towonel-node` release with **both roles enabled**, in its own `towonel` nam
 | State       | sqlite on a kopiur-backed PVC                           |
 | TLS         | passthrough — **nothing here terminates it**            |
 
+Hub and edge share one process because a single node has nowhere to place a separate edge; the
+split exists only to run edges in other regions. `TOWONEL_HUB_PUBLIC_URL` is where agents reach the
+control plane (cloudflared + Envoy, not the raw 8443 listener); `TOWONEL_EDGE_ADVERTISED_ADDRESSES`
+is where they dial the edge and must be the DNS-only A record. The edge's `/data` needs only the
+key files and the sqlite DB, so the 1Gi `KOPIUR_CAPACITY` is ample. The node's public IP in
+`FROSTLINK_PUBLIC_IP` is not a secret.
+
 ### Nothing on this cluster terminates TLS for a tunnelled hostname
 
 The edge peeks at SNI on a raw TLS connection and forwards the bytes. For

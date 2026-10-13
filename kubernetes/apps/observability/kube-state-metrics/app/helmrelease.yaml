@@ -29,11 +29,6 @@ spec:
     prometheus:
       monitor:
         enabled: true
-        # Without this the scrape's own target labels (namespace=observability,
-        # pod=kube-state-metrics-*) overwrite the namespace/pod labels carried by
-        # every kube_* metric, so alerts name the exporter instead of the broken
-        # workload — e.g. KubePodCrashLooping pointed at kube-state-metrics while
-        # the actual crashlooper was matrix/mautrix-whatsapp.
         honorLabels: true
 
     rbac:

@@ -163,6 +163,14 @@ so zstd is not available there (it is for `wal.compression`, which uses it).
   mover, the live volume untouched. `fediverse/apoci-data` sits in exactly this state. That is the correct and safe behaviour, but it means **editing a `Restore` and
   waiting will never restore anything**: the PVC must be deleted so it is re-created unbound,
   keeping its `dataSourceRef`. `just kube restore` is the sequence that does this safely.
+- **`ClusterRepository/r2` pins a few defaults on purpose.** `deletionProtection.threshold: 10`
+  holds external Snapshot deletions until the `kopiur.home-operations.com/allow-mass-deletion`
+  annotation acknowledges them (the CRD default, kept visible). `health.probe.enabled` is off by
+  default; it is on so a wiped or unreachable bucket surfaces on its own rather than at restore
+  time. `scheduleDefaults.timezone` reaches verification, replication and maintenance crons only —
+  `SnapshotSchedule` sets its own.
+- **`rbac.browseRole: true` in the kopiur HelmRelease** adds the ClusterRole behind
+  `kubectl kopiur ls/cat/download/browse`. It grants no access to Secrets; bind it separately.
 
 ## Restore
 

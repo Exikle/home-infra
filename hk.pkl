@@ -57,6 +57,11 @@ local linters = new Mapping<String, Step> {
     glob = List("AGENTS.md", "CLAUDE.md", ".agents/**", ".claude/**")
     check = "python3 scripts/check-agent-config.py --quiet"
   }
+  // No explanatory comments in manifests (yaml-conventions.md § No Comments in Manifests).
+  ["yaml-comments"] {
+    glob = "kubernetes/**/*.yaml"
+    check = "python3 scripts/check-yaml-comments.py"
+  }
   // Scorer unit tests for the instruction eval (the eval itself stays on demand).
   ["eval-scorer"] {
     glob = List("scripts/eval-instructions.py", "scripts/test-eval-scorer.py")

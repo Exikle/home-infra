@@ -12,8 +12,6 @@ spec:
       capacity: ${KOPIUR_CACHE_CAPACITY:=2Gi}
       storageClassName: ${KOPIUR_STORAGECLASS:=openebs-zfs}
     inheritSecurityContextFrom:
-      # Replay the UID/GID recorded on the backup snapshot. Unlike pvcConsumer
-      # this needs no live pod, which is the case that matters during a restore.
       snapshot: {}
   policy:
     onMissingSnapshot: Continue

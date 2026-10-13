@@ -17,12 +17,8 @@ spec:
         enabled: true
       prometheusRule:
         enabled: true
-      # No Grafana on Frostlink — VictoriaMetrics only, and no grafana-operator CRDs.
       dashboards:
         enabled: false
-    # Steady state is ~77Mi, so the initial 128Mi limit OOMKilled the controller during
-    # informer sync (exit 137) before it ever reached ready. Request covers steady state;
-    # the limit is deliberately generous — an OOM mid-Talos-upgrade is the worst case.
     resources:
       requests:
         cpu: 10m

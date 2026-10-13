@@ -171,6 +171,19 @@ Two consequences worth keeping:
   plus `auth_type: cert` means CNPG's automatic pooler-secret wiring never applies. Not a bug, and
   not something to silence by changing the Pooler.
 
+## atuin
+
+- `ATUIN_OPEN_REGISTRATION` **must stay `"false"`**: atuin is published on `external-gateway`, so
+  open registration lets anyone create an account. Flip it true only long enough to run
+  `atuin register`, then back.
+- Auth is the cert path: sqlx accepts the libpq `sslcert`/`sslkey`/`sslrootcert` names the DSN
+  carries, and the role is created with `disablePassword`.
+- `/config` must be writable (an `emptyDir`) even with an external database: atuin writes a default
+  `server.toml` on every start and aborts if it cannot. With `readOnlyRootFilesystem`, `/tmp` is an
+  `emptyDir` too. There is no PVC — history lives in the shared Postgres.
+- Port `8888` is atuin's own default; 80 would depend on Kubernetes lowering
+  `net.ipv4.ip_unprivileged_port_start` for a uid-1000, all-caps-dropped container.
+
 ## The shared Dragonfly has no consumers
 
 `Dragonfly/dragonfly` in `database` is the cache/queue half of the shared data layer

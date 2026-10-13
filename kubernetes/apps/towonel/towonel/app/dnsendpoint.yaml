@@ -6,15 +6,6 @@ metadata:
   name: towonel-edge
 spec:
   endpoints:
-    # DNS-only (grey cloud). towonel peeks at SNI on a raw TLS connection and
-    # forwards it, so the name must resolve to the VPS itself. A proxied record
-    # sends the connection to Cloudflare, which terminates TLS and cannot
-    # forward it — and serving video through the CDN breaks Cloudflare's terms
-    # anyway, which is half the reason towonel exists here.
-    #
-    # external-dns runs with a global --cloudflare-proxied, so this has to be
-    # overridden per record. On the CRD source an annotation on the DNSEndpoint
-    # is NOT honoured; it must be providerSpecific on the endpoint itself.
     - dnsName: edge.frostlink.dev
       recordType: A
       targets:

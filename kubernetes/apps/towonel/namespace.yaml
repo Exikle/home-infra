@@ -7,7 +7,4 @@ metadata:
   annotations:
     kustomize.toolkit.fluxcd.io/prune: disabled
   labels:
-    # The towonel edge is a hostNetwork DaemonSet binding host ports 443/80,
-    # which `baseline` forbids. It lives in its own namespace so `network`
-    # (envoy-gateway, cloudflared, external-dns) stays at baseline.
     pod-security.kubernetes.io/enforce: privileged

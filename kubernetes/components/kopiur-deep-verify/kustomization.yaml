@@ -5,8 +5,5 @@ kind: Component
 patches:
   - path: ./snapshotpolicy-deep.yaml
     target:
-      # No `name:` — kustomize matches target.name as a regex, and the literal
-      # ${KOPIUR_APP} placeholder contains regex metacharacters that never match.
-      # The ./kopiur component contributes exactly one SnapshotPolicy anyway.
       group: kopiur.home-operations.com
       kind: SnapshotPolicy

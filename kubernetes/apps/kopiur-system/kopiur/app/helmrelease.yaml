@@ -16,7 +16,7 @@ spec:
     monitoring:
       prometheusRule:
         enabled: true
-        backupStaleAfterSeconds: 93600 # 26h
+        backupStaleAfterSeconds: 93600
       serviceMonitor:
         enabled: true
     podSecurityContext:
@@ -26,8 +26,6 @@ spec:
       fsGroup: 1000
       fsGroupChangePolicy: OnRootMismatch
     rbac:
-      # ClusterRole for the `kubectl kopiur ls/cat/download/browse` data-plane.
-      # Grants no access to Secrets; bind it separately.
       browseRole: true
     webhook:
       serviceMonitor:

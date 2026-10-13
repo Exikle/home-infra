@@ -30,8 +30,7 @@ spec:
         path: "kubernetes/flux/sync"
       kustomize:
         patches:
-          - # Increase the number of workers
-            patch: |-
+          - patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --concurrent=10
@@ -41,8 +40,7 @@ spec:
             target:
               kind: Deployment
               name: (kustomize-controller|helm-controller|source-controller)
-          - # Increase the memory limits
-            patch: |-
+          - patch: |-
               apiVersion: apps/v1
               kind: Deployment
               metadata:
@@ -58,8 +56,7 @@ spec:
             target:
               kind: Deployment
               name: (kustomize-controller|helm-controller|source-controller)
-          - # Enable in-memory kustomize builds
-            patch: |-
+          - patch: |-
               - op: replace
                 path: /spec/template/spec/volumes/0
                 value:

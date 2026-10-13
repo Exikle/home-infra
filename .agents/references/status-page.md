@@ -68,3 +68,13 @@ being down.
 Artemis scrapes `https://status.dcunha.io/metrics` (`victoria/agent/vmstaticscrape-gatus.yaml`,
 `job=gatus`, `instance=frostlink`), and its kromgo renders the `core_*` badges from that. If the
 scrape stops, the badges keep showing the last value.
+
+## Alert plumbing on this cluster
+
+- `VMAlert.selectAllByDefault: true` evaluates every `VMRule`, including the ones vm-operator
+  converts from chart-shipped `PrometheusRule`s (kopiur, towonel).
+- kube-state-metrics runs with `honorLabels: true`. Without it the scrape's own target labels
+  (`namespace=observability`, `pod=kube-state-metrics-*`) overwrite the `namespace`/`pod` labels on
+  every `kube_*` metric, so alerts name the exporter instead of the broken workload —
+  `KubePodCrashLooping` once pointed at kube-state-metrics while the crashlooper was
+  `matrix/mautrix-whatsapp`.

@@ -5,8 +5,6 @@ kind: VMAlert
 metadata:
   name: vmalert
 spec:
-  # selectAllByDefault picks up every VMRule in the cluster, including the ones
-  # vm-operator converts from chart-shipped PrometheusRules (e.g. kopiur).
   selectAllByDefault: true
   evaluationInterval: 1m
   datasource:

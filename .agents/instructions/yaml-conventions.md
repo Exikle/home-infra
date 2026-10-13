@@ -97,6 +97,11 @@ Three exceptions, all machine-oriented:
 | YAML anchor markers where the anchor is subtle   | reading aid for `&name` / `*name` pairs    |
 | Renovate directives (`# renovate: datasource=…`) | consumed by Renovate                       |
 
+The `yaml-comments` step in `hk.pkl` (`scripts/check-yaml-comments.py`) enforces this on
+`kubernetes/**/*.yaml`; it passes only the schema modeline and `# renovate:` directives (an anchor-marker
+comment needs an allowance added there first), and skips `resources/` (ConfigMap file contents,
+where `#` is data).
+
 When a value is non-obvious enough to feel like it needs a comment, write it up in the matching
 reference doc instead. Example: the kopiur R2 credential key warning lives in
 `.agents/references/storage.md` § The R2 credential key is unrecoverable if repointed, not in the

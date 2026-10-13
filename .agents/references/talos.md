@@ -179,6 +179,10 @@ polling node readiness after reboot.
 The `TalosUpgrade` sets `policy.rebootMode: powercycle`, matching `just talos upgrade`: the OCI
 A1.Flex VM does not come back cleanly from a default (kexec) reboot.
 
+The tuppr controller's memory limit is deliberately generous: steady state is ~77Mi, but a 128Mi
+limit OOMKilled it (exit 137) during informer sync before it ever became ready, and an OOM
+mid-Talos-upgrade is the worst case.
+
 tuppr rebuilds the installer from the node's **runtime-reported schematic**, so
 extensions survive an upgrade with no repo change: `.machine.install.image` is
 rewritten to `factory.talos.dev/metal-installer/<schematic>:<version>`. If it

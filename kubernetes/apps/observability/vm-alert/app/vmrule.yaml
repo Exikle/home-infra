@@ -6,9 +6,6 @@ metadata:
   name: baseline
 spec:
   groups:
-    # ------------------------------------------------------------------ #
-    # General — Watchdog + TargetDown
-    # ------------------------------------------------------------------ #
     - name: general.rules
       rules:
         - alert: Watchdog
@@ -35,9 +32,6 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------ #
-    # Kubernetes — pod / workload health
-    # ------------------------------------------------------------------ #
     - name: kubernetes-apps
       rules:
         - alert: KubePodCrashLooping
@@ -143,9 +137,6 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------ #
-    # Kubernetes — resource pressure
-    # ------------------------------------------------------------------ #
     - name: kubernetes-resources
       rules:
         - alert: KubeCPUOvercommit
@@ -177,9 +168,6 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------ #
-    # Kubernetes — storage
-    # ------------------------------------------------------------------ #
     - name: kubernetes-storage
       rules:
         - alert: KubePersistentVolumeFillingUp
@@ -221,9 +209,6 @@ spec:
           labels:
             severity: critical
 
-    # ------------------------------------------------------------------ #
-    # Node — disk, memory, load
-    # ------------------------------------------------------------------ #
     - name: node-exporter
       rules:
         - alert: NodeFilesystemAlmostOutOfSpace
@@ -328,9 +313,6 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------ #
-    # ZFS — pool health
-    # ------------------------------------------------------------------ #
     - name: zfs.rules
       rules:
         - alert: ZfsUnexpectedPoolState
@@ -340,9 +322,6 @@ spec:
           labels:
             severity: critical
 
-    # ------------------------------------------------------------------ #
-    # cert-manager — certificate expiry and readiness
-    # ------------------------------------------------------------------ #
     - name: cert-manager.rules
       rules:
         - alert: CertManagerCertExpirySoon
@@ -369,9 +348,6 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------ #
-    # Kopiur — per-policy backup staleness
-    # ------------------------------------------------------------------ #
     - name: kopiur-overrides.rules
       rules:
         - alert: KopiurPolicyBackupStale
@@ -397,26 +373,6 @@ spec:
           labels:
             severity: warning
 
-    # ------------------------------------------------------------------ #
-    # OCI — Always Free egress budget
-    # ------------------------------------------------------------------ #
-    # enp0s6 is the VM's public NIC, so its transmit counter is the closest
-    # available proxy for what Oracle bills as egress. It over-counts (some
-    # intra-region traffic is free), which is the safe direction for a budget
-    # alert. There is no OCI billing exporter here.
-    #
-    # The window is 28d, not 30d: vm-single retains exactly 30d, so a [30d]
-    # range sits on the boundary where the oldest samples are already expiring.
-    # A rolling window also trips earlier on sustained overuse than Oracle's
-    # calendar-month reset would, which is the useful direction.
-    #
-    # This matters because Jellyfin is published through the towonel tunnel;
-    # video is what will move the needle. Note the real ceiling is Artemis's
-    # residential upload, not this cap.
-    #
-    # The warning is bounded (> 7 and <= 9) so it hands off to the critical
-    # rather than both firing at once. Alertmanager's inhibit_rule cannot do
-    # that here -- it matches on equal alertname, and these two differ.
     - name: oci.rules
       rules:
         - alert: OciEgressBudgetHigh

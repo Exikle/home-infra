@@ -201,6 +201,17 @@ Console-verified.
 Stateless rules would break this: OCI skips connection tracking for any flow that
 matches one, and a stateless rule takes precedence over a stateful one.
 
+### Egress budget alerts
+
+`OciEgressBudgetHigh` (7 to 9 TB) and `OciEgressBudgetCritical` (over 9 TB) in
+`observability/vm-alert/app/vmrule.yaml` watch `enp0s6` transmit bytes over **28d**, against the
+10 TB Always Free allowance. `enp0s6` is the closest proxy for what Oracle bills; it over-counts,
+which is the safe direction. The window is 28d, not 30d, because vm-single retains exactly 30d and
+a `[30d]` range sits on the boundary where the oldest samples are expiring. The warning is bounded
+(`> 7` and `<= 9`) so it hands off to the critical instead of both firing; an Alertmanager
+`inhibit_rule` cannot do it because the two alertnames differ. Video through the towonel tunnel is
+what moves it, though the real ceiling is Artemis's residential upload.
+
 ## Access Methods
 
 | Access type            | Method                                   | Address              |

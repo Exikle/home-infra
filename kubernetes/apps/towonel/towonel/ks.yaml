@@ -24,11 +24,7 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      # Reserved OCI public IP. Not a secret — it is already recorded in
-      # AGENTS.md and is the talosconfig endpoint; DNS publishes it anyway.
       FROSTLINK_PUBLIC_IP: 40.233.88.33
       KOPIUR_APP: *app
-      # The node writes only node.key, hub_kek.key, invite_hash.key and the
-      # sqlite hub DB here. 1Gi is already an order of magnitude of headroom.
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_CACHE_CAPACITY: 1Gi

@@ -5,14 +5,6 @@ kind: NetworkPolicy
 metadata:
   name: dragonfly-metrics
 spec:
-  # The dragonfly-operator owns a NetworkPolicy (via networkPolicyEnabled on the
-  # Dragonfly CR) that only admits port 9999 from the operator itself and from
-  # other dragonfly pods. vmagent scrapes /metrics on that same port from the
-  # observability namespace, so its packets were dropped — a connect timeout,
-  # not a refusal — leaving the target permanently down.
-  #
-  # NetworkPolicies are additive, so this supplements the operator's rule
-  # instead of editing an object the operator would reconcile back.
   ingress:
     - from:
         - namespaceSelector:
