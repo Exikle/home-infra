@@ -1,3 +1,15 @@
+# `include` needs 2026.9.18; an older mise ignores it silently and installs none of the
+# shared tools, so refuse to run instead.
+min_version = "2026.9.18"
+
+# Shared pins from exikle/mise-config: base.toml (every repo) and cluster.toml (both cluster
+# repos). Renovate bumps the tools there and moves this commit pin here. A [tools] entry
+# below wins over an included one.
+include = [
+  "git::https://git.dcunha.io/exikle/mise-config.git//base.toml?ref=adc99070a78ea236a4e858d1995d352e34eb09d1",
+  "git::https://git.dcunha.io/exikle/mise-config.git//cluster.toml?ref=adc99070a78ea236a4e858d1995d352e34eb09d1",
+]
+
 [env]
 KUBECONFIG = "{{config_root}}/kubeconfig"
 MINIJINJA_CONFIG_FILE = "{{config_root}}/.minijinja.toml"
@@ -5,7 +17,7 @@ TALOSCONFIG = "{{config_root}}/talosconfig"
 JUST_UNSTABLE = "1"
 
 [settings]
-# No mise.lock here. Every tool below is an exact pin that Renovate bumps, and mise still
+# No mise.lock here. Every tool is an exact pin that Renovate bumps, and mise still
 # verifies signatures at install. The global config says the same; this holds it for
 # CI and machines without it.
 lockfile = false
@@ -15,10 +27,3 @@ lockfile = false
 # a v1.13 client rejects KubeTalosAPIAccessConfig with "not registered" before the node
 # ever sees it. Pinned here rather than globally so Artemis keeps the stable client.
 talos = "1.14.2"
-"github:home-operations/flate" = "0.6.5"
-"github:home-operations/yayamlls" = "0.3.2"
-"github:mitsuhiko/minijinja" = "3.0.0"
-oxfmt = "0.72.0"
-shellcheck = "0.11.0"
-zizmor = "1.30.1"
-hk = "2.6.0"
