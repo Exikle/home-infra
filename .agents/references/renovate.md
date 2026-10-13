@@ -212,18 +212,27 @@ two unrelated version lines. It is also a disabled component, so a drifted tag p
 `actions/upload-artifact` and `actions/download-artifact` are pinned off entirely: Forgejo only
 supports up to v3, and v4+ uses a GHES-incompatible backend.
 
+### Tekton runner built-ins are disabled
+
+`tekton/setup` and `tekton/pipeline` in `.forgejo/workflows/oci-push.yaml` are steps provided by
+the Tekton runner, not repositories. Without the rule Renovate looks them up as GitHub tags, fails,
+and the Dependency Dashboard shows a "Package lookup failures" warning on every run. Same rule as
+Artemis.
+
 ---
 
 ## Grouping
 
-`minimumGroupSize: 2` on flux-operator and envoy-gateway — these only group when both halves of
-the pair move together, otherwise they raise individually.
+`minimumGroupSize: 2` on flux-operator — the operator and instance charts move together. A
+branch below its minimum group size is **not** raised individually: Renovate holds it under
+"Group Size Not Met" until someone ticks it on the Dependency Dashboard.
 
-**Cilium is not grouped.** It has exactly one dependency here (the chart's `OCIRepository`; the
-bootstrap helmfile reads its tag from that file), so a `minimumGroupSize: 2` group could never
-open a PR — that is why Frostlink sat on 1.17 while Artemis reached 1.20. It now has its own
-`automerge: false` rule instead: Cilium is the CNI of a single node, and a bad release takes every
-pod's networking down.
+**A one-dependency group never opens a PR.** That is why Cilium and Envoy Gateway are not grouped.
+Each has exactly one dependency here (the chart's `OCIRepository`; the bootstrap helmfile reads
+Cilium's tag from that file). Cilium sat on 1.17 while Artemis reached 1.20 for this reason, and
+envoy-gateway's 1.9.0 ➔ 1.9.2 sat held the same way (frostlink#13). Cilium has its own
+`automerge: false` rule instead: it is the CNI of a single node, and a bad release takes every
+pod's networking down. Envoy Gateway follows the normal automerge rules.
 
 ### CNPG group — the one that exists for blast radius, not tidiness
 
