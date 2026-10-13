@@ -44,18 +44,19 @@ Two consequences worth holding on to:
 - A frostlink-issued cert appearing on a tunnelled hostname means the edge stopped passing
   through and started terminating — a real misconfiguration, not a cosmetic one.
 
-### The edge sends a PROXY protocol v2 header, and Artemis requires it
+### The edge sends a PROXY protocol v2 header, and Artemis reads it
 
 Passthrough services prepend a HAProxy **PROXY protocol v2** header by default
 (`proxy_protocol` defaults to `v2` for HTTPS services, `none` for TCP services). Artemis leaves
-that default in place and pairs it with `ClientTrafficPolicy/edge` on its `edge-gateway`, which
-sets `proxyProtocol.optional: false`.
+that default in place and pairs it with `ClientTrafficPolicy/edge` on its `edge-gateway`. How
+that policy is set, and why, is Artemis's to document: Artemis `.agents/references/towonel-agent.md`
+§ PROXY protocol — that file wins over anything here.
 
 That is why real client IPs survive the tunnel — verified 2026-08-22, the Artemis agent logs a
-public client address per stream. It also means **the two ends are coupled**: turning the header
-off on one side without the other produces a TLS-shaped failure (`tlsv1 alert protocol version`,
-`Broken pipe`) that points nowhere near the cause. Nothing on this side needs changing to keep it
-working; just do not assume the header is off.
+public client address per stream. Turning the header off fails **silently**: TLS still works, but
+Artemis sees every public request as coming from the agent pod, which loses the real client IP and
+blinds Artemis's CrowdSec (the agent pod is exempt). Nothing on this side needs changing to keep
+it working; just do not assume the header is off.
 
 ## Why its own namespace
 
