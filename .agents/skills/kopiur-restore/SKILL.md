@@ -22,7 +22,7 @@ every constraint below. Read it before deviating from this procedure. Every `kub
 - **Retain the old PV first** (reclaim policy is `Delete`): § Always retain the old volume first.
 - **`openebs-zfs` is `WaitForFirstConsumer`**, so the workload must be scaled back up to drive the
   restore: § `WaitForFirstConsumer` means a restore needs a consumer.
-- Mover cache must be at least 2Gi (`KOPIUR_CACHE_CAPACITY`), and `inheritSecurityContextFrom:
+- Mover cache must not be left at Kopiur's 1Mi default (`KOPIUR_CACHE_CAPACITY`), and `inheritSecurityContextFrom:
   pvcConsumer` is backup-only: § Backups via Kopiur, Known quirks.
 
 ## Step 1 — Confirm with the user
@@ -99,7 +99,7 @@ just kube browse-pvc <ns> <claim>
 - **PVC stuck `Terminating`** — a completed mover pod still holds the `pvc-protection` finalizer;
   delete that pod.
 - **Mover pod `Init:0/1` with `FailedMount`** — the volume is still mounted elsewhere; scale down.
-- **`disk quota exceeded`** — mover cache below 2Gi; raise `KOPIUR_CACHE_CAPACITY`.
+- **`disk quota exceeded`** — mover cache too small for the app's data; raise `KOPIUR_CACHE_CAPACITY`.
 - **Snapshot stuck with a `snapshot-cleanup` finalizer**:
 
     ```bash

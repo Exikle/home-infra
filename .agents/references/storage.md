@@ -155,7 +155,7 @@ so zstd is not available there (it is for `wal.compression`, which uses it).
   cannot be inherited, and the mover then silently runs as its **own** image's UID. Set
   `securityContext`/`podSecurityContext` alongside it — they override field-wise and act as the
   fallback when no workload pod resolves.
-- **Mover cache must be ≥ 2Gi** — the Kopiur default of 1Mi causes "disk quota exceeded" failures. The component template defaults to 2Gi; only override if you need more.
+- **Never leave the mover cache at Kopiur's 1Mi default** — it fails with "disk quota exceeded". The component template defaults to 2Gi. Small-data apps run fine on 1Gi (towonel, headscale override `KOPIUR_CACHE_CAPACITY: 1Gi`); size up, not down, if a large app hits the quota error.
 - **No `kustomize.toolkit.fluxcd.io/ssa` annotation on the PVC/Restore** — Flux applies them normally; a rendered PVC matching the bound one is a no-op. `ssa: ignore` skips the apply entirely, so Flux could neither create these on a fresh cluster nor recreate them for a restore. Do not re-add it — § No `ssa:` annotation has the prerequisite that makes going annotation-free safe.
 - **Restore PVC on first deploy** — the PVC uses `dataSourceRef` pointing to the `Restore` CRD; Kopiur populates it from R2 once a pod claims it. `onMissingSnapshot: Continue` means a missing snapshot doesn't block PVC creation — which is exactly why a stale `Restore` CR can hand back an empty volume and call it success. See the Restore section.
 - **The populator only ever acts on an UNBOUND claim.** Once the PVC is bound, the Restore reports
