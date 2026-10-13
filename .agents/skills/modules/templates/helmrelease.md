@@ -1,7 +1,7 @@
 # Module: HelmRelease Template
 
 Field order: `yaml-conventions.md`. Conventions (security context, probes, no `TZ`, reloader
-annotation, routes inline): `cluster-conventions.md` § Helm / app-template v5.
+annotation, routes inline): `cluster-conventions.md` § Helm / app-template.
 
 Replace `<app-template-tag>` with the tag in the app's `ocirepository.yaml`
 (`templates/ocirepository.md` shows how to find it).

@@ -29,13 +29,14 @@ file).
 2. Write a **delta** with only the changed fields to a scratch file and dry-run it:
 
     ```bash
-    talosctl patch machineconfig --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203 --patch-file <delta.yaml> --dry-run
+    mise exec -- talosctl patch machineconfig --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203 --patch-file <delta.yaml> --dry-run
     ```
 
 3. Read the printed diff (it shows whether a reboot is needed; it contains the Tailscale auth key,
    so never paste it), then re-run without `--dry-run`. Add `--mode reboot` if a reboot is needed.
 
-Removing a field, the client-version trap (use the mise-pinned talosctl) and the certSANs delta:
+Config-document commands (`patch`, `apply-config`) use `mise exec -- talosctl` so the client
+version matches the cluster. Removing a field, the client-version trap and the certSANs delta:
 `talos.md` § CRITICAL and § certSANs minimal patch.
 
 ## Extension / schematic change
@@ -45,8 +46,11 @@ schematic ID.
 
 1. Edit `talos/schematic.yaml`.
 2. Derive the ID: `just talos schematic-id`.
-3. Run `just talos upgrade <current-version>` so the node records the new schematic. The current
+3. Update the header comment in `talos/schematic.yaml` with the new ID.
+4. Run `just talos upgrade <current-version>` so the node records the new schematic. The current
    version is `talosctl version`, not a number from a doc.
+5. Re-read the node annotation (`kubectl get node frostlink --context frostlink -o
+   jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`) and confirm it matches.
 
 ## Upgrades
 

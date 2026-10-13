@@ -17,6 +17,8 @@ Auto-loaded via `CLAUDE.md`. Every-turn rules: `AGENTS.md`; manifest conventions
   long ordering rationale. Read them and `storage.md` § Restore first; it exists to catch a
   restore that "succeeds" onto an empty volume.
 - **`just talos upgrade <version>` reboots the single node** — a full outage.
+- **`just kube render-local-ks <ns> <ks>` is `[private]`** and absent from `just --list kube`; it
+  renders offline with flate.
 - **`just talos schematic-id` is `[private]`** — `just talos upgrade` calls it.
 - **`just bootstrap phase1|phase2|tailnet`** is one-time bring-up, confirm-gated.
 

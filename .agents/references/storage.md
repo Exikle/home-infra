@@ -84,7 +84,7 @@ Three behaviours the component enables that nothing else documents:
   timeout is generous.
 - **Weekly quick verification** — `verification.quick.schedule: H 4 * * 0`, jitter 30m, timezone
   inherited from the repository's `scheduleDefaults`. This is a blob-level verify, not a restore
-  drill; it shows up as the `LAST-VERIFIED` column in `kubectl get snapshotpolicy -A`. A
+  drill; it shows up as the `LAST-VERIFIED` column in `kubectl get snapshotpolicy -A --context frostlink`. A
   `LAST-VERIFIED` older than ~8 days means verification is not running, even if backups are.
 - **Monthly deep verify** — the optional `kubernetes/components/kopiur-deep-verify` layer
   (`H 5 1 * *`, jitter 1h, scratch PVC sized by `KOPIUR_DEEP_VERIFY_CAPACITY`, default `5Gi`).
@@ -94,11 +94,11 @@ Three behaviours the component enables that nothing else documents:
 ### Schedule and retention
 
 Component defaults: hourly snapshots (`H * * * *`, 2m jitter), retention 3 latest / 24 hourly /
-7 daily / 4 weekly / 3 monthly, `copyMethod: Snapshot` (ZFS snapshots, not full copies). Artemis
+7 daily / 4 weekly / 3 monthly, `copyMethod: Snapshot` (ZFS snapshots, not full copies; `Direct` is wrong because openebs-zfs cannot remount a live volume). Artemis
 keeps a different, longer retention because it writes to NFS rather than a metered R2 bucket; the
 two are deliberately different, do not align them.
 
-The fleet is `kubectl get snapshotpolicy -A`. Headscale's matters more than its size suggests: if
+The fleet is `kubectl get snapshotpolicy -A --context frostlink`. Headscale's matters more than its size suggests: if
 its restore comes back empty, every device has to re-register (`bootstrap.md`).
 
 Cadence and retention are per-app overridable from `postBuild.substitute` (`KOPIUR_SCHEDULE`,
@@ -170,6 +170,10 @@ Use `just kube restore <ns> <ks> <claim>` (add a snapshot offset as a 4th arg to
 further). It encodes every constraint below and, critically, **asserts the restore actually
 came from a snapshot** before declaring success. Do not hand-roll the sequence.
 
+Rough timing (measured 2026-08-18, single node to R2, 0.4-3 GiB apps): about 1-2 minutes end to end,
+of which ~16s is fixed overhead (prime PVC, Job scheduling, kopia connect). Small-file workloads are
+slower than their size suggests, so do not extrapolate from bytes.
+
 ### The Restore CR pins its snapshot resolution at creation — permanently
 
 `Restore.status.resolved.pinnedAt` / `.resolution` are decided once, when the CR is created,
@@ -204,7 +208,7 @@ Audit the whole fleet in one command — the pin is invisible from `phase`, whic
 either way:
 
 ```bash
-kubectl get restore -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,\
+kubectl get restore -A --context frostlink -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,\
 RESOLUTION:.status.resolved.resolution,PINNED:.status.resolved.pinnedAt,PHASE:.status.phase
 ```
 
@@ -239,7 +243,7 @@ manifest.
 >
 > ```
 > just kube render-local-ks <ns> <app> | kubectl apply --server-side \
->   --force-conflicts --field-manager=kustomize-controller --dry-run=server -f -
+>   --force-conflicts --field-manager=kustomize-controller --dry-run=server --context frostlink -f -
 > ```
 
 > **Removing it from git is not enough.** kustomize-controller reads the annotation off the
@@ -249,7 +253,7 @@ manifest.
 > field (`just kube apply-ks <ns> <app>` does exactly that). Confirm with:
 >
 > ```
-> kubectl -n flux-system logs deploy/kustomize-controller --since=2m \
+> kubectl -n flux-system logs deploy/kustomize-controller --since=2m --context frostlink \
 >   | grep -oE '"PersistentVolumeClaim/[^"]*":"[a-z]*"'
 > ```
 >
@@ -371,14 +375,14 @@ Initial number of topology segments 0, storage classes 1, potential CSIStorageCa
 ```
 
 The symptom is a pod stuck `Pending` with **"1 node(s) did not have enough free
-storage"** while the pool is nearly empty, and `kubectl get csistoragecapacity -A`
+storage"** while the pool is nearly empty, and `kubectl get csistoragecapacity -A --context frostlink`
 returning nothing. Already-bound PVCs are unaffected, which is why it can sit
 unnoticed until the next new app.
 
 ```bash
-kubectl -n openebs-system rollout restart ds/zfs-localpv-node        # re-register CSINode
-kubectl -n openebs-system rollout restart deploy/zfs-localpv-controller
-kubectl get csistoragecapacities.storage.k8s.io -A                   # expect >= 1
+kubectl -n openebs-system rollout restart ds/zfs-localpv-node --context frostlink        # re-register CSINode
+kubectl -n openebs-system rollout restart deploy/zfs-localpv-controller --context frostlink
+kubectl get csistoragecapacities.storage.k8s.io -A --context frostlink                   # expect >= 1
 ```
 
 Diagnose by diffing CSINode's `topologyKeys` against the node's actual labels — any
@@ -392,7 +396,7 @@ traps are recorded here.
 
 ### `target.pvcRef`, never `target.pvc`
 
-`Restore.spec.target` is a one-of (`kubectl explain restore.spec.target`): `populator`, `pvc`,
+`Restore.spec.target` is a one-of (`kubectl explain restore.spec.target --context frostlink`): `populator`, `pvc`,
 `pvcRef` or `streamExec`. The component uses `populator: {}`; a manual
 migration uses `pvcRef`.
 
@@ -433,8 +437,8 @@ deadlocks both rather than producing a clear error.
 
 ### Not every PVC is backed up, and nothing warns you
 
-kopiur only protects a PVC that has a `SnapshotPolicy`. Compare `kubectl get pvc -A --context
-frostlink` against `kubectl get snapshotpolicy -A --context frostlink`. The gaps are deliberate:
+kopiur only protects a PVC that has a `SnapshotPolicy`. Compare `kubectl get pvc -A --context frostlink`
+against `kubectl get snapshotpolicy -A --context frostlink`. The gaps are deliberate:
 
 - `database/postgres-*` is **not** kopiur-backed: a filesystem snapshot of a running Postgres data
   directory is not a consistent backup, and barman (WAL + base backups to

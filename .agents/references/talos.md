@@ -4,7 +4,7 @@
 
 One node, `frostlink`: control plane + worker (ARM64), managed at `10.0.0.203` over the site link
 (`networking.md` § Access Methods). The node's own tailnet address comes from Headscale and is not
-pinned — `kubectl --context frostlink -n network exec deploy/headscale -c app -- headscale nodes list`.
+pinned — `kubectl exec deploy/headscale -n network -c app --context frostlink -- headscale nodes list`.
 
 Running Talos and Kubernetes versions: `kubectl get nodes -o wide --context frostlink` (`OS-IMAGE`
 and `VERSION` columns).
@@ -60,7 +60,7 @@ cluster. Take the live `persistent` machine config, delete the migrated v1alpha1
 in complete documents from a patched `gen config`, excluding every gen document carrying
 freshly-minted secrets (`KubeAPIServerCAConfig`, `KubeAggregatorCAConfig`,
 `KubeServiceAccountConfig`, `KubeEtcdEncryptionConfig`, `DiscoveryIdentityConfig`). Verify with
-`talosctl apply-config --dry-run` — and **redirect its output to a file**, because it prints every
+`talosctl apply-config --talosconfig /home/exikle/frostlink/talosconfig --dry-run` — and **redirect its output to a file**, because it prints every
 private key and token in the config to the terminal.
 
 - `talos/patches/controlplane.yaml` — main machine + cluster config
@@ -75,14 +75,14 @@ follow the rules below, each of which cost a failed attempt:
 
 - **Replace the document, don't merge it.** Talos merges `environment` lists by appending, so a
   plain patch keeps the old key and flags. Send a `$patch: delete` for the document and the new one
-  in the same call: `talosctl patch mc --patch @delete.yaml --patch @<rendered>.yaml`. Render with
+  in the same call: `talosctl patch mc --talosconfig /home/exikle/frostlink/talosconfig --patch @delete.yaml --patch @<rendered>.yaml`. Render with
   `op inject` into a `chmod 600` temp file; never print it.
 - **No reboot** — Talos restarts `ext-tailscale` when the config changes.
 - **Use `--mode try --timeout 15m` first**, verify, then confirm. Confirming by re-running the same
   `patch` with `--mode auto` does **not** work: talosctl sees no diff client-side and never calls
   the API, so the rollback stays armed. Confirm by re-sending the active config:
-  `talosctl get machineconfig v1alpha1 -o jsonpath='{.spec}' > f` (600, has secrets) then
-  `talosctl apply-config --file f --mode no-reboot`.
+  `talosctl get machineconfig v1alpha1 --talosconfig /home/exikle/frostlink/talosconfig -o jsonpath='{.spec}' > f` (600, has secrets) then
+  `talosctl apply-config --talosconfig /home/exikle/frostlink/talosconfig --file f --mode no-reboot`.
 - **No `--advertise-tags`.** The node's tag (`tag:frostlink`) comes from the Headscale pre-auth key;
   Headscale rejects any requested tag on a pre-auth-key registration.
 - **`TS_AUTH_ONCE` stays unset**, so every restart re-applies `TS_EXTRA_ARGS`. Headscale accepts a
@@ -100,7 +100,7 @@ To apply a change, patch the delta instead:
 
 ```bash
 # 1. write ONLY the changed fields to a patch file, then dry-run it
-mise exec -- talosctl --context frostlink patch machineconfig \
+mise exec -- talosctl --talosconfig /home/exikle/frostlink/talosconfig patch machineconfig \
   -n 10.0.0.203 --patch-file /tmp/delta.yaml --dry-run
 
 # 2. read the printed diff, then re-run without --dry-run
@@ -141,8 +141,8 @@ cluster:
 
 The schematic ID is never typed into docs. Read it from `talos/schematic.yaml` (the header; `just
 talos schematic-id` recomputes it), from the live node
-(`kubectl get node frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`),
-or list the installed extensions with `talosctl get extensions`. The three should agree.
+(`kubectl get node frostlink --context frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`),
+or list the installed extensions with `talosctl get extensions --talosconfig /home/exikle/frostlink/talosconfig`. The three should agree.
 
 Extensions are in `talos/schematic.yaml` — **four, and there is no `qemu-guest-agent`.** OCI
 A1.Flex does not need one, and Artemis's `worker`/`gpu` schematics do carry it, so do not copy an
@@ -203,7 +203,7 @@ tuppr triggers on `currentVersion != targetVersion` — **not** a "newer than"
 check, and there is no downgrade guard. Never apply a version bump out of band
 while Flux still serves the old value from git, or the next reconcile reverts the
 CR and tuppr downgrades the node. Either commit the bump, or
-`flux suspend ks tuppr-upgrades` first.
+`flux suspend ks tuppr-upgrades -n system-upgrade --context frostlink` first.
 
 ### Break-glass: manual upgrade
 
@@ -229,7 +229,7 @@ command below when tuppr is unavailable, and expect the next Flux reconcile to f
 still names the old version.
 
 ```bash
-talosctl --context frostlink upgrade-k8s \
+talosctl --talosconfig /home/exikle/frostlink/talosconfig upgrade-k8s \
   --to <k8s-version> \
   -n 10.0.0.203
 ```
@@ -237,10 +237,10 @@ talosctl --context frostlink upgrade-k8s \
 ## Node Health
 
 ```bash
-talosctl --context frostlink health -n 10.0.0.203
-talosctl --context frostlink dmesg -n 10.0.0.203 | tail -30
-talosctl --context frostlink version -n 10.0.0.203
-talosctl --context frostlink get machineconfig -n 10.0.0.203 -o yaml
+talosctl --talosconfig /home/exikle/frostlink/talosconfig health -n 10.0.0.203
+talosctl --talosconfig /home/exikle/frostlink/talosconfig dmesg -n 10.0.0.203 | tail -30
+talosctl --talosconfig /home/exikle/frostlink/talosconfig version -n 10.0.0.203
+talosctl --talosconfig /home/exikle/frostlink/talosconfig get machineconfig -n 10.0.0.203 -o yaml
 ```
 
 ## Known OCI / Talos Quirks

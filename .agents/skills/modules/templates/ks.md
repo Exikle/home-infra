@@ -2,7 +2,7 @@
 
 Field order: `yaml-conventions.md` § ks.yaml. It does not list `wait` or `healthChecks`: in the
 tree `wait: true` (optional, about half the apps) sits right after `interval`/`retryInterval`/`timeout`
-and before `dependsOn`, and `healthChecks` sits right after `interval`
+and usually before `dependsOn` (a few ks.yaml put it after), and `healthChecks` sits right after `interval`
 (`kubernetes/apps/fediverse/gotosocial/ks.yaml`, `network/headscale/ks.yaml`).
 
 ## Minimal (no persistence, no secrets)
@@ -40,7 +40,7 @@ dependsOn:
 ## With Kopiur backup (add dependsOn, components, postBuild)
 
 The `kopiur` component owns the PVC, so do not also declare one. Every `KOPIUR_*` substitution
-except `KOPIUR_APP`/`KOPIUR_CAPACITY` has a default (`kubernetes/components/kopiur/`).
+except `KOPIUR_APP` has a default (`KOPIUR_CAPACITY` defaults to `5Gi`) (`kubernetes/components/kopiur/`).
 
 ```yaml
 dependsOn:

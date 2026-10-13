@@ -249,4 +249,4 @@ workflow, so the monthly bump gets eyes on it.
 
 Merge Renovate PRs with the `triage-renovate` skill: one PR at a time, verifying each landed on
 `main`. Queueing several with `merge_when_checks_succeed` races on the `main` ref and silently
-drops commits (`commit-style.md` § Renovate PR auto-merge).
+drops commits.

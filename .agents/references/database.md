@@ -138,7 +138,7 @@ Two consequences worth keeping:
   `Issuing: True` condition onto the Certificate's `.status`, which is what `cmctl renew` does.
   A rustls client (atuin) crashloops with `expected PKCS#8 PEM` until then.
 - **A HelmRelease stalled on `RetriesExceeded` will not retry by itself** once the cert is
-  fixed — clear it with `flux reconcile helmrelease <name> -n <ns> --reset`.
+  fixed — clear it with `flux reconcile helmrelease <name> -n <ns> --reset --context frostlink`.
 - **The replication cert chains from the _client_ CA, not the server CA.** CNPG verifies
   `certificates.replicationTLSSecret` against `clientCASecret` — replication is just another
   `clientcert=verify-full` client connection. Only `serverTLSSecret` verifies against
@@ -151,7 +151,7 @@ Two consequences worth keeping:
   `certificate signed by unknown authority` indefinitely. Force it:
 
     ```bash
-    kubectl -n database annotate cluster postgres cnpg.io/reconciliationLoop="$(date +%s)" --overwrite
+    kubectl annotate cluster postgres -n database --context frostlink cnpg.io/reconciliationLoop="$(date +%s)" --overwrite
     ```
 
     **"Merely references" is doing the work in that sentence.** Every Certificate in
@@ -163,7 +163,7 @@ Two consequences worth keeping:
     invisible until the next resync.
 
 - **`spec.monitoring.enablePodMonitor` is deprecated on the CNPG API itself**
-  (`kubectl explain cluster.spec.monitoring.enablePodMonitor`). The `PodMonitor` is created by
+  (`kubectl explain cluster.spec.monitoring.enablePodMonitor --context frostlink`). The `PodMonitor` is created by
   hand instead — `cluster/podmonitor.yaml` and the second document in `cluster/pooler.yaml`,
   selecting on `cnpg.io/cluster: <name>`, port `metrics`. Do not "restore" the field.
 - **The Pooler apply-time warning is benign.** `the operator won't handle the Pooler ...

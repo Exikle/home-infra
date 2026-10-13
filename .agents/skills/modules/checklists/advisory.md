@@ -21,7 +21,7 @@ Findings go in the `### ADVISORY` section of the report, distinct from FAIL/WARN
 | A5  | `resources.requests` or `resources.limits` missing — pod can starve neighbors or be OOM-killed without warning                                      |
 | A6  | Liveness and/or readiness probes not configured (`enabled: false` or absent) — Kubernetes cannot detect hangs or failed startups                    |
 | A6a | Probe paths are suboptimal — probes hitting `/` instead of a dedicated `/ping`, `/health`, or `/healthz` endpoint; noisy and may mask real failures |
-| A7  | `retryInterval` absent from `ks.yaml` — slow recovery from transient failures; recommend `retryInterval: 1m`                                        |
+| A7  | `ks.yaml` overrides the root's injected `retryInterval: 1m` with a long value — do not flag it as missing (`flux-patterns.md` § Key Rules)          |
 | A8  | `dependsOn` chain appears incomplete — check whether the app's actual dependencies (storage, secrets, CNPG) are listed                              |
 
 ---
@@ -36,11 +36,11 @@ Findings go in the `### ADVISORY` section of the report, distinct from FAIL/WARN
 
 ## Security & Exposure
 
-| #   | Check                                                                                                                                                                        |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A10 | App is on `external-gateway` (publicly reachable) with no auth in front of it (SecurityPolicy or app-level login) — confirm intentional                                      |
-| A11 | Secrets passed as environment variables where the app supports file-based secret mounts — env vars are visible in `kubectl describe pod`; recommend secretMount if supported |
-| A17 | No AppArmor or Seccomp profile configured — consider `seccompProfile.type: RuntimeDefault` in `defaultPodOptions.securityContext` as a low-friction hardening baseline       |
+| #   | Check                                                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A10 | App is on `external-gateway` (publicly reachable) with no auth in front of it (SecurityPolicy or app-level login) — confirm intentional                                                          |
+| A11 | Secrets passed as environment variables where the app supports file-based secret mounts — env vars are visible in `kubectl describe pod --context frostlink`; recommend secretMount if supported |
+| A17 | No AppArmor or Seccomp profile configured — consider `seccompProfile.type: RuntimeDefault` in `defaultPodOptions.securityContext` as a low-friction hardening baseline                           |
 
 ---
 

@@ -181,7 +181,7 @@ Missing the UDP half fails **silently**: QUIC never establishes and there is no 
 | 3000  | UDP   | `eco`       | Artemis, via the towonel agent |
 
 These are real public listeners on this host, and they are invisible in
-`kubectl get ds -n towonel towonel -o yaml` — the `ports:` list stops at 9091. The edge logs
+`kubectl get ds -n towonel towonel -o yaml --context frostlink` — the `ports:` list stops at 9091. The edge logs
 them instead:
 
 ```text
@@ -216,16 +216,18 @@ silently. The `for: 10m` tolerates an agent rollout without flapping.
 
 ```bash
 # health
-kubectl -n towonel logs ds/towonel --tail=50
+kubectl -n towonel logs ds/towonel --tail=50 --context frostlink
 curl -s https://hub.frostlink.dev/v1/readyz            # {"status":"ok"}
 
-# is the hub the active leader? (should be 1)
-kubectl -n towonel run q --rm -i --restart=Never --image=mirror.gcr.io/curlimages/curl \
-  --command -- curl -s http://towonel.towonel.svc.cluster.local:9091/metrics \
-  | grep towonel_hub_is_leader
+# is the hub the active leader (should be 1), and how many agents are attached (should be 2 —
+# Artemis + the local network/towonel-agent for headscale; 0 or 1 is an outage)
+kubectl -n towonel run q --rm -i --restart=Never --context frostlink --image=mirror.gcr.io/curlimages/curl \
+  --command -- sh -c '
+    curl -s http://towonel.towonel.svc.cluster.local:9091/metrics | grep towonel_hub_is_leader
+    curl -s http://towonel.towonel.svc.cluster.local:9090/metrics | grep towonel_edge_active_sessions'
 
-# how many agents are attached? (should be 2 — Artemis + the local network/towonel-agent for headscale)
-kubectl -n towonel logs ds/towonel --tail=200 | grep 'agent session'
+# agent sessions, from the logs
+kubectl -n towonel logs ds/towonel --tail=200 --context frostlink | grep 'agent session'
 
 # edge reachable directly, and rejecting SNI no agent claims
 openssl s_client -connect 40.233.88.33:443 -servername nope.frostlink.dev </dev/null
@@ -234,13 +236,20 @@ openssl s_client -connect 40.233.88.33:443 -servername nope.frostlink.dev </dev/
 just kube backup towonel towonel
 ```
 
-Creating an invite for an agent uses the operator API key that the node generates into `/data`
-(`/data/operator.key`); the hub API is at `https://hub.frostlink.dev`. **The invite carries the
-port grants**, not just the hostnames — Artemis's agent claims `*.frostlink.dev`, `*.dcunha.io`
-and `dcunha.io` (its `towonel-agent/app/helmrelease.yaml`), so its invite covers all three plus
-`tcp_ports: [25565]` and `udp_ports: [3000]`. Frostlink's own `network/towonel-agent` claims only
-`headscale.frostlink.dev`. Adding a TCP/UDP service on the agent side without
-a matching grant leaves the edge declining to bind the listener, with no error on either side.
+Creating an invite uses the operator API key the node generates into `/data` (`/data/operator.key`;
+never print it); the hub API is at `https://hub.frostlink.dev`. Invites are scoped to a hostname
+list and returned as a `tt_inv_2_<token>` string:
+
+```bash
+towonel invite create --name <agent> --hostnames '<host>,*.<host>'
+```
+
+**The invite carries the port grants**, not just the hostnames (`towonel invite create --help` for
+the port flags). Artemis's agent claims `*.frostlink.dev`, `*.dcunha.io` and `dcunha.io` (its
+`towonel-agent/app/helmrelease.yaml`), so its invite covers all three plus `tcp_ports: [25565]` and
+`udp_ports: [3000]`. Frostlink's own `network/towonel-agent` claims only `headscale.frostlink.dev`.
+A TCP/UDP service on the agent side without a matching grant leaves the edge declining to bind the
+listener, with no error on either side.
 
 ## Gotchas
 
@@ -250,3 +259,7 @@ a matching grant leaves the edge declining to bind the listener, with no error o
 - **The chart's derived probes use `timeoutSeconds: 1`** — the same too-tight setting
   that let a brief Postgres blip kill the mautrix bridges. They are loosened in the
   HelmRelease; do not let a chart bump quietly reset them.
+- **Two startup log lines are harmless.** `edge_link listen_addr and psk must both be set; edge_link
+  disabled` (that link only matters for remote edges) and `Insecure TLS config: server certificates
+  will be trusted without verification` (`iroh_relay::tls`, the relay client's default, not
+  towonel's public TLS path).

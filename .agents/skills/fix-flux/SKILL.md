@@ -20,7 +20,8 @@ flux get all -A --status-selector ready=false --context frostlink
 ```
 
 App Kustomizations live in their **target namespace** (`fediverse`, `network`, …), not
-`flux-system`; only the root `frostlink-dev` is in `flux-system`. The Kustomization name is
+`flux-system`; only the root `frostlink-dev` and Flux's own Kustomizations (`flux-instance`,
+`flux-operator`, `flux-system`, `flux-webhook`, `konflate`) are in `flux-system`. The Kustomization name is
 `metadata.name` in the app's `ks.yaml`, not always `<app>`:
 
 ```bash

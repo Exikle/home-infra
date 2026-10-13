@@ -25,6 +25,8 @@ it believes it owns), `--gateway-name external-gateway` (routes on no other gate
 `--cloudflare-proxied` (records default to **orange**).
 
 DNS target annotation on the gateway: `external-dns.kubernetes.io/target: external.frostlink.dev`.
+`frostlink.dev` and `external.frostlink.dev` are proxied CNAMEs to the tunnel; `edge.frostlink.dev`
+is a DNS-only (grey) A record to the node's public IP.
 
 **A `target` annotation on an individual HTTPRoute does not override that.** In the
 `gateway-httproute` source the target comes from the _Gateway_, and the per-route annotation is
@@ -120,7 +122,7 @@ device — tailscale's 1280 — while `enp0s6` runs at 9000.
 - **An MTU change only reaches existing pods when they are recreated.** The agent restart
   (needed here because `rollOutCiliumPods` is false) moves the host-side `lxc*` interfaces, but
   each pod's own `eth0` keeps its old MTU until the pod is replaced. Check with
-  `kubectl exec <pod> -- cat /sys/class/net/eth0/mtu`.
+  `kubectl exec <pod> --context frostlink -- cat /sys/class/net/eth0/mtu`.
 
 ## cilium cluster identity: `id: 2`, `name: frostlink-vps`
 
@@ -148,10 +150,9 @@ the local `network/towonel-agent`. Artemis's public names (the grey `*.frostlink
 
 ## Frostlink is not zero-inbound — the edge listens directly
 
-This is the first thing to correct in any older mental model of this host. The edge's fixed ports are open on the OCI security list and bound on
-the node (the full ingress set, Talos `50000/tcp` included, is § Oracle Cloud VCN):
-
-The ports (443/tcp, 80/tcp, 51820/udp) are in § Oracle Cloud VCN.
+This is the first thing to correct in any older mental model of this host. The edge's fixed ports
+(443/tcp, 80/tcp, 51820/udp) are open on the OCI security list and bound on the node; the full
+ingress set, Talos `50000/tcp` included, is § Oracle Cloud VCN.
 
 Consequences that are easy to get wrong:
 

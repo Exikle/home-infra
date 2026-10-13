@@ -54,7 +54,7 @@ One machine, so its facts are load-bearing rather than inventory.
 - **Public** `40.233.88.33` (reserved) · **Internal** `10.0.0.203` — the management address, reached over the Headscale site link
 - **Extensions**: `iscsi-tools`, `tailscale`, `util-linux-tools`, `zfs` — **`zfs` is load-bearing**,
   the whole `openebs-zfs` storage layer depends on it
-- Live versions are a command, not a number: `talosctl version`, `kubectl version`
+- Live versions are a command, not a number: `talosctl version --talosconfig /home/exikle/frostlink/talosconfig`, `kubectl version --context frostlink`
 
 Management access is over the Headscale site link (`networking.md` § Access Methods). An agent's
 tool calls do not get the repo-local kubeconfig, so always pass `--context frostlink` — see
@@ -99,7 +99,7 @@ Each of these cost real time to find. The full text is in the linked doc.
 - **Helm v4 SSA conflicts** (`helm-controller` field manager): cilium, coredns and cert-manager install with direct `helm upgrade --install` — `bootstrap.md` § Cilium / CoreDNS / cert-manager — Install Directly
 - **`helmfile --cleanup-on-fail`** deletes cluster-scoped resources on failure and leaves orphaned SSA ownership that conflicts on retry. Do not use it.
 - **`talosctl patch machineconfig --patch` takes a delta**, never a full config — `talos.md` § Config Management
-- **Forgejo auth is HTTPS, not SSH** (SSH is unreachable from OCI) — `bootstrap.md` § Flux flux-system Secret
+- **Forgejo is HTTPS-only** (SSH is unreachable from OCI); the `flux-system/flux-system` secret is an apoci pull placeholder, not a Git credential — `bootstrap.md` § Flux flux-system Secret
 - **PodSecurity + hostNetwork**: `network` stays `baseline`; towonel has its own namespace — `towonel.md` § Why its own namespace
 - **Stale CSINode topology keys** can leave no new PVC schedulable — `storage.md` § Gotcha: stale CSINode topology keys block every new PVC
 - **flate resolves `dependsOn` by `targetNamespace`**, so cross-namespace refs need `namespace:` — `flux-patterns.md` § flate `dependsOn` Namespace

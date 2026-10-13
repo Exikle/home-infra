@@ -33,6 +33,10 @@ app-specific commands.
     ```
 
 5. **Wait for explicit user confirmation.** Never commit before it.
-6. Commit as `commit-style.md` says (specific files, `git diff --staged`, one-line subject; in a
-   worktree, on its branch). Resume — root first, then the target — only after the artifact has
-   rebuilt (`commit-style.md` step 5).
+6. Commit as `commit-style.md` says (specific files, `git diff --staged`, one-line subject). The
+   artifact only rebuilds on a push to `main`, and the user commits and pushes their own work
+   straight to `main` (no PR). So after confirmation, hand the branch back and ask the user to land
+   it on `main`; do not leave the root and target suspended, and do not push yourself.
+7. Once the artifact has rebuilt (`just kube sync ocirepo` until the `flux-system` digest moves),
+   resume — root first, then the target (`commit-style.md` step 5). If the user abandons the change,
+   resume both straight away.

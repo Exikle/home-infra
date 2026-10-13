@@ -36,15 +36,16 @@ just bootstrap phase2        # k8s, kubeconfig, talosconfig, base, cni, seed, ap
 
 Then, in order:
 
-1. **Watch Flux reconcile from the seed.** `kubectl -n flux-system get ocirepository flux-system`
-   shows the `seed-registry` URL until `flux-instance` switches it to `registry.frostlink.dev`
-   (add `--context frostlink`).
+1. **Watch Flux reconcile from the seed.** `kubectl get ocirepository flux-system -n flux-system
+   --context frostlink` shows the `seed-registry` URL until `flux-instance` switches it to
+   `registry.frostlink.dev`.
 2. **Check every kopiur restore pulled a real snapshot** before trusting the apps —
-   `kubectl get restore -A --context frostlink`. The component uses `onMissingSnapshot: Continue`, so a wrong R2
-   credential or repository yields an **empty volume, not an error**. For Headscale that means a
+   `kubectl get restore -A --context frostlink`. The component uses `onMissingSnapshot: Continue`,
+   so a wrong R2 credential or repository yields an **empty volume, not an error**. For Headscale that means a
    new noise key and an empty database: every device would have to re-register.
-3. **Check Headscale came back with its devices:** `kubectl -n network exec deploy/headscale -c app
-   --context frostlink -- headscale nodes list` shows the UCG and your devices; the UCG reconnects on its own.
+3. **Check Headscale came back with its devices:** `kubectl exec deploy/headscale -n network -c app
+   --context frostlink -- headscale nodes list` shows the UCG and your devices; the UCG reconnects
+   on its own.
 4. `just bootstrap tailnet` — mints a one-hour, one-time `tag:frostlink` key, substitutes it into
    `talos/patches/tailscale.yaml.j2` in a 600 temp file, and patches it onto the node over the
    public Talos API (no reboot). The key is never written to 1Password; it is spent on first use.
@@ -55,7 +56,7 @@ Then, in order:
    and `talosctl config endpoint 10.0.0.203` (the repo-root `talosconfig` was written with the
    public IP by phase2). Verify both, then **remove the OCI 6443 rule**. Leave 50000 as the
    break-glass.
-7. `kubectl delete -f bootstrap/seed-registry.yaml` — the seed registry is not Flux-managed.
+7. `kubectl delete -f bootstrap/seed-registry.yaml --context frostlink` — the seed registry is not Flux-managed.
 8. ClusterMesh with Artemis rides the tailnet, so it reconnects only after step 4.
 
 **Not yet proven by a real rebuild:** Headscale registering the new machine key and re-approving
@@ -114,7 +115,7 @@ to clean up before Cilium and CoreDNS take over.
 
 ## OCI DNS — CoreDNS Forward Target
 
-`talosctl get resolvers` on the node shows `["169.254.169.254"]`.
+`talosctl get resolvers --talosconfig /home/exikle/frostlink/talosconfig` on the node shows `["169.254.169.254"]`.
 
 `/etc/resolv.conf` on the node contains `nameserver 127.0.0.53` (systemd-resolved stub). This address is unreachable inside pods. CoreDNS must use `forward . 169.254.169.254` — not the default `/etc/resolv.conf`.
 
@@ -125,16 +126,26 @@ to clean up before Cilium and CoreDNS take over.
 CI pushes there and to Forgejo's registry) and names this same secret as its `sync.pullSecret`.
 There is no `GitRepository` object in the cluster; see `flux-patterns.md`.
 
-Forgejo auth is HTTPS, not SSH (SSH is unreachable from OCI), so the secret `flux-system/flux-system`
-is `Opaque` with `username` + `password` keys. `just bootstrap base` creates it via
-`resources.yaml.j2` as a fixed placeholder; apoci ignores it.
+The secret `flux-system/flux-system` is `Opaque` with `username` + `password` keys.
+`just bootstrap base` creates it via `resources.yaml.j2` as a fixed placeholder; apoci ignores it.
+Flux itself never authenticates to Forgejo. Anything that does reach Forgejo uses HTTPS, because
+SSH is unreachable from OCI.
 
 ## Post-Bootstrap App Deployment Order
 
 Deploy the `network` namespace **before any app that has an HTTPRoute**: the route is created, but
-traffic cannot flow until envoy-gateway and cloudflare-tunnel are running. Everything else is
-ordered by `dependsOn` in each `ks.yaml`; a cross-namespace ref needs an explicit `namespace:`
-(`flux-patterns.md` § flate `dependsOn` Namespace).
+traffic cannot flow until envoy-gateway and cloudflare-tunnel are running. This order is **not**
+encoded in `dependsOn` (cloudflare-tunnel has none; envoy-gateway depends only on cert-manager),
+so follow it by hand once Flux is reconciling:
+
+1. `cert-manager/clusterissuer`
+2. `network/envoy-gateway` (Envoy Gateway, GatewayClass, external-gateway)
+3. `network/certificates` (wildcard `frostlink.dev` / `*.frostlink.dev`)
+4. `network/cloudflare-tunnel` (routes `*.frostlink.dev` to envoy)
+5. All other apps with HTTPRoutes, any order
+
+A cross-namespace `dependsOn` ref needs an explicit `namespace:` (`flux-patterns.md` § flate
+`dependsOn` Namespace).
 
 ## After Flux is up — do not sync early
 

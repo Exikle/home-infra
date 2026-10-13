@@ -15,7 +15,7 @@ just kube sync es        # all ExternalSecrets
 ### There is no `GitRepository` — the source is OCI
 
 `FluxInstance/flux` syncs `kind: OCIRepository` from `oci://registry.frostlink.dev/exikle/frostlink`
-at `interval: 1m`, built and pushed by CI. `kubectl get gitrepository -A` returns nothing, so
+at `interval: 1m`, built and pushed by CI. `kubectl get gitrepository -A --context frostlink` returns nothing, so
 **`just kube sync gitrepo` has no live target** — it is a no-op that looks like it worked. The
 only `kind: GitRepository` anywhere in the repo is
 `kubernetes/components/alerts/alertmanager/alert.yaml`, where it is a notification `eventSource`
@@ -29,7 +29,7 @@ reverts what you just landed. `✔ applied revision` alone proves nothing — ch
 `flux-system` digest actually changed:
 
 ```bash
-kubectl -n flux-system get ocirepository flux-system \
+kubectl get ocirepository flux-system -n flux-system --context frostlink \
   -o jsonpath='{.status.artifact.revision}{"\n"}'
 ```
 
@@ -61,15 +61,15 @@ kubectl get ks frostlink-dev -n flux-system --context frostlink --show-managed-f
 ## Stuck HelmRelease
 
 ```bash
-flux suspend helmrelease <app> -n <ns>
-kubectl delete secret -n <ns> -l name=<app>,owner=helm
-flux resume helmrelease <app> -n <ns>
+flux suspend helmrelease <app> -n <ns> --context frostlink
+kubectl delete secret -n <ns> -l name=<app>,owner=helm --context frostlink
+flux resume helmrelease <app> -n <ns> --context frostlink
 ```
 
 ## Force Reconcile
 
 ```bash
-flux reconcile kustomization <name> -n <namespace>
+flux reconcile kustomization <name> -n <namespace> --context frostlink
 ```
 
 Kustomizations live in their **target namespace** (e.g. `network`, `fediverse`), NOT `flux-system`.
@@ -129,7 +129,7 @@ When a Kustomization deploys both a HelmRelease (which installs CRDs) and resour
 **Fix**: Force-reconcile the affected Kustomization after the HelmRelease is healthy:
 
 ```bash
-flux reconcile kustomization <name> -n <namespace>
+flux reconcile kustomization <name> -n <namespace> --context frostlink
 ```
 
 ## kopiur CRs stall `wait: true` health checks
@@ -146,9 +146,11 @@ this, and while stuck on a stale revision it silently re-applied an old cron ove
 - **Fix: drop `wait: true` and gate on the HelmRelease** via explicit `spec.healthChecks` — that
   is what "the app is up" actually means. Applied to `fediverse/apoci`, `fediverse/gotosocial`
   and `matrix/continuwuity`.
-- `SnapshotPolicy` tracks `observedGeneration` correctly. The component carries no `ssa: ignore`
-  annotation on `Restore` — see `storage.md` § No `ssa:` annotation.
-- Diagnostic: `kubectl get snapshotschedule -A -o json` and compare
+- `SnapshotPolicy` tracks `observedGeneration` correctly; **`Restore` does not**, and the component
+  no longer annotates it `ssa: ignore` (`storage.md` § No `ssa:` annotation). So `wait: true` on a
+  kopiur-backed Kustomization can stall on the `Restore` the same way. None do today; gate on the
+  HelmRelease instead.
+- Diagnostic: `kubectl get snapshotschedule -A -o json --context frostlink` and compare
   `.metadata.generation` against `.status.observedGeneration`.
 
 ## ks.yaml changes cannot be tested locally

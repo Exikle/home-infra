@@ -19,7 +19,7 @@ Confirm before proceeding:
 - **Namespace** — must exist or user confirms creating it
 - **Chart**: default is app-template. Ask if different.
 - **Route**: `external-gateway` (the only gateway on this cluster), or none
-- **Hostname**: e.g. `myapp.frostlink.dev` (needs its own DNS record, `networking.md`)
+- **Hostname**: e.g. `myapp.frostlink.dev` (an HTTPRoute on `external-gateway` gets its DNS record automatically; a manual `DNSEndpoint` does not — `networking.md`)
 - **Persistence**: PVC needed? If yes: size (e.g. `5Gi`) — storage class is `openebs-zfs`
 - **Secrets**: 1Password ExternalSecret needed? If yes: 1Password item name
 

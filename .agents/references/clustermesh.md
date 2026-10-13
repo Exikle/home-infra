@@ -88,7 +88,7 @@ Artemis needs `forwarding-mode: snat` (`bpf.lbModeAnnotation` is on). Pod → Cl
   public Frostlink site on large responses until reverted.
 - **`just kube apply-ks` cannot render a HelmRelease whose `valuesFrom` reads a Secret** (flate
   feeds a placeholder; `buildCustomCert: unable to decode base64 certificate`). Flux itself is
-  fine. To test-apply by hand: `kustomize build <dir> | kubectl -n kube-system apply --server-side --force-conflicts --field-manager=kustomize-controller -f -`.
+  fine. To test-apply by hand: `kustomize build <dir> | kubectl apply -n kube-system --context frostlink --server-side --force-conflicts --field-manager=kustomize-controller -f -`.
 - **Never drop the `-n`.** The Cilium app's `kustomization.yaml` has no `namespace:`; without
   `-n kube-system` everything lands in `default`, a second Cilium Helm release installs there and
   takes over Cilium's ClusterRoleBindings (seen on Artemis). Recovery: suspend the stray HR,

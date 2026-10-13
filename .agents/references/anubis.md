@@ -122,10 +122,10 @@ Adding a second workload to an app's Kustomization means every _other_ component
 too. Three separate things broke before this worked:
 
 **1. `postgres/cert` injected a Postgres client cert into Anubis.** Its patch in
-`components/postgres/base/patch/` targeted all HelmReleases and mounts
-`postgres-${APP}-cert`, so Anubis waited forever on a nonexistent
+`components/postgres/cert/kustomization.yaml` targeted all HelmReleases and mounts
+`postgres-{{ .Release.Name }}-cert`, so Anubis waited forever on a nonexistent
 `postgres-gotosocial-anubis-cert` and sat in `Init:0/1`. Fixed by giving that patch
-`annotationSelector: "!postgres.frostlink.dev/skip-cert-patch"` and annotating Anubis's
+`annotationSelector: "!postgres.frostlink.dev/skip-cert-patch"` (also carried by `base/patch` and `csi`) and annotating Anubis's
 HelmRelease. Any future sidecar added via a component needs the same annotation.
 
 **2. fingerjoin started fanning out to Anubis.** fingerjoin discovers WebFinger backends from
