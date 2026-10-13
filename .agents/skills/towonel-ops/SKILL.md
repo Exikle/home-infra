@@ -18,31 +18,21 @@ Ask before acting if it is not explicit:
 
 - **Health check**, or **onboarding a new origin**, or **debugging a broken tunnel**?
 - If onboarding: which **hostnames** should the agent be allowed to claim, and which
-  machine runs the agent? towonel scopes an invite to a hostname list.
+  machine runs the agent, and which TCP/UDP ports does it need? An invite is scoped to both.
 - Onboarding a hostname under `frostlink.dev` also needs a DNS record pointing at
   `edge.frostlink.dev` (or the VPS IP) as **DNS-only**, not proxied.
 
 ## Step 2 — Health
 
-```bash
-kubectl -n towonel get ds,pod,pvc
-kubectl -n towonel logs ds/towonel --tail=50
-
-# hub control plane, through cloudflared
-curl -s https://hub.frostlink.dev/v1/readyz          # => {"status":"ok"}
-```
-
-Metrics are only on the pod's own listeners (9091 hub, 9090 edge), not published:
+The health, leader and session checks are `towonel.md` § Operating. In short: hub readiness is
+`curl -s https://hub.frostlink.dev/v1/readyz`, `towonel_hub_is_leader` should be 1, and
+`towonel_edge_active_sessions` should be 2 (Artemis plus the local `network/towonel-agent`); 0 or 1
+is an outage. Metrics are only on the pod's own listeners (9091 hub, 9090 edge).
 
 ```bash
-kubectl -n towonel run q --rm -i --restart=Never --image=mirror.gcr.io/curlimages/curl \
-  --command -- sh -c '
-    curl -s http://towonel.towonel.svc.cluster.local:9091/metrics | grep towonel_hub_is_leader
-    curl -s http://towonel.towonel.svc.cluster.local:9090/metrics | grep towonel_edge_active_sessions'
+kubectl -n towonel get ds,pod,pvc --context frostlink
+kubectl -n towonel logs ds/towonel --tail=50 --context frostlink
 ```
-
-- `towonel_hub_is_leader 1` — the hub holds leadership. `0` means route rebuilds stall.
-- `towonel_edge_active_sessions` — registered agents. **Expect 2** (Artemis + the local `network/towonel-agent` for Headscale); 0 or 1 is an outage.
 
 ## Step 3 — Is the edge actually reachable?
 
@@ -62,24 +52,20 @@ agents handshake over the relay but never go direct, suspect the UDP rule.
 
 ## Step 4 — Issuing an invite
 
-The operator API key is generated into the node's data volume:
+The operator API key is generated on the node's data volume at `/data/operator.key`; the hub API
+is `https://hub.frostlink.dev`. **Do not print the key.** Use it only as the credential to the
+`towonel invite create` command, and see `towonel.md` § Operating for the exact grants.
 
-```bash
-kubectl -n towonel exec ds/towonel -- cat /data/operator.key
-```
+**The invite carries port grants, not just hostnames.** A TCP/UDP service without a matching grant
+leaves the edge declining to bind the listener, with no error on either side. The hostname list
+and `tcp_ports`/`udp_ports` for the existing agents are in `towonel.md` § Operating.
 
-Invites are scoped to a hostname list and returned as a `tt_inv_2_<token>` string:
-
-```bash
-towonel invite create --name <agent> --hostnames '<host>,*.<host>'
-```
-
-The token is the **only** secret the agent needs — it carries tenant identity. Store
-it in 1Password and pass it to the agent as `TOWONEL_INVITE_TOKEN`. Never commit it.
+The returned `tt_inv_2_<token>` is the only secret the agent needs. Store it in 1Password and pass
+it as `TOWONEL_INVITE_TOKEN`; never commit it or paste it into a transcript.
 
 ## Step 5 — Adding a hostname to the tunnel
 
-1. Issue (or extend) an invite covering the hostname.
+1. Issue (or extend) an invite covering the hostname and any ports.
 2. Publish DNS for it pointing at the VPS, **DNS-only**. Follow the pattern in
    `kubernetes/apps/towonel/towonel/app/dnsendpoint.yaml`.
 3. The origin keeps its own certificate — this is passthrough. It needs a cert valid
@@ -96,7 +82,7 @@ it in 1Password and pass it to the agent as `TOWONEL_INVITE_TOKEN`. Never commit
   holding on `MissingRecordedIdentity` the PVC waits forever. See `towonel.md`.
 - **Keys regenerated, every invite invalid** — the chart falls back to `emptyDir`
   unless `persistence.data.type` is set. Check
-  `kubectl -n towonel get pod -o yaml | grep -A3 'name: data'` shows a
+  `kubectl -n towonel get pod -o yaml --context frostlink | grep -A3 'name: data'` shows a
   `persistentVolumeClaim`, not `emptyDir`.
 - **Backup refused, `PrivilegedMoverNotPermitted`** — the mover inherited
   `NET_BIND_SERVICE` from the edge. Patch the mover's security context; do **not**
@@ -106,13 +92,8 @@ it in 1Password and pass it to the agent as `TOWONEL_INVITE_TOKEN`. Never commit
 
 ## Backup and recovery
 
-Key material (`node.key`, `hub_kek.key`, `invite_hash.key`) plus the sqlite hub DB
-live on the `towonel` PVC, backed up hourly by kopiur to R2.
-
-```bash
-just kube backup towonel towonel                 # on-demand snapshot
-just kube restore towonel towonel towonel        # DESTRUCTIVE — scale down first
-```
-
-Losing `invite_hash.key` invalidates every outstanding invite, so verify a snapshot
-exists before any operation that could destroy the volume.
+Key material and the sqlite hub DB live on the `towonel` PVC, backed up hourly by kopiur.
+`just kube backup towonel towonel` takes an on-demand snapshot (`towonel.md` § Operating).
+Restore with the `kopiur-restore` skill; `just kube restore` scales the workload down itself.
+Losing `invite_hash.key` invalidates every outstanding invite, so confirm a snapshot exists before
+anything that could destroy the volume.

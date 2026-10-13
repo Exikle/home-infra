@@ -7,13 +7,7 @@ description: Deploy a new app into the Flux cluster end to end — scaffold the 
 
 Deploy a new application to Frostlink following the canonical GitOps workflow.
 
-**Before writing any files, read:**
-
-- `.agents/instructions/cluster-conventions.md`
-- `.agents/instructions/yaml-conventions.md`
-- `.agents/references/flux-patterns.md`
-- `.agents/references/networking.md` (if the app needs a route)
-- `.agents/references/storage.md` (if the app needs persistence)
+Read `.agents/instructions/cluster-conventions.md` first; open `.agents/references/` `flux-patterns.md`, `networking.md` or `storage.md` as the app needs a dependency, a route or persistence (the `AGENTS.md` table says when).
 
 ---
 
@@ -23,9 +17,9 @@ Confirm before proceeding:
 
 - **App name** (e.g. `myapp`)
 - **Namespace** — must exist or user confirms creating it
-- **Chart**: default is app-template v5. Ask if different.
+- **Chart**: default is app-template. Ask if different.
 - **Route**: `external-gateway` (the only gateway on this cluster), or none
-- **Hostname**: e.g. `myapp.frostlink.dev`
+- **Hostname**: e.g. `myapp.frostlink.dev` (needs its own DNS record, `networking.md`)
 - **Persistence**: PVC needed? If yes: size (e.g. `5Gi`) — storage class is `openebs-zfs`
 - **Secrets**: 1Password ExternalSecret needed? If yes: 1Password item name
 
@@ -51,7 +45,7 @@ Invoke the `kubesearch` skill for the app name. Use the top result to fill in th
 | App-specific env vars  | `containers.app.env` in helmrelease          |
 | Secret env var names   | `values.externalSecrets` template fields     |
 
-Adapt any patterns from the reference to Frostlink conventions as documented in the kubesearch skill (remove TZ, replace HelmRepository with OCIRepository, replace Ingress with HTTPRoute, replace any block storage class with `openebs-zfs`). If the reference uses its own Postgres or Redis/Valkey, replace it with the shared `postgres/cert` component and the shared Dragonfly instance — see `.agents/instructions/cluster-conventions.md` "Database & Cache".
+Adapt the reference to this cluster with `cluster-conventions.md` § Common Mistakes — Quick Reference, and § Database & Cache if it brings its own Postgres or Redis.
 
 If kubesearch returns no results, fall back to the GitHub search in the kubesearch skill and proceed with what you find.
 
@@ -67,15 +61,10 @@ Using the image repository identified in Step 2, read `.agents/skills/modules/im
 
 Read `.agents/skills/modules/templates/directory.md` and create the layout.
 
-**If the namespace doesn't exist yet**, create it first:
-
-```
-kubernetes/apps/<namespace>/
-├── namespace.yaml
-└── kustomization.yaml
-```
-
-`namespace.yaml` — use `name: _` (kustomize rewrites it from the `namespace:` field):
+**If the namespace doesn't exist yet**, create `kubernetes/apps/<namespace>/namespace.yaml` and
+`kustomization.yaml` the way an existing namespace does (`kubernetes/apps/network/` is a good
+model). Do not add PodSecurity labels; the namespace inherits `baseline` (a privileged one needs
+the justification in `towonel.md` § Why its own namespace).
 
 ```yaml
 ---
@@ -85,26 +74,22 @@ metadata:
     name: _
     annotations:
         kustomize.toolkit.fluxcd.io/prune: disabled
-    labels:
-        pod-security.kubernetes.io/audit: privileged
-        pod-security.kubernetes.io/enforce: privileged
-        pod-security.kubernetes.io/warn: privileged
 ```
-
-`kustomization.yaml`:
 
 ```yaml
 ---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: <namespace>
-
+components:
+    - ../../components/alerts
 resources:
     - ./namespace.yaml
     - ./<app>/ks.yaml
 ```
 
-Flux auto-discovers the new namespace directory — no other wiring needed.
+The root Kustomization (`frostlink-dev`) points at `./kubernetes/apps` and there is no top-level
+`kustomization.yaml`, so a new namespace directory needs no further wiring.
 
 ---
 
@@ -120,7 +105,7 @@ Read the relevant template module for each file and write it:
 | `app/helmrelease.yaml`   | `.agents/skills/modules/templates/helmrelease.md`                             |
 | inline `externalSecrets` | `.agents/skills/modules/templates/externalsecret.md` (only if secrets needed) |
 
-All YAML must follow `.agents/skills/modules/sorting.md`.
+Field order: `.agents/instructions/yaml-conventions.md` (`modules/sorting.md` adds two rules).
 
 ---
 
@@ -132,19 +117,13 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
 
 ## Step 7 — Verify Files
 
-Confirm all expected files are present:
-
-```bash
-find kubernetes/apps/<namespace>/<app> -type f | sort
-```
-
-Then validate the kustomization renders cleanly with flate before applying:
+Confirm the layout matches `templates/directory.md`, then validate that the kustomization renders:
 
 ```bash
 just kube render-local-ks <namespace> <ks-name>
 ```
 
-This runs `flate build ks` — catches schema errors, missing substitution variables, and malformed YAML before anything touches the cluster. Fix any errors before proceeding to Step 8.
+This catches schema errors, missing substitution variables and malformed YAML before anything touches the cluster (`flux-validate` has the full suite). Fix errors before Step 8.
 
 ---
 

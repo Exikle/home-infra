@@ -1,14 +1,14 @@
 # Module: HelmRelease Template
 
-`spec` field order: `chartRef → interval → dependsOn → install → upgrade → values`
+Field order: `yaml-conventions.md`. Conventions (security context, probes, no `TZ`, reloader
+annotation, routes inline): `cluster-conventions.md` § Helm / app-template v5.
 
-`spec.values` order: `defaultPodOptions` first, then all other keys alphabetical.
-
-## Minimal template
+Replace `<app-template-tag>` with the tag in the app's `ocirepository.yaml`
+(`templates/ocirepository.md` shows how to find it).
 
 ```yaml
 ---
-# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.1.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-<app-template-tag>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -40,8 +40,6 @@ spec:
                                 enabled: true
                             readiness:
                                 enabled: true
-                            startup:
-                                enabled: false
                         resources:
                             requests:
                                 cpu: 10m
@@ -80,13 +78,7 @@ spec:
                         port: <port>
 ```
 
-## Notes
-
-- Do NOT add `namespace:` to metadata — the Flux Kustomization's `targetNamespace` injects it.
-- `fsGroup: 1000` only needed when the app uses a PVC.
-- `readOnlyRootFilesystem: true` requires a `tmp` emptyDir entry. Use `advancedMounts` with `subPath` — even for a single path.
-- Remove `persistence` block entirely if the app has no PVC and no writable paths.
-- Remove `route` block if no ingress is needed.
-- Never set `TZ` env var — k8tz handles timezone injection cluster-wide.
-- `reloader.stakater.com/auto: "true"` must be on the controller annotation, not the pod.
-- `startup` probe: include with `enabled: false` to be explicit, or omit entirely.
+- `persistence.data` and `fsGroup` assume the `kopiur` component in `ks.yaml` creates the PVC
+  `<app>` (`ks.md`). For a stateless app drop `data` and `fsGroup`.
+- Drop `route` if the app has no ingress. Drop `tmp` only if the root filesystem is writable.
+- No `namespace:` in metadata — the Kustomization's `targetNamespace` injects it.

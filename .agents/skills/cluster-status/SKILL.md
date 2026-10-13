@@ -10,37 +10,31 @@ Quick read-only health digest of Frostlink. Produces a 🟢/🟡/🔴 summary pe
 
 ## Run
 
+Every command pins `--context frostlink` (bare `kubectl`/`flux` in an agent shell hit Artemis; the
+MCP k8s tools do too, so there is no fallback to them).
+
 ```bash
-# Flux — not-ready resources
-flux get kustomizations -A --status-selector ready=false
-flux get helmreleases -A --status-selector ready=false
-
-# Nodes
-kubectl get nodes -o wide
-
-# Unhealthy pods (exclude Succeeded/Completed)
-kubectl get pods -A --field-selector='status.phase!=Running,status.phase!=Succeeded' | grep -v Completed
-
-# Recent warning events
-kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' | tail -20
-
-# Flux suspended resources
-flux get all -A | grep -i suspend
+flux get kustomizations -A --status-selector ready=false --context frostlink
+flux get helmreleases -A --status-selector ready=false --context frostlink
+kubectl get nodes -o wide --context frostlink
+kubectl get pods -A --field-selector='status.phase!=Running,status.phase!=Succeeded' --context frostlink
+kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' --context frostlink
+flux get all -A --context frostlink | grep -i suspend
 ```
 
-Use the `-ops` tier k8s tools if local kubectl is unavailable (switch kubeconfig context to `frostlink` first).
+The last one lists suspended resources (a suspended root or app is a finding, not noise).
 
 ## Output Format
 
 ```
 ## Cluster Status — HH:MM ET
 
-| Status | Layer       | Notes                                         |
-|--------|-------------|-----------------------------------------------|
-| 🟢     | Flux        | All 12 kustomizations + 8 helmreleases ready  |
-| 🟡     | Pods        | 1 pending: foo-bar-xxx in media               |
-| 🔴     | Nodes       | frostlink NotReady (15m)                      |
-| 🟢     | Events      | No warnings in last 15 min                    |
+| Status | Layer | Notes                                |
+|--------|-------|--------------------------------------|
+| 🟢     | Flux  | All kustomizations + helmreleases ready |
+| 🟡     | Pods  | 1 pending: <pod> in <ns>             |
+| 🔴     | Nodes | frostlink NotReady (15m)             |
+| 🟢     | Events| No warnings in last 15 min           |
 ```
 
 ## Layers (check in order)

@@ -16,11 +16,14 @@ Confirm the app name to search for (e.g. `sonarr`, `paperless-ngx`, `immich`). I
 
 ## Step 2 — Search kubesearch.dev
 
-Download all data chunks in parallel and filter by app name (substring match):
+Chunks run `data-0.json` upward until a 404, and the count grows, so probe for the end first,
+then download them all in parallel and filter by app name (substring match):
 
 ```bash
 APP="<app-name>"
-seq 0 84 | xargs -P8 -I{} sh -c "
+N=0
+while curl -sfI -o /dev/null "https://kubesearch.dev/hr/data-$N.json"; do N=$((N+1)); done
+seq 0 $((N-1)) | xargs -P8 -I{} sh -c "
   curl -sL 'https://kubesearch.dev/hr/data-{}.json' | \
   python3 -c \"
 import sys, json
@@ -65,19 +68,9 @@ Show the fetched YAML and note the source URL. Identify the key patterns:
 - **Persistence**: mount paths and PVC usage
 - **Secrets**: what env vars are sourced from secrets
 - **Security context**: `runAsUser`, `readOnlyRootFilesystem`, etc.
-- **Database/cache dependencies**: flag any `dependsOn: dragonfly-cluster`, `dependsOn: mariadb`, or `dependsOn: postgres` — these require adaptation to the shared-DB pattern (see below)
+- **Database/cache dependencies**: flag any `dependsOn` on a database or cache — they map to the shared Postgres/Dragonfly (below)
 
-Adapt to Frostlink conventions:
-
-| Theirs                                                   | Frostlink equivalent                                                                                                                                              |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HelmRepository` + `chart:`                              | Standalone `OCIRepository` → `oci://ghcr.io/bjw-s-labs/helm/app-template` v5.1.0                                                                                  |
-| Any `TZ:` env var                                        | Remove — k8tz handles timezone cluster-wide                                                                                                                       |
-| `secretRef` / `envFrom`                                  | `ExternalSecret` via `onepassword-connect` ClusterSecretStore                                                                                                     |
-| `Ingress`                                                | `HTTPRoute` inline in helmrelease values via `external-gateway` (the only gateway)                                                                                |
-| `dependsOn: mariadb`, `postgres`, or `dragonfly-cluster` | Shared `postgres/cert` component (Postgres) or the shared Dragonfly instance (cache/queue) — see `.agents/instructions/cluster-conventions.md` "Database & Cache" |
-| Block storage class                                      | `openebs-zfs` (no Rook-Ceph on Frostlink)                                                                                                                         |
-| Any namespace                                            | Match user's target namespace for this cluster                                                                                                                    |
+Adapt to Frostlink with `.agents/instructions/cluster-conventions.md` § Common Mistakes — Quick Reference (OCIRepository instead of HelmRepository, no `TZ`, ExternalSecret instead of `secretRef`, inline HTTPRoute on `external-gateway`, `openebs-zfs`) and § Database & Cache for any `postgres`, `mariadb` or `dragonfly-cluster` dependency.
 
 If the source already uses `app-template`, carry their `controllers`/`containers`/`persistence` structure directly — just update image and secrets pattern.
 

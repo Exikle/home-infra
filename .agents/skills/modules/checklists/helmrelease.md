@@ -4,20 +4,12 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 ## Structure & schema
 
-| #   | Check                                                                                                                                                                                                                                                                                        | Result |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| H1  | Schema comment present. app-template apps use the chart's own schema (`.../helm-charts/app-template-<version>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`); any other chart uses `https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json` |        |
-| H2  | `apiVersion: helm.toolkit.fluxcd.io/v2`                                                                                                                                                                                                                                                      |        |
-| H3  | `chartRef.kind: OCIRepository`, `chartRef.name: <app>` (references own OCIRepository)                                                                                                                                                                                                        |        |
-| H4  | `interval: 1h`                                                                                                                                                                                                                                                                               |        |
-| H5  | `spec` field order: `chartRef → interval → dependsOn → install → upgrade → values`                                                                                                                                                                                                           |        |
-
-## spec.values ordering
-
-| #   | Check                                                                   | Result |
-| --- | ----------------------------------------------------------------------- | ------ |
-| H6  | `defaultPodOptions` is the first key in `spec.values` (if present)      |        |
-| H7  | All other `spec.values` keys are alphabetical after `defaultPodOptions` |        |
+| #   | Check                                                                                                                                                                                                                                                                                    | Result |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| H1  | Schema comment present. app-template apps use the chart's own schema (`.../helm-charts/app-template-<tag>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`); any other chart uses `https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json` |        |
+| H2  | `apiVersion: helm.toolkit.fluxcd.io/v2`                                                                                                                                                                                                                                                  |        |
+| H3  | `chartRef.kind: OCIRepository`, `chartRef.name: <app>` (references own OCIRepository)                                                                                                                                                                                                    |        |
+| H4  | `interval: 1h`                                                                                                                                                                                                                                                                           |        |
 
 ## defaultPodOptions
 
@@ -33,26 +25,23 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 
 ## Controllers
 
-| #   | Check                                                                                                             | Result |
-| --- | ----------------------------------------------------------------------------------------------------------------- | ------ |
-| H13 | Controller has annotation `reloader.stakater.com/auto: "true"`                                                    |        |
-| H14 | Controller field order: `type → annotations → labels → <controller-specific> → pod → initContainers → containers` |        |
+| #   | Check                                                          | Result |
+| --- | -------------------------------------------------------------- | ------ |
+| H13 | Controller has annotation `reloader.stakater.com/auto: "true"` |        |
 
 ## Containers
 
-| #   | Check                                                                                                                  | Result |
-| --- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
-| H15 | `image` is the first field in every container block                                                                    |        |
-| H16 | `env.TZ` is NOT set — timezone injection is handled cluster-wide by k8tz (always N/A)                                  |        |
-| H17 | `probes.liveness.enabled` is present                                                                                   |        |
-| H18 | `probes.readiness.enabled` is present                                                                                  |        |
-| H19 | `resources.requests` present (`cpu` and `memory`)                                                                      |        |
-| H20 | `resources.limits.memory` present                                                                                      |        |
-| H21 | `resources.requests` comes before `resources.limits`                                                                   |        |
-| H22 | `securityContext.allowPrivilegeEscalation: false` (N/A for PUID/PGID images)                                           |        |
-| H23 | `securityContext.readOnlyRootFilesystem: true` (N/A for PUID/PGID images and Chrome/Chromium-based apps — see A19/A20) |        |
-| H24 | `securityContext.capabilities.drop: [ALL]` (N/A for PUID/PGID images)                                                  |        |
-| H25 | Container field order: `image` first, then alphabetical                                                                |        |
+| #   | Check                                                                                                                                     | Result |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| H15 | Field order follows `yaml-conventions.md` at every level: `spec`, `values`, controllers, containers (`image` first), persistence, service |        |
+| H16 | `env.TZ` is NOT set — timezone injection is handled cluster-wide by k8tz (always N/A)                                                     |        |
+| H17 | `probes.liveness.enabled` is present                                                                                                      |        |
+| H18 | `probes.readiness.enabled` is present                                                                                                     |        |
+| H19 | `resources.requests` present (`cpu` and `memory`)                                                                                         |        |
+| H20 | `resources.limits.memory` present                                                                                                         |        |
+| H22 | `securityContext.allowPrivilegeEscalation: false` (N/A for PUID/PGID images)                                                              |        |
+| H23 | `securityContext.readOnlyRootFilesystem: true` (N/A for PUID/PGID images and Chrome/Chromium-based apps — see A19/A20)                    |        |
+| H24 | `securityContext.capabilities.drop: [ALL]` (N/A for PUID/PGID images)                                                                     |        |
 
 ## Persistence
 
@@ -61,13 +50,6 @@ Mark each item **PASS**, **FAIL**, or **N/A**.
 | H26  | If Kopiur used: `existingClaim: <app>` (the `kopiur` component owns the PVC — not an inline PVC spec)           |        |
 | H27  | If `readOnlyRootFilesystem: true`: a `tmp` emptyDir mount exists                                                |        |
 | H27a | Every emptyDir uses `advancedMounts` (never `globalMounts`), with a `subPath` per path — even for a single path |        |
-| H28  | Persistence item field order: `type → annotations → labels → <alphabetical> → globalMounts → advancedMounts`    |        |
-
-## Service
-
-| #   | Check                                                                    | Result |
-| --- | ------------------------------------------------------------------------ | ------ |
-| H29 | Service item field order: `type → annotations → labels → <alphabetical>` |        |
 
 ## Route
 

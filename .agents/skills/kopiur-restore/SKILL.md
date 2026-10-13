@@ -8,32 +8,22 @@ compatibility: Requires the kopiur CRDs and the `r2` ClusterRepository (Cloudfla
 
 Restore a Kopiur-managed PVC from a snapshot in the `r2` ClusterRepository.
 
-`.agents/references/storage.md` § Restore is the companion doc — it carries the full rationale for
-every constraint below. Read it before deviating from this procedure.
+`.agents/references/storage.md` § Restore is the companion doc and carries the rationale for
+every constraint below. Read it before deviating from this procedure. Every `kubectl` pins
+`--context frostlink`.
 
-## Critical Rules
+## Rules (reasons in storage.md)
 
-- **Use `just kube restore <ns> <ks> <claim> [offset]`.** It encodes the whole ordering and, most
-  importantly, **asserts the restore actually came from a snapshot** before declaring success.
-  Do not hand-roll the sequence unless the recipe itself is broken.
-- **The `Restore` CR pins its snapshot resolution at creation and never re-evaluates it.** A CR
-  created before the app's first snapshot pins `resolution: NoSnapshot` _forever_, and because the
-  component sets `onMissingSnapshot: Continue` it then provisions an **empty** volume, runs no
-  mover, and reports `phase: Completed`. Always delete and recreate the Restore CR, then assert
-  `status.resolved.resolution == Snapshot`.
-- **Retain the old PV before deleting the PVC.** The storage class reclaim policy is `Delete`, so
-  without flipping the PV to `Retain` an empty restore is unrecoverable data loss.
-- **`openebs-zfs` is `WaitForFirstConsumer`.** Nothing is provisioned or populated until a pod
-  claims the PVC — the workload must be scaled back **up** to drive the restore. It cannot run
-  with the app at zero.
-- **Mover cache must be ≥ 2Gi.** Kopiur's default is 1Mi and fails with `disk quota exceeded`.
-  The component defaults to 2Gi (`KOPIUR_CACHE_CAPACITY`).
-- **`copyMethod: Snapshot`, not `Direct`.** openebs-zfs cannot remount a live volume.
-- **`inheritSecurityContextFrom: pvcConsumer` is backup-only** — the webhook rejects it on a
-  `Restore`. The component uses `snapshot: {}` there, which replays the UID/GID recorded on the
-  snapshot and needs no live pod.
-- Local `kubectl` is already scoped to Frostlink by `.mise/config.toml`. Do not add `--kubeconfig` or
-  `--context`, and do not use the k8s MCP tools — they act on Artemis.
+- **Use `just kube restore <ns> <ks> <claim> [offset]`.** It encodes the ordering and asserts the
+  restore came from a snapshot. Do not hand-roll the sequence unless the recipe is broken.
+- **An empty restore is silent.** A `Restore` CR created before the first snapshot pins
+  `resolution: NoSnapshot` forever and provisions an empty volume with `phase: Completed`:
+  § The Restore CR pins its snapshot resolution at creation — permanently.
+- **Retain the old PV first** (reclaim policy is `Delete`): § Always retain the old volume first.
+- **`openebs-zfs` is `WaitForFirstConsumer`**, so the workload must be scaled back up to drive the
+  restore: § `WaitForFirstConsumer` means a restore needs a consumer.
+- Mover cache must be at least 2Gi (`KOPIUR_CACHE_CAPACITY`), and `inheritSecurityContextFrom:
+  pvcConsumer` is backup-only: § Backups via Kopiur, Known quirks.
 
 ## Step 1 — Confirm with the user
 
@@ -47,9 +37,9 @@ Restoring destroys the current PVC. Get explicit confirmation before proceeding.
 ## Step 2 — Check what is actually restorable
 
 ```bash
-kubectl -n <ns> get snapshotpolicy,snapshotschedule,restore
-kubectl -n <ns> get snapshot --sort-by=.metadata.creationTimestamp
-kubectl -n <ns> get pvc <claim>
+kubectl -n <ns> get snapshotpolicy,snapshotschedule,restore --context frostlink
+kubectl -n <ns> get snapshot --sort-by=.metadata.creationTimestamp --context frostlink
+kubectl -n <ns> get pvc <claim> --context frostlink
 ```
 
 A healthy policy has recent `Succeeded` snapshots. If the newest snapshot is `Failed` or the list
@@ -76,9 +66,9 @@ given; scales the workloads back **up** to drive the populator; waits for `Bound
 ## Step 4 — Watch it land
 
 ```bash
-kubectl -n <ns> get restore <claim> -w
-kubectl -n <ns> get pods -w
-kubectl -n <ns> logs <mover-pod> --tail=30
+kubectl -n <ns> get restore <claim> -w --context frostlink
+kubectl -n <ns> get pods -w --context frostlink
+kubectl -n <ns> logs <mover-pod> --tail=30 --context frostlink
 ```
 
 ## Step 5 — Verify, then reclaim
@@ -87,8 +77,8 @@ The recipe prints the retained PV and the two commands to delete it. **Do not ru
 data is confirmed good** — that PV is the only copy of the pre-restore state. Once verified:
 
 ```bash
-kubectl delete pv <pv-name>
-kubectl -n openebs-system delete zfsvolume <pv-name>
+kubectl delete pv <pv-name> --context frostlink
+kubectl -n openebs-system delete zfsvolume <pv-name> --context frostlink
 ```
 
 Skipping this leaks the space permanently.
@@ -113,7 +103,7 @@ just kube browse-pvc <ns> <claim>
 - **Snapshot stuck with a `snapshot-cleanup` finalizer**:
 
     ```bash
-    kubectl -n <ns> patch snapshot <name> --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
+    kubectl -n <ns> patch snapshot <name> --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]' --context frostlink
     ```
 
 - **Whole Kustomization stops reconciling after a restore** — `spec.dataSourceRef` is immutable

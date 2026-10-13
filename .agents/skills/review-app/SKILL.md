@@ -7,13 +7,7 @@ description: Audit an existing app's manifests against this repo's conventions �
 
 Audit an existing app's manifests against this repo's conventions and report (then optionally fix) any violations.
 
-**Before reviewing, read:**
-
-- `.agents/instructions/cluster-conventions.md`
-- `.agents/instructions/yaml-conventions.md`
-- `.agents/references/flux-patterns.md`
-- `.agents/references/networking.md` (if app has a route)
-- `.agents/references/storage.md` (if app has persistence)
+Read `.agents/instructions/cluster-conventions.md` and `yaml-conventions.md` first; open the `flux-patterns.md`, `networking.md` or `storage.md` reference if the app has dependencies, a route or persistence.
 
 ---
 
@@ -21,9 +15,9 @@ Audit an existing app's manifests against this repo's conventions and report (th
 
 Confirm before proceeding:
 
-- **App name** (e.g. `sonarr`)
-- **Namespace** (e.g. `media`)
-- **Fix mode**: report-only or apply fixes in place?
+- **App name** (e.g. `gotosocial`)
+- **Namespace** (e.g. `fediverse`)
+- **Fix mode**: report-only (default) or apply fixes in place?
 
 Derive the root path: `kubernetes/apps/<namespace>/<app>/`
 
@@ -57,63 +51,31 @@ Read each checklist module and work through every item. Mark each **PASS**, **FA
 | `app/ocirepository.yaml`              | `.agents/skills/modules/checklists/ocirepository.md`  |
 | `app/helmrelease.yaml`                | `.agents/skills/modules/checklists/helmrelease.md`    |
 | ExternalSecret (inline or standalone) | `.agents/skills/modules/checklists/externalsecret.md` |
-| YAML sorting (all files)              | `.agents/skills/modules/checklists/yaml-sorting.md`   |
 | Advisory (optimizations)              | `.agents/skills/modules/checklists/advisory.md`       |
 
-Sorting rules reference: `.agents/skills/modules/sorting.md`
+Field order is checked once per file against `.agents/instructions/yaml-conventions.md` (plus `modules/sorting.md`) and reported as `[YAML]` items.
 
 ---
 
 ## Step 4 — Report Findings
 
-Output a summary grouped by severity using this format — blank lines between every item, bold check IDs, code-formatted values:
+Group findings by severity, one blank line between items, check IDs in bold, values in code:
 
-```markdown
-## Review: <app> (<namespace>)
+- `### FAIL — must fix` (auto-fixable): e.g. **[H8]** `runAsNonRoot` is missing.
+- `### WARN — convention drift` (auto-fixable): e.g. **[YAML]** `enabled` is not first in `probes.liveness`; **[H27a]** emptyDir `tmp` uses `globalMounts`.
+- `### ADVISORY — recommendations` (never auto-fix): e.g. **[A2]** PVC without the `kopiur` component.
+- `### PASS`: one line per area that is clean.
 
----
-
-### FAIL — must fix _(auto-fixable)_
-
-**[H8]** `defaultPodOptions.securityContext.runAsNonRoot` is missing.
-
-**[K12]** `dependsOn` entry for `kopiur-repository` is missing the `namespace: kopiur-system` field.
-
----
-
-### WARN — convention drift, fix preferred _(auto-fixable)_
-
-**[Y3]** `enabled` is not the first field in `probes.liveness`.
-
-**[H27a]** emptyDir `tmp` uses `globalMounts` instead of `advancedMounts` with `subPath`.
-
----
-
-### ADVISORY — recommendations _(requires human review — never auto-fix)_
-
-**[A2]** App has a PVC but no `kopiur` component — data is not backed up.
-
-**[A10]** App is on `external-gateway` with no SecurityPolicy OIDC — confirm this is intentional.
-
----
-
-### PASS
-
-- Directory structure is correct.
-- OCIRepository is standalone and correctly named.
-- Security context is complete.
-- All sorting checks pass.
-```
-
-If nothing fails or is advisable: confirm the deployment is convention-compliant and no changes are needed, still using the full headed format.
+Start with `## Review: <app> (<namespace>)`. If nothing fails, say the app is convention-compliant,
+still using the headed format.
 
 ---
 
 ## Step 5 — Fix Issues (if fix mode enabled)
 
-For each FAIL or WARN, edit the file in place using (do NOT auto-fix ADVISORY items — those require user confirmation):
+For each FAIL or WARN, edit the file in place (never auto-fix ADVISORY items), using:
 
-- `.agents/skills/modules/sorting.md` for all ordering rules
+- `.agents/instructions/yaml-conventions.md` for all ordering rules
 - `.agents/skills/modules/templates/ks.md` as the reference for ks.yaml corrections
 - `.agents/skills/modules/templates/helmrelease.md` as the reference for HelmRelease corrections
 
@@ -125,6 +87,6 @@ After fixing, re-read the edited files and confirm no issues remain.
 
 ## Step 6 — Test and Commit (if fixes were applied)
 
-Read `.agents/skills/modules/test-and-commit.md` (fixes section) and follow it.
+Read `.agents/skills/modules/test-and-commit.md` and follow it.
 
 If anything fails during apply, read `.agents/skills/modules/common-issues.md` for diagnostics.

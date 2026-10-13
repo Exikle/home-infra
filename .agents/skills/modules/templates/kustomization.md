@@ -10,9 +10,6 @@ resources:
     - ./ocirepository.yaml
 ```
 
-## Notes
-
-- `apiVersion` is always `kustomize.config.k8s.io/v1beta1` — `v1` does not exist for this kind.
-- No `externalsecret.yaml`: app-template apps define secrets inline in the HelmRelease — see
-  `externalsecret.md`.
-- Resources are listed alphabetically.
+Resources are alphabetical. App-template apps define secrets inline in the HelmRelease
+(`externalsecret.md`), so there is no `externalsecret.yaml`. Some apps also set `namespace:`; the
+tree is split, so follow the other apps in the target namespace.

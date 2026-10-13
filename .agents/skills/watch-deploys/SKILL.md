@@ -11,23 +11,18 @@ Each tick shows only what **changed** since the last tick — not the full clust
 
 ## State Cache
 
-Store the previous snapshot at `/tmp/frostlink-watch-deploys.json`. On first run (no cache), show full current state as the baseline and write cache.
+Store the previous snapshot as `frostlink-watch-deploys.json` in the session scratchpad (not `/tmp`). On first run (no cache), show full current state as the baseline and write cache.
 
 ## What to Track
 
 ```bash
-# Flux snapshot
-flux get kustomizations -A
-flux get helmreleases -A
-
-# Pod snapshot
-kubectl get pods -A -o json
-
-# Node snapshot
-kubectl get nodes -o json
+flux get kustomizations -A --context frostlink
+flux get helmreleases -A --context frostlink
+kubectl get pods -A -o json --context frostlink
+kubectl get nodes -o json --context frostlink
 ```
 
-Use the `-ops` tier `k8s_kubectl_get` tool with `output: json` if local kubectl is unavailable.
+The MCP k8s tools point at Artemis; there is no fallback to them.
 
 ## Delta Logic
 
@@ -47,9 +42,9 @@ Compare current snapshot to cached snapshot:
 ```
 Tick [20:14:32 ET] — Δ since 20:14:02
 
-RECOVERED:  immich (default) HelmRelease → Ready
-BROKE:      komf (media) HelmRelease → Failed: "container image not found"
-RESTARTED:  memini-xxx-yyy (cortex) restarts: 0→1
+RECOVERED:  <app> (<ns>) HelmRelease → Ready
+BROKE:      <app> (<ns>) HelmRelease → Failed: "<reason>"
+RESTARTED:  <pod> (<ns>) restarts: 0→1
 
 ✓ Nodes: all ready
 ✓ No new Flux suspensions

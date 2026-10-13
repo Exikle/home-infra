@@ -1,7 +1,7 @@
 # Module: ExternalSecret Template
 
-Only add this if the app needs secrets from 1Password. For app-template apps it goes **inline in
-`helmrelease.yaml`**, not in a separate file:
+Only when the app needs 1Password secrets. For app-template apps it goes inline in
+`helmrelease.yaml`, not a separate file:
 
 ```yaml
 spec:
@@ -21,15 +21,7 @@ spec:
                             SOME_KEY: "{{ .FIELD_NAME }}"
 ```
 
-Reference it from a container with `envFrom: [{externalSecretRef: {identifier: app}}]`, or by the
-Secret name in `secretKeyRef`.
-
-## Notes
-
-- `secretStoreRef.name` must be `onepassword-connect` (not `onepassword`, not `1password-connect`).
-- `dataFrom.extract.key` is the exact name of the 1Password item.
-- Template field names must **exactly** match 1Password field names — a mismatch returns an empty secret with no error.
-- Set `target.name` so the Secret is predictably named. With one entry the ExternalSecret itself is named after the release; use `forceRename` only to keep a pre-existing name.
-- The chart sets `target.deletionPolicy: Delete` by default.
-- Add `onepassword-connect` to `dependsOn` in `ks.yaml` whenever an ExternalSecret is present.
-- A standalone `externalsecret.yaml` (`apiVersion: external-secrets.io/v1`, no `namespace:`) is only for the exceptions in `cluster-conventions.md` § Secrets — a non-app-template chart, no HelmRelease, or a Secret read by `postBuild.substituteFrom`.
+Reference it from a container with `envFrom: [{secretRef: {name: <app>}}]` or by Secret name in
+`secretKeyRef`. Add `onepassword-connect` (namespace `external-secrets`) to the `ks.yaml`
+`dependsOn`. Field names must match the 1Password item exactly. Rules and the standalone-file
+exceptions: `cluster-conventions.md` § Secrets.

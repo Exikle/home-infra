@@ -6,145 +6,71 @@ compatibility: Single node — there is nothing to drain to, so any upgrade, reb
 
 # Skill: Talos Operations
 
-Node operations for Frostlink (single-node ARM64, Oracle Cloud, Talos Linux).
+Node operations for Frostlink (single node, `10.0.0.203` over the Headscale site link). The
+background and the rationale for every step below are in `.agents/references/talos.md`; read the
+named section before acting.
 
-> Also read `.agents/references/talos.md` for node IP and config background.
-
-## Node Reference
-
-| Node        | Role                           | Management address                                        |
-| ----------- | ------------------------------ | --------------------------------------------------------- |
-| `frostlink` | Control plane + worker (ARM64) | `10.0.0.203` (OCI internal), over the Headscale site link |
-
-The public IP `40.233.88.33` is only for a rebuild (`bootstrap.md`) or break-glass when the tailnet
-is down (`networking.md` § Access Methods). Every command below uses `10.0.0.203`.
-
-`allowSchedulingOnControlPlanes: true` — the single node runs everything.
-
----
-
-## Config Changes
-
-Frostlink uses patch files in `talos/patches/` — no Jinja2/render-config templating.
-
-### NEVER `apply-config` the patch file
-
-`talos/patches/controlplane.yaml` is a **gen-time patch, not a full machine config** — no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` (the Headscale auth key exists only in the node's live config — minted by `just bootstrap tailnet` on a rebuild, or rendered via `op inject` for day-2 changes). `apply-config` replaces the entire config, so pointing it at that file strands the node. Unlike Artemis, this repo cannot regenerate a complete config.
-
-### Applying a change
-
-1. Edit the relevant file in `talos/patches/` so the repo records the intent.
-2. Write a **delta** containing only the changed fields, and dry-run it:
+`talosctl` has no merged-config fallback, so always pass the repo talosconfig (tooling.md § kubectl
+and talosctl scoping):
 
 ```bash
-mise exec -- talosctl --context frostlink patch machineconfig \
-  -n 10.0.0.203 --patch-file /tmp/delta.yaml --dry-run
+talosctl version --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203
 ```
 
-3. Read the printed diff — it shows exactly what changes and whether a reboot is needed — then re-run without `--dry-run`. The diff contains the Tailscale auth key; never paste it anywhere.
+Use `kubectl ... --context frostlink` and `flux ... --context frostlink` for the cluster side.
 
-For changes requiring a reboot, add `--mode reboot`.
+## Config change
 
-Use `mise exec -- talosctl`: the client decodes config documents locally, so a mismatched client rejects valid documents (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`) before the node sees them. `.mise/config.toml` pins the matching version.
+`talos/patches/controlplane.yaml` is a gen-time patch, **not** a full machine config. Never
+`apply-config` it: that strands the node (`talos.md` § CRITICAL: never `apply-config` the patch
+file).
 
-### Deleting a field
+1. Edit the file in `talos/patches/` so the repo records the intent.
+2. Write a **delta** with only the changed fields to a scratch file and dry-run it:
 
-A plain `null` is ignored and JSON6902 patches are rejected (the config is multi-document). Use the strategic-merge directive:
+    ```bash
+    talosctl patch machineconfig --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203 --patch-file <delta.yaml> --dry-run
+    ```
 
-```yaml
-machine:
-    features:
-        someField:
-            $patch: delete
-```
+3. Read the printed diff (it shows whether a reboot is needed; it contains the Tailscale auth key,
+   so never paste it), then re-run without `--dry-run`. Add `--mode reboot` if a reboot is needed.
 
-### certSANs patch (minimal delta)
+Removing a field, the client-version trap (use the mise-pinned talosctl) and the certSANs delta:
+`talos.md` § CRITICAL and § certSANs minimal patch.
 
-```yaml
-machine:
-    certSANs:
-        - <ip-or-hostname>
-cluster:
-    apiServer:
-        certSANs:
-            - <ip-or-hostname>
-```
+## Extension / schematic change
 
----
+A new extension needs a new schematic and an upgrade (`talos.md` § Schematic). Never hand-edit a
+schematic ID.
 
-## Extension / Schematic Changes
+1. Edit `talos/schematic.yaml`.
+2. Derive the ID: `just talos schematic-id`.
+3. Run `just talos upgrade <current-version>` so the node records the new schematic. The current
+   version is `talosctl version`, not a number from a doc.
 
-Extensions need a new schematic ID and reboot:
+## Upgrades
 
-1. Edit `talos/schematic.yaml`
-2. Get new schematic ID:
+Upgrades are owned by tuppr: edit the version in
+`kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (or `kubernetesupgrade.yaml`)
+and merge. It is full cluster downtime (`talos.md` § Talos + Kubernetes Upgrades — owned by
+tuppr).
+
+- Never apply a bump out of band while Flux still serves the old value from git, or tuppr
+  downgrades the node. Commit it, or first:
+
+    ```bash
+    flux suspend ks tuppr-upgrades -n system-upgrade --context frostlink
+    ```
+
+- After every Talos upgrade verify a new PVC can still bind (CSINode topology keys,
+  `storage.md` § Gotcha: stale CSINode topology keys block every new PVC).
+- Break-glass manual upgrade (`just talos upgrade <version>`) and `upgrade-k8s`: `talos.md`
+  § Break-glass: manual upgrade, § Kubernetes Upgrade — break-glass only.
+
+## Node health
 
 ```bash
-just talos schematic-id
-```
-
-3. Update the schematic ID in the relevant patch or config
-4. Upgrade with the new schematic:
-
-```bash
-just talos upgrade <current-talos-version>
-```
-
----
-
-## Talos + Kubernetes Upgrades — owned by tuppr
-
-Upgrades are declarative. Edit the version in
-`kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (or
-`kubernetesupgrade.yaml`), merge, and tuppr performs the upgrade.
-
-Frostlink is a **single node**, so every upgrade is full cluster downtime
-(~5 min, roughly 2 min of it API-server down). Draining is skipped
-automatically — there is nowhere to drain to — and completion is tracked by
-polling node readiness after reboot.
-
-tuppr rebuilds the installer from the node's **runtime-reported schematic**, so
-extensions survive: `.machine.install.image` is rewritten to
-`factory.talos.dev/metal-installer/<schematic>:<version>`. If it cannot resolve a
-schematic it refuses rather than reinstalling from the generic installer and
-wiping extensions.
-
-tuppr triggers on `currentVersion != targetVersion` — **not** a "newer than"
-check, and there is no downgrade guard. Never apply a version bump out of band
-while Flux still serves the old value from git, or the next reconcile reverts the
-CR and tuppr downgrades the node. Either commit the bump, or
-`flux suspend ks tuppr-upgrades` first.
-
-### Break-glass: manual upgrade
-
-Only when tuppr is unavailable. Note this uses the legacy
-`factory.talos.dev/installer/` path, while tuppr uses `metal-installer`:
-
-```bash
-# Get current schematic ID
-just talos schematic-id
-
-# Upgrade — reboots automatically (powercycle mode)
-just talos upgrade <version>   # e.g. v1.13.4
-```
-
-No drain/uncordon needed — single node, all workloads restart automatically after reboot.
-
----
-
-## Node Health
-
-```bash
-talosctl --context frostlink health -n 10.0.0.203
-talosctl --context frostlink dmesg -n 10.0.0.203 | tail -30
-talosctl --context frostlink version -n 10.0.0.203
-talosctl --context frostlink get machineconfig -n 10.0.0.203 -o yaml
-```
-
-## Kubernetes Upgrade
-
-```bash
-talosctl --context frostlink upgrade-k8s \
-  --to <k8s-version> \
-  -n 10.0.0.203
+talosctl health --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203
+talosctl dmesg --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203
+talosctl get machineconfig --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203 -o yaml   # contains the auth key; never paste
 ```

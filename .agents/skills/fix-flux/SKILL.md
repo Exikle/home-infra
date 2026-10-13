@@ -1,117 +1,95 @@
 ---
 name: fix-flux
-description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease stuck or not progressing, a Kustomization not reconciling, an OCIRepository not resolving, or an ExternalSecret not syncing. Use for "flux is broken", "HelmRelease stuck", "kustomization not reconciling", "ExternalSecret not syncing", or when flux get shows a resource not ready. Scoped to the Frostlink cluster. Scoped to a known-stalled Flux resource. If you do not yet know what is wrong, start with `cluster-status`.
-compatibility: Read-only diagnosis; any repair goes through git or `just kube apply-ks`, never a direct kubectl mutation.
+description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease stuck or not progressing, a Kustomization not reconciling, an OCIRepository not resolving, or an ExternalSecret not syncing. Use for "flux is broken", "HelmRelease stuck", "kustomization not reconciling", "ExternalSecret not syncing", or when flux get shows a resource not ready. Scoped to a known-stalled Flux resource in the Frostlink cluster. If you do not yet know what is wrong, start with `cluster-status`.
+compatibility: Diagnosis is read-only. The only cluster writes are the documented unstick steps (suspend/resume, deleting a failed Helm release secret, a forced reconcile). Manifest fixes go through git or `just kube apply-ks`, never an ad-hoc kubectl edit.
 ---
 
 # Skill: Fix Flux
 
-Diagnose and fix Flux reconciliation issues in Frostlink.
+Diagnose and fix Flux reconciliation problems in Frostlink. Every `kubectl`/`flux` command pins
+`--context frostlink`.
 
-> Read `.agents/references/flux-patterns.md` before diagnosing — it covers stuck HelmRelease fixes, cross-namespace gotchas, and the CRD timing race.
+The unstick procedures (stuck HelmRelease, forced reconcile, CRD timing race) are in
+`.agents/references/flux-patterns.md`: § Stuck HelmRelease, § Force Reconcile, § CRD Timing Race.
+Read them before repairing.
 
-## Step 1 — Identify What's Broken
-
-```bash
-flux get all -A --status-selector ready=false
-kubectl get helmrelease -A | grep -v "True"
-kubectl get kustomization -A | grep -v "True"
-```
-
-## Step 2 — Diagnose by Symptom
-
-### Stuck HelmRelease (install/upgrade retrying)
+## Step 1 — Identify what is broken
 
 ```bash
-flux describe helmrelease <app> -n <namespace>
-kubectl get events -n <namespace> --sort-by='.lastTimestamp' | tail -20
+flux get all -A --status-selector ready=false --context frostlink
 ```
 
-Fix:
-
-```bash
-flux suspend helmrelease <app> -n <namespace>
-kubectl delete secret -n <namespace> -l name=<app>,owner=helm
-flux resume helmrelease <app> -n <namespace>
-```
-
-### Kustomization Not Reconciling
-
-Look up the exact kustomization name first — it is the `metadata.name` in `ks.yaml`, not always `<namespace>-<app>`:
+App Kustomizations live in their **target namespace** (`fediverse`, `network`, …), not
+`flux-system`; only the root `frostlink-dev` is in `flux-system`. The Kustomization name is
+`metadata.name` in the app's `ks.yaml`, not always `<app>`:
 
 ```bash
 grep "^  name:" kubernetes/apps/<namespace>/<app>/ks.yaml
-flux describe kustomization <ks-name> -n flux-system
 ```
 
-Common causes:
+## Step 2 — Diagnose by symptom
 
-- `dependsOn` target not Ready — check dependency chain
-- Schema validation error — run `just kube render-local-ks <namespace> <ks-name>` to catch it locally
-- Git source not synced — `flux reconcile source git flux-system`
-
-### ExternalSecret Not Syncing / Empty Secret
+### HelmRelease stuck (install/upgrade retrying)
 
 ```bash
-kubectl describe externalsecret <app> -n <namespace>
+flux describe helmrelease <app> -n <namespace> --context frostlink
+kubectl get events -n <namespace> --sort-by='.lastTimestamp' --context frostlink
+```
+
+If it is only retrying a failed release, apply § Stuck HelmRelease.
+
+### Kustomization not reconciling
+
+```bash
+flux describe kustomization <ks-name> -n <namespace> --context frostlink
+```
+
+- `dependsOn` target not Ready: follow the chain.
+- Schema or substitution error: `just kube render-local-ks <namespace> <ks-name>` reproduces it offline.
+- New artifact not picked up: the source is an `OCIRepository` (there is no `GitRepository`);
+  `just kube sync ocirepo`.
+- "no matches for kind": CRD timing race, § CRD Timing Race (and check `dependsOn` lists the CRD provider).
+
+### ExternalSecret not syncing / empty secret
+
+```bash
+kubectl describe externalsecret <app> -n <namespace> --context frostlink
+kubectl get pods -n external-secrets --context frostlink
 just kube sync es
-kubectl get secret <app> -n <namespace> -o yaml
 ```
 
-Common causes:
+Usual causes: a 1Password field name that does not match the template `{{ .FIELD_NAME }}`
+exactly, or `onepassword-connect` unhealthy. Do not print the Secret's values.
 
-- 1Password field name mismatch — exact field name must match template `{{ .FIELD_NAME }}`
-- onepassword-connect pod unhealthy — `kubectl get pods -n external-secrets`
-
-### CRD Timing Race (Kustomization fails immediately after new CRDs deployed)
-
-Symptom: kustomization reconciles but resources fail with "no matches for kind X" right after a new CRD-bearing app was added.
-
-Fix — manually re-trigger after CRDs are established:
+### Image pull errors
 
 ```bash
-flux reconcile kustomization <ks-name> -n flux-system
+kubectl describe pod <pod> -n <namespace> --context frostlink
 ```
 
-If it's a dependency ordering issue, check `dependsOn` in `ks.yaml` — the CRD provider must be listed.
+Check the tag exists in the registry; if rate limited, wait.
 
-### Image Pull Errors
+### Values not applying after a push
 
 ```bash
-kubectl describe pod <pod> -n <namespace> | grep -A3 "Failed"
+flux reconcile helmrelease <app> -n <namespace> --with-source --context frostlink
 ```
 
-Verify image tag exists in registry. If rate limited: wait or check imagePullSecret.
-
-### HelmRelease Values Not Applying After Git Change
+## Step 3 — Force a reconcile
 
 ```bash
-flux reconcile helmrelease <app> -n <namespace> --with-source
-```
-
-## Step 3 — Force Full Reconciliation
-
-Look up the kustomization name before running:
-
-```bash
-grep "^  name:" kubernetes/apps/<namespace>/<app>/ks.yaml
 just kube sync ocirepo
-flux reconcile kustomization <ks-name> -n flux-system --with-source
-flux reconcile helmrelease <app> -n <namespace>
+flux reconcile kustomization <ks-name> -n <namespace> --with-source --context frostlink
+flux reconcile helmrelease <app> -n <namespace> --context frostlink
 ```
 
 ## Step 4 — Verify
 
 ```bash
-flux get helmrelease <app> -n <namespace>
-kubectl get pods -n <namespace> -l app.kubernetes.io/name=<app>
-kubectl logs -n <namespace> deployment/<app> --tail=20
+flux get helmrelease <app> -n <namespace> --context frostlink
+kubectl get pods -n <namespace> -l app.kubernetes.io/name=<app> --context frostlink
+kubectl logs -n <namespace> deployment/<app> --tail=20 --context frostlink
 ```
 
-## Nuclear Option — Full Namespace Reconcile
-
-Only if multiple apps in a namespace are broken:
-
-```bash
-flux reconcile kustomization <namespace> -n flux-system --with-source
-```
+If several apps in one namespace are broken, find the shared cause (a common `dependsOn`, the
+namespace's secret store) rather than reconciling each.
