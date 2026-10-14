@@ -15,8 +15,11 @@ its next Renovate run**, so check what it does to frostlink's guards before merg
 
 Upstream presets: <https://github.com/home-operations/renovate-presets>
 
-Every PR against `main` also gets an AI review comment from `.forgejo/workflows/pr-review.yaml`.
-It is advisory only — a sticky comment, not a status check, so it never gates a merge.
+Every PR against `main` also gets an AI review comment from the shared `pr-review.yaml` in
+`Exikle/forgejo-workflows`, which `.forgejo/workflows/pr-review.yaml` calls. It is a sticky comment,
+not a status check. Its merge job squash-merges an approved minor or patch dusk-bot PR that carries
+no hold; the rules, and why a never-automerge rule here must carry a `⛔` note, are in Artemis's
+`.agents/references/renovate.md` § Merge on approve, which wins.
 
 The `renovate-presets` pin lives in the shared default, so every repo moves together. Bump it there,
 and only after checking the target tag is self-contained (below). The two cluster repos made
@@ -215,7 +218,7 @@ default: Forgejo only supports up to v3, and v4+ uses a GHES-incompatible backen
 
 ### Tekton runner built-ins are disabled
 
-`tekton/setup` and `tekton/pipeline` in `.forgejo/workflows/oci-push.yaml` are steps provided by
+`tekton/setup` and `tekton/pipeline` in the shared `oci-push.yaml` are steps provided by
 the Tekton runner, not repositories. Without the rule Renovate looks them up as GitHub tags, fails,
 and the Dependency Dashboard shows a "Package lookup failures" warning on every run. The rule is in
 the shared default.

@@ -33,6 +33,9 @@
       matchFileNames: ["kubernetes/apps/system-upgrade/tuppr/upgrades/**"],
       automerge: false,
       minimumReleaseAge: "7 days",
+      prBodyNotes: [
+        "> ⛔ **Do not automerge.** tuppr rolls this Talos or Kubernetes upgrade onto the only node.",
+      ],
     },
     {
       description: "Hold the Kubernetes group for 7 days before opening the PR",
@@ -45,6 +48,7 @@
       matchDatasources: ["docker"],
       matchPackageNames: ["/cilium\\/charts\\/cilium/"],
       automerge: false,
+      prBodyNotes: ["> ⛔ **Do not automerge.** Cilium is the CNI of the only node."],
     },
     {
       description: "CNPG Group — batches the updates that recreate the single Postgres instance",
