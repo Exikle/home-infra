@@ -159,7 +159,7 @@ tailnet-join:
         headscale preauthkeys create --tags tag:frostlink --expiration 1h -o json | jq -r '.key')"
     [[ -n "$key" && "$key" != "null" ]] || just log fatal "Headscale returned no key" "stage" "$(basename "$0")"
     chmod 600 "$tmp"
-    sed "s|op://frostlink/headscale-frostlink/TS_AUTH_KEY|${key}|" \
+    sed "s|op://infrastructure/headscale/TS_AUTH_KEY|${key}|" \
         "{{ source_dir() }}/../talos/patches/tailscale.yaml.j2" > "$tmp"
     just log info "Applying the tailscale ExtensionServiceConfig to {{ node_ip }} (no reboot)..." "stage" "$(basename "$0")"
     talosctl --talosconfig "{{ source_dir() }}/../talosconfig" -n "{{ node_ip }}" patch mc --patch @"$tmp"
