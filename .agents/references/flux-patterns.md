@@ -41,7 +41,8 @@ OCIRepository `source.toolkit.fluxcd.io/v1`, ExternalSecret `external-secrets.io
 ### Suspend before a test-apply
 
 `apply-ks` suspends nothing. **Both suspend recipes are narrow** — they act only on the
-Kustomization you name, so the root is always a separate call. Going in, order does not matter;
+Kustomization you name (on the root they also pause and unpause the FluxInstance, below), so the
+root is always a separate call. Going in, order does not matter;
 `suspend-ks` on a child only warns if the root is still running. Coming out, order is enforced:
 `resume-ks` refuses to wake a child while the root is still suspended, because the child would
 reconcile its old spec and write stale values straight back. It also warns about anything left
@@ -77,7 +78,7 @@ Kustomizations live in their **target namespace** (e.g. `network`, `fediverse`),
 - `dependsOn` must list actual runtime dependencies, not just chart sources
 - `interval: 1h` is standard; a few infrastructure ks.yaml use `30m`
   (`grep -rh 'interval:' kubernetes/apps/*/*/ks.yaml | sort | uniq -c`)
-- **`retryInterval: 1m` is injected by the root Kustomization's patch block**, so an explicit one
+- **`retryInterval: 1m` is injected by the child-defaults patch the FluxInstance puts on the root**, so an explicit one
   in a child is redundant. Most children inherit it whether or not the file says so; a few
   override it. Do not add it "because it's missing" — it isn't.
 
@@ -153,6 +154,8 @@ this, and while stuck on a stale revision it silently re-applied an old cron ove
 
 `just kube apply-ks <ns> <ks>` renders and applies the app **path** — it does not touch the
 Kustomization CR itself. Patching the live CR does not work either: a running `flux-system`
-reverts it. (Whether a CR patch holds under a suspended root has not been tested.) **Pushing is the only
+reverts it. `just kube apply-ks flux-system flux-system` does render the child Kustomization CRs
+from the local tree (through `flux build` against the live root), so with the root suspended this
+may now be testable — not yet tried. **Pushing is the only
 proven way to test a ks.yaml change**, so budget for
 verifying after the push rather than before.
