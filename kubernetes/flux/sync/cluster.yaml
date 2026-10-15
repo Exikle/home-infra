@@ -6,7 +6,7 @@ metadata:
   name: frostlink-dev
   namespace: flux-system
 spec:
-  deletionPolicy: WaitForTermination
+  deletionPolicy: Orphan
   interval: 1h
   patches:
     - patch: |-
