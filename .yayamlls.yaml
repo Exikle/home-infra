@@ -1,7 +1,0 @@
----
-catalog: true
-
-renderers:
-  flate:
-    enabled: true
-    path: kubernetes
