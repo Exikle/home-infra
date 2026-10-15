@@ -30,7 +30,7 @@ Litellm checks, not every generated Artemis check.
 
 **The Artemis sidecar runs in remote mode.** `KUBERNETES_SERVICE_HOST=""` forces it off the
 in-cluster config and onto `KUBECONFIG=/kube/config`, mounted from secret
-`gatus-artemis-kubeconfig` (1Password `frostlink/gatus-artemis-kubeconfig`). That kubeconfig holds
+`gatus-artemis-kubeconfig` (1Password `frostlink/gatus` → `ARTEMIS_KUBECONFIG`). That kubeconfig holds
 the token of Artemis's `observability/gatus-remote-reader` ServiceAccount — read-only on services,
 gateways and httproutes, a long-lived token that only changes when rotated by hand. It reaches the
 Artemis API over the Headscale site link.
@@ -54,11 +54,11 @@ Things that each cost a failed attempt:
 
 Three `external-endpoints` in `cluster-endpoints.yaml`, each expecting a POST every 5 min:
 
-| Endpoint         | Sender                                                          | Token                                              |
-| ---------------- | --------------------------------------------------------------- | -------------------------------------------------- |
-| `core_heartbeat` | Phare (external uptime service)                                 | `HEARTBEAT_TOKEN` (1P `gatus`)                     |
-| `core_artemis`   | Artemis Alertmanager `Watchdog` → `gatus-sidecar.frostlink.dev` | `HEARTBEAT_ARTEMIS_TOKEN` (1P `gatus-crosslink`)   |
-| `core_frostlink` | Frostlink Alertmanager `Watchdog` → `status.dcunha.io`          | `HEARTBEAT_FROSTLINK_TOKEN` (1P `gatus-crosslink`) |
+| Endpoint         | Sender                                                          | Token                                    |
+| ---------------- | --------------------------------------------------------------- | ---------------------------------------- |
+| `core_heartbeat` | Phare (external uptime service)                                 | `HEARTBEAT_TOKEN` (1P `gatus`)           |
+| `core_artemis`   | Artemis Alertmanager `Watchdog` → `gatus-sidecar.frostlink.dev` | `HEARTBEAT_ARTEMIS_TOKEN` (1P `gatus`)   |
+| `core_frostlink` | Frostlink Alertmanager `Watchdog` → `status.dcunha.io`          | `HEARTBEAT_FROSTLINK_TOKEN` (1P `gatus`) |
 
 Phare also watches the page from outside, which covers the case Gatus cannot: Frostlink itself
 being down.

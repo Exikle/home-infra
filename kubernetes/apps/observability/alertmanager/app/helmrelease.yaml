@@ -67,7 +67,7 @@ spec:
       app:
         dataFrom:
           - extract:
-              key: gatus-crosslink
+              key: gatus
         forceRename: alertmanager-secret
         secretStoreRef:
           kind: ClusterSecretStore
