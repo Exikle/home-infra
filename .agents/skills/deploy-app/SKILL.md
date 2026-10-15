@@ -88,7 +88,7 @@ resources:
     - ./<app>/ks.yaml
 ```
 
-The root Kustomization (`frostlink-dev`) points at `./kubernetes/apps` and there is no top-level
+The root Kustomization (`flux-system`) points at `./kubernetes/apps` and there is no top-level
 `kustomization.yaml`, so a new namespace directory needs no further wiring.
 
 ---

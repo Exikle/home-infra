@@ -38,7 +38,7 @@ cases:
       I've edited an app's HelmRelease locally and want to test it on the live cluster before
       committing. What do I run, in order?
     required: ["apply-ks", "suspend-ks"]
-    any_of: ["frostlink-dev", "root"]
+    any_of: ["flux-system", "root"]
     forbidden: ["kubectl apply -f", "helm upgrade"]
 
   - id: RULE-NO-SOPS

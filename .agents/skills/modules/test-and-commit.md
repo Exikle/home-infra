@@ -20,7 +20,7 @@ app-specific commands.
 3. Suspend the root and the target, then apply (three calls):
 
     ```bash
-    just kube suspend-ks flux-system frostlink-dev
+    just kube suspend-ks flux-system flux-system
     just kube suspend-ks <namespace> <ks-name>
     just kube apply-ks <namespace> <ks-name>
     ```

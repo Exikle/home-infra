@@ -24,7 +24,7 @@ This repo has no staging cluster. `main` reconciles directly to production.
    reverts the edit (`flux-patterns.md` § Suspend before a test-apply):
 
     ```bash
-    just kube suspend-ks flux-system frostlink-dev
+    just kube suspend-ks flux-system flux-system
     just kube suspend-ks <ns> <ks-name>
     just kube apply-ks <ns> <ks-name>
     ```
@@ -35,7 +35,7 @@ This repo has no staging cluster. `main` reconciles directly to production.
    digest moves, then resume — **root first, then the target**, as two calls:
 
     ```bash
-    just kube resume-ks flux-system frostlink-dev
+    just kube resume-ks flux-system flux-system
     just kube resume-ks <ns> <ks-name>
     ```
 

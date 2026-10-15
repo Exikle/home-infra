@@ -34,7 +34,6 @@ Managed by FluxCD from this repository. Domain: [frostlink.dev](https://frostlin
 
 - `talos/` — Talos schematic and machine config patches
 - `bootstrap/` — One-time helmfile bootstrap (secrets + Flux install)
-- `kubernetes/flux/` — Flux sync entrypoint
 - `kubernetes/apps/` — Workloads reconciled by Flux
 - `kubernetes/components/` — Reusable Flux Components (kopiur backups, postgres certs, anubis, alerts)
 

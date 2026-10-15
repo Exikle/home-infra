@@ -34,7 +34,7 @@ area/fediverse:
 area/flux:
   - changed-files:
       - any-glob-to-any-file:
-          - kubernetes/flux/**/*
+          - kubernetes/apps/flux-system/**/*
 area/kubernetes:
   - changed-files:
       - any-glob-to-any-file: "kubernetes/**/*"
