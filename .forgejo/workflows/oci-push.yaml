@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   push:
-    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@b4a92a955a1846d4d4ed9b96724b7705a741d07f
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@ab0977270f0098428b1082a884a912a7df0389bf
     with:
       registry-host: registry.frostlink.dev
       forgejo-oci-url: oci://git.dcunha.io/exikle/frostlink
