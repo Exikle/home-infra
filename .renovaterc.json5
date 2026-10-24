@@ -3,7 +3,7 @@
   extends: [
     "local>exikle/renovate-config",
     "local>exikle/renovate-config:cluster",
-    "github>home-operations/renovate-presets//apps/phanpy.json5#8.1.0",
+    "github>home-operations/renovate-presets//apps/phanpy.json5#10.0.1",
   ],
   platformCommit: "enabled",
   schedule: ["at any time"],
