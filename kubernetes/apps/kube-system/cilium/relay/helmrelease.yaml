@@ -25,7 +25,7 @@ spec:
           app:
             image:
               repository: docker.io/library/haproxy
-              tag: 3.4.7-alpine@sha256:dc532308825d207e294624eda1c87de5b6dbd0e6f1f154a3444c977ebb0b9c84
+              tag: 3.4.7-alpine@sha256:3c8c1df0ae3bea8834b3890fa6fa3b1653b4d6d9c44aecefba46428bfcfde2c0
             probes:
               liveness: &probe
                 enabled: true
