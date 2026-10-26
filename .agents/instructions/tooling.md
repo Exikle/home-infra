@@ -49,7 +49,7 @@ Do not add `kubectx` steps, `--kubeconfig` paths or a `KUBECONFIG=` prefix to an
 
 ## MCP servers
 
-Registrations are in `.mcp.json` (`litellm-ops`, `litellm-general`, `litellm-media`) plus the
+Registrations are in `.mcp.json` (`ai-ops`, `ai-general`, served by agentgateway) plus the
 memini plugin. **The MCP k8s tools point at Artemis** (`AGENTS.md` rule 2): use local `kubectl`
 here, which inverts Artemis's "prefer the k8s MCP tools" advice. Tool names render as
 `mcp__<server>__<tool>` and the prefix changes when the gateway is rewired — match on the suffix.
