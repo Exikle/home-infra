@@ -19,14 +19,14 @@ new record. `dig status.dcunha.io @1.1.1.1` and `@10.10.99.1` before and after.
 
 ## Where the checks come from
 
-| Source                                 | What                                                                                                       | Alerts   |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- |
-| `app/resources/cluster-endpoints.yaml` | Hand-written: core (ping, home-link, status-page, headscale), the three Litellm MCP checks, the heartbeats | Pushover |
-| `gatus-sidecar` container              | Generated from Frostlink's own HTTPRoutes and Services                                                     | none     |
-| `gatus-sidecar-artemis` container      | Generated from **Artemis's** HTTPRoutes and Services                                                       | none     |
+| Source                                 | What                                                                                                          | Alerts   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------- |
+| `app/resources/cluster-endpoints.yaml` | Hand-written: core (ping, home-link, status-page, headscale), the two agentgateway MCP checks, the heartbeats | Pushover |
+| `gatus-sidecar` container              | Generated from Frostlink's own HTTPRoutes and Services                                                        | none     |
+| `gatus-sidecar-artemis` container      | Generated from **Artemis's** HTTPRoutes and Services                                                          | none     |
 
-Only hand-written checks page. A site-link outage therefore pages Home Link plus the three
-Litellm checks, not every generated Artemis check.
+Only hand-written checks page. A site-link outage therefore pages Home Link plus the two
+MCP checks, not every generated Artemis check.
 
 **The Artemis sidecar runs in remote mode.** `KUBERNETES_SERVICE_HOST=""` forces it off the
 in-cluster config and onto `KUBECONFIG=/kube/config`, mounted from secret
