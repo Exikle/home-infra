@@ -216,13 +216,6 @@ two unrelated version lines. It is also a disabled component, so a drifted tag p
 `actions/upload-artifact` and `actions/download-artifact` are pinned off entirely, in the shared
 default: Forgejo only supports up to v3, and v4+ uses a GHES-incompatible backend.
 
-### Tekton runner built-ins are disabled
-
-`tekton/setup` and `tekton/pipeline` in the shared `oci-push.yaml` are steps provided by
-the Tekton runner, not repositories. Without the rule Renovate looks them up as GitHub tags, fails,
-and the Dependency Dashboard shows a "Package lookup failures" warning on every run. The rule is in
-the shared default.
-
 ---
 
 ## Grouping
