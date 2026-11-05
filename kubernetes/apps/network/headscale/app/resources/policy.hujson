@@ -16,6 +16,7 @@
       "10.0.0.203/32": ["tag:frostlink"],
       "10.244.0.0/24": ["tag:frostlink"],
     },
+    "exitNode": ["tag:home-router"],
   },
 
   "grants": [
