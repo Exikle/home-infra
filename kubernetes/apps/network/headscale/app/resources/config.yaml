@@ -42,9 +42,11 @@ policy:
 dns:
   magic_dns: true
   base_domain: ts.frostlink.dev
-  override_local_dns: false
+  override_local_dns: true
   nameservers:
-    global: []
+    global:
+      - 1.1.1.1
+      - 9.9.9.9
     split:
       dcunha.io:
         - 10.10.99.1
