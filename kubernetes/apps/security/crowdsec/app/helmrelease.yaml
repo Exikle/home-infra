@@ -1,0 +1,135 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: crowdsec
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: crowdsec
+  interval: 1h
+  values:
+    container_runtime: containerd
+    image:
+      repository: docker.io/crowdsecurity/crowdsec
+      tag: v1.8.2@sha256:65b74942f7e7ed5c60fde4ac15fc4ba715904c398c8b16dd451f4907d90347d4
+    config:
+      config.yaml.local: |
+        api:
+          server:
+            auto_registration:
+              enabled: true
+              token: "${REGISTRATION_TOKEN}"
+              allowed_ranges:
+                - "127.0.0.1/32"
+                - "10.0.0.0/8"
+        db_config:
+          use_wal: true
+          flush:
+            max_age: 7d
+            agents_autodelete:
+              login_password: 1d
+    lapi:
+      deployAnnotations:
+        reloader.stakater.com/auto: "true"
+      envFrom:
+        - secretRef:
+            name: crowdsec
+      persistentVolume:
+        config:
+          storageClassName: openebs-zfs
+        data:
+          storageClassName: openebs-zfs
+      metrics:
+        serviceMonitor:
+          enabled: true
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        requests:
+          cpu: 25m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+    agent:
+      enabled: false
+    appsec:
+      enabled: true
+      acquisitions:
+        - source: appsec
+          listen_addr: 0.0.0.0:7422
+          path: /
+          appsec_configs:
+            - frostlink/appsec-bot-challenge
+            - crowdsecurity/appsec-bot-challenge-exclude-ai-crawlers
+            - crowdsecurity/appsec-bot-challenge-exclude-api
+            - crowdsecurity/appsec-bot-challenge-exclude-crawler-files
+            - crowdsecurity/appsec-bot-challenge-exclude-feeds
+            - crowdsecurity/appsec-bot-challenge-exclude-google-ads
+            - crowdsecurity/appsec-bot-challenge-exclude-monitoring
+            - crowdsecurity/appsec-bot-challenge-exclude-search-engines
+            - crowdsecurity/appsec-bot-challenge-exclude-social
+            - crowdsecurity/appsec-bot-challenge-exclude-static
+            - crowdsecurity/appsec-bot-challenge-exclude-webhooks
+            - crowdsecurity/appsec-bot-challenge-exclude-wikimedia-citation
+            - crowdsecurity/appsec-bot-challenge-scoring
+            - crowdsecurity/appsec-bot-challenge-scoring-balanced
+          labels:
+            type: appsec
+      configs:
+        frostlink-bot-challenge.yaml: |
+          name: frostlink/appsec-bot-challenge
+          inband:
+            pre_eval:
+              - filter: req.Host != "social.frostlink.dev"
+                apply:
+                  - ExemptFromChallenge("unprotected-host")
+              - filter: req.UserAgent() startsWith "Gatus/"
+                apply:
+                  - ExemptFromChallenge("gatus")
+              - filter: req.Header.Get("Accept") contains "activity+json" || req.Header.Get("Accept") contains "ld+json" || req.Header.Get("Content-Type") contains "activity+json" || req.Header.Get("Content-Type") contains "ld+json"
+                apply:
+                  - ExemptFromChallenge("activitypub")
+              - filter: req.Header.Get("Signature") contains "keyId="
+                apply:
+                  - ExemptFromChallenge("signed-request")
+              - filter: req.URL.Path startsWith "/api/" || req.URL.Path startsWith "/oauth/" || req.URL.Path startsWith "/auth/" || req.URL.Path startsWith "/check_your_input" || req.URL.Path startsWith "/fileserver/" || req.URL.Path startsWith "/nodeinfo/" || req.URL.Path startsWith "/users/" || req.URL.Path startsWith "/emoji/" || req.URL.Path startsWith "/assets/" || req.URL.Path startsWith "/settings" || req.URL.Path startsWith "/signup" || req.URL.Path startsWith "/authorize_interaction" || req.URL.Path startsWith "/.well-known/" || req.URL.Path in ["/inbox", "/custom_css"]
+                apply:
+                  - ExemptFromChallenge("gotosocial-service-routes")
+      env:
+        - name: COLLECTIONS
+          value: crowdsecurity/appsec-bot-challenge
+      metrics:
+        serviceMonitor:
+          enabled: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        seccompProfile:
+          type: RuntimeDefault
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: crowdsec-appsec
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/initContainers/0/resources/limits/memory
+                value: 256Mi
