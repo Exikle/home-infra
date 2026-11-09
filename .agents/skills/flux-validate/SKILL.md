@@ -9,22 +9,6 @@ Validate and diff Flux manifests offline before committing, using `flate` (on PA
 
 **Always validate before test-applying.** `main` reconciles directly to production.
 
-## Setup
-
-`.mise/config.toml` sets `FLATE_PATH` (the `kubernetes/apps` entry path) and `FLATE_SUPPLY`, so
-flate needs no flags here. Run it through `mise exec -- flate ...` so you get the pinned version.
-
-This cluster syncs from an OCIRepository, so flate cannot build the `flux-system` source itself.
-It also cannot read a Secret that an ExternalSecret creates. `scripts/flate-supply.yaml` holds
-placeholders for both. When a render stops on `<kind> <ns>/<name> not found`, add that object
-to the file.
-
-The `DisableChartDigestTracking` gate is not set on helm-controller here, so
-`FLATE_DISABLE_CHART_DIGEST_TRACKING` stays unset. If you add the gate in `flux-instance`, set
-the variable too.
-
-`--allow-missing-secrets` no longer exists.
-
 ## Quick Render (single kustomization)
 
 ```bash
@@ -42,10 +26,16 @@ The `<ks-name>` is `metadata.name` from the app's `ks.yaml`, not the directory n
 ## Full Test Suite
 
 ```bash
-flate test all
+flate test all --path ./kubernetes
 ```
 
-This prints one result per resource. The exit code is non-zero on any failure or blocked resource.
+Runs pytest-style `PASS`/`FAIL`/`SKIPPED` per resource. Exit code non-zero on any failure.
+
+Add `--allow-missing-secrets` to skip ExternalSecret-backed secret refs (1Password secrets don't exist offline):
+
+```bash
+flate test all --path ./kubernetes --allow-missing-secrets
+```
 
 ## Diff Against Main (changed-only)
 
@@ -53,7 +43,7 @@ Use a baseline worktree under `.worktrees/` (never `/tmp`):
 
 ```bash
 git worktree add --detach .worktrees/baseline main
-flate diff ks --path-orig .worktrees/baseline/kubernetes/apps
+flate diff ks --path ./kubernetes --path-orig .worktrees/baseline/kubernetes
 git worktree remove .worktrees/baseline
 ```
 
@@ -62,7 +52,7 @@ Changed-only mode reconciles only the subtree a change touches.
 ## List All Kustomizations
 
 ```bash
-flate get ks
+flate get ks --path ./kubernetes
 ```
 
 ## Build a Specific HelmRelease
@@ -75,10 +65,10 @@ flate build hr --namespace <namespace> --output yaml <helmrelease-name>
 
 1. `just kube render-local-ks <ns> <ks>` — render the changed kustomization
 2. Review output for unexpected changes
-3. `flate test all` — full suite
+3. `flate test all --path ./kubernetes --allow-missing-secrets` — full suite
 4. If tests pass: continue with `modules/test-and-commit.md`
 
 ## Notes
 
-- A Secret that an ExternalSecret creates is not readable offline. Where a `postBuild.substituteFrom` or `valuesFrom` needs it, flate blocks the resource until `scripts/flate-supply.yaml` supplies a placeholder.
+- `flate` marks ExternalSecret-backed Secrets that have a declared producer `Ready / "skipped"`, so `--allow-missing-secrets` is rarely needed.
 - OCI sources (app-template, etc.) need network access to pull charts.
