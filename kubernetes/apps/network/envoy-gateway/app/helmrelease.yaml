@@ -19,6 +19,8 @@ spec:
           kubernetes:
             deploy:
               type: GatewayNamespace
+    deployment:
+      envoyGateway:
         resources:
           requests:
             cpu: 50m
