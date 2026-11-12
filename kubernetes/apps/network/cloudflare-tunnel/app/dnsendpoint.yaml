@@ -9,8 +9,14 @@ spec:
     - dnsName: frostlink.dev
       recordType: CNAME
       targets:
-        - ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com
+        - edge.frostlink.dev
+      providerSpecific:
+        - name: external-dns.kubernetes.io/cloudflare-proxied
+          value: "false"
     - dnsName: external.frostlink.dev
       recordType: CNAME
       targets:
-        - ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com
+        - edge.frostlink.dev
+      providerSpecific:
+        - name: external-dns.kubernetes.io/cloudflare-proxied
+          value: "false"
