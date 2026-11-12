@@ -7,7 +7,7 @@ else lives.
 
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets, no SOPS
-- **CNI**: Cilium | **Ingress**: the front door (Shape 1, Artemis #3082). Envoy `external-gateway` owns the node's public 80+443 through a Service `externalIPs` entry on the node address. It terminates TLS for both domains, runs CrowdSec (`crowdsec.md`), and reaches home over the towonel TCP backhaul (`towonel/home-backhaul`). Headscale is TLS passthrough on the same listener port. Some frostlink.dev names still arrive through the Cloudflare tunnel until it is retired.
+- **CNI**: Cilium | **Ingress**: the front door (Shape 1, Artemis #3082). Envoy `external-gateway` owns the node's public 80+443 through a Service `externalIPs` entry on the node address. It terminates TLS for both domains, runs CrowdSec (`crowdsec.md`), and reaches home over the towonel TCP backhaul (`towonel/home-backhaul`). Headscale is TLS passthrough on the same listener port. There is no Cloudflare tunnel: every public record is grey and points at the node (`envoy-gateway/app/dnsendpoint.yaml` plus the HTTPRoute records from `cloudflare-dns`).
 - **Inbound**: 80+443/tcp go to Envoy (the towonel edge still binds them on the host but no longer receives them); towonel agent tunnels use 51820/udp; Talos 50000/tcp is break-glass. Full list: `networking.md` § Oracle Cloud VCN
 
 `ls` at the repo root is the map. Only `kubernetes/` reconciles through Flux.
@@ -68,25 +68,25 @@ the security-list ingress set, the tunnel: `networking.md`.
 `ls kubernetes/apps/` is the live list; the table keeps only the _purpose_ column, which no
 command recovers.
 
-| Namespace          | Purpose                                                                  |
-| ------------------ | ------------------------------------------------------------------------ |
-| `cert-manager`     | ACME issuer, CSI driver, internal Postgres CA, trust bundles             |
-| `cnpg-system`      | Postgres operator and its backup plugin                                  |
-| `database`         | The shared Postgres cluster, its pooler, and the shared Dragonfly        |
-| `default`          | Empty by design — nothing is deployed here                               |
-| `dragonfly-system` | Dragonfly operator                                                       |
-| `external-secrets` | Secret sync from 1Password                                               |
-| `fediverse`        | Fediverse server, web client and registry                                |
-| `flux-system`      | Flux controllers and the root Kustomization                              |
-| `kopiur-system`    | PVC backup controller and the `r2` ClusterRepository (Cloudflare R2)     |
-| `kube-system`      | CNI, DNS and cluster plumbing                                            |
-| `matrix`           | Matrix homeserver and its bridges                                        |
-| `network`          | Gateway, certificates, Cloudflare tunnel and DNS, Headscale              |
-| `observability`    | Metrics, alerting, status page                                           |
-| `openebs-system`   | zfs-localpv CSI — provides the default `openebs-zfs` StorageClass        |
-| `system-upgrade`   | Talos and Kubernetes upgrade controller (tuppr)                          |
-| `tools`            | Small standalone services                                                |
-| `towonel`          | Tunnel hub and edge, in its own `privileged` namespace for `hostNetwork` |
+| Namespace          | Purpose                                                                       |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `cert-manager`     | ACME issuer, CSI driver, internal Postgres CA, trust bundles                  |
+| `cnpg-system`      | Postgres operator and its backup plugin                                       |
+| `database`         | The shared Postgres cluster, its pooler, and the shared Dragonfly             |
+| `default`          | Empty by design — nothing is deployed here                                    |
+| `dragonfly-system` | Dragonfly operator                                                            |
+| `external-secrets` | Secret sync from 1Password                                                    |
+| `fediverse`        | Fediverse server, web client and registry                                     |
+| `flux-system`      | Flux controllers and the root Kustomization                                   |
+| `kopiur-system`    | PVC backup controller and the `r2` ClusterRepository (Cloudflare R2)          |
+| `kube-system`      | CNI, DNS and cluster plumbing                                                 |
+| `matrix`           | Matrix homeserver and its bridges                                             |
+| `network`          | Front door (Envoy, CrowdSec bouncer), certificates, Cloudflare DNS, Headscale |
+| `observability`    | Metrics, alerting, status page                                                |
+| `openebs-system`   | zfs-localpv CSI — provides the default `openebs-zfs` StorageClass             |
+| `system-upgrade`   | Talos and Kubernetes upgrade controller (tuppr)                               |
+| `tools`            | Small standalone services                                                     |
+| `towonel`          | Tunnel hub and edge, in its own `privileged` namespace for `hostNetwork`      |
 
 ---
 

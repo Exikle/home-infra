@@ -13,7 +13,7 @@ spec:
   dependsOn:
     - name: apoci
       namespace: fediverse
-    - name: cloudflare-tunnel
+    - name: envoy-gateway
       namespace: network
     - name: flux-operator
   prune: false

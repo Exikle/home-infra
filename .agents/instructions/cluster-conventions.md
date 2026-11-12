@@ -42,8 +42,7 @@ Add `- ./<app>/ks.yaml` to `kubernetes/apps/<namespace>/kustomization.yaml` reso
   named after the release, so `forceRename` is only needed to keep a pre-existing name.
 - A standalone `externalsecret.yaml` is kept only where inline is impossible: a non-app-template
   chart, a directory with no HelmRelease (`clusterissuer`, `postgres`, `kopiur`, `certificates`), or
-  a Secret that Flux `postBuild.substituteFrom` reads before the HelmRelease exists
-  (`cloudflare-tunnel/app/externalsecret-id.yaml`).
+  a Secret that Flux `postBuild.substituteFrom` reads before the HelmRelease exists.
 
 ## Storage
 
