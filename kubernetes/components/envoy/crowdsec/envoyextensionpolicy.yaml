@@ -3,12 +3,13 @@
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyExtensionPolicy
 metadata:
-  name: gotosocial-crowdsec
+  name: crowdsec
 spec:
   targetRefs:
     - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: gotosocial-app
+      kind: Gateway
+      name: external-gateway
+      sectionName: https
   wasm:
     - name: crowdsec
       code:
@@ -27,7 +28,8 @@ spec:
             max_body_size_kb: 64
           lapi:
             cluster: crowdsec_lapi
-            enabled: false
+            enabled: true
+            sync_freq: 10
       env:
         hostKeys:
           - CROWDSEC_LAPI_KEY

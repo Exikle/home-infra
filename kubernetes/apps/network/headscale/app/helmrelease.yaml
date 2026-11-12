@@ -96,6 +96,23 @@ spec:
         globalMounts:
           - path: /tmp
 
+    route:
+      app:
+        kind: TLSRoute
+        annotations:
+          external-dns.kubernetes.io/controller: none
+          gatus.home-operations.com/enabled: "false"
+        hostnames:
+          - headscale.frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
+            sectionName: headscale
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 443
+
     service:
       app:
         ports:
