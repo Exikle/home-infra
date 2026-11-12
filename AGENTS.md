@@ -7,8 +7,8 @@ else lives.
 
 - **Domain**: `frostlink.dev` | **Repo**: <https://git.dcunha.io/Exikle/frostlink>
 - **GitOps**: Flux CD + Flux Operator | **Secrets**: 1Password ExternalSecrets, no SOPS
-- **CNI**: Cilium | **Ingress**: two paths — Envoy Gateway (HTTPRoute, via Cloudflare tunnel) and the towonel edge (SNI on host `:443`, bypasses Envoy)
-- **Inbound**: no longer zero — the towonel edge listens directly on 80+443/tcp and 51820/udp, plus 25565/tcp and 3000/udp on demand; Talos 50000/tcp is break-glass. Full list: `networking.md` § Oracle Cloud VCN
+- **CNI**: Cilium | **Ingress**: the front door (Shape 1, Artemis #3082). Envoy `external-gateway` owns the node's public 80+443 through a Service `externalIPs` entry on the node address. It terminates TLS for both domains, runs CrowdSec (`crowdsec.md`), and reaches home over the towonel TCP backhaul (`towonel/home-backhaul`). Headscale is TLS passthrough on the same listener port. Some frostlink.dev names still arrive through the Cloudflare tunnel until it is retired.
+- **Inbound**: 80+443/tcp go to Envoy (the towonel edge still binds them on the host but no longer receives them); towonel agent tunnels use 51820/udp; Talos 50000/tcp is break-glass. Full list: `networking.md` § Oracle Cloud VCN
 
 `ls` at the repo root is the map. Only `kubernetes/` reconciles through Flux.
 
