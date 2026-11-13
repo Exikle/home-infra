@@ -59,7 +59,7 @@ One machine, so its facts are load-bearing rather than inventory.
 Management access is over the Headscale site link (`networking.md` § Access Methods). An agent's
 tool calls do not get the repo-local kubeconfig, so always pass `--context frostlink` — see
 `tooling.md` § kubectl and talosctl scoping. Everything else about the network — VCN, DNS records,
-the security-list ingress set, the tunnel: `networking.md`.
+the security-list ingress set, the front door: `networking.md`.
 
 ---
 
@@ -122,7 +122,7 @@ whole directory.
 | `crowdsec.md`          | A ban, a bot challenge or an exemption on any public site (both domains)      |
 | `database.md`          | Onboarding onto shared Postgres, pgbouncer tuning, CNPG PKI, primary restarts |
 | `flux-patterns.md`     | A reconcile is stuck, or you are wiring `dependsOn` across namespaces         |
-| `networking.md`        | Gateways, the OCI VCN rules, the Cloudflare tunnel, Tailscale                 |
+| `networking.md`        | Gateways, the OCI VCN rules, the front door and DNS, Tailscale                |
 | `renovate.md`          | Triaging the PR queue, or a per-app update guard (tuppr, zer0ver)             |
 | `status-page.md`       | `status.dcunha.io`: generated checks from both clusters, heartbeats, badges   |
 | `storage.md`           | openebs-zfs, snapshot classes, the kopiur component, the restore path         |
@@ -165,7 +165,12 @@ Talos. A doc that prints a version is stale the week after it is written.
 - **Open 6443/tcp and 8443/tcp** — closed on purpose; the API server is reachable over the
   Headscale site link only (`networking.md` § Oracle Cloud VCN, `bootstrap.md` for the rebuild
   window).
-- **A wildcard DNS record owned by this cluster** — there is none. The grey `*.frostlink.dev`
-  CNAME belongs to **Artemis**; every Frostlink app needs its own explicit record
+- **A wildcard DNS record owned by this cluster** — there is none. Artemis's grey `*.frostlink.dev`
+  CNAME was removed on 2026-11-12, so every Frostlink app needs its own explicit record
   (`networking.md` § DNS).
+- **Cloudflare Tunnel** — retired 2026-11-12 with the front door. Every public record is grey and
+  points at the node; nothing proxies through Cloudflare (`networking.md` § The front door).
+- **PROXY-protocol passthrough to Artemis** — the towonel edge no longer receives public traffic.
+  Envoy terminates TLS and reaches Artemis over a towonel TCP backhaul, with the client IP in
+  `X-Forwarded-For` (`towonel.md`, Artemis issue #3082).
 - **Relaxing PodSecurity on `network`** — rejected; towonel got its own `privileged` namespace.

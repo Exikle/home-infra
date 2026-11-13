@@ -4,12 +4,18 @@
 
 Frostlink has **one gateway**: `external-gateway` in the `network` namespace. There is no internal-gateway.
 
-- Service type: `ClusterIP` — not directly exposed; all traffic **to this gateway** arrives via
-  the Cloudflare tunnel. It is not the only ingress on the host — see _Frostlink is not
-  zero-inbound_ below.
-- TLS cert: `frostlink-dev-tls` (wildcard, issued in `network` — see _Wildcard cert_ below)
+- It is the front door (Artemis issue #3082 has the decision and history). It owns the node's
+  public 80 and 443. The Envoy Service is `ClusterIP` with `externalIPs: [10.0.0.203]` (the
+  `envoyService.patch` in `envoy-gateway/app/envoy.yaml`), and Cilium kube-proxy replacement serves
+  that address. See _The front door_ below.
+- TLS certs: `frostlink-dev-tls` and `dcunha-io-tls` (both imported or issued in `network`; see
+  _Wildcard cert_ below). Envoy terminates TLS for both domains.
 - HTTP listener: `allowedRoutes.namespaces.from: Same` (network namespace only) — handled by the HTTPS redirect HTTPRoute
 - HTTPS listener: `allowedRoutes.namespaces.from: All` — all namespaces can attach routes
+- `headscale` listener: TLS passthrough on the same port, for `headscale.frostlink.dev` only.
+  See _Headscale ingress_.
+- CrowdSec runs on the whole gateway (`kubernetes/components/envoy/crowdsec`, `crowdsec.md`).
+  `kubernetes/components/envoy/response-hardening` adds the response headers.
 
 Routes attach to `external-gateway` in `network` and are defined **inline in helmrelease values**
 under `route.app:` (`cluster-conventions.md`).
@@ -21,25 +27,27 @@ under `route.app:` (`cluster-conventions.md`).
 The app directory is `kubernetes/apps/network/cloudflare-dns/`; the **Deployment is named
 `external-dns-cloudflare`** — search for the latter when inspecting the cluster. Flags are in
 `cloudflare-dns/app/helmrelease.yaml`; the ones that bite: `--policy sync` (it **deletes** records
-it believes it owns), `--gateway-name external-gateway` (routes on no other gateway), and
-`--cloudflare-proxied` (records default to **orange**).
+it believes it owns), `--gateway-name external-gateway` (routes on no other gateway). There is no
+`--cloudflare-proxied`, so **every record is grey** (DNS-only) and points at the node.
 
 DNS target annotation on the gateway: `external-dns.kubernetes.io/target: external.frostlink.dev`.
-`frostlink.dev` and `external.frostlink.dev` are proxied CNAMEs to the tunnel; `edge.frostlink.dev`
-is a DNS-only (grey) A record to the node's public IP.
+`DNSEndpoint/front-door` (`envoy-gateway/app/dnsendpoint.yaml`) makes `frostlink.dev` and
+`external.frostlink.dev` CNAMEs to `edge.frostlink.dev`, which is a grey A record to the node's
+public IP. Check with `dig +short frostlink.dev @1.1.1.1`: a Cloudflare address (`104.x` or
+`172.64.x`) means a record went orange.
+
+**The `frostlink.dev` apex record was made by hand in Cloudflare.** It has no external-dns owner
+TXT record, so external-dns does not manage it. Change it in Cloudflare.
 
 **A `target` annotation on an individual HTTPRoute does not override that.** In the
 `gateway-httproute` source the target comes from the _Gateway_, and the per-route annotation is
-ignored (on Artemis it published a record pointing at the wrong tunnel). If a record needs a different target, put it in a
-`DNSEndpoint` and let the `crd` source publish it.
+ignored. If a record needs a different target, put it in a `DNSEndpoint` and let the `crd` source
+publish it. Set grey with `providerSpecific` on the endpoint itself (an annotation on the
+DNSEndpoint object is ignored).
 
-Two records are deliberately **grey**, via `providerSpecific` on the `DNSEndpoint` (an annotation
-on the DNSEndpoint object is ignored — it must be `providerSpecific` on the endpoint itself):
-
-| Record               | Owner        | Why grey                                      |
-| -------------------- | ------------ | --------------------------------------------- |
-| `edge.frostlink.dev` | this cluster | SNI routing needs the connection, not the CDN |
-| `*.frostlink.dev`    | **Artemis**  | wildcard CNAME to the edge, for towonel       |
+`status.dcunha.io` is a grey CNAME to `edge.frostlink.dev`, written by Artemis
+(`cloudflare-dns/app/dnsendpoint.yaml`). The public `dcunha.io` records come from Artemis
+`edge-dns` and are grey CNAMEs to `edge.frostlink.dev` too.
 
 ### The `frostlink.dev` zone is shared with Artemis
 
@@ -55,8 +63,8 @@ Matching prefixes with different owner ids is the loop — they overwrite each o
 records and then delete each other's entries. **Do not change either value on this side.**
 Artemis's `towonel-agent.md` § The collision guard is the authority.
 
-Because Artemis owns a grey `*.frostlink.dev` wildcard, a **new app on this cluster needs its own
-explicit record** — otherwise the hostname falls through the wildcard to Artemis's edge. Any
+Artemis removed its `*.frostlink.dev` wildcard on 2026-11-12 (`dig +short zz-none.frostlink.dev
+@1.1.1.1` returns nothing). A **new app on this cluster needs its own explicit record**. Any
 HTTPRoute on `external-gateway` gets one automatically; a manual `DNSEndpoint` does not unless you
 write it.
 
@@ -140,30 +148,29 @@ Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique.
 - **Not supported once meshed** — changing ID or name on a cluster that is already connected
   needs every peer disconnected first. This cluster is meshed with Artemis: `clustermesh.md`.
 
-## Cloudflare Tunnel
+## The front door
 
-The tunnel sends `frostlink.dev`, `*.frostlink.dev` and `status.dcunha.io` traffic to the
-`external-gateway` service in the `network` namespace. It carries every hostname this cluster
-serves through Envoy. `headscale.frostlink.dev` is the exception — it rides the towonel edge via
-the local `network/towonel-agent`. Artemis's public names (the grey `*.frostlink.dev` wildcard and
-`*.dcunha.io`) arrive through the towonel edge, not this tunnel.
+Cloudflare Tunnel is gone. Public traffic reaches the node directly, and Envoy takes it.
 
-## Frostlink is not zero-inbound — the edge listens directly
-
-This is the first thing to correct in any older mental model of this host. The edge's fixed ports
-(443/tcp, 80/tcp, 51820/udp) are open on the OCI security list and bound on the node; the full
-ingress set, Talos `50000/tcp` included, is § Oracle Cloud VCN.
-
-Consequences that are easy to get wrong:
-
-- **The towonel edge owns host `:443`, not Envoy.** `external-gateway` is `ClusterIP` and is only
-  ever reached through cloudflared. The two paths do not share a listener.
-- **Traffic for an Artemis-published `*.frostlink.dev` name never enters this cluster's Envoy.**
-  The edge peeks at SNI and forwards the raw TLS stream to the Artemis agent; nothing here
-  terminates it. See `towonel.md`.
-- The edge also binds **per-service TCP/UDP ports on demand** while an agent session exists —
-  currently `25565/tcp` (minecraft) and `3000/udp` (eco), both Artemis origins. Those are
-  additional public listeners on this host. `towonel.md` § Ports carries the full table.
+- **Envoy owns public 80 and 443.** The towonel edge still binds host 443 and 80 (chart values),
+  but a BPF path sends that traffic to Envoy, so the edge no longer receives it. Moving the edge
+  off those ports is parked, because of the advertised-address risk.
+- **Frostlink apps** are served by Envoy with their own HTTPRoutes.
+- **Home (Artemis) apps** go over a private path. `towonel/home-backhaul` has Services
+  `artemis-backhaul` and `artemis-backhaul-apex`, both pointing at the towonel pod on `:15001`.
+  The Artemis agent publishes one TCP service, `artemis-backhaul`, on edge port 15001. It lands on
+  Artemis `edge-gateway.network.svc.cluster.local:443`. HTTPRoutes `*.dcunha.io` and `dcunha.io`
+  send traffic there.
+- **Re-encryption.** BackendTLSPolicies check the Artemis certificate. SNI is `edge.dcunha.io`,
+  and the apex Service uses SNI `dcunha.io` because Artemis `edge-gateway` has a separate apex
+  listener.
+- **When home is down**, a BackendTrafficPolicy runs a TCP health check with a 3 s connect timeout.
+  A 502, 503 or 504 becomes the `home-down` ConfigMap page. Do not point the backhaul at
+  Artemis `internal-gateway`: `edge-gateway` is the list of public Artemis apps.
+- **Real client IPs.** Artemis `ClientTrafficPolicy/edge` trusts `X-Forwarded-For` from the agent
+  pod CIDR, so its per-IP rate limits see real clients. Without it, everyone shares one limit.
+  There is no PROXY protocol, no CrowdSec and no towonel hostname claim on Artemis now. Details:
+  Artemis `.agents/references/towonel-agent.md`.
 
 ## Oracle Cloud VCN
 
@@ -171,14 +178,11 @@ Console-verified.
 
 - **Security list ingress** (all stateful, all `0.0.0.0/0`, source port **All**,
   unless noted):
-    - `443/tcp` — towonel edge, TLS with SNI routing
-    - `80/tcp` — towonel edge plain HTTP, for HTTP→HTTPS
-      redirects. The edge forwards by `Host` to the agent, which dials the origin's
-      `:80`; on Artemis that is `edge-gateway`'s `http` listener, which answers 301.
-      towonel itself never redirects; an unrouted `Host` gets its connection dropped.
+    - `443/tcp` — the front door: Envoy terminates TLS (Headscale passes through)
+    - `80/tcp` — Envoy, for the HTTP→HTTPS redirect (`https-redirect` HTTPRoute).
       **Source port must be All** — a rule with source port `80` matches almost
       nothing, because clients send from an ephemeral port.
-    - `51820/udp` — towonel iroh QUIC. **Missing the UDP half fails silently.**
+    - `51820/udp` — towonel iroh QUIC, where agents connect. **Missing the UDP half fails silently.**
     - `50000/tcp` — Talos API. Day-2 `talosconfig` points at `10.0.0.203` over the
       site link; this public rule is the break-glass when the tailnet is down, and the
       only way in during a rebuild (`bootstrap.md` § Rebuild order). Closing it removes
@@ -187,11 +191,9 @@ Console-verified.
       rebuild.
     - `22/tcp` — dead weight; Talos runs no SSH daemon
     - `icmp` 3,4 (path MTU) and `icmp` 3 from `10.0.0.0/16`
-    - `25565/tcp` and `3000/udp` — towonel per-service listeners for Artemis's
-      minecraft and eco.
 - **Deliberately closed**:
     - `8443/tcp` — the towonel hub API is bound on the host but speaks plain HTTP.
-      It is reached through cloudflared at `hub.frostlink.dev` instead. Opening this
+      It is reached through Envoy at `hub.frostlink.dev` instead. Opening this
       exposes the operator API in cleartext.
     - `6443/tcp` — removed. `kubeconfig` uses `10.0.0.203` over the
       Headscale site link, so the Kubernetes API never needed to be public.
@@ -209,7 +211,7 @@ matches one, and a stateless rule takes precedence over a stateful one.
 which is the safe direction. The window is 28d, not 30d, because vm-single retains exactly 30d and
 a `[30d]` range sits on the boundary where the oldest samples are expiring. The warning is bounded
 (`> 7` and `<= 9`) so it hands off to the critical instead of both firing; an Alertmanager
-`inhibit_rule` cannot do it because the two alertnames differ. Video through the towonel tunnel is
+`inhibit_rule` cannot do it because the two alertnames differ. Video through the front door is
 what moves it, though the real ceiling is Artemis's residential upload.
 
 ## Access Methods
@@ -279,32 +281,25 @@ same as the SaaS tailnet did. That is how `*.dcunha.io` names resolve on a devic
 
 ## Headscale ingress
 
-`headscale.frostlink.dev` is served by a **second towonel agent running on Frostlink itself**
-(`kubernetes/apps/network/towonel-agent/`), with its own invite and tenant. It dials the local edge
-like any remote agent and forwards the raw TLS stream to `headscale.network.svc.cluster.local:443`.
+`headscale.frostlink.dev` is a TLS passthrough on the front door. The `headscale` listener on
+`external-gateway` (protocol `TLS`, mode `Passthrough`, same port 443) and a `TLSRoute` in the
+Headscale HelmRelease send the raw stream to `headscale.network.svc.cluster.local:443`. The
+listener only accepts routes from the `network` namespace.
 
-- **The exact host beats Artemis's `*.frostlink.dev`.** The edge looks up the exact name before the
-  wildcard, and the hub's invite conflict check is a literal string match, so the two tenants do
-  not collide. **If this agent is down, the connection fails — it does not fall back to Artemis.**
-  The exact route still exists, so the edge picks no agent and closes the connection.
 - **Headscale terminates TLS itself**, with the `frostlink-dev-tls` wildcard mounted from
   `network`. It reads the certificate only at startup, so the Deployment carries
   `reloader.stakater.com/auto` — a cert-manager renewal rewrites the Secret and Reloader restarts
   the pod. Without that, Headscale serves the old certificate until it expires.
-- **No Envoy and no Cloudflare in the path.** The Tailscale control protocol is an HTTP upgrade
-  (`Upgrade: tailscale-control-protocol`) on a long-lived connection; Cloudflare's proxy and tunnel
-  break it, and Envoy would need extra upgrade policy for no benefit. So there is no HTTPRoute — an
-  HTTPRoute on `external-gateway` would also publish a **proxied** record to the tunnel. The record
-  is a grey `DNSEndpoint` CNAME to `edge.frostlink.dev` (`providerSpecific` proxied `"false"`, as in
-  `towonel.md` § DNS must be grey-cloud).
+- **Envoy does not terminate it.** The Tailscale control protocol is an HTTP upgrade
+  (`Upgrade: tailscale-control-protocol`) on a long-lived connection, so it must not go through
+  Cloudflare or Envoy's HTTP path. That is why the route is a `TLSRoute` and the DNS record is a grey
+  `DNSEndpoint` CNAME to `edge.frostlink.dev` (`network/headscale/app/dnsendpoint.yaml`).
+- **Gateway-wide HTTP features do not apply to it.** CrowdSec and `response-hardening` work on
+  HTTP, and a passthrough stream is not inspected.
+- **The node's own tailscale logs in through this path.** If the front door is down, new tailnet
+  logins fail; see `bootstrap.md` for why a rebuild cannot use it.
 - **DERP is Tailscale's public map**, embedded DERP off. The embedded server needs public
   `3478/udp` for STUN, which is not open on OCI. Relayed traffic therefore crosses Tailscale Inc.'s
   DERP servers, still end-to-end WireGuard-encrypted.
-- **PROXY protocol is off for this host** (`"proxy_protocol":"none"` in `TOWONEL_AGENT_SERVICES`).
-  Headscale does not parse a PROXY header and would read it as a broken TLS handshake. The cost is
-  cosmetic: Headscale logs the agent pod IP instead of the client's. This is per service, so it
-  does not touch the PROXY v2 contract Artemis relies on — see `towonel.md`.
-- **Agent → edge is a hairpin.** The hub advertises `edge.frostlink.dev`, the OCI 1:1-NAT public
-  IP, which is not on the node's interface. If the agent never connects, suspect that path first.
 
 `kubernetes/mod.just` hardcodes `kubectl --context frostlink`, so `just kube` recipes target Frostlink automatically. Bare `kubectl` needs `--context frostlink` (`tooling.md` § kubectl and talosctl scoping).

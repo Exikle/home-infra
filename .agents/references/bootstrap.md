@@ -12,14 +12,14 @@ running any of it rather than trusting the summaries here.
    and must be opened to your home /32 for the duration. The node joins Headscale last, with a
    freshly minted key (`just bootstrap tailnet`).
 2. **The Flux source runs on this cluster.** `registry.frostlink.dev` is apoci on Frostlink, and
-   every `*.dcunha.io` name (Forgejo, Artemis's apoci) is served through Frostlink's towonel
-   edge. Nothing at home is reachable from a rebuilding node. So the **first**
+   every `*.dcunha.io` name (Forgejo, Artemis's apoci) is served through Frostlink's Envoy
+   and the towonel backhaul to Artemis. Nothing at home is reachable from a rebuilding node. So the **first**
    artifact comes from your PC: `just bootstrap seed` pulls CI's copy from Forgejo
    (`oci://git.dcunha.io/exikle/frostlink:main`) over the home network and pushes it into a
    throwaway in-cluster registry (`bootstrap/seed-registry.yaml`). The bootstrap FluxInstance syncs
    from that over plain HTTP (`helmfile.d/templates/flux-instance-seed.yaml.gotmpl`). Flux then
    upgrades `flux-instance` to its real source — and the `flux-instance` Kustomization
-   `dependsOn` apoci and cloudflare-tunnel, so that switch waits until `registry.frostlink.dev`
+   `dependsOn` apoci and envoy-gateway, so that switch waits until `registry.frostlink.dev`
    can actually answer.
 
 The running node's tailscale key lives only in its machine config, never in the repo — see
@@ -92,7 +92,8 @@ Creates the following secrets before Flux and ExternalSecrets are running:
 - `external-secrets/onepassword-connect-credentials-secret` — 1Password Connect credentials JSON
 - `external-secrets/onepassword-connect-vault-secret` — 1Password Connect token
 - `flux-system/flux-system` — Forgejo HTTPS auth (username + password/token)
-- `network/cloudflare-tunnel-id-secret` — Cloudflare tunnel ID
+- `network/cloudflare-tunnel-id-secret` — Cloudflare tunnel ID (the tunnel is retired; this secret
+  and the `bootstrap/` steps that create it need a rewrite)
 
 Applied by `just bootstrap base`, which also creates every namespace under `kubernetes/apps/`
 first and applies the CRDs from `bootstrap/helmfile.d/00-crds.yaml` afterwards. During a real
@@ -134,15 +135,16 @@ SSH is unreachable from OCI.
 ## Post-Bootstrap App Deployment Order
 
 Deploy the `network` namespace **before any app that has an HTTPRoute**: the route is created, but
-traffic cannot flow until envoy-gateway and cloudflare-tunnel are running. This order is **not**
-encoded in `dependsOn` (cloudflare-tunnel has none; envoy-gateway depends only on cert-manager),
-so follow it by hand once Flux is reconciling:
+traffic cannot flow until envoy-gateway is running. This order is **not**
+encoded in `dependsOn` (envoy-gateway depends only on cert-manager),
+so follow it by hand once Flux is reconciling. **This list needs a rewrite for the front door:**
+the tunnel step is gone, and Envoy now owns the node's public 80 and 443 (`networking.md` §
+The front door).
 
 1. `cert-manager/clusterissuer`
 2. `network/envoy-gateway` (Envoy Gateway, GatewayClass, external-gateway)
 3. `network/certificates` (wildcard `frostlink.dev` / `*.frostlink.dev`)
-4. `network/cloudflare-tunnel` (routes `*.frostlink.dev` to envoy)
-5. All other apps with HTTPRoutes, any order
+4. All other apps with HTTPRoutes, any order
 
 A cross-namespace `dependsOn` ref needs an explicit `namespace:` (`flux-patterns.md` § flate
 `dependsOn` Namespace).

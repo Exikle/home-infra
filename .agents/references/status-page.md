@@ -6,12 +6,11 @@
 
 ## How a request reaches it
 
-`status.dcunha.io` is a proxied Cloudflare CNAME to Frostlink's tunnel. **The record is owned by
-Artemis** (`network/cloudflare-dns/app/dnsendpoint.yaml`, target
-`${FROSTLINK_TUNNEL_ID}.cfargotunnel.com`), because Artemis's external-dns owns the `dcunha.io`
-zone. Frostlink's `cloudflare-tunnel` has an ingress rule for the name, and `external-gateway`
-serves it with `dcunha-io-tls`, imported from 1Password by `certificates/import`. The LAN gets the
-same Cloudflare answer — there is no internal record.
+`status.dcunha.io` is a grey Cloudflare CNAME to `edge.frostlink.dev`. **The record is owned by
+Artemis** (`network/cloudflare-dns/app/dnsendpoint.yaml`), because Artemis's external-dns owns the
+`dcunha.io` zone. Frostlink's Envoy (the front door, `networking.md` § The front door) terminates
+TLS and `external-gateway` serves it with `dcunha-io-tls`, imported from 1Password by
+`certificates/import`. The LAN gets the same Cloudflare answer — there is no internal record.
 
 **Moving a hostname: check for stale records first.** The move was blocked by a Cloudflare CNAME
 owned by a different external-dns owner and a UniFi static-DNS entry, both of which win over the
