@@ -19,19 +19,6 @@ spec:
     cluster:
       id: 2
       name: frostlink-vps
-    clustermesh:
-      cacheTTL: 15m
-      config:
-        clusters:
-          artemis-cluster:
-            ips: ["10.10.99.93"]
-            port: 2379
-          frostlink-vps:
-            ips: ["10.0.0.203"]
-            port: 12379
-        domain: mesh.cilium.io
-        enabled: true
-      useAPIServer: true
     cni:
       exclusive: false
     devices: enp0s6
@@ -68,12 +55,3 @@ spec:
           - SYS_RESOURCE
     sysctlfix:
       enabled: false
-  valuesFrom:
-    - kind: Secret
-      name: cilium-clustermesh-ca
-      valuesKey: ca.crt
-      targetPath: tls.ca.cert
-    - kind: Secret
-      name: cilium-clustermesh-ca
-      valuesKey: ca.key
-      targetPath: tls.ca.key

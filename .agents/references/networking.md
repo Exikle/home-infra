@@ -125,8 +125,8 @@ device — tailscale's 1280 — while `enp0s6` runs at 9000.
   depends on path-MTU discovery. Nothing on this single node needs jumbo frames between pods.
 - **`tailscale0` stays out of `devices` even though pod traffic now uses it.** Pod egress to the
   home LAN and Artemis pods reaches `tailscale0` through tailscale's policy table 52, without
-  Cilium attached there — which is also what keeps that traffic unmasqueraded. See
-  `clustermesh.md` before adding it back.
+  Cilium attached there — which is also what keeps that traffic unmasqueraded. Making it a Cilium
+  device would put BPF masquerade on the tailnet path and hits an open tcx bug on it.
 - **An MTU change only reaches existing pods when they are recreated.** The agent restart
   (needed here because `rollOutCiliumPods` is false) moves the host-side `lxc*` interfaces, but
   each pod's own `eth0` keeps its old MTU until the pod is replaced. Check with
@@ -134,7 +134,8 @@ device — tailscale's 1280 — while `enp0s6` runs at 9000.
 
 ## cilium cluster identity: `id: 2`, `name: frostlink-vps`
 
-Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique.
+Artemis is `id: 1`. Both values are left over from ClusterMesh (removed 2026-11-14), which needed
+them unique. They stay because changing them re-identifies every endpoint for no gain.
 
 - **Change the ID and the name together, never the ID alone.** The name is a pod identity label
   (`io.cilium.k8s.policy.cluster`); the ID is not. With an ID-only change the existing identities
@@ -145,8 +146,6 @@ Artemis is `id: 1`; ClusterMesh needs every cluster's ID and name unique.
   identities are garbage-collected on their own.
 - Verify the range: cluster N identities are `N*65536 … N*65536+65535`, so cluster 2 is
   `131072–196607`. `cilium-dbg endpoint list -o json` shows each endpoint's `identity.id`.
-- **Not supported once meshed** — changing ID or name on a cluster that is already connected
-  needs every peer disconnected first. This cluster is meshed with Artemis: `clustermesh.md`.
 
 ## The front door
 
@@ -242,14 +241,15 @@ shows the live devices (the node is `tag:frostlink`, the UCG Max `tag:home-route
 
 - `autogroup:member` (your own devices) still reaches everything. A family device added to
   Headscale would land here too, so give it its own grant instead.
-- HME/LAB → the Frostlink node allows only kubectl (6443), talosctl (50000), ClusterMesh (12379, 4240) and ICMP.
-- Frostlink pods → LAB allows only the specific host:port pairs the status page and ClusterMesh
-  use, plus ICMP. The list was built from the UCG's conntrack table
+- HME/LAB → the Frostlink node allows only kubectl (6443), talosctl (50000) and ICMP, plus 12379
+  and 4240, which are left over from ClusterMesh (removed 2026-11-14) and can be dropped.
+- Frostlink pods → LAB allows only the specific host:port pairs the status page uses, plus ICMP.
+  Some pairs (Artemis `:2379`/`:4240`) were for the removed ClusterMesh. The list was built from the UCG's conntrack table
   (`ssh root@10.10.99.1 conntrack -L -s 10.244.0.0/24`, sampled for 10 minutes), not guessed — a
   new Frostlink → home dependency needs its own grant, and the symptom of a missing one is a
   connection timeout from the pod, never an error.
-- Pod ⇄ pod (`10.244.0.0/24` ⇄ `10.42.0.0/16`) stays open on all ports for ClusterMesh global
-  services; `clustermesh.md` explains why.
+- Pod ⇄ pod (`10.244.0.0/24` ⇄ `10.42.0.0/16`) is still open on all ports. It was for ClusterMesh
+  global services (removed 2026-11-14); narrow it once nothing else is found to use it.
 - The Tailscale SSH rule was removed — nothing used it.
 
 Tagged devices (Frostlink, the home router) can answer but never initiate except through these

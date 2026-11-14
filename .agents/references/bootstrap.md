@@ -57,7 +57,6 @@ Then, in order:
    public IP by phase2). Verify both, then **remove the OCI 6443 rule**. Leave 50000 as the
    break-glass.
 7. `kubectl delete -f bootstrap/seed-registry.yaml --context frostlink` — the seed registry is not Flux-managed.
-8. ClusterMesh with Artemis rides the tailnet, so it reconnects only after step 4.
 
 **Not yet proven by a real rebuild:** Headscale registering the new machine key and re-approving
 its routes; kopiur's restore waiting for the repository instead of racing to an empty volume; the

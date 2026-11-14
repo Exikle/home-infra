@@ -118,7 +118,6 @@ whole directory.
 | ---------------------- | ----------------------------------------------------------------------------- |
 | `bootstrap.md`         | Rebuilding from nothing — the helmfile order and the network-first rule       |
 | `claude-code-setup.md` | Touching a hook, a guard, a path-scoped rule, or a skill symlink              |
-| `clustermesh.md`       | Cilium ClusterMesh with Artemis — routing, relay, shared CA, global services  |
 | `crowdsec.md`          | A ban, a bot challenge or an exemption on any public site (both domains)      |
 | `database.md`          | Onboarding onto shared Postgres, pgbouncer tuning, CNPG PKI, primary restarts |
 | `flux-patterns.md`     | A reconcile is stuck, or you are wiring `dependsOn` across namespaces         |
@@ -173,4 +172,7 @@ Talos. A doc that prints a version is stale the week after it is written.
 - **PROXY-protocol passthrough to Artemis** — the towonel edge no longer receives public traffic.
   Envoy terminates TLS and reaches Artemis over a towonel TCP backhaul, with the client IP in
   `X-Forwarded-For` (`towonel.md`, Artemis issue #3082).
+- **Cilium ClusterMesh with Artemis** — removed 2026-11-14 (Artemis issue #3082). Nothing used its
+  global services, and the front door reaches home over the towonel backhaul instead. The Cilium
+  cluster ID and name stay as leftovers; changing them re-identifies every endpoint.
 - **Relaxing PodSecurity on `network`** — rejected; towonel got its own `privileged` namespace.
