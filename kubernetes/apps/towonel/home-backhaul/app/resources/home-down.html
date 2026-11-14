@@ -3,10 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <title>Home is offline</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #eef1f3; --group: #ffffff; --sep: #d6dce1; --text: #16191d; --text2: #3d464f; --text3: #55606a;
+  --accent: #008f6a; --accent-text: #006b4b; --err: #c62828;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0d10; --group: #14181d; --sep: #1f262e; --text: #f2f5f7; --text2: #aab4bd; --text3: #929da7;
+    --accent: #00e5a8; --accent-text: #00e5a8; --err: #ff5c5c;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 400 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+main { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+.card { width: 100%; max-width: 440px; background: var(--group); border: 1px solid var(--sep); border-radius: 2px; padding: 24px; }
+.host { font-family: var(--mono); color: var(--text3); font-size: 12px; margin-bottom: 8px; overflow-wrap: anywhere; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; }
+p { margin: 8px 0 20px; color: var(--text2); }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; border-top: 1px solid var(--sep); padding-top: 14px; }
+.t3 { color: var(--text3); }
+.actions { display: flex; gap: 16px; align-items: center; }
+a { color: var(--accent-text); text-decoration: none; font-weight: 600; }
+a:hover { text-decoration: underline; }
+button {
+  padding: 6px 14px; border-radius: 2px; border: 0; cursor: pointer;
+  background: var(--accent); color: #000; font: inherit; font-weight: 600;
+}
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--err); }
+</style>
 </head>
 <body>
-<h1>Home is offline</h1>
-<p>This site runs at home, and home cannot be reached right now. Try again later.</p>
+<main>
+<div class="card">
+<div class="host" id="host"></div>
+<h1><span class="dot"></span>Home is offline</h1>
+<p>This site runs at home, and home can't be reached right now. It's usually a power or internet blip. The page will reload by itself when home is back.</p>
+<div class="row">
+<span class="t3" id="count">Trying again soon</span>
+<span class="actions"><a href="https://status.dcunha.io">Status page</a><button type="button" onclick="location.reload()">Retry now</button></span>
+</div>
+</div>
+</main>
+<script>
+document.getElementById("host").textContent = location.hostname;
+var left = 30, el = document.getElementById("count");
+function tick() {
+  if (left <= 0) { location.reload(); return; }
+  el.textContent = "Trying again in " + left + " s";
+  left--;
+  setTimeout(tick, 1000);
+}
+tick();
+</script>
 </body>
 </html>
