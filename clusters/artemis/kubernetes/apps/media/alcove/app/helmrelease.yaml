@@ -1,0 +1,133 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alcove
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: alcove
+  interval: 1h
+  values:
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+
+    controllers:
+      alcove:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: git.dcunha.io/exikle/alcove
+              tag: 0.1.0@sha256:a4153cfd3fa0c8463f803bff7ac22e8e10c55f48fadefea0a4206da734e7695b
+            env:
+              ALCOVE_DB_DRIVER: postgres
+              ALCOVE_DB_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: alcove-postgres
+                    key: url
+              ALCOVE_HTTP_PORT: &port 8080
+              ALCOVE_HTTP_PROXIES: 10.42.0.0/16
+              ALCOVE_HTTP_URL: "https://alcove.dcunha.io"
+              ALCOVE_INGEST_PATH: /media/alcove-ingest
+              ALCOVE_LIBRARY_PATH: /media/alcove
+              ALCOVE_METRICS_PORT: &metricsPort 8081
+              ALCOVE_OIDC_ISSUER: "https://id.dcunha.io"
+            envFrom:
+              - externalSecretRef:
+                  identifier: env
+              - secretRef:
+                  name: alcove-oidc-credentials
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /healthz
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /readyz
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 512Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              readOnlyRootFilesystem: true
+
+    externalSecrets:
+      env:
+        dataFrom:
+          - extract:
+              key: bookboss
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          template:
+            data:
+              ALCOVE_METADATA_HARDCOVER_TOKEN: "{{ .HARDCOVER_API_TOKEN }}"
+
+    persistence:
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          alcove:
+            app:
+              - path: /tmp
+                subPath: tmp
+      media:
+        type: nfs
+        path: /mnt/atlas/media
+        server: 10.10.99.100
+        globalMounts:
+          - path: /media/alcove
+            subPath: alcove/library
+          - path: /media/alcove-ingest
+            subPath: alcove/ingest
+
+    route:
+      app:
+        annotations:
+          gatus.home-operations.com/name: "alcove"
+        hostnames:
+          - "alcove.dcunha.io"
+        parentRefs:
+          - name: edge-gateway
+            namespace: network
+
+    service:
+      app:
+        ports:
+          http:
+            port: *port
+            primary: true
+          metrics:
+            port: *metricsPort
