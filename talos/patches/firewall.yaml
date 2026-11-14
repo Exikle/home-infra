@@ -1,0 +1,18 @@
+---
+apiVersion: v1alpha1
+kind: NetworkRuleConfig
+name: tcp-internal-only
+portSelector:
+  protocol: tcp
+  ports:
+    - 1-79
+    - 81-442
+    - 444-49999
+    - 50001-65535
+ingress:
+  - subnet: 10.244.0.0/24
+  - subnet: 100.64.0.0/10
+  - subnet: fd7a:115c:a1e0::/48
+  - subnet: 10.10.1.0/24
+  - subnet: 10.10.99.0/24
+  - subnet: 10.42.0.0/16

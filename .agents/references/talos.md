@@ -65,6 +65,26 @@ private key and token in the config to the terminal.
 
 - `talos/patches/controlplane.yaml` — main machine + cluster config
 - `talos/patches/tailscale.yaml.j2` — Tailscale extension service config (1Password auth key reference)
+- `talos/patches/firewall.yaml` — host ingress firewall, day-2 only (§ Host ingress firewall)
+
+### Host ingress firewall
+
+`firewall.yaml` is one `NetworkRuleConfig` in default-accept mode: every TCP port except 80, 443
+and 50000 accepts only the pod CIDR, the tailnet and the home subnets. It exists because hostNetwork
+listeners bind every address — towonel TCP services (15001 and up, no bind option in 1.13.7), the
+API server, etcd, kubelet, the plain-HTTP hub API on 8443 — so without it the OCI security list was
+the only layer between them and the internet. 80/443/50000, UDP and ICMP are untouched, so it cannot
+cut management access; pods reaching hostNetwork ports (the backhaul endpoint, metrics) stay allowed
+through the pod CIDR. It is hot-applied with no reboot.
+
+- **Not in `gen config`.** A rebuild reaches 6443 from the home public /32 before the tailnet
+  exists; this rule would block that. Apply it after `just bootstrap tailnet`.
+- **Apply / change:** `talosctl patch mc --talosconfig /home/exikle/frostlink/talosconfig -n 10.0.0.203 --patch @talos/patches/firewall.yaml --mode try --timeout 10m`,
+  verify with new connections (`talosctl get nftableschain` shows `ingress` + `prerouting`, talosctl
+  via `-e 40.233.88.33`, kubectl, the front door, `up == 0` empty in VictoriaMetrics), then confirm by
+  re-sending the active config as below. Remove it with a `$patch: delete` document for
+  `NetworkRuleConfig` `tcp-internal-only`.
+- A new public TCP port needs its range carved out of the rule, or it stays internal-only.
 
 ### Changing the Tailscale extension config (Headscale)
 

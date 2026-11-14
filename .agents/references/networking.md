@@ -202,6 +202,10 @@ Console-verified.
 Stateless rules would break this: OCI skips connection tracking for any flow that
 matches one, and a stateless rule takes precedence over a stateful one.
 
+The node has its own second layer: a Talos ingress firewall that keeps every TCP port except
+80/443/50000 internal-only (`talos.md` § Host ingress firewall). Opening a port here is not enough on
+its own; the Talos rule must allow it too.
+
 ### Egress budget alerts
 
 `OciEgressBudgetHigh` (7 to 9 TB) and `OciEgressBudgetCritical` (over 9 TB) in

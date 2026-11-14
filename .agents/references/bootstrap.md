@@ -55,7 +55,8 @@ Then, in order:
 6. **Switch to the site link:** `kubectl config set-cluster frostlink --server=https://10.0.0.203:6443`
    and `talosctl config endpoint 10.0.0.203` (the repo-root `talosconfig` was written with the
    public IP by phase2). Verify both, then **remove the OCI 6443 rule**. Leave 50000 as the
-   break-glass.
+   break-glass. Then apply the host firewall over the site link (`talos.md` § Host ingress
+   firewall) — never earlier, it blocks the public 6443 path this rebuild used.
 7. `kubectl delete -f bootstrap/seed-registry.yaml --context frostlink` — the seed registry is not Flux-managed.
 
 **Not yet proven by a real rebuild:** Headscale registering the new machine key and re-approving
