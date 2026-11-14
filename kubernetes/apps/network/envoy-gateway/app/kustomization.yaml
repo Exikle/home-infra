@@ -10,3 +10,4 @@ resources:
   - ./envoy.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./vmpodscrape.yaml

@@ -111,6 +111,7 @@ spec:
       timeout: 2s
       type: TCP
       unhealthyThreshold: 2
+  http1: {}
   mergeType: StrategicMerge
   responseOverride:
     - match:
