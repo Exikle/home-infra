@@ -83,9 +83,36 @@ spec:
             - crowdsecurity/appsec-bot-challenge-scoring-balanced
           labels:
             type: appsec
+      rules:
+        frostlink-forgejo-anon-label-scrape.yaml: |
+          name: frostlink/forgejo-anon-label-scrape
+          description: "Block Forgejo issue and pull list requests that filter on two or more labels"
+          rules:
+            - and:
+                - zones:
+                    - URI
+                  transform:
+                    - lowercase
+                  match:
+                    type: regex
+                    value: "/(issues|pulls|milestone)"
+                - zones:
+                    - ARGS
+                  variables:
+                    - labels
+                  match:
+                    type: contains
+                    value: ","
+          labels:
+            type: scraper
+            service: http
+            behavior: "http:scan"
+            label: "Forgejo anonymous label-filter scrape"
       configs:
         frostlink-bot-challenge.yaml: |
           name: frostlink/appsec-bot-challenge
+          inband_rules:
+            - frostlink/forgejo-anon-label-scrape
           inband:
             pre_eval:
               - filter: req.Host in ["atuin.frostlink.dev", "flux-webhook.frostlink.dev", "hub.frostlink.dev", "konflate.frostlink.dev", "kromgo.frostlink.dev", "matrix.frostlink.dev", "matrix.frostlink.dev:443", "jellyfin.dcunha.io", "kromgo.dcunha.io", "silo-jf.dcunha.io", "xbs.dcunha.io"]
