@@ -237,29 +237,44 @@ at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the serve
 shows the live devices (the node is `tag:frostlink`, the UCG Max `tag:home-router`, the rest user
 `exikle`).
 
-**Subnet grants are port-scoped, not "any port".**
+**The tailnet is for remote admin access** (Artemis #3082). Public traffic never uses it. The
+policy was rewritten from scratch on 2026-11-14:
 
-- `autogroup:member` (your own devices) still reaches everything. A family device added to
-  Headscale would land here too, so give it its own grant instead.
-- HME/LAB → the Frostlink node allows only kubectl (6443), talosctl (50000) and ICMP, plus 12379
-  and 4240, which are left over from ClusterMesh (removed 2026-11-14) and can be dropped.
-- Frostlink pods → LAB allows only the specific host:port pairs the status page uses, plus ICMP.
-  Some pairs (Artemis `:2379`/`:4240`) were for the removed ClusterMesh. The list was built from the UCG's conntrack table
+- Your own devices (`autogroup:member`) reach each other (`autogroup:self`), both routers, HME,
+  LAB, the Frostlink node and the internet through the home exit node — and nothing else. A
+  family device added to Headscale would land here too, so give it its own grant instead.
+- HME → the Frostlink node allows only kubectl (6443) and talosctl (50000). That is the
+  workstation's path; LAB has no reason to reach the node.
+- Tagged devices (Frostlink, the home router) have no grants of their own: they answer, never
+  initiate.
+- **Exception, parked on Artemis #3082:** Frostlink pods → LAB still allows the host:port pairs
+  the status page uses (`status-page.md`), plus ICMP. Those grants and the `10.244.0.0/24` route
+  stay until #3082 decides whether monitoring keeps a narrow exception or moves off the tailnet.
+  The list was built from the UCG's conntrack table
   (`ssh root@10.10.99.1 conntrack -L -s 10.244.0.0/24`, sampled for 10 minutes), not guessed — a
   new Frostlink → home dependency needs its own grant, and the symptom of a missing one is a
   connection timeout from the pod, never an error.
-- Pod ⇄ pod (`10.244.0.0/24` ⇄ `10.42.0.0/16`) is still open on all ports. It was for ClusterMesh
-  global services (removed 2026-11-14); narrow it once nothing else is found to use it.
-- The Tailscale SSH rule was removed — nothing used it.
 
-Tagged devices (Frostlink, the home router) can answer but never initiate except through these
-subnet grants.
+The policy's `tests` block asserts the admin paths stay open and tagged devices stay shut.
 
 Validate any policy edit with Headscale's own checker before committing. The running server can
 check a file without loading it (the image has no shell, so pipe the file in):
 `kubectl --context frostlink -n network exec -i deploy/headscale -c app -- headscale policy check -f /dev/stdin < policy.hujson`.
-A policy change reaches the pod as a ConfigMap update and Reloader restarts Headscale; existing
-tailnet connections survive the restart.
+Two gotchas with the checker (0.29.7):
+
+- **A failing test blocks only `policy check` and a SIGHUP reload.** A policy change reaches the
+  pod as a ConfigMap update and Reloader restarts Headscale; at startup a failing test only logs a
+  warning and the policy is applied anyway. Run the check before every apply.
+- **The test engine ignores protocol.** A grant with `icmp:*` makes every TCP port to that
+  destination test as ALLOWED; the real packet filter is not widened (verified from a pod). Do
+  not write deny tests against a destination that has an `icmp:*` grant from the same source. A
+  test `src` that is a member device's own LAN IP is treated as that device.
+
+Existing tailnet connections survive a Headscale restart, but phones may briefly report the exit
+node as down.
+
+**DNS:** `override_local_dns: false`. Devices keep their own resolver for everything except
+MagicDNS names and the split domains; the global `1.1.1.1`/`9.9.9.9` are a fallback only.
 
 ### Split DNS
 
