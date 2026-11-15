@@ -256,7 +256,9 @@ remote configured, or a probe that only ever sees a path:
 
 The repo was renamed from `Artemis-Cluster` to `home-infra` on 2026-11-14, and its memories
 moved from `homelab/home-infra` to `homelab/home-infra`. The old remote key stays so that a
-checkout with the old remote still resolves. The checkout folder is still `~/Artemis-Cluster`.
+checkout with the old remote still resolves. The checkout folder moved to `~/home-infra` on
+2026-11-15. There is no `path:` key for the new folder. The remote key covers it. The old
+`path:` key stays for a checkout that has not moved yet.
 Remote keys are lowercased. The system matches them against a normalized remote.
 
 `dotfiles/home/claude/settings.json` (symlinked to `~/.claude/settings.json`) sets no
