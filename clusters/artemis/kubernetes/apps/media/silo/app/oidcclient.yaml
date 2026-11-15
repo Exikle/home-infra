@@ -13,7 +13,6 @@ spec:
     - name: app-users
       namespace: security
   callbackUrls:
-    - "https://silo.dcunha.io/api/v1/auth/oauth/*/callback"
     - "https://silo.dcunha.io/api/v2/auth/oauth/*/callback"
   clientID: silo
   launchUrl: "https://silo.dcunha.io/"
