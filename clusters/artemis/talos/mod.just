@@ -2,6 +2,9 @@ set quiet
 set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
+export KUBECONFIG := source_directory() / ".." / "kubeconfig"
+export TALOSCONFIG := source_directory() / ".." / "talosconfig"
+
 [private]
 default:
     just -l talos

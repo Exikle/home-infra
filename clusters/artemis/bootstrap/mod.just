@@ -10,12 +10,14 @@ kubectl := "kubectl --context " + context
 
 # Pinned so a shell without mise's env cannot write the bootstrap kubeconfig, or read it,
 # from ~/.kube/config. `talosctl kubeconfig` writes this same path.
-export KUBECONFIG := justfile_dir() / "kubeconfig"
+export KUBECONFIG := source_directory() / ".." / "kubeconfig"
+export TALOSCONFIG := talosconfig
+talosconfig := source_directory() / ".." / "talosconfig"
 
 # .endpoints is the control planes and only the control planes. Do NOT use .nodes here:
 # it is a hand-set single entry, not the fleet — the node list comes from clusters/artemis/talos/nodes.
-controller := `talosctl config info -o yaml | yq -r -e '.endpoints[0]'`
-controlplanes := `talosctl config info -o yaml | yq -r -e '.endpoints | join (" ")'`
+controller := shell('talosctl --talosconfig "$1" config info -o yaml | yq -r -e ".endpoints[0]"', talosconfig)
+controlplanes := shell('talosctl --talosconfig "$1" config info -o yaml | yq -r -e ".endpoints | join (\" \")"', talosconfig)
 
 [confirm('Bootstrap cluster? [y|N]')]
 [doc('Bootstrap a Talos & Kubernetes cluster end-to-end')]
@@ -45,7 +47,7 @@ k8s:
 [private]
 kubeconfig lb="cilium":
     just log info "Running stage..." "stage" "{{ recipe_name() }}"
-    if ! talosctl kubeconfig -n "{{ controller }}" -f --force-context-name {{ context }} {{ justfile_dir() }}; then
+    if ! talosctl kubeconfig -n "{{ controller }}" -f --force-context-name {{ context }} "{{ source_directory() }}/.."; then
         just log fatal "Failed to fetch kubeconfig" "stage" "{{ recipe_name() }}"
     fi
     if [[ "{{ lb }}" != "cilium" ]]; then

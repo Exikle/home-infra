@@ -76,7 +76,9 @@ portion. Within a server, tools are `<target>_<tool>` (for example `victoria-log
 - For read-only inspection, use the k8s MCP tools, not `kubectl`. They are pre-authenticated and
   structured, and they have no shell quoting to get wrong.
 - Web lookups go through the SearXNG tools, never a built-in web-search tool.
-- The default kubeconfig context is `artemis`. Switch to Frostlink with `kubectx frostlink`.
+- There is no repo-wide `KUBECONFIG` or `TALOSCONFIG`. Each cluster's files live in its own
+  folder (`clusters/artemis/kubeconfig`, `clusters/artemis/talosconfig`, gitignored), and the
+  `kube`, `talos` and `bootstrap` modules export them. Outside a recipe, pass `--context` explicitly.
 - There are six MCP registration files across this machine. A tier change means that you edit
   all of them. `.agents/references/memory-config.md` § Six registration files is canonical.
 

@@ -28,8 +28,8 @@ a snapshot while the app keeps running.
 >   reader pod and nothing to scale. Verified 2026-10-15
 >   ([#2769](https://git.dcunha.io/Exikle/home-infra/issues/2769)).
 
-The default kubeconfig context is `artemis`. Run `kubectx` to confirm it before you run anything
-destructive.
+The `just kube` recipes use `clusters/artemis/kubeconfig` with context `artemis`. Outside a
+recipe, pass `--context artemis` explicitly before you run anything destructive.
 
 Goal: get one PVC's data back from a kopiur snapshot, or pull specific files out of one.
 

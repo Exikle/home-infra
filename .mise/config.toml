@@ -19,7 +19,6 @@ _.file = { path = "{{config_root}}/.env", redact = true }
 # has LANG=en_US.utf-8 exported but only C.utf8 actually generated.
 LANG = "C.UTF-8"
 LC_ALL = "C.UTF-8"
-KUBECONFIG = "{{config_root}}/kubeconfig"
 # Without these, running `ansible` from the repo root silently picks up
 # /etc/ansible/ansible.cfg — wrong inventory, wrong roles path. Absolute so they
 # hold no matter which directory the command is run from.
@@ -31,7 +30,6 @@ ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/ansible/collections"
 # secret and comes from .env via `just ai env`, not from here.
 FORGEJO_HOST = "git.dcunha.io"
 MINIJINJA_CONFIG_FILE = "{{config_root}}/.minijinja.toml"
-TALOSCONFIG = "{{config_root}}/talosconfig"
 JUST_UNSTABLE = "1"
 
 [settings]

@@ -4,6 +4,8 @@ set quiet
 set script-interpreter := ['bash', '-euo', 'pipefail']
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
+export KUBECONFIG := source_directory() / ".." / "kubeconfig"
+
 context := env('KUBE_CONTEXT', 'artemis')
 kubectl := "kubectl --context " + context
 flux := "flux --context " + context
