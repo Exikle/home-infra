@@ -130,7 +130,7 @@ spec:
               - filter: req.Host == "id.dcunha.io"
                 apply:
                   - ExemptFromChallenge("oidc-provider")
-              - filter: req.Host == "books.dcunha.io" && (req.URL.Path startsWith "/opds" || req.URL.Path startsWith "/koreader")
+              - filter: req.Host == "books.dcunha.io" && (req.URL.Path startsWith "/opds" || req.URL.Path startsWith "/koreader" || req.URL.Path startsWith "/api/" || (req.URL.Path == "/login" && req.Method == "POST"))
                 apply:
                   - ExemptFromChallenge("ereader-sync")
               - filter: req.Host in ["audiobooks.dcunha.io", "auth.dcunha.io", "fitness.dcunha.io", "hass.dcunha.io", "hermes.dcunha.io", "home-assistant.dcunha.io", "komga.dcunha.io", "paperless.dcunha.io", "photos.dcunha.io", "renovate.dcunha.io", "requests.dcunha.io", "seerr.dcunha.io"] && (req.URL.Path startsWith "/api/" || req.URL.Path startsWith "/opds/" || req.URL.Path startsWith "/socket.io/" || req.URL.Path == "/auth/token")
