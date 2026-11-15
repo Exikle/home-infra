@@ -29,14 +29,14 @@ spec:
             env:
               ABB_ENABLED: "true"
               ABB_HOSTNAME: audiobookbay.lu
-              AUDIOBOOK_LIBRARY_URL: "https://audiobooks.dcunha.io"
+              AUDIOBOOK_LIBRARY_URL: "https://books.dcunha.io"
               AUTH_METHOD: oidc
               BOOKLORE_DESTINATION: bookdrop
               BOOKLORE_HOST: http://alcove.media.svc.cluster.local:8080
               BOOKLORE_USERNAME: exikle
               BOOKS_OUTPUT_MODE: booklore
               CALIBRE_WEB_URL: "https://books.dcunha.io"
-              DESTINATION_AUDIOBOOK: /media/audiobooks
+              DESTINATION_AUDIOBOOK: /media/alcove/ingest
               DOCKERMODE: "true"
               EXT_BYPASSER_TIMEOUT: "120000"
               EXT_BYPASSER_URL: http://trawl.media.svc.cluster.local:8191
@@ -61,7 +61,7 @@ spec:
               SEARCH_PAGE_TITLE: "Book & Audiobook Search"
               SESSION_COOKIE_SECURE: "true"
               SUPPORTED_FORMATS: epub
-              TEMPLATE_AUDIOBOOK_ORGANIZE: "{Author}/{Title}/{Title}"
+              TEMPLATE_AUDIOBOOK_ORGANIZE: "{Author} - {Title}/{Title}"
             envFrom:
               - externalSecretRef:
                   identifier: env
