@@ -28,6 +28,7 @@ spec:
               repository: git.dcunha.io/exikle/alcove
               tag: 0.1.0@sha256:a4153cfd3fa0c8463f803bff7ac22e8e10c55f48fadefea0a4206da734e7695b
             env:
+              ALCOVE_BOOKLORE_USER: exikle
               ALCOVE_DB_DRIVER: postgres
               ALCOVE_DB_URL:
                 valueFrom:
@@ -36,7 +37,7 @@ spec:
                     key: url
               ALCOVE_HTTP_PORT: &port 8080
               ALCOVE_HTTP_PROXIES: 10.42.0.0/16
-              ALCOVE_HTTP_URL: "https://alcove.dcunha.io"
+              ALCOVE_HTTP_URL: "https://books.dcunha.io"
               ALCOVE_INGEST_PATH: /media/alcove-ingest
               ALCOVE_LIBRARY_PATH: /media/alcove
               ALCOVE_METRICS_PORT: &metricsPort 8081
@@ -118,7 +119,7 @@ spec:
         annotations:
           gatus.home-operations.com/name: "alcove"
         hostnames:
-          - "alcove.dcunha.io"
+          - "books.dcunha.io"
         parentRefs:
           - name: edge-gateway
             namespace: network

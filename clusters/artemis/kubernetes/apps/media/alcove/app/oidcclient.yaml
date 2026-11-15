@@ -9,9 +9,9 @@ spec:
     - name: app-users
       namespace: security
   callbackUrls:
-    - "https://alcove.dcunha.io/auth/oidc/callback"
+    - "https://books.dcunha.io/auth/oidc/callback"
   clientID: alcove
-  launchUrl: "https://alcove.dcunha.io"
+  launchUrl: "https://books.dcunha.io"
   logo:
     autoGenerate: false
   pkceEnabled: true
