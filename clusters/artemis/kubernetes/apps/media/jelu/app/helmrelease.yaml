@@ -111,7 +111,7 @@ spec:
         data:
           - secretKey: JELU_METADATAPROVIDERS_2_APIKEY
             remoteRef:
-              key: bookboss
+              key: alcove
               property: HARDCOVER_API_TOKEN
         secretStoreRef:
           kind: ClusterSecretStore

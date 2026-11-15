@@ -119,7 +119,7 @@ spec:
           - extract:
               key: shelfmark
           - extract:
-              key: bookboss
+              key: alcove
         secretStoreRef:
           kind: ClusterSecretStore
           name: onepassword-connect

@@ -87,7 +87,7 @@ spec:
       env:
         dataFrom:
           - extract:
-              key: bookboss
+              key: alcove
         secretStoreRef:
           kind: ClusterSecretStore
           name: onepassword-connect
