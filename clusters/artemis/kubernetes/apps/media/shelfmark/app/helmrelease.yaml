@@ -129,6 +129,7 @@ spec:
               PROWLARR_API_KEY: "{{ .PROWLARR_API_KEY }}"
               OIDC_CLIENT_SECRET: "{{ .SHELFMARK__OIDC__CLIENT_SECRET }}"
               BOOKLORE_PASSWORD: "{{ .ALCOVE_SHELFMARK_TOKEN }}"
+              SHELFMARK_API_KEY: "{{ .SHELFMARK_API_KEY }}"
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"

@@ -42,6 +42,7 @@ spec:
               ALCOVE_LIBRARY_PATH: /media/alcove
               ALCOVE_METRICS_PORT: &metricsPort 8081
               ALCOVE_OIDC_ISSUER: "https://id.dcunha.io"
+              ALCOVE_SHELFMARK_URL: http://shelfmark.media.svc.cluster.local:8084
             envFrom:
               - externalSecretRef:
                   identifier: env
@@ -95,6 +96,7 @@ spec:
           template:
             data:
               ALCOVE_METADATA_HARDCOVER_TOKEN: "{{ .HARDCOVER_API_TOKEN }}"
+              ALCOVE_SHELFMARK_KEY: "{{ .SHELFMARK_API_KEY }}"
 
     persistence:
       tmp:
