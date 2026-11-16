@@ -349,9 +349,9 @@ Renovate compiles `prHeader` against the branch config, so it colours by `update
 ⚪ **digest** · docker.io/library/python
 ```
 
-### Keep it thin — konflate and pr-review sit below it
+### Keep it thin — konflate and kritika sit below it
 
-The AI PR review posts the advisory review, and konflate serves the rendered
+kritika posts the review, and konflate serves the rendered
 blast radius as comments on the same PR. The job of the body is only _what moved and do I have to act_.
 Anything in it that resembles risk analysis is a second copy that drifts.
 
@@ -371,54 +371,31 @@ handlebars and the `equals` helper against a fake upgrade object. The helper lis
 
 ## AI review on pull requests
 
-`.forgejo/workflows/pr-review.yaml` calls the shared `pr-review.yaml` in `Exikle/forgejo-workflows`
-(frostlink calls the same one). That workflow runs `misospace/pr-reviewer-action` against every PR and posts
-a sticky comment. It is not a status check. Edit the settings and the merge job there. They then
-reach this repo when its pin moves.
+kritika reviews every pull request on this repo (#3334). It runs on Artemis in the `kritika`
+namespace and acts on Forgejo as `dusk-bot`, through a Generic JWT authorized integration of that
+user. Its repo rules are in `.kritika.yaml`. Its instance configuration is in the HelmRelease
+under `kube/clusters/artemis/apps/kritika/`.
 
-### Merge on approve
+kritika posts a summary comment, inline findings, and a commit status named `Kritika / Review`.
 
-Its `merge` job squash-merges a dusk-bot PR when the verdict is `approve` and the PR is
-`type/minor` or `type/patch` and it carries no hold. A hold is a `status/blocked` or `area/infra` label,
-or a `⛔` / "Do not merge" / "Do not automerge" note in the body. Majors always wait for a
-human. A hold is a `prBodyNotes` line with `⛔`. That is the one signal the job reads, so a
-new never-automerge rule in `.renovaterc.json5` must carry one.
+### Merge on a green check
 
-The job merges the exact reviewed head (`head_commit_id`) and then confirms that the merge commit is on
-`main`. It fails red if not, because the dangling-merge bug below hits direct merges too. It cannot
-serialise across PRs (Forgejo `concurrency` is per workflow, not per job). If the merge job goes red, check `main` and recover per § Never batch `merge_when_checks_succeed`.
+kritika does not approve. `dusk-bot` opens the Renovate PRs, and Forgejo does not let a user
+approve its own PR. The gate is the `Kritika / Review` status:
 
-The review only knows what the PR body tells it. The release notes from Renovate are the evidence.
-A package whose source host Renovate cannot read (forgejo-mcp on `code.squarecows.com`) gets a
-blind review. The team tried `tool_mode: native_loop` and dropped it. Each tool round resends the whole
-context, and `web_fetch` returns raw HTML capped at 10,000 characters, so release pages yield
-nothing.
+1. A second model scores each `renovate/*` PR from 0 to 5 (`confidence.gate` in the HelmRelease).
+2. If the score is below 4, the status fails.
+3. Renovate merges a PR only when every status on it is green (`ignoreTests: false`).
 
-The job excludes digest PRs, and that is the whole cost story. The `if:` of the job drops any PR that carries
-`type/digest`, a label that `.renovaterc.json5` already applies, on updates it already auto-merges. At
-30+ merged PRs/day, reviewing PRs that merge themselves would have been the entire bill. With the exclusion,
-they cost nothing.
+What may merge on its own is still decided in `.renovaterc.json5` and the shared presets. A major
+never automerges. A package that a rule holds by name never automerges either.
 
-Context assembly dominates the token spend, not the review. Three context features default
-to on, and this repo switches them off: `repo_map_context` (12 KB cap), `related_code_context` (16 KB) and
-`pr_thread_context` (8 KB). With `model_context_tokens: 8000` the corpus caps at 12,000 bytes and the
-model call drops from ~4 minutes to ~5 seconds. The team deliberately left `AGENTS.md` loaded. It is what
-makes the review check changes against the conventions of this repo.
+`platformAutomerge` is `false`. Renovate merges each PR itself, one at a time, during its run.
+It does not hand the merge to Forgejo, because Forgejo's `merge_when_checks_succeed` loses
+commits when several PRs pass at once. See § Never batch `merge_when_checks_succeed`.
 
-There are three traps, all verified against the pinned source:
-
-- `publish_mode: comment` alone publishes nothing. The publish step also requires
-  `publish_review_comment: "true"`. Without it the run succeeds, generates a full review, sets every
-  output, and posts nothing.
-- The built-in `renovate_digest_only` fast path never fires here. It requires _every_ changed file
-  to match a JS lockfile pattern, and these PRs touch `ocirepository.yaml` and `helmrelease.yaml`. Even
-  when it does fire, it only swaps prompt text. It never shrinks the corpus or skips the call.
-- Do not enable `review_routing_mode: auto` without overriding `escalate_on_risk_flags`. The
-  `FILE_SERVING_PATTERNS` of the classifier matches the substring `media/`, so everything under
-  `kube/clusters/artemis/apps/media/` trips a risk flag that is in the default escalation list
-  and routes to the expensive model for no reason.
-
-Pin by SHA, not tag. Upstream plans to remove incremental review and `review_scope` in v3.
+The review only knows what the PR body tells it. The release notes from Renovate are the
+evidence.
 
 ---
 
