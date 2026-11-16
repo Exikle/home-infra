@@ -9,7 +9,8 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ./cert-manager/ks.yaml
+  - ../../../../base/cert-manager/cert-manager
+  - ./cert-manager/extras/ks.yaml
   - ./issuers/ks.yaml
   - ./postgres-ca/ks.yaml
   - ./trust-manager/ks.yaml

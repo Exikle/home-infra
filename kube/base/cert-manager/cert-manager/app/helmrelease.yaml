@@ -9,6 +9,11 @@ spec:
     kind: OCIRepository
     name: cert-manager
   interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: cert-manager-values
+      optional: true
+      valuesKey: values.yaml
   values:
     crds:
       enabled: true
