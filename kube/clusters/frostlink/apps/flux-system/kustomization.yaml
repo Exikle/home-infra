@@ -12,4 +12,3 @@ resources:
   - ./flux-operator/ks.yaml
   - ./flux-instance/ks.yaml
   - ./flux-webhook/ks.yaml
-  - ./konflate/ks.yaml

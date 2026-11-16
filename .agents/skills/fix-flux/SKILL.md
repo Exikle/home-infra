@@ -10,7 +10,7 @@ Diagnose and fix Flux reconciliation issues in home-infra.
 On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command (bare ones hit
 Artemis, and the MCP k8s tools do too). Use `mise run //kube/clusters/frostlink:<task>`
 for `render-ks` and `sync-flux`. The source is an `OCIRepository` there too, and Flux's own
-Kustomizations (`flux-instance`, `flux-operator`, `flux-webhook`, `konflate`) are in `flux-system`.
+Kustomizations (`flux-instance`, `flux-operator`, `flux-webhook`) are in `flux-system`.
 
 > Read `.agents/references/flux-patterns.md` before you diagnose. It covers stuck HelmRelease fixes, cross-namespace gotchas, and the CRD timing race.
 

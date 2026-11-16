@@ -349,10 +349,10 @@ Renovate compiles `prHeader` against the branch config, so it colours by `update
 ⚪ **digest** · docker.io/library/python
 ```
 
-### Keep it thin — konflate and kritika sit below it
+### Keep it thin — kritika sits below it
 
-kritika posts the review, and konflate serves the rendered
-blast radius as comments on the same PR. The job of the body is only _what moved and do I have to act_.
+kritika posts the review on the same PR, and it renders the change with flate. The job of the
+body is only _what moved and do I have to act_.
 Anything in it that resembles risk analysis is a second copy that drifts.
 
 ### Validating a change to it
@@ -383,8 +383,11 @@ kritika posts a summary comment, inline findings, and a commit status named `Kri
 kritika does not approve. `dusk-bot` opens the Renovate PRs, and Forgejo does not let a user
 approve its own PR. The gate is the `Kritika / Review` status:
 
-1. A second model scores each `renovate/*` PR from 0 to 5 (`confidence.gate` in the HelmRelease).
-2. If the score is below 4, the status fails.
+1. A second model scores each PR that a bot opens from 0 to 5 (`confidence.gate` with `pr.bot`
+   in the HelmRelease). `dusk-bot` counts as a bot because the Forgejo connection lists it under
+   `bots`.
+2. If the score is below 4, the status fails. If kritika cannot score the PR, the status is an
+   error.
 3. Renovate merges a PR only when every status on it is green (`ignoreTests: false`).
 
 What may merge on its own is still decided in `.renovaterc.json5` and the shared presets. A major

@@ -32,8 +32,8 @@ spec:
         fallback: agentgateway/opencode-go/minimax-m3
         gate:
           when:
-            - name: renovate
-              expr: pr.headRef.startsWith("renovate/")
+            - name: bot
+              expr: pr.bot
         model: agentgateway/opencode-go/glm-5.2
         threshold: 4
       egress:

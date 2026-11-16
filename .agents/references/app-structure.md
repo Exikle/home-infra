@@ -120,7 +120,7 @@ The menu lists the folder, not `ks.yaml`, because kustomize loads a file outside
 only through a folder that has its own `kustomization.yaml`.
 
 The `namespace:` line in the base `kustomization.yaml` is required. Flux gets the namespace from
-the menu, but flate (behind `render-ks` and konflate) takes it from the folder that holds
+the menu, but flate (behind `render-ks` and kritika's renders) takes it from the folder that holds
 `ks.yaml`. Without the line, flate renders the Kustomizations with no namespace and their
 `dependsOn` fail.
 
