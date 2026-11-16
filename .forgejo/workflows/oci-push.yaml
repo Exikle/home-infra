@@ -8,23 +8,83 @@ on:
       - main
     paths:
       - clusters/artemis/kubernetes/**
+      - clusters/frostlink/kubernetes/**
       - .sourceignore
   workflow_dispatch:
 
+# Forgejo has workflow-level concurrency only. cancel-in-progress is false so that a push to one
+# cluster can never cancel the run that is publishing the other one. Runs queue in order.
 concurrency:
   group: oci-push-${{ forgejo.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 # permissions: unsupported in Forgejo — grant via repo Settings → Actions → Authorized Integrations
 # permissions:
 #   contents: read
 
 jobs:
-  push:
+  changes:
+    name: Which clusters changed
+    runs-on: ubuntu-latest
+    container: git.dcunha.io/exikle/ci-toolbox:0.2.0
+    timeout-minutes: 5
+    outputs:
+      artemis: ${{ steps.diff.outputs.artemis }}
+      frostlink: ${{ steps.diff.outputs.frostlink }}
+    steps:
+      - name: Diff the push
+        id: diff
+        shell: bash
+        env:
+          CLONE_URL: ${{ forgejo.server_url }}/${{ forgejo.repository }}.git
+          GIT_TOKEN: ${{ forgejo.token }}
+          SHA: ${{ forgejo.sha }}
+          BEFORE: ${{ forgejo.event.before }}
+          EVENT: ${{ forgejo.event_name }}
+        run: |-
+          set -euo pipefail
+          # A manual run, a new branch or an unknown base builds both clusters.
+          if [ "$EVENT" != "push" ] || [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "artemis=true" >> "$FORGEJO_OUTPUT"
+            echo "frostlink=true" >> "$FORGEJO_OUTPUT"
+            exit 0
+          fi
+          git init -q src && cd src
+          git -c "http.extraHeader=Authorization: token ${GIT_TOKEN}" \
+            fetch -q --depth 1 "$CLONE_URL" "$SHA" "$BEFORE"
+          files=$(git diff --name-only "$BEFORE" "$SHA")
+          printf 'changed:\n%s\n' "$files"
+          if printf '%s\n' "$files" | grep -Eq '^(clusters/artemis/kubernetes/|\.sourceignore$)'; then a=true; else a=false; fi
+          if printf '%s\n' "$files" | grep -Eq '^clusters/frostlink/kubernetes/'; then f=true; else f=false; fi
+          echo "artemis=$a" >> "$FORGEJO_OUTPUT"
+          echo "frostlink=$f" >> "$FORGEJO_OUTPUT"
+
+  artemis:
+    name: Artemis
+    needs: changes
+    if: needs.changes.outputs.artemis == 'true'
     uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
     with:
       path: clusters/artemis
       registry-host: registry.dcunha.io
-      forgejo-oci-url: oci://git.dcunha.io/exikle/artemis-cluster
-      registry-oci-url: oci://registry.dcunha.io/exikle/artemis-cluster
+      forgejo-oci-url: oci://git.dcunha.io/exikle/artemis
+      registry-oci-url: oci://registry.dcunha.io/exikle/artemis
     secrets: inherit # zizmor: ignore[secrets-inherit]
+
+  frostlink:
+    name: Frostlink
+    needs: changes
+    if: needs.changes.outputs.frostlink == 'true'
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
+    with:
+      path: clusters/frostlink
+      registry-host: registry.frostlink.dev
+      forgejo-oci-url: oci://git.dcunha.io/exikle/frostlink
+      registry-oci-url: oci://registry.frostlink.dev/exikle/frostlink
+    secrets:
+      EXIKLE_PACKAGES_TOKEN: ${{ secrets.EXIKLE_PACKAGES_TOKEN }}
+      REGISTRY_TOKEN: ${{ secrets.FROSTLINK_REGISTRY_TOKEN }}
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+      FLUX_WEBHOOK_TOKEN: ${{ secrets.FROSTLINK_FLUX_WEBHOOK_TOKEN }}
+      FLUX_WEBHOOK_URL: ${{ secrets.FROSTLINK_FLUX_WEBHOOK_URL }}

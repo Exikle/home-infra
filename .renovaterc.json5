@@ -145,13 +145,6 @@
       schedule: ["at any time"],
     },
     {
-      description: "Forgejo Actions merge as branches — platformCommit signs them, so no PR is needed",
-      matchFileNames: [".forgejo/workflows/oci-push-frostlink.yaml"],
-      matchManagers: ["github-actions"],
-      automergeType: "branch",
-      addLabels: ["renovate/forgejo-action"],
-    },
-    {
       description: "Frostlink: hold Talos for 7 days before opening the PR",
       matchFileNames: ["clusters/frostlink/**"],
       matchPackageNames: ["siderolabs/talos"],

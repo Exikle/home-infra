@@ -31,7 +31,7 @@ gc:
       - "latest"
       - "main"
     perRepo:
-      - repo: "dcunha.io/exikle/artemis-cluster"
+      - repo: "dcunha.io/exikle/artemis"
         keepLastN: 7
         maxAge: 24h
 

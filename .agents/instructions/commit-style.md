@@ -109,12 +109,12 @@ The sequence is the same, with the Frostlink tasks:
 `mise run //clusters/frostlink/kubernetes:suspend-ks flux-system flux-system`, then the same for
 `<ns> <ks-name>`, then `apply-ks`, `sync-flux` and `resume-ks`. Run each from the worktree.
 
-- Frostlink has its own CI run, `Push OCI Artifact (Frostlink)`, and it runs only when
-  `clusters/frostlink/kubernetes/**` changed. A change to Artemis does not rebuild it, and the
-  reverse. Wait for the run of the cluster that you changed.
+- `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
+  diffs the push, and only the job of a cluster whose `clusters/<cluster>/kubernetes/**` changed
+  runs. The other shows as skipped. Wait for the job of the cluster that you changed.
 - Check that the artifact carries your commit with the Frostlink context:
   `kubectl get ocirepository -n flux-system flux-system --context frostlink -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.
-  The artifact name is `exikle/frostlink`, not `artemis-cluster`.
+  The artifact names are `exikle/artemis` and `exikle/frostlink`.
 - A commit that touches both clusters needs both runs green, and both clusters suspended and
   resumed. Name each cluster in its own task path.
 - It is one node. A change that restarts a core pod (Cilium, CoreDNS, the Envoy front door) is an

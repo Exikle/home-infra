@@ -105,7 +105,7 @@ You can also use the env vars `APOCI_REMOTE_URL` and `APOCI_ADMIN_TOKEN`.
 `gc.retention` is in `app/resources/config.yaml`. Two facts about it are load-bearing.
 
 `main` must stay in `pinnedGlobs`. The FluxInstance and the `flux-system`
-OCIRepository both track `oci://registry.dcunha.io/exikle/artemis-cluster:main`.
+OCIRepository both track `oci://registry.dcunha.io/exikle/artemis:main`.
 That tag matches none of the other globs (`latest`, `v*`, `*.*.*`), so without an
 explicit pin it is an ordinary retention candidate. If retention deletes it, the
 whole cluster stops reconciling. Frostlink has the identical arrangement on
@@ -117,7 +117,7 @@ _(newest 7)_ ∩ _(newer than 24h)_. Artemis had more than 7 tags under 24h and 
 Frostlink had only 4 under 24h and kept 4. Do not assume that `keepLastN` protects
 anything older than `maxAge`.
 
-The `perRepo` rule targets `dcunha.io/exikle/artemis-cluster`, the local flux
+The `perRepo` rule targets `dcunha.io/exikle/artemis`, the local flux
 artifact repo. Flux tags it once per commit and never reuses a tag, so it grows
 without bound. Reclaimed disk is
 negligible, because these are manifest artifacts, not image layers. This is tag hygiene.

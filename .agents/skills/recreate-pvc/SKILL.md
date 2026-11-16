@@ -127,7 +127,7 @@ Other apps split the same way and fail more quietly. After you restore one, ask 
 stores elsewhere, and check that first. Do not wait for the fault to surface.
 
 If the dangling rows are for superseded artifacts, the apoci retention clears them
-(`gc.retention.perRepo`: `keepLastN: 7`, `maxAge: 24h` for the artemis-cluster repo).
+(`gc.retention.perRepo`: `keepLastN: 7`, `maxAge: 24h` for the artemis repo).
 To clear them immediately, delete the affected `package_versions` and their `package_files`,
 `package_tags` and orphaned `blobs` rows in one transaction. First make sure that the live
 tag (`main`) is not among them and that `peer_blobs` holds no copy. Dump the rows to

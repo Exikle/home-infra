@@ -119,7 +119,7 @@ in `flux-system`.
   It is not missing.
 
 The live source of truth is `FluxInstance/flux` in `flux-system`, which syncs `kind: OCIRepository`
-from `oci://registry.dcunha.io/exikle/artemis-cluster`. To read the controller versions, run
+from `oci://registry.dcunha.io/exikle/artemis`. To read the controller versions, run
 `kubectl get deploy -n flux-system -o jsonpath='{range .items[*]}{.metadata.name} {.spec.template.spec.containers[0].image}{"\n"}{end}'`.
 
 ## Cross-Namespace Kustomization Gotchas
