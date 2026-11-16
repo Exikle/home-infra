@@ -281,8 +281,32 @@ updateNotScheduled: false,
 This repo sets these two. The shared default supplies the timezone and
 `minimumReleaseAgeBehaviour: "timestamp-optional"`. Renovate creates and rebases
 branches only from 00:00 to 03:59 in the repo timezone (America/Toronto), and
-`updateNotScheduled: false` stops it from rebasing open branches outside that window. The RenovateJob
-runs hourly, so that is four passes a night.
+`updateNotScheduled: false` stops it from rebasing open branches outside that window. The
+`infrastructure` RenovateJob runs hourly, so that is four passes a night.
+
+### Three RenovateJobs
+
+The operator runs one cron schedule per RenovateJob, in UTC. So each group of repos that needs its
+own pace gets its own job. The three jobs live in
+`kube/clusters/artemis/apps/kube-system/renovate-operator/jobs/`. They share the
+`default` RenovateJobTemplate, which holds the image, the provider, the secret and the webhook.
+
+| Job              | Repos                | Schedule (UTC)                      |
+| ---------------- | -------------------- | ----------------------------------- |
+| `infrastructure` | home-infra, dotfiles | every hour                          |
+| `containers`     | containers           | every 6 hours, at minute 30         |
+| `apps`           | every other repo     | Mondays, hourly from 04:15 to 10:15 |
+
+The `apps` job runs only on Monday because the `app` preset of `exikle/renovate-config` sets
+`schedule: ["before 6am on monday"]` (America/Toronto). Renovate does nothing to an app outside
+that window, and it also merges only inside it. One run per day gives an app one Monday run, before
+its CI finishes, so the update would merge one week later. Hourly runs inside the window let a PR
+open and merge on the same morning. The 04:15 to 10:15 range covers the window in both EST and
+EDT.
+
+A Forgejo webhook names its job in the URL (`?namespace=kube-system&job=<name>`). home-infra points
+at `infrastructure`, and containers points at `containers`. If you rename a job, change these URLs
+too. A new RenovateJob runs once when it is created, outside its schedule.
 
 `timestamp-optional` lets an update through `minimumReleaseAge` when its datasource publishes no
 release timestamp. The default (`timestamp-required`) holds such an update pending forever. That
@@ -457,8 +481,11 @@ The default becomes `block` in v45. At that point an ungranted host aborts the l
 trigger it here: `git.dcunha.io` (hostType `forgejo`, every discovered repo) and
 `registry.dcunha.io` (hostType `docker`, Artemis only).
 
-The grant lives in the `extraEnv` of the RenovateJob as `RENOVATE_HOST_RULES`
-(`kube/clusters/artemis/apps/kube-system/renovate-operator/jobs/job.yaml`), not in `.renovaterc.json5`:
+The grant lives in `RENOVATE_HOST_RULES` in the template of the `renovate-secret` ExternalSecret
+(`kube/clusters/artemis/apps/kube-system/renovate-operator/jobs/externalsecret.yaml`), not in
+`.renovaterc.json5`. The same value also gives Renovate a login for `ghcr.io`, with the GitHub
+token. Without it, a single 429 from ghcr.io stops the whole run before the merge step. The grant
+part is:
 
 ```text
 RENOVATE_HOST_RULES=[{"matchHost":"https://git.dcunha.io/","allowInternal":true},
@@ -470,8 +497,8 @@ RENOVATE_HOST_RULES=[{"matchHost":"https://git.dcunha.io/","allowInternal":true}
 `hostRules` as a whole is repo-settable, but `allowInternal` specifically is admin-only.
 Renovate strips it from repository and preset config, and a top-level occurrence raises a fatal
 `Security` validation error that stops the run. `internalHostAccess` is a self-hosted global
-option and is not repo-settable at all. One RenovateJob CR serves every autodiscovered repo, so
-the env var fixes Artemis, containers, dotfiles and frostlink at once.
+option and is not repo-settable at all. Every RenovateJob reads the same secret through the
+`default` template, so the env var fixes every repo at once.
 
 ### Two traps
 

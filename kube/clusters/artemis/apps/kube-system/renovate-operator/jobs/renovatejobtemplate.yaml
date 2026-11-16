@@ -1,15 +1,10 @@
 ---
-# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/renovate-operator.mogenius.com/renovatejob_v1alpha1.json
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/renovate-operator.mogenius.com/renovatejobtemplate_v1alpha1.json
 apiVersion: renovate-operator.mogenius.com/v1alpha1
-kind: RenovateJob
+kind: RenovateJobTemplate
 metadata:
-  name: artemis-cluster
+  name: default
 spec:
-  discoveryFilters:
-    - "!Exikle/extensions-default"
-    - "!Exikle/fingerjoin"
-    - "!Exikle/forgesync"
-    - "!Exikle/Rensaio"
   extraEnv:
     - name: RENOVATE_BRANCH_PREFIX
       value: "renovate-"
@@ -26,7 +21,6 @@ spec:
     requests:
       cpu: 100m
       memory: 128Mi
-  schedule: 0 * * * *
   secretRef: renovate-secret
   webhook:
     enabled: true

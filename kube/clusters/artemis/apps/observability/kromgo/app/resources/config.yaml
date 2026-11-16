@@ -84,7 +84,7 @@ badges:
     icon: si:proxmox
   - title: ""
     id: renovate_status
-    query: max(kube_job_status_succeeded{namespace="kube-system",job_name=~"artemis-cluster-exikle-artemis-cluster.*"})
+    query: max(kube_job_status_succeeded{namespace="kube-system",job_name=~"infrastructure-exikle-home-infra.*"})
     valueExpr: 'result == 1.0 ? "Passing" : "Failing"'
     colorExpr: 'result == 1.0 ? "blue" : "red"'
     icon: si:renovate
