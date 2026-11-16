@@ -1,11 +1,16 @@
 ---
 name: fix-flux
-description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease stuck or not progressing, a Kustomization not reconciling, an OCIRepository not resolving, or an ExternalSecret not syncing. Use for "flux is broken", "HelmRelease stuck", "kustomization not reconciling", "ExternalSecret not syncing", or when flux get shows a resource not ready. Scoped to the Artemis cluster.
+description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease stuck or not progressing, a Kustomization not reconciling, an OCIRepository not resolving, or an ExternalSecret not syncing. Use for "flux is broken", "HelmRelease stuck", "kustomization not reconciling", "ExternalSecret not syncing", or when flux get shows a resource not ready. Covers Artemis and Frostlink.
 ---
 
 # Skill: Fix Flux
 
 Diagnose and fix Flux reconciliation issues in home-infra.
+
+On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command (bare ones hit
+Artemis, and the MCP k8s tools do too). Use `mise run //clusters/frostlink/kubernetes:<task>`
+for `render-ks` and `sync-flux`. The source is an `OCIRepository` there too, and Flux's own
+Kustomizations (`flux-instance`, `flux-operator`, `flux-webhook`, `konflate`) are in `flux-system`.
 
 > Read `.agents/references/flux-patterns.md` before you diagnose. It covers stuck HelmRelease fixes, cross-namespace gotchas, and the CRD timing race.
 

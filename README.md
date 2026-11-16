@@ -41,6 +41,10 @@ Artemis is the homelab cluster. It runs [Talos Linux](https://www.talos.dev/) on
 bare-metal control planes and four workers (one with a GPU). [Flux CD](https://fluxcd.io/)
 reconciles it. When you push to main, the change appears in the cluster.
 
+Frostlink is one Talos node on Oracle Cloud (Ampere A1, 4 OCPU, 24 GB, ca-toronto-1). It is the
+public front door for [frostlink.dev](https://frostlink.dev) and the always-on host, reconciled
+by Flux the same way. Its rebuild runbook is `.agents/references/oci-rebuild.md`.
+
 ---
 
 ## 🗂️ Layout
@@ -55,13 +59,14 @@ reconciles it. When you push to main, the change appears in the cluster.
     │   ├── 📁 nodes       # Per-node machine config as Jinja2 templates
     │   └── 📁 schematics  # Image schematics: extensions and kernel args per node type
     └── 📁 bootstrap       # Rebuild the cluster from nothing (helmfile and seed resources)
+└── 📁 frostlink           # Same three folders: kubernetes, talos (one node), bootstrap
 
 📁 ansible                 # Host config for what is not in Kubernetes: atlas, pantheon, the Forgejo LXC
 📁 terraform               # OpenTofu: proxmox and unifi stacks
 ```
 
-CI packs each cluster folder into its own Flux artifact, so Flux on Artemis sees only
-`clusters/artemis/`. Flux reconciles only its `kubernetes/` folder. You run `talos/`,
+CI packs each cluster folder into its own Flux artifact, so Flux on a cluster sees only
+`clusters/<cluster>/`. Flux reconciles only its `kubernetes/` folder. You run `talos/`,
 `ansible/` and `terraform/` by hand through mise tasks.
 
 ---

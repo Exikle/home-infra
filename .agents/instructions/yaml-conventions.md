@@ -1,12 +1,14 @@
 ---
 paths:
-    - "clusters/artemis/kubernetes/**/*.yaml"
-    - "clusters/artemis/kubernetes/**/*.yml"
+    - "clusters/*/kubernetes/**/*.yaml"
+    - "clusters/*/kubernetes/**/*.yml"
 ---
 
 # YAML Conventions — home-infra
 
-How manifests in this repo are shaped, ordered, and kept clean. Checked against the live tree
+How manifests in this repo are shaped, ordered, and kept clean. These rules apply to both
+clusters (`clusters/artemis/kubernetes/` and `clusters/frostlink/kubernetes/`). Frostlink uses
+the same field ordering and has no YAML rule of its own. Checked against the live tree
 and the home-operations reference repos (onedr0p/home-ops et al.) on 2026-07-11.
 
 ## What the tooling does for you
@@ -215,7 +217,7 @@ form. It checks the rules. It does not define them.
 ## No Comments in Manifests
 
 Manifests carry configuration, not prose. Do not add explanatory comments to anything under
-`clusters/artemis/kubernetes/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
+`clusters/*/kubernetes/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
 history, no "keep this ordered" warnings, and no commented-out alternatives. Rationale belongs in
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.
@@ -240,5 +242,6 @@ replaced them with one-liners that point at `hermes.md` and the CI reference (no
 If a value is non-obvious enough that it seems to need a comment, write it up in the matching
 reference doc instead. Then, if the constraint is genuinely dangerous to violate, reviewers cite
 the doc. Example: the ordering of the CoreDNS `template` plugin is load-bearing, and its
-rationale runs about 40 lines. It lives in `.agents/references/networking.md` § CoreDNS, and the
-manifest itself is bare.
+rationale runs about 40 lines. It lives in `.agents/references/networking.md` § CoreDNS (Artemis),
+and the manifest itself is bare. Another example: the kopiur R2 credential key warning lives in
+`.agents/references/openebs-zfs.md` (Frostlink), not in the ExternalSecret.

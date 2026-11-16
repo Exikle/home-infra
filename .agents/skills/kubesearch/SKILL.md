@@ -1,12 +1,17 @@
 ---
 name: kubesearch
-description: Find real-world HelmRelease examples for an app by searching kubesearch.dev and other home-ops repos, then adapt the best match to this cluster's conventions. Use for "find examples for X", "how do others deploy X", "search kubesearch for X", or when deploying an unfamiliar app with no obvious reference. Scoped to the Artemis cluster.
+description: Find real-world HelmRelease examples for an app by searching kubesearch.dev and other home-ops repos, then adapt the best match to this cluster's conventions. Use for "find examples for X", "how do others deploy X", "search kubesearch for X", or when deploying an unfamiliar app with no obvious reference. Covers Artemis and Frostlink.
 compatibility: Requires outbound network access. It curls the static JSON of kubesearch.dev directly, with no MCP server and no API key. Read-only; it produces a manifest to adapt, it does not apply anything.
 ---
 
 # Skill: Kubesearch — Find Home-Ops Examples
 
 Search [kubesearch.dev](https://kubesearch.dev) for real HelmRelease examples from other home-ops clusters and adapt the best one to home-infra conventions.
+
+For Frostlink, adapt to `.agents/instructions/frostlink.md` instead of the Artemis conventions
+below. It uses an inline HTTPRoute on `external-gateway`, the `openebs-zfs` StorageClass, and
+`.agents/instructions/cluster-conventions.md` § Database & Cache for database dependencies. In the GitHub
+fallback, use `path:clusters/frostlink/kubernetes/apps` for Frostlink.
 
 kubesearch.dev indexes repos tagged `k8s-at-home` / `kubesearch` on GitHub and GitLab. Its search field is client-side JavaScript that loads static JSON files. This skill replicates that directly.
 

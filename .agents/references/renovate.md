@@ -3,11 +3,11 @@
 Rules live in three places. `.renovaterc.json5` at the repo root is deliberately bare of prose.
 Every "why" below used to be a comment block in it.
 
-| Layer          | Where                                      | What it holds                                                     |
-| -------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| Shared default | `default.json` in `exikle/renovate-config` | Policy every repo on git.dcunha.io shares                         |
-| Cluster preset | `cluster.json` in `exikle/renovate-config` | Rules shared by Artemis and Frostlink only                        |
-| This repo      | `.renovaterc.json5`                        | Everything Artemis-specific; its `packageRules` come last and win |
+| Layer          | Where                                      | What it holds                                                                                               |
+| -------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| Shared default | `default.json` in `exikle/renovate-config` | Policy every repo on git.dcunha.io shares                                                                   |
+| Cluster preset | `cluster.json` in `exikle/renovate-config` | Rules shared by Artemis and Frostlink only                                                                  |
+| This repo      | `.renovaterc.json5`                        | Artemis rules, plus Frostlink rules scoped to `clusters/frostlink/**`; its `packageRules` come last and win |
 
 Shared presets: <https://git.dcunha.io/exikle/renovate-config>. Read `default.json` and
 `cluster.json` there for the rules themselves. This doc does not restate them, and the preset wins
@@ -510,8 +510,8 @@ waiting for v45, and it would abort every run if the team missed some internal h
 
 ## Where Artemis and Frostlink deliberately differ
 
-Both repos have a `renovate.md`, and the mechanisms rhyme, so the divergences are easy to
-mis-copy. These are intentional:
+The two clusters share one `.renovaterc.json5`, and the mechanisms rhyme, so the divergences are
+easy to mis-copy. Frostlink's rules are scoped to `clusters/frostlink/**` (§ Frostlink below). These are intentional:
 
 |                            | Artemis                                                   | Frostlink                                                      |
 | -------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
@@ -523,3 +523,53 @@ mis-copy. These are intentional:
 | tuppr guard                | not needed (the Talos guard covers it)                    | `matchFileNames` + `minimumReleaseAge: "7 days"`               |
 
 Do not "harmonise" a row without reading the rationale of both files for it.
+
+---
+
+## Frostlink
+
+Frostlink has no `.renovaterc.json5` of its own. Its rules sit in the root file and carry
+`matchFileNames: ["clusters/frostlink/**"]`. Read the file for the rules. This section holds only
+the reasons. The two cluster presets and the guards above apply to both clusters.
+
+- **Single node.** A merged tuppr bump reboots the only node, with nowhere to drain. So the tuppr
+  upgrade files (`clusters/frostlink/kubernetes/apps/system-upgrade/tuppr/upgrades/`) never
+  automerge and wait 7 days. The never-automerge rule must stay after the broad automerge rules,
+  because later `packageRules` win. The Talos and Kubernetes groups come from the cluster preset.
+- **Why Talos and Kubernetes PRs open at once.** The talos-factory datasource and the
+  `ghcr.io/siderolabs/kubelet` and `registry.k8s.io/kube-proxy` tags publish no release timestamp,
+  so the 7-day wait cannot be enforced. `automerge: false` is what keeps them safe. The talosctl
+  pin in `.mise/config.toml` has a timestamp, so its 7 days apply.
+- **Kubernetes is pinned in two files.** `kubernetesupgrade.yaml` (kubelet) and
+  `clusters/frostlink/talos/patches/controlplane.yaml` (`kube-proxy`, needed because Talos 1.14
+  wants an explicit `image:` on a disabled `KubeProxyConfig`, see `oci-talos.md`). The Kubernetes
+  group moves them in one PR. CoreDNS is not in the group: its tag is Talos's own pin, not tied to
+  the Kubernetes version.
+- **Talos version in two places.** `talosupgrade.yaml` and the talosctl pin. The package-level Talos
+  rule keeps the CLI from drifting. Reason: an old client rejects a newer config document
+  (`oci-talos.md` § Client version matters).
+- **0.x guard matters here.** Most of the control plane is 0.x (flux-operator, kopiur, ksgate,
+  dragonfly-operator, both victoria-metrics charts). Without the zer0ver guard a 0.x minor
+  merges unattended.
+- **Container digests.** Only trusted digests (`/home-operations/`) automerge. Other digests wait
+  for a human.
+- **Signing.** `platformCommit` is on, so the instance key signs both branch and squash merges.
+  Do not remove `platformCommit` or the Forgejo Actions branch override without the other.
+- **Update window.** Frostlink updates at any time, not only in the Artemis window.
+- **Groups.** A one-dependency group never opens a PR ("Group Size Not Met"), so Cilium and Envoy
+  Gateway are not grouped. Cilium has its own never-automerge rule: it is the CNI of a single
+  node. Envoy Gateway follows the normal rules. The CNPG group batches updates that roll the
+  Postgres instances and move the primary, in a Saturday window. It does not prevent the outage
+  (`database.md` § Why clients must tolerate a primary change).
+- **Dashboards.** Grafana dashboard updates do not automerge on Frostlink.
+- **external-dns never automerges.** v0.22.0 changed the default annotation prefix with no
+  fallback and deleted a whole zone on Frostlink.
+- **helm-values is narrowed to `helmrelease.yaml`** (preset 8.0.0). A no-op while every
+  HelmRelease has that name. One under another filename loses `spec.values.image.*` extraction
+  with no error.
+- **`# renovate:` marker in `talosupgrade.yaml`.** It resolves through the talos-factory
+  datasource (`talosFactory` preset). Drop the preset and the marker stops resolving.
+- **Lock files.** None. There is no `.mise/mise.lock` on purpose, so lock-file maintenance does
+  nothing here.
+- **Upstream presets without tags.** `home-operations/renovate-config` publishes no tags, so the
+  shared default pins it by commit.

@@ -28,21 +28,37 @@ mise run //clusters/artemis/kubernetes:prune-pods                  # delete ever
 mise run //clusters/artemis/kubernetes:view-secret <ns> <secret>   # print a secret with every value decoded
 mise run //clusters/artemis/talos:render-config <node>             # render Jinja2 node config
 mise run //clusters/artemis/talos:apply-node <node>                # apply config live (no reboot)
+mise run //clusters/frostlink/kubernetes:<task>                    # the same task names for Frostlink (below)
+mise run //clusters/frostlink/talos:upgrade <version>              # Frostlink only: upgrades the ONE node, a full outage
+mise run //clusters/frostlink/bootstrap:phase1|phase2|tailnet      # Frostlink only: one-time rebuild, see oci-rebuild.md
 mise run //ai:lint-agents                                          # audit this repo's own agent config for drift
 mise run //:wt:new <type>/<slug>                                   # create a worktree + branch from main (AGENTS.md rule 7)
 mise run //:wt:rm <type>/<slug>                                    # remove it; refuses unless the branch is an ancestor of main
 mise run //:wt:ls                                                  # list worktrees
 ```
 
+Both clusters share the task names `apply-ks`, `delete-ks`, `suspend-ks`, `resume-ks`, `diff-ks`,
+`render-ks`, `sync-flux`, `toggle-kopiur`, `browse-pvc`, `debug-node`, `prune-pods` and
+`view-secret`. These differ on Frostlink:
+
+- `snapshot-pvc <ns> <claim>` takes one snapshot and waits. Artemis's takes optional filters.
+- `restore-pvc <ns> <ks> <claim> [offset]` is DESTRUCTIVE. Read `openebs-zfs.md` § Restore first.
+  It exists to catch a restore that "succeeds" onto an empty volume.
+- There is no `check-postgres`, `apply-node`, `reboot-node` or `reset-node` for Frostlink.
+  `talos:upgrade` is the only node verb, and it reboots the only node.
+- `render-ks` cannot render the root (`flux-system flux-system`) offline on either cluster. It
+  runs `flux build kustomization` against the live root instead.
+
 For the full task list, run `mise tasks --all`. A plain `mise tasks` at the repo root lists only
 the root tasks. Each folder keeps its tasks in its own `mise.toml`: `clusters/artemis/kubernetes/`,
-`clusters/artemis/talos/`, `clusters/artemis/bootstrap/`, `terraform/`, `ansible/` and `ai/`.
+`clusters/<cluster>/talos/`, `clusters/<cluster>/bootstrap/`, `terraform/`, `ansible/` and `ai/`.
 `[monorepo] config_roots` in `.mise/config.toml` lists these folders. The root holds the hidden
 `log` and `template` tasks and the `wt:` tasks.
 
 Confirm-gated tasks need `mise run --yes`. Every `talos` write verb (`apply-node`, `reboot-node`,
 `reset-node`, `shutdown-node`, `upgrade-k8s`, `upgrade-node`), `//terraform:apply`,
-`//ansible:apply` and `//clusters/artemis/bootstrap:cluster` ask first. From a non-interactive
+`//ansible:apply`, `//clusters/artemis/bootstrap:cluster`, `//clusters/frostlink/talos:upgrade` and
+`//clusters/frostlink/bootstrap:phase1|phase2|tailnet` ask first. From a non-interactive
 shell, they stop with exit 1 (`task requires confirmation but there was nobody to ask`). Put
 `--yes` before the task path: `mise run --yes //clusters/artemis/talos:apply-node <node>`. Do not
 pipe `printf 'y\n'` into it. The permission classifier blocks that form.
@@ -81,21 +97,28 @@ portion. Within a server, tools are `<target>_<tool>` (for example `victoria-log
 | `ai-general` | Grafana, SearXNG web search + URL fetch, VictoriaLogs (LogsQL), Context7 docs, SparkyFitness, Sonarr / Radarr / Prowlarr, seerr (formerly Jellyseerr). The app and its tools are `seerr` |
 | `memini`     | Cross-session semantic memory                                                                                                                                                            |
 
-- For read-only inspection, use the k8s MCP tools, not `kubectl`. They are pre-authenticated and
-  structured, and they have no shell quoting to get wrong.
+- For read-only inspection of **Artemis**, use the k8s MCP tools, not `kubectl`. They are
+  pre-authenticated and structured, and they have no shell quoting to get wrong.
+- **The MCP k8s tools point at Artemis only.** For Frostlink use `kubectl get ... --context frostlink`
+  (flag after the verb, so `Bash(kubectl get:*)` still matches) and
+  `talosctl ... --talosconfig clusters/frostlink/talosconfig`. An agent's tool calls do not get the
+  cluster kubeconfig of a mise shell, and `~/.zshenv` merges both clusters with `artemis` as the
+  current context. So a bare `kubectl` hits Artemis with no warning.
 - Web lookups go through the SearXNG tools, never a built-in web-search tool.
 - There is no repo-wide `KUBECONFIG` or `TALOSCONFIG`. Each cluster's files live in its own
-  folder (`clusters/artemis/kubeconfig`, `clusters/artemis/talosconfig`, gitignored), and
-  `clusters/artemis/mise.toml` sets them for the tasks of that cluster. Outside a task, pass
-  `--context` explicitly.
+  folder (`clusters/<cluster>/kubeconfig`, `clusters/<cluster>/talosconfig`, gitignored), and
+  `clusters/<cluster>/mise.toml` sets them, with `KUBE_CONTEXT`, for the tasks of that cluster.
+  Outside a task, pass `--context` explicitly.
 - There are six MCP registration files across this machine. A tier change means that you edit
   all of them. `.agents/references/memory-config.md` § Six registration files is canonical.
 
 ## Subagents
 
 How and when to delegate is in `~/.agents/AGENTS.md` § Delegation and context. The Bash-call
-rules are in `~/.agents/rules/bash-calls.md`. These rules are specific to Artemis:
+rules are in `~/.agents/rules/bash-calls.md`. These rules are specific to the clusters:
 
 - Name the forbidden verbs in the brief. "Follow the repo conventions" is not enough. Write
   "do not commit, do not push, do not run `mise run //clusters/artemis/kubernetes:apply-ks`" in those words.
+  For Frostlink also write "use `kubectl --context frostlink`, not the MCP tools". Otherwise the
+  agent reports Artemis's state as Frostlink's.
 - `mise run //clusters/artemis/kubernetes:apply-ks` applies the tree of the worktree that you run it from (`AGENTS.md` rule 7).

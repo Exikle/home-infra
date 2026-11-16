@@ -1,13 +1,17 @@
 ---
 paths:
-    - "clusters/artemis/kubernetes/**"
+    - "clusters/*/kubernetes/**"
 ---
 
 # Cluster Conventions — home-infra
 
+These rules cover both clusters. Items that hold for one cluster only carry a label. Frostlink's
+differences are in `frostlink.md` (it loads on `clusters/frostlink/kubernetes/**`, and wins there).
+Sections without a label are shared.
+
 ## App Directory Structure
 
-Every app is one directory under `clusters/artemis/kubernetes/apps/<namespace>/`. The directory holds exactly one
+Every app is one directory under `clusters/<cluster>/kubernetes/apps/<namespace>/`. The directory holds exactly one
 `ks.yaml`. That file can contain several Flux Kustomization documents, one per sub-directory.
 There is never more than one `ks.yaml` per app directory. There is never a grouping directory
 between a namespace and its apps. Add `- ./<app>/ks.yaml` to the namespace `kustomization.yaml`
@@ -29,10 +33,11 @@ directory, listed alphabetically. There is no `rbac/`, `monitoring/` or `network
 The five canonical shapes are single, multi-component, operator/operand, CR collection, and fleet.
 Their directory trees and tradeoffs are in `.agents/references/app-structure.md`.
 
-## Helm / app-template v5
+## Helm / app-template (v5 on Artemis)
 
 - Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` (note: `-labs`, not `-bjw-s`). Renovate
-  bumps the tag fleet-wide. Recover it with the command in `AGENTS.md` § Make a version fact a command
+  bumps the tag fleet-wide. Recover it with the command in `AGENTS.md` § Make a version fact a
+  command (for Frostlink, use `clusters/frostlink/` in its path)
 - Every app gets its own standalone `OCIRepository`. Never share or reuse one
 - `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`
 - OCIRepository API version: `source.toolkit.fluxcd.io/v1` (not `v1beta2`)
@@ -40,8 +45,8 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
 - Default security context: `runAsNonRoot: true`, `runAsUser: 1000`, `runAsGroup: 1000`, `fsGroupChangePolicy: OnRootMismatch`
 - Container security: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities: {drop: ["ALL"]}`
 - Routes: defined inline under `route.app:` in helmrelease values, NOT as standalone HTTPRoute files
-- PVC: `existingClaim: <app>` when using the kopiur component
-- NFS media mount: server, path and mount point are in `.agents/references/storage.md`
+- (Artemis) PVC: `existingClaim: <app>` when using the kopiur component
+- (Artemis) NFS media mount: server, path and mount point are in `.agents/references/storage.md`
 
 ## Secrets
 
@@ -55,7 +60,9 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
 - `dataFrom.extract.key: <1password-item-name>` pulls all fields from item
 - Template field names must exactly match 1Password field names. A mismatch gives an empty secret with no error
 
-## Deployment Philosophy
+## Deployment Philosophy (Artemis)
+
+Frostlink also uses a shared data layer, but its wiring differs. See `frostlink.md` § Database and cache.
 
 Use the shared data layer first. The shared CNPG cluster and the shared Dragonfly in the
 `database` namespace are the default for new apps.
@@ -78,25 +85,27 @@ change from the old policy applies when an app needs a real database: share it, 
 
 ## Common Mistakes — Quick Reference
 
-| Pattern                           | Correct                                                          | Wrong                                     |
-| --------------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
-| Secret store name                 | `onepassword-connect`                                            | `onepassword`, `1password-connect`        |
-| Gateway (internal)                | `internal-gateway`                                               | `internal`, `envoy-internal`              |
-| Gateway (public, either domain)   | `edge-gateway`                                                   | `external-gateway`, `edge`, `towonel`     |
-| Gateway namespace                 | `network`                                                        | `default`, `networking`                   |
-| OCIRepository API                 | `source.toolkit.fluxcd.io/v1`                                    | `v1beta2`                                 |
-| ExternalSecret API                | `external-secrets.io/v1`                                         | `v1beta1`                                 |
-| Flux Kustomization API            | `kustomize.toolkit.fluxcd.io/v1`                                 | `v1beta2`                                 |
-| Container image tag               | `v1.0.0@sha256:abc...`                                           | `latest`, bare `v1.0.0`                   |
-| OCIRepository chart tag           | bare version `2.5.0` (no SHA)                                    | SHA-pinned (not used for Helm charts)     |
-| Timezone                          | never set `TZ`, k8tz handles it                                  | `TZ: America/Toronto`                     |
-| HTTPRoute location                | inline in helmrelease values                                     | standalone HTTPRoute file                 |
-| Route gateway attachment          | exactly one of internal/edge                                     | one route on two gateways                 |
-| OCIRepository scope               | one per app                                                      | shared across apps                        |
-| Storage class                     | `miroir` (default) or `miroir-local`, nothing else exists        | `ceph-block`, `cephfs`, `ceph-filesystem` |
-| Sonarr/Radarr/Prowlarr probe path | `/ping` (each has its own path, check the app before you assume) | `/`, `/health`                            |
+Rows marked (Artemis) do not hold on Frostlink. See `frostlink.md` § Common mistakes.
 
-## GPU Workloads
+| Pattern                            | Correct                                                          | Wrong                                     |
+| ---------------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
+| Secret store name                  | `onepassword-connect`                                            | `onepassword`, `1password-connect`        |
+| Gateway, internal (Artemis)        | `internal-gateway`                                               | `internal`, `envoy-internal`              |
+| Gateway, public (Artemis)          | `edge-gateway`                                                   | `external-gateway`, `edge`, `towonel`     |
+| Gateway namespace                  | `network`                                                        | `default`, `networking`                   |
+| OCIRepository API                  | `source.toolkit.fluxcd.io/v1`                                    | `v1beta2`                                 |
+| ExternalSecret API                 | `external-secrets.io/v1`                                         | `v1beta1`                                 |
+| Flux Kustomization API             | `kustomize.toolkit.fluxcd.io/v1`                                 | `v1beta2`                                 |
+| Container image tag                | `v1.0.0@sha256:abc...`                                           | `latest`, bare `v1.0.0`                   |
+| OCIRepository chart tag            | bare version `2.5.0` (no SHA)                                    | SHA-pinned (not used for Helm charts)     |
+| Timezone                           | never set `TZ`, k8tz handles it                                  | `TZ: America/Toronto`                     |
+| HTTPRoute location                 | inline in helmrelease values                                     | standalone HTTPRoute file                 |
+| Route gateway attachment (Artemis) | exactly one of internal/edge                                     | one route on two gateways                 |
+| OCIRepository scope                | one per app                                                      | shared across apps                        |
+| Storage class (Artemis)            | `miroir` (default) or `miroir-local`, nothing else exists        | `ceph-block`, `cephfs`, `ceph-filesystem` |
+| Sonarr/Radarr/Prowlarr probe path  | `/ping` (each has its own path, check the app before you assume) | `/`, `/health`                            |
+
+## GPU Workloads (Artemis)
 
 There are two allocation mechanisms, split by card, never by app. DRA claims serve the Arc A380.
 `generic-device-plugin` serves the iGPU of ymir, for cross-namespace sharing (a `ResourceClaim`

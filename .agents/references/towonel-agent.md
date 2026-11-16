@@ -1,8 +1,8 @@
 # towonel Agent — home-infra
 
 This file explains how Artemis is reached from the public internet. The decision and its history are
-in issue #3082. The frostlink side is documented in the frostlink repo: its towonel reference and
-its networking reference (§ The front door).
+in issue #3082. The frostlink side is documented in `towonel.md` and
+`oci-networking.md` (§ The front door).
 
 ## What the agent does (Shape 1)
 
@@ -28,7 +28,7 @@ opens no inbound port.
   `10.42.0.0/16`, the agent pod CIDR. Without it, every request looks like it comes from the agent
   and the per-IP rate limits rate-limit everyone at once.
 - **No CrowdSec on Artemis.** A `403` or challenge page on a public site is frostlink's CrowdSec.
-  Fix it in the frostlink repo (`crowdsec.md`). LAN traffic is not checked.
+  Fix it on Frostlink (`crowdsec.md`). LAN traffic is not checked.
 - **SNI on the backhaul.** frostlink validates the Artemis certificate with SNI `edge.dcunha.io`,
   and with `dcunha.io` for the apex, because `edge-gateway` has a separate apex listener.
 
@@ -124,7 +124,7 @@ curl -sS -X POST https://hub.frostlink.dev/v1/invites \
 
 **The invite carries the port grant, not the agent config.** Without `tcp_ports` for 15001, the edge
 declines to bind the listener and neither side logs an error. The `towonel invite create --help`
-output in the frostlink pod has the exact flags, and the `towonel-ops` skill in the frostlink repo
+output in the frostlink pod has the exact flags, and the `towonel-ops` skill
 covers the call. Check the request body above against them before use.
 
 The `token` (`tt_inv_2_…`) in the response is the only secret. It embeds the hub identity, so the

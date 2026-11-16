@@ -1,6 +1,6 @@
 ---
 name: talos-ops
-description: Perform Talos node operations — apply a config change, add or change a system extension, upgrade Talos or Kubernetes, reboot or reset a node. Use for "apply talos config", "upgrade talos node", "reboot node", "add a talos extension", or "node config change". Scoped to the Artemis cluster.
+description: Perform Talos node operations — apply a config change, add or change a system extension, upgrade Talos or Kubernetes, reboot or reset a node. Use for "apply talos config", "upgrade talos node", "reboot node", "add a talos extension", or "node config change". Covers Artemis and Frostlink.
 compatibility: Requires `talosctl` (mise pins it to the cluster's running Talos version, and a mismatched client is the usual failure) and a working talosconfig. Node operations are disruptive. Never widen the blast radius beyond the node the user named.
 ---
 
@@ -9,6 +9,9 @@ compatibility: Requires `talosctl` (mise pins it to the cluster's running Talos 
 Node operations for home-infra (Talos Linux with render-config / Jinja2 templates).
 
 > Also read `.agents/references/talos.md` for node IPs and config background.
+
+On Frostlink (one node, so every upgrade or reboot is a full outage), read `frostlink.md` in this
+folder first. The steps below are Artemis.
 
 Goal: apply one Talos change to the named node(s) and confirm that the node came back healthy.
 

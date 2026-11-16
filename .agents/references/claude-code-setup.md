@@ -21,11 +21,14 @@ Read this file when you touch a hook, add a skill or subagent, or wonder why a g
   general-purpose override, and it means nothing without a verified snapshot. The rule matches the
   bare word `pvc`, so it also fires on unrelated objects _named_ `pvc-…` (a MiroirVolume, for
   example).
-- The hooks are shared with frostlink. `session-context.sh`, `validate-manifest.sh`,
+- The hooks are shared with the standalone `~/frostlink` checkout until it is retired.
+  `session-context.sh`, `validate-manifest.sh`,
   `guard-rules.json` and `gen-guards.py` are vendored copies of
   `~/dotfiles/home/claude/agent-hooks/`. Push changes out with the `sync-hooks.sh` of that
   directory. Repo-specific rules carry a per-rule `"repos": [...]` field in `guard-rules.json`,
-  and `.claude/hooks/guard-repo` names which set this repo emits.
+  and `.claude/hooks/guard-repo` names which set this repo emits. This repo emits `home-infra`,
+  the set for both clusters. Its `talosctl upgrade/reboot/shutdown` rule blocks any `talosctl` call
+  that does not name Artemis, because a bare call may hit the single Frostlink node.
 - Skill symlinks: `.claude/skills/<name>` → `.agents/skills/<name>`. A new skill needs the
   symlink, or Claude Code cannot see it. opencode reads `.agents/skills/` directly.
 - Subagent symlinks: `.claude/agents/<name>.md` → `.agents/agents/<name>.md`.

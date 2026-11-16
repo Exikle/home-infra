@@ -216,8 +216,8 @@ DNS of Headscale sends `dcunha.io` to `10.10.99.1`. This is how git SSH works re
 port-forwarded. Public `dcunha.io` HTTPS now goes through towonel, but SSH does not
 (§ Raw TCP ports on a shared gateway).
 
-- The policy, split DNS and the device list live in the Frostlink repo, in its `headscale` app and
-  its `networking.md` § Tailnet policy.
+- The policy, split DNS and the device list live in Frostlink, in its `headscale` app and
+  `oci-networking.md` § Tailnet policy.
 - arcana keeps subnet routes **off**. It already has HME and LAB NICs, and if it accepts the routes,
   Windows sends that LAN traffic through the tailnet.
 

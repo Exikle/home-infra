@@ -2,6 +2,8 @@
 
 Mark each item PASS, FAIL, or N/A.
 
+For Frostlink, run the O5 command on `clusters/frostlink/kubernetes/apps/*/*/app/ocirepository.yaml`.
+
 | #   | Check                                                                                                                                                                                                                                                                         | Result |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | O1  | Schema comment present: `# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/ocirepository_v1.json`                                                                                                                              |        |

@@ -1,7 +1,10 @@
 # Module: ExternalSecret Template
 
 Add this only if the app needs secrets from 1Password. For app-template apps, put it inline in
-`helmrelease.yaml`, not in a separate file:
+`helmrelease.yaml`, not in a separate file.
+
+Frostlink: use the key `app:` (not `env:`) and set `target.name: <app>`. Reference the Secret from a
+container with `envFrom: [{secretRef: {name: <app>}}]` or by name in `secretKeyRef`.
 
 ```yaml
 spec:

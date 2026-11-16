@@ -1,6 +1,6 @@
 ---
 name: cluster-status
-description: Take a fast read on overall cluster health (failing pods, unready Flux resources, node and storage state) and report what is actually broken. Use for "cluster status", "what's broken", "health check", "anything down", or "quick status". Scoped to the Artemis cluster.
+description: Take a fast read on overall cluster health (failing pods, unready Flux resources, node and storage state) and report what is actually broken. Use for "cluster status", "what's broken", "health check", "anything down", or "quick status". Covers Artemis and Frostlink.
 ---
 
 # Skill: Cluster Status
@@ -28,6 +28,13 @@ flux get all -A | grep -i suspend
 ```
 
 If local kubectl is unavailable, use the `-ops` k8s MCP tools. List them and match on the server and tool portion (resources list/get, events list), as `.agents/instructions/tooling.md` § MCP servers describes.
+
+## Frostlink
+
+Frostlink is a single node (`frostlink`, ARM64, Oracle Cloud). The MCP k8s tools point at Artemis,
+so there is no MCP fallback. Run the same commands with `--context frostlink` on every one,
+because a bare `kubectl` or `flux` in an agent shell hits Artemis. A suspended root or app is a
+finding, not noise.
 
 ## Output Format
 

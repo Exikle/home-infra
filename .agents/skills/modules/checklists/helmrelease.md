@@ -2,6 +2,11 @@
 
 Mark each item PASS, FAIL, or N/A.
 
+Frostlink differences (H30 to H32 are Artemis items): the only gateway is `external-gateway`, so a
+route has `parentRefs` on `external-gateway` with `namespace: network`. There is no internal gateway.
+The route is under `route.app:` in values, never a standalone HTTPRoute file. Field order follows
+`.agents/instructions/frostlink.md` plus `.agents/skills/modules/checklists/yaml-sorting.md`.
+
 ## Structure & schema
 
 | #   | Check                                                                                                                                                                                                             | Result |

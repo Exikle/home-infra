@@ -1,11 +1,24 @@
 ---
 name: deploy-app
-description: Deploy a new app into the Flux cluster end to end — scaffold the ks.yaml and app/ manifests, wire the OCIRepository, HelmRelease, routes, storage, and any ExternalSecret, then test-apply before committing. Use for "deploy X", "add app X", "set up X in namespace Y", "create a new app", or "onboard X to the cluster". Scoped to the Artemis cluster.
+description: Deploy a new app into the Flux cluster end to end — scaffold the ks.yaml and app/ manifests, wire the OCIRepository, HelmRelease, routes, storage, and any ExternalSecret, then test-apply before committing. Use for "deploy X", "add app X", "set up X in namespace Y", "create a new app", or "onboard X to the cluster". Covers Artemis and Frostlink.
 ---
 
 # Skill: Deploy App
 
 Deploy a new application to home-infra with the canonical GitOps workflow.
+
+For Frostlink, the paths and tasks use `clusters/frostlink/kubernetes/apps/<namespace>/<app>/` and
+`mise run //clusters/frostlink/kubernetes:<task>`. Read `.agents/instructions/frostlink.md` in place
+of the two Artemis convention files, and `.agents/references/oci-networking.md` and
+`.agents/references/openebs-zfs.md` in place of `networking.md` and `storage.md`. The differences:
+
+- The only route is `external-gateway`, with a hostname like `myapp.frostlink.dev`. An HTTPRoute on
+  it gets its DNS record automatically. A manual `DNSEndpoint` does not.
+- Persistence uses the `openebs-zfs` StorageClass.
+- A new namespace gets `components/alerts` in its `kustomization.yaml` (`clusters/frostlink/kubernetes/apps/network/`
+  is a good model). Add no PodSecurity labels, because the namespace inherits `baseline`. A
+  privileged one needs the justification in `.agents/references/towonel.md` § Why its own namespace.
+- Kubesearch results adapt with `.agents/instructions/frostlink.md`, not the Artemis conventions.
 
 Before you write any files, read these files:
 

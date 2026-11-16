@@ -218,3 +218,33 @@ plaintext, and an item-wide strategy corrupts it.
 - External hostnames for cluster traffic: always use `svc.cluster.local`.
 - PVC size in the helmrelease: it belongs in `KOPIUR_CAPACITY` in `ks.yaml`.
 - `spec.patches` in an app `ks.yaml`: the root Kustomization overwrites it. See above.
+
+## Frostlink
+
+Everything above applies to Frostlink too, with its own tasks (`mise run //clusters/frostlink/kubernetes:<task>`)
+and `--context frostlink` on `kubectl` and `flux`. Only the differences are here.
+
+- **Source.** `FluxInstance/flux` syncs `kind: OCIRepository` from
+  `oci://registry.frostlink.dev/exikle/frostlink` at `interval: 1m`. CI builds and pushes it.
+  `kubectl get gitrepository -A --context frostlink` returns nothing, so
+  `mise run //clusters/frostlink/kubernetes:sync-flux gitrepo` is a no-op that looks like it
+  worked. Versions: `kubectl get fluxinstance flux -n flux-system --context frostlink -o jsonpath='{.status.components}'`.
+- **Do not sync before CI has rebuilt the artifact.** It re-resolves the pre-commit digest and
+  reverts what you landed. Check the digest changed:
+  `kubectl get ocirepository flux-system -n flux-system --context frostlink -o jsonpath='{.status.artifact.revision}{"\n"}'`.
+  This holds during a rebuild too (`oci-rebuild.md`).
+- **`prune: false`** is set on `flux-instance` and on `kube-system/coredns`. Everything else
+  prunes. Some infrastructure `ks.yaml` files use `interval: 30m`
+  (`grep -rh 'interval:' clusters/frostlink/kubernetes/apps/*/*/ks.yaml | sort | uniq -c`).
+  A few children override the injected `retryInterval: 1m` on purpose.
+- **Root patch.** The FluxInstance that carries the child-defaults patch is
+  `clusters/frostlink/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`. The
+  `spec.patches` rule above applies unchanged.
+- **kopiur `wait: true` stall.** Frostlink dropped `wait: true` and gate on the HelmRelease for
+  `fediverse/apoci`, `fediverse/gotosocial` and `matrix/continuwuity`. `Restore` can stall the
+  same way (`openebs-zfs.md` § No `ssa:` annotation). Diagnostic:
+  `kubectl get snapshotschedule -A -o json --context frostlink`.
+- **`ks.yaml` changes cannot be tested locally.** `apply-ks <ns> <ks>` applies the app path, not
+  the Kustomization CR, and a running root reverts a patched live CR. With the root suspended,
+  `apply-ks flux-system flux-system` may render the child CRs from the local tree. That is not
+  yet tried. Pushing is the only proven test, so plan to verify after the push.

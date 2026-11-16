@@ -1,12 +1,15 @@
 ---
 name: restore-drill
-description: Check whether backups are in a state that could actually be restored — CNPG backup and WAL archiving status, and kopiur snapshot freshness. Use for "backup health check", "CNPG backup status", "restore drill", "are backups working", or "WAL archiving". It reports. It does not restore. To actually restore, use `kopiur-restore`. For overall cluster health rather than backups, use `cluster-status`. Scoped to the Artemis cluster.
+description: Check whether backups are in a state that could actually be restored — CNPG backup and WAL archiving status, and kopiur snapshot freshness. Use for "backup health check", "CNPG backup status", "restore drill", "are backups working", or "WAL archiving". It reports. It does not restore. To actually restore, use `kopiur-restore`. For overall cluster health rather than backups, use `cluster-status`. Covers Artemis and Frostlink.
 compatibility: Read-only. It uses plain `kubectl get` against the CNPG and kopiur CRDs, and needs no plugin. It does not perform a test restore, because CNPG recovery overwrites the cluster. Do that only on an explicit request.
 ---
 
 # Skill: Restore Drill
 
 This skill is a read-only check that CNPG database backups exist and that a recovery path is viable. It does NOT perform an actual restore.
+
+On Frostlink, read `frostlink.md` in this folder first. Its database backups use the barman plugin
+to R2, it has no separate WAL volume, and it adds a deep-verify check. The steps below are Artemis.
 
 ## Step 1: Confirm Backups Exist
 

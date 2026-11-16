@@ -103,6 +103,23 @@ immediately after `git push` applies the pre-commit revision and silently revert
 landed. `✔ applied revision` alone proves nothing. Make sure that the live object still carries
 your field.
 
+## Frostlink
+
+The sequence is the same, with the Frostlink tasks:
+`mise run //clusters/frostlink/kubernetes:suspend-ks flux-system flux-system`, then the same for
+`<ns> <ks-name>`, then `apply-ks`, `sync-flux` and `resume-ks`. Run each from the worktree.
+
+- Frostlink has its own CI run, `Push OCI Artifact (Frostlink)`, and it runs only when
+  `clusters/frostlink/kubernetes/**` changed. A change to Artemis does not rebuild it, and the
+  reverse. Wait for the run of the cluster that you changed.
+- Check that the artifact carries your commit with the Frostlink context:
+  `kubectl get ocirepository -n flux-system flux-system --context frostlink -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.
+  The artifact name is `exikle/frostlink`, not `artemis-cluster`.
+- A commit that touches both clusters needs both runs green, and both clusters suspended and
+  resumed. Name each cluster in its own task path.
+- It is one node. A change that restarts a core pod (Cilium, CoreDNS, the Envoy front door) is an
+  outage of every public site. Say so in the commit, and test it with the user watching.
+
 ## Squash rules
 
 - One commit per distinct feature or fix.

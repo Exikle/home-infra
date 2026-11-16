@@ -5,6 +5,8 @@ is present (only allowed for the exceptions in `cluster-conventions.md` § Secre
 
 Mark each item PASS, FAIL, or N/A.
 
+Frostlink adds one check: `target.name` is set explicitly.
+
 | #   | Check                                                                               | Result |
 | --- | ----------------------------------------------------------------------------------- | ------ |
 | E1  | app-template app: defined inline under `values.externalSecrets`, no standalone file |        |

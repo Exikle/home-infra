@@ -10,6 +10,9 @@ what is specific to this repo lives here.
 - There is no staging cluster, so the reason for a live change matters more than usual. Record
   what you applied with `mise run //clusters/artemis/kubernetes:apply-ks`, what the user confirmed, and anything left
   suspended.
+- Frostlink is one node with no failover. A journal entry for a Talos or Kubernetes upgrade says
+  what the outage window was and whether the node came back clean. There is no second node to
+  compare against next time.
 - memini gets non-obvious operational discoveries: a quirk, a failure mode, or a workaround that
   would cost real time to re-derive. `.agents/` gets conventions, architecture and policy.
   Anything that a future agent must read _before_ it starts work belongs in a version-controlled

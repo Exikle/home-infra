@@ -21,7 +21,13 @@ PATH_RE = re.compile(
     r'/[A-Za-z0-9_./\*-]+)`'
 )
 
-MACHINE_LOCAL = {".claude/session-journal.md"}
+MACHINE_LOCAL = {
+    ".claude/session-journal.md",
+    "clusters/artemis/kubeconfig",
+    "clusters/artemis/talosconfig",
+    "clusters/frostlink/kubeconfig",
+    "clusters/frostlink/talosconfig",
+}
 
 def candidates(files: list[Path]) -> list[tuple[Path, int, str]]:
     out = []

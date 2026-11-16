@@ -4,6 +4,13 @@ Mark each item PASS, FAIL, or N/A.
 
 Authoritative spec field order: `.agents/instructions/yaml-conventions.md` § ks.yaml.
 
+Frostlink differences (K8, K10, K11, K13 to K16 are Artemis items):
+
+- If Kopiur is used: `dependsOn` includes `kopiur-repository` (namespace `kopiur-system`).
+- If Kopiur is used: `components` includes `../../../../components/kopiur` (no `/backup`), and
+  `postBuild.substitute` sets `KOPIUR_APP` and `KOPIUR_CAPACITY`.
+- `wait` and `healthChecks` details are in `templates/ks.md`.
+
 | #   | Check                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Result |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | K1  | Schema comment present: `# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json`                                                                                                                                                                                                                                                                                                                                                            |        |

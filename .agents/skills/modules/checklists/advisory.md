@@ -4,6 +4,15 @@ These are judgment-call recommendations. They are not hard convention violations
 
 Findings go in the `### ADVISORY` section of the report, separate from FAIL and WARN. Never auto-fix advisory items. A human must review them.
 
+Frostlink differences:
+
+- A3: the StorageClass is `openebs-zfs`. `miroir` does not exist there.
+- A7: the root Kustomization injects `retryInterval: 1m`. Do not flag a missing one. Flag a `ks.yaml` that
+  overrides it with a long value (`.agents/references/flux-patterns.md` § Key Rules).
+- A10: the only gateway is `external-gateway`, so any route is public. Flag it if nothing sits in front of it
+  (SecurityPolicy or an app login). Confirm that this is intentional.
+- A18: the scrape object is a `VMServiceScrape` or `ServiceMonitor`. Use `--context frostlink` for any `kubectl`.
+
 ---
 
 ## Storage & Data Layer

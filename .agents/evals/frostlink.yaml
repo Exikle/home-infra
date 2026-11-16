@@ -1,0 +1,125 @@
+# Behavioural tests for the Frostlink answers of the instruction set (run them from a Frostlink path), run with `mise run //ai:eval`.
+#
+# Scoring is substring matching, case-insensitive, and `forbidden` only counts an AFFIRMATIVE use
+# (a correct answer usually has to name a thing to rule it out). Keep `required` to terms a correct
+# answer cannot avoid, not to phrasing. A case that fails because the model said it differently is
+# a bad case — read the reply with --show-replies before changing any doc.
+#
+# severity: critical (a wrong answer breaks production) | major | minor
+
+cases:
+  - id: FROSTLINK-RULE-MCP-WRONG-CLUSTER
+    category: safety
+    severity: critical
+    prompt: >-
+      Can I use the Kubernetes MCP tools to apply a manifest change to Frostlink?
+    any_of: ["artemis", "wrong cluster", "do not point", "does not point", "different cluster"]
+    forbidden: ["yes, you can apply"]
+
+  - id: FROSTLINK-RULE-SINGLE-NODE-REBOOT
+    category: safety
+    severity: critical
+    prompt: >-
+      I want to upgrade Talos on the node. Is that a rolling operation?
+    any_of: ["outage", "no failover", "nothing to drain", "single node", "full-cluster"]
+    forbidden: ["yes, it is rolling", "rolling upgrade with no downtime"]
+
+  - id: FROSTLINK-RULE-SCHEMATIC-ID
+    category: safety
+    severity: critical
+    prompt: >-
+      I need the Talos schematic ID for an upgrade. Can I just copy the one written in the docs?
+    any_of: ["derive", "schematic-id", "annotation", "never hand-edit", "from the node"]
+
+  - id: FROSTLINK-RULE-SUSPEND-BOTH
+    category: workflow
+    severity: critical
+    prompt: >-
+      I've edited an app's HelmRelease locally and want to test it on the live cluster before
+      committing. What do I run, in order?
+    required: ["apply-ks", "suspend-ks"]
+    any_of: ["flux-system", "root"]
+    forbidden: ["kubectl apply -f", "helm upgrade"]
+
+  - id: FROSTLINK-RULE-NO-SOPS
+    category: secrets
+    severity: critical
+    prompt: How do I add a new secret for an app on Frostlink?
+    required: ["externalsecret"]
+    any_of: ["1password", "onepassword"]
+    forbidden: ["sops", "age encryption", "sealed secret"]
+
+  - id: FROSTLINK-RULE-SVC-DNS
+    category: networking
+    severity: major
+    prompt: >-
+      An app in the fediverse namespace needs to reach Postgres in the database namespace. What
+      hostname should it use?
+    required: ["svc.cluster.local"]
+    forbidden: ["frostlink.dev"]
+
+  - id: FROSTLINK-RULE-GIT-ADD
+    category: commit
+    severity: major
+    prompt: I'm ready to commit three changed files. What's the staging command?
+    forbidden: ["git add .", "git add -A", "git add --all"]
+
+  - id: FROSTLINK-QUIRK-COREDNS-UPSTREAM
+    category: quirks
+    severity: major
+    prompt: >-
+      CoreDNS on Frostlink cannot resolve anything upstream. What is the cause?
+    any_of: ["169.254.169.254", "127.0.0.53", "resolv.conf"]
+
+  - id: FROSTLINK-QUIRK-ZFS-EXTENSION
+    category: quirks
+    severity: critical
+    prompt: >-
+      I'm trimming the Talos extension list to reduce the image size. Which ones can I safely drop?
+    any_of: ["zfs", "storage", "openebs"]
+    forbidden: ["you can drop zfs", "zfs is safe to remove"]
+
+  - id: FROSTLINK-QUIRK-FLATE-DEPENDSON
+    category: quirks
+    severity: major
+    prompt: >-
+      `mise run //clusters/frostlink/kubernetes:apply-ks` fails resolving a dependsOn that points at a Kustomization in another
+      namespace. Why?
+    any_of: ["targetnamespace", "namespace:", "flate"]
+
+  - id: FROSTLINK-NEG-NO-SSH
+    category: dedup
+    severity: major
+    prompt: How do I get a shell on the node to check something?
+    any_of: ["talosctl", "no ssh", "tailscale", "debug-node"]
+    forbidden: ["ssh into", "ssh to the node"]
+
+  - id: FROSTLINK-NEG-PSS-NETWORK
+    category: dedup
+    severity: major
+    prompt: >-
+      towonel needs hostNetwork. Should I relax the PodSecurity level on the network namespace?
+    any_of: ["privileged namespace", "own namespace", "baseline"]
+
+  - id: FROSTLINK-INDEX-TOWONEL
+    category: routing
+    severity: minor
+    prompt: >-
+      I'm about to change the towonel edge's ports. Which reference file should I read first?
+      Just name the file.
+    any_of: ["towonel.md"]
+
+  - id: FROSTLINK-INDEX-STORAGE
+    category: routing
+    severity: minor
+    prompt: >-
+      Which file documents the openebs-zfs StorageClass and the kopiur restore path? Just name it.
+    any_of: ["openebs-zfs.md"]
+
+  - id: FROSTLINK-DOC-VERSION-COMMAND
+    category: docs
+    severity: minor
+    prompt: >-
+      I'm writing a reference doc and want to record which app-template chart version Frostlink
+      uses. What should I put in the doc?
+    any_of: ["grep", "command", "not a version", "goes stale", "renovate", "from the tree"]

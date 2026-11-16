@@ -3,6 +3,12 @@
 The schema line is the one the hook writes for app-template. A non-app-template chart uses
 `https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json`.
 
+Frostlink: the schema URL pins the app-template tag
+(`.../helm-charts/app-template-<app-template-tag>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`),
+with the tag from the app's `ocirepository.yaml`. The route uses `external-gateway` in
+`namespace: network` (the only gateway), so ignore the Artemis gateway table below. The field order
+is `.agents/instructions/frostlink.md`.
+
 Field ordering is defined in `.agents/instructions/yaml-conventions.md`. `postRenderers` is last
 and easy to forget. Only a couple of apps use it (`.agents/references/observability.md`).
 

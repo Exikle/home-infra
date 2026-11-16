@@ -1,6 +1,6 @@
 ---
 name: kopiur-restore
-description: Restore a PVC from a kopiur backup or snapshot, to recover an app's data after loss, corruption, or a bad change, or to pull a single file out of a snapshot without disturbing the running app. Use for "restore X from backup", "restore from kopiur", "kopiur restore", "recover PVC", "recover X's data", "roll back X's data", "undo a bad migration", "get the old database out of a snapshot", or "the PVC is empty". This is the default for any restore request. Use `recreate-pvc` only when the volume's StorageClass parameters are the thing being changed, and `restore-drill` when the question is whether backups work rather than restoring one. Scoped to the Artemis cluster.
+description: Restore a PVC from a kopiur backup or snapshot, to recover an app's data after loss, corruption, or a bad change, or to pull a single file out of a snapshot without disturbing the running app. Use for "restore X from backup", "restore from kopiur", "kopiur restore", "recover PVC", "recover X's data", "roll back X's data", "undo a bad migration", "get the old database out of a snapshot", or "the PVC is empty". This is the default for any restore request. Use `recreate-pvc` only when the volume's StorageClass parameters are the thing being changed, and `restore-drill` when the question is whether backups work rather than restoring one. Covers Artemis and Frostlink.
 compatibility: Requires the kopiur CRDs and the shared `ClusterRepository/atlas` secret. The core restore path is plain CRs; the `kubectl kopiur ls|cat|download|browse` plugin is needed only for the single-file path.
 ---
 
@@ -8,6 +8,9 @@ compatibility: Requires the kopiur CRDs and the shared `ClusterRepository/atlas`
 
 Restore a kopiur-managed PVC from a snapshot in home-infra, or extract a single file from
 a snapshot while the app keeps running.
+
+On Frostlink, read `frostlink.md` in this folder first. Its `restore-pvc` takes
+`<ns> <ks> <claim> [offset]`, it restores from R2 on `openebs-zfs`, and the steps below are Artemis.
 
 > Read `.agents/references/kopiur.md` first. It covers mover identity, `restore.yaml` uid rules, and why a
 > completed `Restore` is never re-reconciled. `.agents/references/storage.md` § Binding mode

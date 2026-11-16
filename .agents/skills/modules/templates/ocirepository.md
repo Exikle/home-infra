@@ -2,6 +2,9 @@
 
 Every app gets its own standalone OCIRepository. Never share one between apps.
 
+Frostlink: `interval` is `1h`, and the tag comes from
+`grep -rh 'tag:' clusters/frostlink/kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c`.
+
 ```yaml
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/ocirepository_v1.json

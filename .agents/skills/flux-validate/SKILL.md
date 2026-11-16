@@ -1,6 +1,6 @@
 ---
 name: flux-validate
-description: Validate and render cluster manifests locally before committing — build the kustomization, diff against the live cluster, and catch schema and substitution errors that would otherwise fail reconciliation. Use for "validate manifests", "render kustomization", "flux diff", or a pre-commit check on a manifest change. Scoped to the Artemis cluster.
+description: Validate and render cluster manifests locally before committing — build the kustomization, diff against the live cluster, and catch schema and substitution errors that would otherwise fail reconciliation. Use for "validate manifests", "render kustomization", "flux diff", or a pre-commit check on a manifest change. Covers Artemis and Frostlink.
 ---
 
 # Skill: Flux Validate
@@ -8,6 +8,9 @@ description: Validate and render cluster manifests locally before committing —
 Validate and diff Flux manifests offline before you commit, with `flate` (already available through `mise`).
 
 Always validate before you commit. `main` reconciles directly to production.
+
+On Frostlink, use `mise run //clusters/frostlink/kubernetes:render-ks` and `:diff-ks` the same
+way. Run the `flate` commands from `clusters/frostlink/` so that `./kubernetes` resolves there.
 
 ## Quick Render (single kustomization)
 

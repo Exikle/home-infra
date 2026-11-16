@@ -1,6 +1,6 @@
 ---
 name: review-app
-description: Lint an app's manifests against this repo's structural conventions (directory shape, field ordering, image pinning, security context, probes, routes, secrets wiring) and report or optionally fix what deviates. Fast and file-only. It does not read the cluster. Use for "lint X app", "check X against conventions", "review X's manifests", "does X follow the conventions", or a pre-commit pass on an app directory. For a deep correctness audit that reads the live cluster (component wiring vs the real pod, database auth viability, resource sizing, auth blast radius), spawn the `audit-app` subagent instead. Scoped to the Artemis cluster.
+description: Lint an app's manifests against this repo's structural conventions (directory shape, field ordering, image pinning, security context, probes, routes, secrets wiring) and report or optionally fix what deviates. Fast and file-only. It does not read the cluster. Use for "lint X app", "check X against conventions", "review X's manifests", "does X follow the conventions", or a pre-commit pass on an app directory. For a deep correctness audit that reads the live cluster (component wiring vs the real pod, database auth viability, resource sizing, auth blast radius), spawn the `audit-app` subagent instead. Covers Artemis and Frostlink.
 ---
 
 # Skill: Review App Manifests (lint)
@@ -16,6 +16,13 @@ cluster. It answers "is this written the way this repo writes things", not "is t
 > This skill reports PASS on an app whose kopiur mover runs as the wrong uid, whose memory
 > limit is twenty times its working set, and whose tinyauth gate has no ACL keys in the tinyauth
 > HelmRelease. Those faults belong to `audit-app` by design. Do not try to cover them here.
+
+For a Frostlink app (`clusters/frostlink/kubernetes/apps/<namespace>/<app>/`), read
+`.agents/instructions/frostlink.md` in place of the two Artemis convention files below, and use
+`.agents/references/oci-networking.md` and `.agents/references/openebs-zfs.md` for the route and
+storage checks. The checklists in `.agents/skills/modules/checklists/` apply to both clusters. Where a
+Frostlink convention differs, the checklist item says so. Field order also follows
+`.agents/skills/modules/checklists/yaml-sorting.md`.
 
 Before you review, read these files:
 

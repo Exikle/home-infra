@@ -1,5 +1,8 @@
 # Module: app/kustomization.yaml Template
 
+Frostlink: the schema line is `# yaml-language-server: $schema=https://json.schemastore.org/kustomization`.
+Some Frostlink apps also set `namespace:`. Follow the other apps in the target namespace.
+
 ```yaml
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json

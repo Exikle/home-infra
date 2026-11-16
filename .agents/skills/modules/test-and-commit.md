@@ -6,6 +6,13 @@ restate it. This module adds only what is specific to a skill-driven session.
 
 Edit in a worktree. Before the first edit, run `mise run //:wt:new <type>/<slug>` (`AGENTS.md` rule 7).
 
+On Frostlink, the paths and tasks use `clusters/frostlink/kubernetes/apps/<namespace>/<app>/` and
+`mise run //clusters/frostlink/kubernetes:<task>`, and every `kubectl` takes `--context frostlink`.
+The commit step differs. The artifact only rebuilds on a push to `main`, so after the user confirms,
+hand the branch back and ask the user to land it on `main`. Do not push it yourself, and do not
+leave the root and target suspended. Once the artifact has rebuilt (`sync-flux ocirepo` until the
+`flux-system` digest moves), resume, root first. If the user abandons the change, resume both at once.
+
 ---
 
 ## Before step 2 of the sequence

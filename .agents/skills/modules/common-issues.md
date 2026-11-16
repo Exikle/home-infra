@@ -1,5 +1,9 @@
 # Module: Common Issues
 
+On Frostlink, use `mise run //clusters/frostlink/kubernetes:<task>` for the tasks below, and add
+`--context frostlink` to every `kubectl` and `flux` command. A stuck HelmRelease, OCIRepository or
+Kustomization is the `fix-flux` skill.
+
 ## Runtime / pod failures
 
 | Symptom                                                        | Cause                                           | Fix                                                                                                         |

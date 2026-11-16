@@ -2,6 +2,15 @@
 
 Spec field order is in `.agents/instructions/yaml-conventions.md` § ks.yaml.
 
+Frostlink differences for Kopiur: add `dependsOn` for `kopiur-repository` (namespace `kopiur-system`),
+use `../../../../components/kopiur` (no `/backup`), and set `KOPIUR_APP: *app` under
+`postBuild.substitute`. The component owns the PVC, so do not declare one. Every `KOPIUR_*`
+substitution except `KOPIUR_APP` has a default (`KOPIUR_CAPACITY` is `5Gi`), see
+`clusters/frostlink/kubernetes/components/kopiur/`. For a periodic full restore check, add
+`../../../../components/kopiur-deep-verify` and `KOPIUR_DEEP_VERIFY_CAPACITY`. Paths use
+`clusters/frostlink/kubernetes/apps/<ns>/<app>/`, and the Frostlink `wait` and `healthChecks`
+placement is as in `clusters/frostlink/kubernetes/apps/fediverse/gotosocial/ks.yaml`.
+
 ## Minimal (no persistence, no secrets)
 
 ```yaml

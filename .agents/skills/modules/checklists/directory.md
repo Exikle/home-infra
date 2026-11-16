@@ -2,6 +2,8 @@
 
 Mark each item PASS, FAIL, or N/A.
 
+Frostlink: the same checks apply with `clusters/frostlink/kubernetes/apps/` in place of the Artemis path.
+
 | #   | Check                                                                                                    | Result |
 | --- | -------------------------------------------------------------------------------------------------------- | ------ |
 | S1  | `ks.yaml` exists at `clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml`                         |        |

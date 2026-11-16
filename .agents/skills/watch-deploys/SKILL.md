@@ -1,6 +1,6 @@
 ---
 name: watch-deploys
-description: Watch an in-flight deployment or Flux reconciliation until it settles or fails, reporting state transitions as they happen. Use for "watch the deploy", "monitor the rollout", "keep an eye on flux", or when a change was just pushed and its landing needs following. Scoped to the Artemis cluster.
+description: Watch an in-flight deployment or Flux reconciliation until it settles or fails, reporting state transitions as they happen. Use for "watch the deploy", "monitor the rollout", "keep an eye on flux", or when a change was just pushed and its landing needs following. Covers Artemis and Frostlink.
 ---
 
 # Skill: Watch Deploys
@@ -8,6 +8,9 @@ description: Watch an in-flight deployment or Flux reconciliation until it settl
 This skill is a delta-aware cluster state watcher. Use it with `/loop 30s /watch-deploys` during active deployments.
 
 Each tick shows only what **changed** since the last tick, not the full cluster state.
+
+On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command. The MCP k8s tools
+point at Artemis, so there is no MCP fallback there. Keep the cache in the session scratchpad.
 
 ## State Cache
 
