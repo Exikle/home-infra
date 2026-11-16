@@ -18,8 +18,10 @@ holds what is true on every turn, and an index of where everything else is.
 
 `ls` at the repo root is the map. `kube/` holds everything Flux deploys.
 `kube/clusters/<cluster>/` holds one cluster: its `apps/`, `components/`, `talos/`, `bootstrap/`
-and `mise.toml`. Issue #3333 adds `kube/base/` (apps that both clusters run) and
-`kube/components/` (shared kustomize components) next. The layout and its rules are in #3333.
+and `mise.toml`. `kube/base/<ns>/<app>/` holds one copy of an app that both clusters run. Each
+cluster turns it on with one line in its namespace menu, `kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`.
+A change under `kube/base/` reaches both clusters in one push. The layout, its rules and the
+remaining steps are in #3333. `app-structure.md` § Shared apps has the file shape.
 
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
 the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
@@ -208,7 +210,7 @@ after the doc is written. Print the command that recovers the tag instead:
 
 ### Manifests carry configuration, not prose
 
-No comments under `kube/clusters/*/`. Rationale goes in a reference doc. There it is searchable, and
+No comments under `kube/base/` or `kube/clusters/*/`. Rationale goes in a reference doc. There it is searchable, and
 no one must re-read it on every manifest edit. The three machine-oriented exceptions are in
 `yaml-conventions.md`.
 

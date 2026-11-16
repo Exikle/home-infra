@@ -6,4 +6,4 @@ namespace: dragonfly-system
 
 resources:
   - ./namespace.yaml
-  - ./dragonfly-operator/ks.yaml
+  - ../../../../base/dragonfly-system/dragonfly-operator

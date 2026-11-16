@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/frostlink/apps/kube-system/ksgate/app
+  path: ./kube/base/kube-system/ksgate/app
   prune: true
   sourceRef:
     kind: OCIRepository

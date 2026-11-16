@@ -102,6 +102,31 @@ pinned `image:` lines out of reach of Renovate. Keep those as readable per-membe
 `cortex/mcp` is that case. It has ten MCP servers in one `mcp-servers` Kustomization, each with
 its own HelmRelease, because their RBAC, generated ConfigMaps and secrets all differ.
 
+### Shared apps (`kube/base/`)
+
+An app that runs the same on both clusters lives once, in `kube/base/<ns>/<app>/`. The decision
+and the rules are in #3333.
+
+```text
+kube/base/<ns>/<app>/
+  kustomization.yaml   namespace: <ns>, resources: [./ks.yaml]
+  ks.yaml              spec.path: ./kube/base/<ns>/<app>/app
+  app/                 the same files as a cluster app
+```
+
+Each cluster that runs it lists the folder in its namespace menu,
+`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`, as `- ../../../../base/<ns>/<app>`.
+The menu lists the folder, not `ks.yaml`, because kustomize loads a file outside the menu folder
+only through a folder that has its own `kustomization.yaml`.
+
+The `namespace:` line in the base `kustomization.yaml` is required. Flux gets the namespace from
+the menu, but flate (behind `render-ks` and konflate) takes it from the folder that holds
+`ks.yaml`. Without the line, flate renders the Kustomizations with no namespace and their
+`dependsOn` fail.
+
+A file in `kube/base/` never names a cluster. A change there reaches both clusters in one push,
+so test it on both clusters before you commit.
+
 ### Non-standard resource types
 
 One resource per file, filename = lowercased kind, flat in the leaf directory alongside

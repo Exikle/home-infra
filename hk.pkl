@@ -5,7 +5,7 @@ import "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Builtins.
 // `hk check --all` / `hk fix --all` run the same steps by hand. Steps run in parallel, so
 // anything that rewrites a file another step also rewrites is ordered with `depends`.
 
-local yaml_k8s = List("kube/clusters/artemis/apps/**/*.{yml,yaml}", "kube/clusters/artemis/components/**/*.{yml,yaml}")
+local yaml_k8s = List("kube/base/**/*.{yml,yaml}", "kube/clusters/artemis/apps/**/*.{yml,yaml}", "kube/clusters/artemis/components/**/*.{yml,yaml}")
 
 local linters = new Mapping<String, Step> {
   // --- Hygiene ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ local linters = new Mapping<String, Step> {
   // No explanatory comments in Frostlink manifests (instructions/frostlink.md). Artemis carries no
   // such check, and Frostlink manifests are not key-ordered by yaml-order above.
   ["yaml-comments"] {
-    glob = List("kube/clusters/frostlink/apps/**/*.yaml", "kube/clusters/frostlink/components/**/*.yaml")
+    glob = List("kube/base/**/*.yaml", "kube/clusters/frostlink/apps/**/*.yaml", "kube/clusters/frostlink/components/**/*.yaml")
     check = "python3 scripts/check-yaml-comments.py"
   }
 
