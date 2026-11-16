@@ -70,6 +70,13 @@ local linters = new Mapping<String, Step> {
     check = "python3 scripts/check-yaml-comments.py"
   }
 
+  // Namespace menus under kube/ (#3333): every base app is listed, every app folder is listed,
+  // every entry exists, base apps with extras list them, no commented-out entries.
+  ["kube-menus"] {
+    glob = List("kube/**/kustomization.yaml", "kube/**/ks.yaml")
+    check = "hooks/python scripts/check-kube-menus.py"
+  }
+
   // --- Agent config -----------------------------------------------------------------------
   ["agent-hooks-generated"] {
     glob = List(".claude/hooks/*", ".opencode/plugins/guard-destructive.js")
