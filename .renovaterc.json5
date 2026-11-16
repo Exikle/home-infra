@@ -1,19 +1,10 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   enabled: false,
-  extends: [
-    "local>exikle/renovate-config",
-    "local>exikle/renovate-config:cluster",
-    "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#11.0.0",
-    "github>home-operations/renovate-presets//apps/searxng.json5#11.0.0",
-    "github>home-operations/renovate-presets//apps/phanpy.json5#10.0.1",
-  ],
+  extends: ["local>exikle/renovate-config", "local>exikle/renovate-config:cluster"],
   ignorePaths: ["kube/clusters/frostlink/**/*.secret.*", "kube/clusters/frostlink/**/resources/**"],
   prHeader: "{{#if (equals updateType 'major')}}🔴{{else}}{{#if (equals updateType 'minor')}}🔵{{else}}{{#if (equals updateType 'patch')}}🟢{{else}}⚪{{/if}}{{/if}}{{/if}} **{{{updateType}}}** · {{#if isGroup}}{{{groupName}}} group{{else}}{{{depName}}}{{/if}}",
   prBodyTemplate: "{{{header}}}{{{table}}}{{{warnings}}}{{{notes}}}{{{changelogs}}}{{{controls}}}",
-  prBodyNotes: [
-    "{{#if isMajor}}> ⛔ **Major — merge by hand.** Read the changelog for breaking changes first.{{/if}}",
-  ],
   schedule: ["* 0-3 * * *"],
   updateNotScheduled: false,
   terraform: {
@@ -23,32 +14,6 @@
     managerFilePatterns: ["ansible/requirements.yml"],
   },
   packageRules: [
-    {
-      description: "silo: tags are build-<n>, not semver",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["ghcr.io/silo-server/silo-server"],
-      versioning: "regex:^build-(?<major>\\d+)$",
-    },
-    {
-      description: "llama.cpp: tags are server-b<build>, not semver",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["ghcr.io/ggml-org/llama.cpp"],
-      versioning: "regex:^server-b(?<major>\\d+)$",
-    },
-    {
-      description: "Auto-merge all container digests",
-      matchDatasources: ["docker"],
-      automerge: true,
-      matchUpdateTypes: ["digest"],
-      ignoreTests: false,
-    },
-    {
-      description: "Auto-merge Grafana dashboards",
-      matchDatasources: ["custom.grafana-dashboards"],
-      matchUpdateTypes: ["major"],
-      automerge: true,
-      ignoreTests: true,
-    },
     {
       description: "Never automerge pocket-id — the operator halts on an unsupported version",
       matchDatasources: ["docker"],
@@ -85,29 +50,6 @@
         "> ⚠️ **Changes real hardware.** Review the collection changelog before merging.",
       ],
       addLabels: ["area/infra"],
-    },
-    {
-      description: "Never automerge external-dns — v0.22.0 changed the default annotation prefix with no fallback and deleted a whole zone on frostlink",
-      matchPackageNames: ["/charts-mirror\\/external-dns/", "/external-dns-unifi-webhook/"],
-      groupName: "external-dns",
-      automerge: false,
-      prBodyNotes: [
-        "> ⛔ **Do not automerge.** v0.22.0 changed the default annotation prefix with no fallback and deleted a whole zone on frostlink.",
-      ],
-    },
-    {
-      description: "Cilium Group",
-      groupName: "cilium",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/cilium\\/charts\\/cilium/", "/charts-mirror\\/cilium/"],
-      group: {
-        commitMessageTopic: "{{{groupName}}} group",
-      },
-      minimumGroupSize: 2,
-      automerge: false,
-      prBodyNotes: [
-        "> ⚠️ **Do not merge unattended.** A Cilium bump that moves the CNI conflist version restarts `multus` on every node, and pod creation fails cluster-wide until it self-heals.",
-      ],
     },
     {
       description: "Envoy Gateway Group",
@@ -164,16 +106,14 @@
       description: "Frostlink: hold the Kubernetes group for 7 days before opening the PR",
       matchFileNames: ["kube/clusters/frostlink/**"],
       matchDatasources: ["docker"],
-      matchPackageNames: ["/siderolabs\\/kubelet/", "/kube-proxy/"],
+      matchPackageNames: [
+        "/siderolabs\\/kubelet/",
+        "/kube-apiserver/",
+        "/kube-controller-manager/",
+        "/kube-scheduler/",
+        "/kube-proxy/",
+      ],
       minimumReleaseAge: "7 days",
-    },
-    {
-      description: "Never auto-merge Cilium on Frostlink — the CNI of a single node; one dependency, so no group",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/cilium\\/charts\\/cilium/"],
-      automerge: false,
-      prBodyNotes: ["> ⛔ **Do not automerge.** Cilium is the CNI of the only node."],
     },
     {
       description: "Frostlink: CNPG group — batches the updates that recreate the single Postgres instance",
@@ -185,40 +125,6 @@
         commitMessageTopic: "{{{groupName}}} group",
       },
       schedule: ["* 4-6 * * 6"],
-    },
-    {
-      description: "Frostlink: priority labels by update type",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchUpdateTypes: ["major"],
-      addLabels: ["priority/high"],
-    },
-    {
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchUpdateTypes: ["minor"],
-      addLabels: ["priority/medium"],
-    },
-    {
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchUpdateTypes: ["patch"],
-      addLabels: ["priority/low"],
-    },
-    {
-      description: "Frostlink: label container updates",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["docker"],
-      addLabels: ["renovate/container"],
-    },
-    {
-      description: "Frostlink: label Helm updates",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["helm"],
-      addLabels: ["renovate/helm"],
-    },
-    {
-      description: "Frostlink: label GitHub Release updates",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["github-releases", "github-tags"],
-      addLabels: ["renovate/github-release"],
     },
   ],
 }
