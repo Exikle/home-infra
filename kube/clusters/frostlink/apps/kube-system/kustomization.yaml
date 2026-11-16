@@ -11,7 +11,9 @@ resources:
   - ./namespace.yaml
   - ./cilium/ks.yaml
   - ./coredns/ks.yaml
-  - ./k8tz/ks.yaml
+  - ../../../../base/kube-system/k8tz
+  - ./k8tz/extras/ks.yaml
   - ../../../../base/kube-system/ksgate
-  - ./metrics-server/ks.yaml
+  - ../../../../base/kube-system/metrics-server
+  - ./metrics-server/extras/ks.yaml
   - ../../../../base/kube-system/reloader

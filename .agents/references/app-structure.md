@@ -142,14 +142,21 @@ kube/clusters/artemis/apps/cert-manager/cert-manager/extras/
   grafanadashboard.yaml, prometheusrule.yaml   objects only Artemis runs
 ```
 
-The menu of that cluster lists the base folder and `./<app>/extras/ks.yaml`. A cluster without
-differences lists only the base folder.
+The base Kustomization has `dependsOn: <app>-extras`, so every cluster that runs the app has an
+`extras` folder, and the menu of each lists the base folder and `./<app>/extras/ks.yaml`. A
+cluster with no differences uses `{}` as its `values.yaml`. Without the `dependsOn`, the
+HelmRelease can install before the ConfigMap exists. Flux then installs it with the base values
+only, and flate renders it that way (seen with metrics-server).
+
+Flux merges `valuesFrom` first and the inline `values` last, so the inline values win. The base
+HelmRelease must therefore hold only the values that every cluster shares. A key that differs
+goes in the `values.yaml` of each cluster, never in the base. If the base sets it, the cluster
+value is silently lost.
 
 Put the ConfigMap inside the `extras` Kustomization, not in the namespace menu. flate does not
 render the root Kustomization, so it cannot see objects that only the menu creates. Do not give
-`extras` a `dependsOn` on the app. Then the ConfigMap can exist before the HelmRelease first
-installs. The ConfigMap carries `reconcile.fluxcd.io/watch: Enabled`, so a change to it starts a
-Helm upgrade.
+`extras` a `dependsOn` on the app, or the two wait on each other. The ConfigMap carries
+`reconcile.fluxcd.io/watch: Enabled`, so a change to it starts a Helm upgrade.
 
 `render-ks` sets `FLATE_ALLOW_MISSING_SECRETS=true`, and with that flag flate skips every
 `valuesFrom` reference. So `render-ks` shows the base values only. To see the values of a cluster,

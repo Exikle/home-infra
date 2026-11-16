@@ -10,6 +10,7 @@ components:
 resources:
   - ./namespace.yaml
   - ../../../../base/cert-manager/cert-manager
+  - ./cert-manager/extras/ks.yaml
   - ./clusterissuer/ks.yaml
   - ./postgres-ca/ks.yaml
   - ./csi-driver/ks.yaml

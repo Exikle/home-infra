@@ -1,0 +1,6 @@
+serviceMonitor: &probe
+  enabled: false
+webhook:
+  serviceMonitor: *probe
+certController:
+  serviceMonitor: *probe

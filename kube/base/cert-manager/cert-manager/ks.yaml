@@ -16,4 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
+  dependsOn:
+    - name: cert-manager-extras
   wait: true

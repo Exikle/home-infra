@@ -1,0 +1,16 @@
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: k8tz
+replicaCount: 2
+webhook:
+  certManager:
+    enabled: true
+    issuerRef:
+      kind: ClusterIssuer
+      name: internal-ca-issuer

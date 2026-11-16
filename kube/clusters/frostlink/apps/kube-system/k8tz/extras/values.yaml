@@ -1,0 +1,4 @@
+replicaCount: 1
+webhook:
+  certManager:
+    enabled: false
