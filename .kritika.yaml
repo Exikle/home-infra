@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://kritika.home-operations.com/kritika.schema.json
+context:
+  - path: AGENTS.md
+    description: Repo rules that apply to every change.
+rules:
+  - id: no-plaintext-secrets
+    rule: A secret in plain text, or SOPS / age encryption, is a blocker. Secrets are ExternalSecrets on the onepassword-connect ClusterSecretStore.
+  - id: image-digest
+    rule: A container image tag under kube/ without an @sha256 digest is a blocker.
+    paths: ["kube/**"]
+  - id: storage-class
+    rule: A StorageClass other than miroir or miroir-local is a blocker on Artemis. miroir-local is for kopiur caches only, never app data. Any reference to Rook-Ceph or VolSync is a blocker.
+    paths: ["kube/clusters/artemis/**", "kube/base/**"]
+  - id: cluster-dns
+    rule: In-cluster traffic must use <app>.<namespace>.svc.cluster.local, never an external hostname.
+    paths: ["kube/**"]
+  - id: no-manifest-comments
+    rule: A prose comment added under kube/ is a blocker. Rationale belongs in .agents/references.
+    paths: ["kube/**"]
+  - id: shared-base
+    rule: A change under kube/base/ or kube/components/ reaches both clusters. Say so in the summary, and say whether it is safe on Frostlink, a single node where a core restart is a full outage.
+    paths: ["kube/base/**", "kube/components/**"]
+  - id: major-bump-notes
+    rule: For a major bump, name each breaking change in the release notes that touches this repo's config, or say that the notes list none. A missing changelog alone is not a finding. Say unverified.
+  - id: crd-charts
+    rule: For a chart that ships CRDs (Flux, cert-manager, kube-prometheus-stack, CNPG), say whether the CRDs change.
+  - id: infra-label
+    rule: Changes to flux-system, kube-system, network, storage or Talos are infrastructure. Say so in the summary.
+    paths:
+      - "kube/clusters/*/apps/flux-system/**"
+      - "kube/clusters/*/apps/kube-system/**"
+      - "kube/clusters/*/apps/network/**"
+      - "kube/clusters/*/apps/miroir-system/**"
+      - "kube/clusters/*/talos/**"
