@@ -38,7 +38,8 @@
   },
   "permissions": {
     "allow": [
-      "Bash(mise run //clusters/artemis/kubernetes:apply-ks *)"
+      "Bash(mise run //clusters/artemis/kubernetes:apply-ks *)",
+      "Bash(mise run //clusters/frostlink/kubernetes:apply-ks *)"
     ]
   }
 }

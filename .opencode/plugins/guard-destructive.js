@@ -11,14 +11,14 @@ const RULES = [
     id: "kubectl-apply",
     pattern: new RegExp("\\bkubectl\\b.*\\bapply\\b"),
     reason: "Direct kubectl apply bypasses GitOps",
-    alternative: "Apply through the repo's apply-ks task (Artemis: 'mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks>', frostlink: 'just kube apply-ks <ns> <ks>')",
+    alternative: "Apply through the apply-ks task of the cluster: 'mise run //clusters/<cluster>/kubernetes:apply-ks <ns> <ks>' (standalone frostlink repo: 'just kube apply-ks <ns> <ks>')",
   },
   {
     id: "kubectl-delete-critical",
     pattern: new RegExp("\\bkubectl\\b.*\\bdelete\\b.*\\b(namespace|pvc|pv|persistentvolumeclaim|node|deployment|secret|helmrelease|kustomization|gateway|httproute|clusterrole)\\b"),
     exempt: new RegExp("I_HAVE_A_KOPIUR_SNAPSHOT"),
     reason: "Deleting a critical Kubernetes resource",
-    alternative: "Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, append the marker documented in .agents/skills/recreate-pvc (Artemis); on Frostlink use 'just kube restore' instead",
+    alternative: "Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, append the marker documented in .agents/skills/recreate-pvc (Artemis); on Frostlink use 'mise run //clusters/frostlink/kubernetes:restore-pvc' instead",
   },
   {
     id: "helm-mutation",
@@ -36,13 +36,20 @@ const RULES = [
     id: "talosctl-patch-machineconfig",
     pattern: new RegExp("\\btalosctl\\b.*patch\\s+machineconfig\\b"),
     reason: "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
-    alternative: "Use 'mise run //clusters/artemis/talos:apply-node <node>' or talosctl apply-config --file for full config replacement",
+    alternative: "Artemis: 'mise run //clusters/artemis/talos:apply-node <node>' or talosctl apply-config --file for full config replacement. Frostlink: a minimal DELTA patch file, or 'talosctl apply-config --file' \u2014 never pass clusters/frostlink/talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node",
   },
   {
     id: "talosctl-reset",
     pattern: new RegExp("\\btalosctl\\b.*\\b(reset|wipe)\\b"),
     reason: "talosctl reset/wipe is destructive and irreversible",
     alternative: "Confirm explicitly with the user before proceeding",
+  },
+  {
+    id: "talosctl-single-node-outage-home-infra",
+    pattern: new RegExp("\\btalosctl\\b.*\\b(upgrade|upgrade-k8s|reboot|shutdown)\\b"),
+    exempt: new RegExp("artemis"),
+    reason: "Frostlink is a single node \u2014 talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to. This command does not name Artemis, so it may target Frostlink",
+    alternative: "Frostlink: 'mise run //clusters/frostlink/talos:upgrade <version>' (it resolves the schematic first), and only with the user watching. Artemis: 'mise run //clusters/artemis/talos:upgrade-node <node>', or name Artemis in the command (--context artemis or its talosconfig)",
   },
   {
     id: "rm-sensitive-path",
