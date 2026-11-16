@@ -4,10 +4,11 @@
 set -euo pipefail
 
 REPO="$HOME/Artemis-Cluster"
-MISE_VERSION=v2026.10.10
+MISE_VERSION=v2026.11.8
 export PATH="$HOME/.local/bin:$PATH"
 
 command -v mise >/dev/null || curl -fsSL https://mise.run | MISE_VERSION="$MISE_VERSION" sh
+[ "$(mise --version | cut -d' ' -f1)" = "${MISE_VERSION#v}" ] || mise self-update -y --no-plugins "${MISE_VERSION#v}"
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 
 install -D -m 600 /scripts/kubeconfig.yaml "$HOME/.kube/config"

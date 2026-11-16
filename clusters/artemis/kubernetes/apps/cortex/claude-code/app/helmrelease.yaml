@@ -43,7 +43,6 @@ spec:
                     name: claude-code
                     key: FORGEJO_TOKEN
               HOME: /home/claude
-              JUST_UNSTABLE: "1"
               MEMINI_API_KEY:
                 valueFrom:
                   secretKeyRef:
