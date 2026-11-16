@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/pocketid.internal/pocketidoidcclient_v1alpha1.json
+apiVersion: pocketid.internal/v1alpha1
+kind: PocketIDOIDCClient
+metadata:
+  name: kritika
+spec:
+  allowedUserGroups:
+    - name: app-admin
+      namespace: security
+  callbackUrls:
+    - "https://kritika.dcunha.io/auth/callback/oidc"
+  clientID: kritika
+  launchUrl: "https://kritika.dcunha.io/"
+  logo:
+    autoGenerate: false
+  pkceEnabled: true
+  secret:
+    keys:
+      clientSecret: OIDC_CLIENT_SECRET
+    storeClientSecret: true

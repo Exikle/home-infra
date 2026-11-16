@@ -14,6 +14,19 @@ spec:
         admin:
           password:
             env: ADMIN_PASSWORD
+        oidc:
+          clientId: kritika
+          clientSecret:
+            env: OIDC_CLIENT_SECRET
+          issuer: https://id.dcunha.io
+          name: Pocket-ID
+          roleMappingExpr: '"app_admin" in roles ? "admin" : ""'
+          rolesClaim: groups
+          scopes:
+            - openid
+            - email
+            - profile
+            - groups
       confidence:
         gate:
           when:
@@ -56,6 +69,8 @@ spec:
     envFrom:
       - secretRef:
           name: kritika
+      - secretRef:
+          name: kritika-oidc-credentials
     httpRoute:
       enabled: true
       hostnames:

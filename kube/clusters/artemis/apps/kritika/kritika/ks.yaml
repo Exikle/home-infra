@@ -40,4 +40,6 @@ spec:
   interval: 1h
   dependsOn:
     - name: kritika-database
+    - name: pocket-id-operator
+      namespace: security
   wait: false
