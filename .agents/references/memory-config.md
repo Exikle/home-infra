@@ -14,7 +14,6 @@ When you add or retire a tier, edit every row:
 | ---------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------- |
 | `.mcp.json`                                          | Claude Code, this repo           | `headersHelper … <tier>` returns `{"x-api-key": …}` at call time       | yes                                               |
 | `opencode.json`                                      | opencode, this repo              | `x-api-key: {env:MCP_<TIER>_KEY}` / `{env:MEMINI_API_KEY}` from `.env` | yes                                               |
-| `~/frostlink/.mcp.json`                              | Claude Code, frostlink repo      | same helper, same per-tier argv                                        | no, other repo                                    |
 | `~/.claude/local-marketplace/dcunha-tools/.mcp.json` | Claude Code, every other project | same helper, same per-tier argv                                        | no, not dotfiles-managed either                   |
 | User scope in `~/.claude.json`                       | Claude Code, any directory       | same helper; added with `claude mcp add-json -s user …`                | no, machine-local state, no automation reaches it |
 | Windows Zed `%APPDATA%/Zed/settings.json`            | Zed                              | keys inlined in plaintext                                              | no, Windows filesystem, no automation reaches it  |
@@ -137,7 +136,7 @@ here. The primary source is `docs/guides/tuning-recall.md` in the memini marketp
 Diagnose before you tune. Always run `memini doctor` first. A namespace mismatch is the most common cause of "memini forgot
 everything". In a mismatch, writes land in one namespace while recall reads another. No ranking setting can fix a pointer problem. The read set for
 `homelab/home-infra` is the repo, its `homelab` ancestor, `personal/exikle` (home), and two
-links (`homelab/frostlink`, `fingerjoin`).
+links (`containers`, `fingerjoin`).
 
 | Setting                         | Value    | Why                                                                                                                                                                                                                                                                                          |
 | ------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -232,8 +231,7 @@ Namespaces are hierarchical. The layout is:
 
 ```text
 homelab/                    shared across the infrastructure repos
-├── homelab/home-infra this repo
-├── homelab/frostlink       the Oracle Cloud cluster
+├── homelab/home-infra this repo, both clusters (Frostlink moved in on 2026-11-16)
 ├── homelab/hermes          the hermes agent (set by MEMINI_NAMESPACE, not a pin)
 └── homelab/<repo>          any other repo that runs servers or the network, pinned by hand
 personal/exikle             follows the user everywhere (MEMINI_HOME)
@@ -251,8 +249,8 @@ remote configured, or a probe that only ever sees a path:
 | `remote:git.dcunha.io/exikle/home-infra`      | `homelab/home-infra` |
 | `path:/home/exikle/Artemis-Cluster`           | `homelab/home-infra` |
 | `remote:git.dcunha.io/exikle/artemis-cluster` | `homelab/home-infra` |
-| `remote:git.dcunha.io/exikle/frostlink`       | `homelab/frostlink`  |
-| `path:/home/exikle/frostlink`                 | `homelab/frostlink`  |
+| `remote:git.dcunha.io/exikle/frostlink`       | `homelab/home-infra` |
+| `path:/home/exikle/frostlink`                 | `homelab/home-infra` |
 
 The repo was renamed from `Artemis-Cluster` to `home-infra` on 2026-11-14, and its memories
 moved from `homelab/home-infra` to `homelab/home-infra`. The old remote key stays so that a
@@ -283,14 +281,12 @@ because siblings inherit nothing from each other. To list the links, use `GET /v
 (`X-Memini-Namespace: homelab/home-infra`). A namespace move repoints a link to it. A
 re-pin does not. So after you move a repo to a new namespace, re-create its link.
 
-The frostlink link is tier-restricted. Episodic memories (the session-by-session narrative)
-do not cross it. This is deliberate, because the incident timeline of one cluster is noise in the other. But
-it means that "I know we hit this on frostlink" does not surface from an Artemis session unless someone wrote the
-lesson as a durable semantic or procedural fact. If the lesson matters to both clusters,
-write it with `visibility: "homelab"`. Do not rely on the link.
-
-Links are directional. Nothing flows from `homelab/frostlink` back to `homelab/home-infra`
-unless you create a matching link there too.
+Frostlink had its own namespace and a tier-restricted link until 2026-11-16. Its 120 memories
+(119 plus 1 superseded) moved into `homelab/home-infra` with `POST /v1/namespaces/move`, which
+merges into an existing namespace and keeps ids. The move re-pointed the two frostlink pins and
+left a link from `homelab/home-infra` to itself, which was deleted. Because the memories now
+share one namespace, episodic memories of both clusters surface together. Say the cluster in the
+text of a memory when it is true of one cluster only.
 
 ### Write routing — the rule
 
@@ -300,7 +296,7 @@ only when the fact is true of both clusters and you would otherwise have to lear
 | Fact                                                           | Goes to              |
 | -------------------------------------------------------------- | -------------------- |
 | Ceph PG counts, OSD memory, `apply-ks` suspend behaviour       | `homelab/home-infra` |
-| openebs-zfs restore mechanics, the towonel edge                | `homelab/frostlink`  |
+| openebs-zfs restore mechanics, the towonel edge                | `homelab/home-infra` |
 | Canonical Forgejo remote is `Exikle` with a capital E          | `homelab`            |
 | "No Comments in Manifests" applies in both repos               | `homelab`            |
 | The two clusters are not symmetric — cert-manager only Artemis | `homelab`            |
