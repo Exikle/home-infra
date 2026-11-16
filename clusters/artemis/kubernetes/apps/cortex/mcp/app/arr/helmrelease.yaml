@@ -24,7 +24,7 @@ spec:
           app:
             image:
               repository: ghcr.io/aplaceforallmystuff/mcp-arr
-              tag: 1.7.4@sha256:b64eb8fe294b95bf363cd00bb9e14d7ff81d2953b521eda0d49d6a056a17369e
+              tag: 1.9.0@sha256:f9ebc0ecf14cb89ff0a2702062d4ff8b0bf06a258e9fc9f0278acf418d9768e6
             env:
               MCP_TRANSPORT: http
               HOST: 0.0.0.0
