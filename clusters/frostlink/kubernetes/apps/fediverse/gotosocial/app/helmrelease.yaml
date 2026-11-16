@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.3.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gotosocial
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: gotosocial
+  interval: 1h
+  values:
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+
+    controllers:
+      gotosocial:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/superseriousbusiness/gotosocial
+              tag: 0.22.3@sha256:3f36dcf14a4f2e5562122e4783117c48a219d67988f841181b5c2ecaa65d5581
+            env:
+              GTS_ACCOUNT_DOMAIN: frostlink.dev
+              GTS_ACCOUNTS_REGISTRATION_OPEN: "false"
+              GTS_DB_POSTGRES_CONNECTION_STRING:
+                valueFrom:
+                  configMapKeyRef:
+                    name: gotosocial-postgres
+                    key: url
+              GTS_DB_TYPE: postgres
+              GTS_HOST: social.frostlink.dev
+              GTS_LANDING_PAGE_USER: exikle
+              GTS_METRICS_ENABLED: "true"
+              GTS_SEMAPHORE_URL: https://phanpy.frostlink.dev
+              GTS_STORAGE_LOCAL_BASE_PATH: /data/storage
+              GTS_TRUSTED_PROXIES: "10.244.0.0/16"
+              OTEL_EXPORTER_PROMETHEUS_HOST: 0.0.0.0
+              OTEL_METRICS_EXPORTER: prometheus
+              OTEL_METRICS_PRODUCERS: prometheus
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 768Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+              readOnlyRootFilesystem: true
+
+    persistence:
+      data:
+        existingClaim: gotosocial
+        globalMounts:
+          - path: /data
+            subPath: data
+      tmpfs:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+            subPath: tmp
+
+    route:
+      app:
+        hostnames:
+          - social.frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 8080
+            filters:
+              - cors:
+                  allowHeaders:
+                    - "*"
+                  allowMethods:
+                    - "*"
+                  allowOrigins:
+                    - "*"
+                  maxAge: 86400
+                type: CORS
+      wellknown:
+        annotations:
+          gatus.home-operations.com/enabled: "false"
+        hostnames:
+          - frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
+            sectionName: https
+        rules:
+          - matches:
+              - path:
+                  type: Exact
+                  value: /.well-known/host-meta
+              - path:
+                  type: Exact
+                  value: /.well-known/nodeinfo
+            backendRefs:
+              - identifier: app
+                port: 8080
+    service:
+      app:
+        annotations:
+          fingerjoin.naktis.eu/webfinger: "true"
+        ports:
+          http:
+            port: 8080
+          metrics:
+            port: 9464
+    serviceMonitor:
+      app:
+        endpoints:
+          - port: metrics
+            interval: 30s
+            path: /metrics

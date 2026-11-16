@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: crowdsec-coverage
+spec:
+  groups:
+    - name: crowdsec-coverage.rules
+      rules:
+        - alert: CrowdSecFilterCoverageLow
+          expr: |-
+            (
+              sum(rate(envoy_cluster_upstream_rq_completed{envoy_cluster_name="crowdsec_appsec"}[5m]))
+              /
+              sum(rate(envoy_http_downstream_rq_total{envoy_http_conn_manager_prefix="https-10443"}[5m]))
+            ) < 0.9
+            and
+            sum(rate(envoy_http_downstream_rq_total{envoy_http_conn_manager_prefix="https-10443"}[5m])) > 0.5
+          for: 10m
+          annotations:
+            summary: >-
+              CrowdSec checks only {{ $value | humanizePercentage }} of public HTTPS
+              requests on external-gateway. The WASM filter has likely died on some
+              Envoy worker threads and they pass traffic unchecked. Restart with
+              kubectl --context frostlink -n network rollout restart deploy/external-gateway
+              (frostlink#513)
+          labels:
+            severity: critical

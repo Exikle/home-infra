@@ -1,0 +1,36 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+components:
+  - ../../../../components/kopiur
+resources:
+  - ./ocirepository.yaml
+  - ./helmrelease.yaml
+  - ./dnsendpoint.yaml
+  - ./prometheusrule-edge.yaml
+patches:
+  - target:
+      kind: SnapshotPolicy
+    patch: |-
+      - op: remove
+        path: /spec/mover/inheritSecurityContextFrom
+      - op: add
+        path: /spec/mover/podSecurityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          fsGroup: 10001
+  - target:
+      kind: Restore
+    patch: |-
+      - op: remove
+        path: /spec/mover/inheritSecurityContextFrom
+      - op: add
+        path: /spec/mover/podSecurityContext
+        value:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          fsGroup: 10001

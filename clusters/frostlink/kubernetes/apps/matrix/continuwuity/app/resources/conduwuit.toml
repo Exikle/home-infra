@@ -1,0 +1,42 @@
+[global]
+server_name = "frostlink.dev"
+address = ["::"]
+port = 8080
+
+database_path = "/data"
+
+max_request_size = 20971520
+
+# DNS Optimisation
+dns_timeout = 15
+query_over_tcp_only = true
+ip_lookup_strategy = 3
+
+cache_capacity_modifier = 1.5
+
+# User settings
+allow_encryption = true
+allow_federation = true
+allow_registration = false
+new_user_displayname_suffix = ""
+suspend_on_register = false
+
+allow_legacy_media = true
+allow_public_room_directory_over_federation = false
+lockdown_public_room_directory = true
+require_auth_for_profile_requests = true
+
+registration_token = "{{ .registration_token }}"
+emergency_password = "{{ .emergency_password }}"
+
+[global.oauth]
+compatibility_mode = "exclusive"
+
+[global.oauth.oidc]
+discovery_url = "https://id.dcunha.io"
+client_id = "{{ .oidc_client_id }}"
+client_secret = "{{ .oidc_client_secret }}"
+
+[global.well_known]
+client = "https://matrix.frostlink.dev"
+server = "matrix.frostlink.dev:443"

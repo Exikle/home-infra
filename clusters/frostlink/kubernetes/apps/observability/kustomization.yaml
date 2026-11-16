@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+
+components:
+  - ../../components/alerts
+
+resources:
+  - ./namespace.yaml
+  - ./alertmanager/ks.yaml
+  - ./vm-single/ks.yaml
+  - ./vm-operator/ks.yaml
+  - ./vm-alert/ks.yaml
+  - ./vm-scrapes/ks.yaml
+  - ./gatus-sidecar/ks.yaml
+  - ./chaski/ks.yaml
+  - ./kube-state-metrics/ks.yaml
+  - ./node-exporter/ks.yaml
+  - ./kromgo/ks.yaml

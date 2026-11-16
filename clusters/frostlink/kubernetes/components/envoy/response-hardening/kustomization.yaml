@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - target:
+      group: gateway.envoyproxy.io
+      kind: ClientTrafficPolicy
+      name: envoy
+    patch: |-
+      apiVersion: gateway.envoyproxy.io/v1alpha1
+      kind: ClientTrafficPolicy
+      metadata:
+        name: envoy
+      spec:
+        headers:
+          lateResponseHeaders:
+            remove:
+              - Server
+              - Via
+              - X-AspNet-Version
+              - X-AspNetMvc-Version
+              - X-Generator
+              - X-Powered-By
+              - X-Runtime
+              - X-Version
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+              - name: X-Content-Type-Options
+                value: nosniff

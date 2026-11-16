@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+data:
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+    inhibit_rules:
+      - equal:
+          - alertname
+          - namespace
+        source_matchers:
+          - severity = critical
+        target_matchers:
+          - severity =~ warning|info
+      - equal:
+          - alertname
+          - namespace
+        source_matchers:
+          - severity = warning
+        target_matchers:
+          - severity = info
+    route:
+      receiver: blackhole
+      group_by:
+        - alertname
+        - namespace
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+        - receiver: heartbeat
+          group_interval: 2m
+          group_wait: 0s
+          repeat_interval: 2m30s
+          matchers:
+            - alertname = Watchdog
+        - receiver: chaski-critical
+          matchers:
+            - severity = critical
+        - receiver: chaski-warning
+          matchers:
+            - severity = warning
+        - receiver: chaski-info
+          matchers:
+            - severity = info
+    receivers:
+      - name: blackhole
+      - name: heartbeat
+        webhook_configs:
+          - url: https://status.dcunha.io/api/v1/endpoints/core_frostlink/external?success=true
+            http_config:
+              bearer_token_file: /etc/alertmanager-secrets/HEARTBEAT_FROSTLINK_TOKEN
+            send_resolved: false
+      - name: chaski-critical
+        webhook_configs:
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/critical
+            send_resolved: true
+      - name: chaski-warning
+        webhook_configs:
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/warning
+            send_resolved: true
+      - name: chaski-info
+        webhook_configs:
+          - url: http://chaski.observability.svc.cluster.local:8080/hooks/info
+            send_resolved: true

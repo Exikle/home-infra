@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Push OCI Artifact
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - kubernetes/**
+      - .sourceignore
+  workflow_dispatch:
+
+concurrency:
+  group: oci-push-${{ forgejo.ref }}
+  cancel-in-progress: true
+
+# permissions: unsupported in Forgejo — grant via repo Settings → Actions → Authorized Integrations
+# permissions:
+#   contents: read
+
+jobs:
+  push:
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
+    with:
+      registry-host: registry.frostlink.dev
+      forgejo-oci-url: oci://git.dcunha.io/exikle/frostlink
+      registry-oci-url: oci://registry.frostlink.dev/exikle/frostlink
+    secrets: inherit # zizmor: ignore[secrets-inherit]

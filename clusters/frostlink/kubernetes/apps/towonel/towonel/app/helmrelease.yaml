@@ -1,0 +1,89 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app towonel
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  interval: 1h
+  values:
+    global:
+      fullnameOverride: *app
+
+    hub:
+      enabled: true
+      apiPort: 8443
+    edge:
+      enabled: true
+      httpsPort: 443
+      httpPort: 80
+      dataDir: /data
+
+    controllers:
+      main:
+        containers:
+          main:
+            env:
+              TOWONEL_HUB_PUBLIC_URL: https://hub.frostlink.dev
+              TOWONEL_EDGE_ADVERTISED_ADDRESSES: edge.frostlink.dev:443
+              TOWONEL_EDGE_IROH_PORT: "51820"
+              TOWONEL_HUB_DB_DRIVER: sqlite
+            probes:
+              liveness:
+                spec:
+                  timeoutSeconds: 5
+                  periodSeconds: 30
+                  failureThreshold: 6
+              readiness:
+                spec:
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 1Gi
+
+    persistence:
+      data:
+        type: persistentVolumeClaim
+        existingClaim: *app
+
+    route:
+      hub:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            url: "http://towonel.towonel.svc.cluster.local:8443/v1/readyz"
+            conditions: ["[STATUS] == 200"]
+            client:
+              dns-resolver: ""
+        hostnames:
+          - hub.frostlink.dev
+        parentRefs:
+          - name: external-gateway
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: main
+                port: 8443
+
+    service:
+      main:
+        controller: main
+        primary: true
+        type: ClusterIP
+
+    serviceMonitor:
+      main:
+        enabled: true
+
+    monitoring:
+      prometheusRule:
+        enabled: true
+      dashboards:
+        enabled: false

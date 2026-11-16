@@ -1,0 +1,69 @@
+# Checklist: Advisory
+
+These are judgment-call recommendations — not hard convention violations. Mark each **RECOMMEND**, **SKIP** (not applicable), or **N/A** (can't determine without more context).
+
+Findings go in the `### ADVISORY` section of the report, distinct from FAIL/WARN. **Never auto-fix advisory items — they require human review.**
+
+---
+
+## Storage & Data Layer
+
+| #   | Check                                                                                              |
+| --- | -------------------------------------------------------------------------------------------------- |
+| A2  | App has a PVC but no `kopiur` component in `ks.yaml` — data not backed up; recommend adding Kopiur |
+
+---
+
+## Reliability
+
+| #   | Check                                                                                                                                               |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A5  | `resources.requests` or `resources.limits` missing — pod can starve neighbors or be OOM-killed without warning                                      |
+| A6  | Liveness and/or readiness probes not configured (`enabled: false` or absent) — Kubernetes cannot detect hangs or failed startups                    |
+| A6a | Probe paths are suboptimal — probes hitting `/` instead of a dedicated `/ping`, `/health`, or `/healthz` endpoint; noisy and may mask real failures |
+| A7  | `ks.yaml` overrides the root's injected `retryInterval: 1m` with a long value — do not flag it as missing (`flux-patterns.md` § Key Rules)          |
+| A8  | `dependsOn` chain appears incomplete — check whether the app's actual dependencies (storage, secrets, CNPG) are listed                              |
+
+---
+
+## Image Hygiene
+
+| #   | Check                                                                                                                           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- |
+| A9  | Container image uses a mutable tag (`latest` or bare semver without SHA digest) — not reproducible; recommend `vX.Y.Z@sha256:…` |
+
+---
+
+## Security & Exposure
+
+| #   | Check                                                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A10 | App is on `external-gateway` (publicly reachable) with no auth in front of it (SecurityPolicy or app-level login) — confirm intentional                                                          |
+| A11 | Secrets passed as environment variables where the app supports file-based secret mounts — env vars are visible in `kubectl describe pod --context frostlink`; recommend secretMount if supported |
+| A17 | No AppArmor or Seccomp profile configured — consider `seccompProfile.type: RuntimeDefault` in `defaultPodOptions.securityContext` as a low-friction hardening baseline                           |
+
+---
+
+## Observability
+
+| #   | Check                                                                                                                                                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A18 | App exposes a `/metrics` endpoint but has no `VMServiceScrape`/`ServiceMonitor` — metrics are not scraped by the VictoriaMetrics stack; recommend adding one |
+
+---
+
+## Image Compatibility
+
+| #   | Check                                                                                                                                                                                                      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A19 | Image has `PUID`/`PGID` env vars (Linuxserver-style) — entrypoint starts as root to create its user. Skip H8/H9/H10/H22/H23/H24. Only `fsGroup` and `fsGroupChangePolicy` are safe in `defaultPodOptions`. |
+| A20 | Image is Chrome/Chromium-based — Chrome writes to its profile dir at startup. Skip H23 (`readOnlyRootFilesystem`); it crashes even with a `/tmp` emptyDir present.                                         |
+
+---
+
+## Architecture
+
+| #   | Check                                                                                                                                                                                    |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A12 | App has multiple logical components (e.g. app + database + worker) in a single HelmRelease — consider splitting into separate kustomizations for independent reconciliation and rollback |
+| A16 | App uses a `Deployment` controller but mounts a PVC and requires stable pod identity — consider `StatefulSet` (`type: statefulset` in app-template) if restart ordering matters          |

@@ -1,0 +1,64 @@
+endpoint: "https://registry.frostlink.dev"
+accountDomain: "frostlink.dev"
+listen: ":5000"
+dataDir: "/data"
+logFormat: json
+
+database:
+  driver: postgres
+
+peering:
+  healthCheckInterval: 30s
+  fetchTimeout: 60s
+
+limits:
+  maxBlobSize: 5368709120 # 5 GiB
+
+rateLimits:
+  trustedProxies:
+    - "10.244.0.0/24"
+
+gc:
+  orphanBatchSize: 10000
+  interval: 30m
+  diskUsageThreshold: 80
+  diskUsageCheckInterval: 5m
+  retention:
+    keepLastN: 10
+    pinnedGlobs:
+      - "latest"
+      - "main"
+    perRepo:
+      - repo: "frostlink.dev/exikle/frostlink"
+        keepLastN: 7
+        maxAge: 24h
+
+metrics:
+  enabled: true
+  listen: ":9090"
+
+notifications:
+  urls:
+    - "generic://chaski.observability.svc.cluster.local:8080/hooks/warning?template=json&disabletls=yes"
+  events:
+    - follow_request
+    - replication_failure
+    - gc_error
+
+federation:
+  autoAccept: mutual
+  excludedRepos:
+    - "*/*-buildcache"
+
+upstreams:
+  enabled: true
+  registries:
+    - name: docker.io
+      endpoint: "https://registry-1.docker.io"
+      private: true
+    - name: ghcr.io
+      endpoint: "https://ghcr.io"
+      private: true
+
+ui:
+  enabled: true

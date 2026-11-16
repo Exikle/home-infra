@@ -1,0 +1,16 @@
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: coredns
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vm-coredns
+  endpoints:
+    - port: metrics
+      scheme: http
+      interval: 30s

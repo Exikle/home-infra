@@ -1,0 +1,47 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vmsingle
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: vmsingle
+  interval: 1h
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    fullnameOverride: victoria-metrics
+
+    server:
+      replicaCount: 1
+      retentionPeriod: 30d
+      podSecurityContext:
+        enabled: true
+        fsGroup: 65532
+      securityContext:
+        enabled: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+      extraArgs:
+        http.shutdownDelay: 15s
+        loggerFormat: json
+        selfScrapeInterval: 10s
+      persistentVolume:
+        enabled: true
+        existingClaim: server-volume-victoria-metrics-server-0
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+      serviceMonitor:
+        enabled: true

@@ -1,0 +1,67 @@
+---
+area/agents:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .agents/**/*
+          - .claude/**/*
+          - AGENTS.md
+          - CLAUDE.md
+          - .mcp.json
+area/backup:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/kopiur-system/**/*
+          - kubernetes/components/kopiur/**/*
+          - kubernetes/components/kopiur-deep-verify/**/*
+area/bootstrap:
+  - changed-files:
+      - any-glob-to-any-file:
+          - bootstrap/**/*
+area/ci:
+  - changed-files:
+      - any-glob-to-any-file: ".forgejo/**/*"
+area/database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/database/**/*
+          - kubernetes/apps/cnpg-system/**/*
+          - kubernetes/apps/dragonfly-system/**/*
+          - kubernetes/components/postgres/**/*
+area/fediverse:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/fediverse/**/*
+area/flux:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/flux-system/**/*
+area/kubernetes:
+  - changed-files:
+      - any-glob-to-any-file: "kubernetes/**/*"
+area/matrix:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/matrix/**/*
+area/network:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/network/**/*
+          - kubernetes/apps/towonel/**/*
+          - kubernetes/apps/kube-system/cilium/**/*
+area/observability:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/observability/**/*
+area/renovate:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .renovate/**/*
+          - .renovaterc.json5
+area/storage:
+  - changed-files:
+      - any-glob-to-any-file:
+          - kubernetes/apps/openebs-system/**/*
+area/talos:
+  - changed-files:
+      - any-glob-to-any-file:
+          - talos/**/*

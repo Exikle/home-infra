@@ -1,0 +1,142 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: artemis-backhaul
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: towonel
+    app.kubernetes.io/name: towonel-node
+  ports:
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 15001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: artemis-backhaul-apex
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: towonel
+    app.kubernetes.io/name: towonel-node
+  ports:
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 15001
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/backendtlspolicy_v1.json
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: artemis-backhaul
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: artemis-backhaul
+  validation:
+    hostname: edge.dcunha.io
+    wellKnownCACertificates: System
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/backendtlspolicy_v1.json
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: artemis-backhaul-apex
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: artemis-backhaul-apex
+  validation:
+    hostname: dcunha.io
+    wellKnownCACertificates: System
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: artemis
+  annotations:
+    external-dns.kubernetes.io/controller: none
+    gatus.home-operations.com/enabled: "false"
+spec:
+  parentRefs:
+    - name: external-gateway
+      namespace: network
+      sectionName: https
+  hostnames:
+    - "*.dcunha.io"
+  rules:
+    - backendRefs:
+        - name: artemis-backhaul
+          port: 443
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/httproute_v1.json
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: artemis-apex
+  annotations:
+    external-dns.kubernetes.io/controller: none
+    gatus.home-operations.com/enabled: "false"
+spec:
+  parentRefs:
+    - name: external-gateway
+      namespace: network
+      sectionName: https
+  hostnames:
+    - dcunha.io
+  rules:
+    - backendRefs:
+        - name: artemis-backhaul-apex
+          port: 443
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/backendtrafficpolicy_v1alpha1.json
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: artemis
+spec:
+  healthCheck:
+    active:
+      healthyThreshold: 1
+      interval: 5s
+      tcp: {}
+      timeout: 2s
+      type: TCP
+      unhealthyThreshold: 2
+  http1: {}
+  mergeType: StrategicMerge
+  responseOverride:
+    - match:
+        statusCodes:
+          - range:
+              end: 504
+              start: 502
+            type: Range
+      response:
+        body:
+          type: ValueRef
+          valueRef:
+            group: ""
+            kind: ConfigMap
+            name: home-down
+        contentType: text/html; charset=utf-8
+        statusCode: 503
+      source: Local
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: artemis
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: artemis-apex
+  timeout:
+    tcp:
+      connectTimeout: 3s

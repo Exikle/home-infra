@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./envoyextensionpolicy.yaml
+  - ./externalsecret.yaml
+patches:
+  - target:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: envoy
+    patch: |-
+      - op: add
+        path: /spec/bootstrap
+        value:
+          type: Merge
+          value: |
+            static_resources:
+              clusters:
+                - name: crowdsec_lapi
+                  type: STRICT_DNS
+                  connect_timeout: 5s
+                  load_assignment:
+                    cluster_name: crowdsec_lapi
+                    endpoints:
+                      - lb_endpoints:
+                          - endpoint:
+                              address:
+                                socket_address:
+                                  address: crowdsec-service.security.svc.cluster.local.
+                                  port_value: 8080
+                - name: crowdsec_appsec
+                  type: STRICT_DNS
+                  connect_timeout: 5s
+                  load_assignment:
+                    cluster_name: crowdsec_appsec
+                    endpoints:
+                      - lb_endpoints:
+                          - endpoint:
+                              address:
+                                socket_address:
+                                  address: crowdsec-appsec-service.security.svc.cluster.local.
+                                  port_value: 7422
+      - op: add
+        path: /spec/provider/kubernetes/envoyDeployment/container/env
+        value:
+          - name: CROWDSEC_LAPI_KEY
+            valueFrom:
+              secretKeyRef:
+                name: crowdsec-wasm
+                key: BOUNCER_KEY_ENVOY
+          - name: CROWDSEC_APPSEC_KEY
+            valueFrom:
+              secretKeyRef:
+                name: crowdsec-wasm
+                key: BOUNCER_KEY_ENVOY

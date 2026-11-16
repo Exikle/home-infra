@@ -1,0 +1,58 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kopiur.home-operations.com/snapshotpolicy_v1alpha1.json
+apiVersion: kopiur.home-operations.com/v1alpha1
+kind: SnapshotPolicy
+metadata:
+  name: ${KOPIUR_APP}
+spec:
+  compression:
+    compressor: zstd
+    neverCompress:
+      - "*.7z"
+      - "*.avif"
+      - "*.bz2"
+      - "*.gif"
+      - "*.gz"
+      - "*.jpeg"
+      - "*.jpg"
+      - "*.mkv"
+      - "*.mp3"
+      - "*.mp4"
+      - "*.png"
+      - "*.webm"
+      - "*.webp"
+      - "*.xz"
+      - "*.zst"
+  copyMethod: Snapshot
+  credentialProjection:
+    enabled: true
+  mover:
+    cache:
+      capacity: ${KOPIUR_CACHE_CAPACITY:=2Gi}
+      storageClassName: ${KOPIUR_STORAGECLASS:=openebs-zfs}
+    inheritSecurityContextFrom:
+      pvcConsumer: {}
+  preflight:
+    checks:
+      - name: backend-reachable
+        expr: repository.backendReachable
+        message: R2 backend is unreachable; holding the backup rather than spawning a mover that cannot connect.
+    timeout: 30m
+  repository:
+    kind: ClusterRepository
+    name: r2
+  retention:
+    keepLatest: ${KOPIUR_KEEP_LATEST:=3}
+    keepHourly: ${KOPIUR_KEEP_HOURLY:=24}
+    keepDaily: ${KOPIUR_KEEP_DAILY:=7}
+    keepWeekly: ${KOPIUR_KEEP_WEEKLY:=4}
+    keepMonthly: ${KOPIUR_KEEP_MONTHLY:=3}
+  sources:
+    - pvc:
+        name: ${KOPIUR_APP}
+  verification:
+    quick:
+      schedule:
+        cron: H 4 * * 0
+        jitter: 30m
+  volumeSnapshotClassName: ${KOPIUR_SNAPSHOTCLASS:=zfs-snapshotclass}

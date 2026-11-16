@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app mautrix-whatsapp
+spec:
+  targetNamespace: matrix
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  path: ./kubernetes/apps/matrix/mautrix-whatsapp/app
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
+  interval: 1h
+  dependsOn:
+    - name: cert-manager
+      namespace: cert-manager
+  components:
+    - ../../../../components/postgres/cert
+  postBuild:
+    substitute:
+      APP: mautrix-whatsapp
