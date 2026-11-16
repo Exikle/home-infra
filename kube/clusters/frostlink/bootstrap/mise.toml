@@ -115,14 +115,21 @@ mise run //:log info "Installing Cilium, CoreDNS, and cert-manager directly via 
 for app in kube-system/cilium kube-system/coredns cert-manager/cert-manager; do
     ns="${app%%/*}"
     name="${app##*/}"
-    ocirepo="../apps/${app}/app/ocirepository.yaml"
-    helmrelease="../apps/${app}/app/helmrelease.yaml"
+    dir="../apps/${app}"
+    [[ -d "$dir/app" ]] || dir="../../../base/${app}"
+    ocirepo="${dir}/app/ocirepository.yaml"
+    helmrelease="${dir}/app/helmrelease.yaml"
+    extras="../apps/${app}/extras/values.yaml"
 
     chart="$(yq '.spec.url' "$ocirepo")"
     version="$(yq '.spec.ref.tag' "$ocirepo")"
+    values="$(yq '.spec.values' "$helmrelease")"
+    if [[ -f "$extras" ]]; then
+        values="$(yq ea 'select(fi == 0) * (select(fi == 1) | .spec.values)' "$extras" "$helmrelease")"
+    fi
 
     mise run //:log info "Installing ${name}..." stage "$MISE_TASK_NAME" version "$version"
-    if ! yq '.spec.values' "$helmrelease" | \
+    if ! printf '%s\n' "$values" | \
         helm upgrade --install "$name" "$chart" \
             --kube-context "$KUBE_CONTEXT" \
             --version "$version" \

@@ -1,3 +1,5 @@
-{{- $oci := fromYaml (readFile (printf "../../apps/%s/%s/app/ocirepository.yaml" .Release.Namespace .Release.Name)) -}}
+{{- $cluster := printf "../../apps/%s/%s/app/ocirepository.yaml" .Release.Namespace .Release.Name -}}
+{{- $base := printf "../../../../base/%s/%s/app/ocirepository.yaml" .Release.Namespace .Release.Name -}}
+{{- $oci := fromYaml (readFile (ternary $cluster $base (isFile $cluster))) -}}
 chart: {{ $oci.spec.url }}
 version: {{ $oci.spec.ref.tag }}
