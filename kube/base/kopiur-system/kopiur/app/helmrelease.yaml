@@ -9,18 +9,13 @@ spec:
     kind: OCIRepository
     name: kopiur
   interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: kopiur-values
+      optional: true
+      valuesKey: values.yaml
   values:
-    installScope: cluster
-    features:
-      kopiaUi:
-        enabled: true
     monitoring:
-      dashboards:
-        enabled: true
-        grafanaOperator:
-          enabled: true
-          matchLabels:
-            dashboards: grafana
       prometheusRule:
         enabled: true
       serviceMonitor:
@@ -31,8 +26,3 @@ spec:
       runAsGroup: 1000
       fsGroup: 1000
       fsGroupChangePolicy: OnRootMismatch
-    resources:
-      requests:
-        cpu: 100m
-      limits:
-        memory: 2Gi

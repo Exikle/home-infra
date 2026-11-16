@@ -1,0 +1,11 @@
+features:
+  credentialProjection:
+    enabled: true
+monitoring:
+  prometheusRule:
+    backupStaleAfterSeconds: 93600
+rbac:
+  browseRole: true
+webhook:
+  serviceMonitor:
+    enabled: true

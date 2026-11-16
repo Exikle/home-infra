@@ -1,0 +1,16 @@
+installScope: cluster
+features:
+  kopiaUi:
+    enabled: true
+monitoring:
+  dashboards:
+    enabled: true
+    grafanaOperator:
+      enabled: true
+      matchLabels:
+        dashboards: grafana
+resources:
+  requests:
+    cpu: 100m
+  limits:
+    memory: 2Gi
