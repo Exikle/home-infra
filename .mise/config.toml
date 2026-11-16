@@ -3,8 +3,8 @@ min_version = "2026.11.8"
 monorepo_root = true
 
 include = [
-  "git::https://git.dcunha.io/exikle/mise-config.git//base.toml?ref=b705bffeda6f8f051b9866a8507f959f539c8f59",
-  "git::https://git.dcunha.io/exikle/mise-config.git//cluster.toml?ref=b705bffeda6f8f051b9866a8507f959f539c8f59",
+  "git::https://git.dcunha.io/exikle/mise-config.git//base.toml?ref=bb896c3981044ef677942ed7fefa44772b4b3282",
+  "git::https://git.dcunha.io/exikle/mise-config.git//cluster.toml?ref=bb896c3981044ef677942ed7fefa44772b4b3282",
 ]
 
 [monorepo]

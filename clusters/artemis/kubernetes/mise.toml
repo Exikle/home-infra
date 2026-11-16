@@ -313,5 +313,5 @@ flux build artifact --path "$MISE_CONFIG_ROOT/.." --output "$tree/artifact.tgz" 
     || mise run //:log fatal "flux build artifact failed" path "$MISE_CONFIG_ROOT/.."
 tar -xzf "$tree/artifact.tgz" -C "$tree"
 rm "$tree/artifact.tgz"
-flate build ks --path "$tree" --namespace "$usage_ns" --output yaml "$usage_ks"
+FLATE_ALLOW_MISSING_SECRETS=true flate build ks --path "$tree" --namespace "$usage_ns" --output yaml "$usage_ks"
 '''
