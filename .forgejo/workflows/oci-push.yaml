@@ -61,7 +61,7 @@ jobs:
     name: Artemis
     needs: changes
     if: needs.changes.outputs.artemis == 'true'
-    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@3fa0aca0d9cfd3971299f1ed37089a6af4a2fbbb
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@f27e27f6dbfc0fa9374c7de58960408b7dd31b6a
     with:
       path: .
       ignore-paths: "/*,!/kube/,/kube/*,!/kube/base/,!/kube/components/,!/kube/clusters/,/kube/clusters/*,!/kube/clusters/artemis/,/kube/clusters/artemis/talos/,/kube/clusters/artemis/bootstrap/,/kube/clusters/artemis/mise.toml,/kube/clusters/artemis/kubeconfig,/kube/clusters/artemis/talosconfig"
@@ -74,7 +74,7 @@ jobs:
     name: Frostlink
     needs: changes
     if: needs.changes.outputs.frostlink == 'true'
-    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@3fa0aca0d9cfd3971299f1ed37089a6af4a2fbbb
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@f27e27f6dbfc0fa9374c7de58960408b7dd31b6a
     with:
       path: .
       ignore-paths: "/*,!/kube/,/kube/*,!/kube/base/,!/kube/components/,!/kube/clusters/,/kube/clusters/*,!/kube/clusters/frostlink/,/kube/clusters/frostlink/talos/,/kube/clusters/frostlink/bootstrap/,/kube/clusters/frostlink/mise.toml,/kube/clusters/frostlink/kubeconfig,/kube/clusters/frostlink/talosconfig"

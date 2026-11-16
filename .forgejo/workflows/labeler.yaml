@@ -17,5 +17,5 @@ concurrency:
 
 jobs:
   labeler:
-    uses: Exikle/forgejo-workflows/.forgejo/workflows/labeler.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/labeler.yaml@f27e27f6dbfc0fa9374c7de58960408b7dd31b6a
     secrets: inherit # zizmor: ignore[secrets-inherit]
