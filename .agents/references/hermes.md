@@ -378,10 +378,11 @@ cache reads, keyed server-side.
 
 ### Per-key limits
 
-Every key is limited to 6,000,000 tokens per hour (local, per replica). The cap was 2,000,000
-until 2026-11-16. kritika's agentic reviews on the `pr-review` key hit that cap after a few
-reviews, and agentgateway rejected the calls with 429. The cap is one rule for every key, so
-it cannot be raised for one key alone. The old LiteLLM 30-day
+Every key is limited to 2,000,000 tokens per hour (local, per replica). The cap counts every
+token sent, cached context included. One rule covers every key, so the cap cannot differ per
+key. kritika does not use agentgateway for this reason: one agentic review resends its context
+on each step and used 6,000,000 tokens in under three minutes. kritika calls OpenCode Go
+directly with the same account key. The old LiteLLM 30-day
 dollar budgets per key are gone. agentgateway cannot enforce dollar budgets in Kubernetes
 mode (standalone only), and the team accepted that loss. So a runaway is bounded per hour, not
 per month. Watch `agentgateway_gen_ai_client_cost_usd_total` by `user_id` against the $60 ceiling.

@@ -29,12 +29,12 @@ spec:
             - groups
       confidence:
         effort: low
-        fallback: agentgateway/opencode-go/minimax-m3
+        fallback: opencode/minimax-m3
         gate:
           when:
             - name: bot
               expr: pr.bot
-        model: agentgateway/opencode-go/glm-5.2
+        model: opencode/glm-5.2
         threshold: 4
       egress:
         allow:
@@ -43,6 +43,7 @@ spec:
           - auth.docker.io
           - codeberg.org
           - cr.agentgateway.dev
+          - dock.mau.dev
           - ghcr.io
           - git.erwanleboucher.dev
           - github.com
@@ -70,15 +71,23 @@ spec:
           webhookSecret:
             env: FORGEJO_WEBHOOK_SECRET
       providers:
-        agentgateway:
+        opencode:
           apiKey:
-            env: AGENTGATEWAY_API_KEY
-          baseUrl: http://agentgateway.cortex.svc.cluster.local:4000/v1
+            env: OPENCODE_API_KEY
           concurrency: 1
+          pricing:
+            glm-5.2:
+              cacheRead: 0.26
+              input: 1.4
+              output: 4.4
+            minimax-m3:
+              cacheRead: 0.06
+              input: 0.3
+              output: 1.2
           retries: 2
-          type: openai
+          type: opencode
       review:
-        model: agentgateway/opencode-go/minimax-m3
+        model: opencode/minimax-m3
       webUrl: https://kritika.dcunha.io
     database:
       app:
@@ -104,13 +113,6 @@ spec:
         enabled: true
     networkPolicy:
       extraEgress:
-        - ports:
-            - port: 4000
-              protocol: TCP
-          to:
-            - namespaceSelector:
-                matchLabels:
-                  kubernetes.io/metadata.name: cortex
         - ports:
             - port: 10443
               protocol: TCP
