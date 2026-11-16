@@ -18,7 +18,7 @@ INPUT=$(cat)
 # The stripped command is always a subset of this raw payload, so a keyword absent
 # here cannot appear in it. Saves ~60ms of interpreter startup on Bash calls that
 # match no rule at all, which is most of them.
-[[ "$INPUT" =~ (kubectl|helm|flux|talosctl|just|(^|[^[:alnum:]_])rm[^[:alnum:]_]|(^|[^[:alnum:]_])mv[^[:alnum:]_]|(^|[^[:alnum:]_])git[^[:alnum:]_]) ]] || exit 0
+[[ "$INPUT" =~ (kubectl|helm|flux|talosctl|just|mise|(^|[^[:alnum:]_])rm[^[:alnum:]_]|(^|[^[:alnum:]_])mv[^[:alnum:]_]|(^|[^[:alnum:]_])git[^[:alnum:]_]) ]] || exit 0
 
 # Strip heredoc BODIES before any rule sees the command; the opening line is kept,
 # so the real command on it (git commit -F - <<'MSG', python3 <<PY, ...) is checked.
@@ -60,8 +60,8 @@ block() {
 printf '%s' "$COMMAND" | grep -qE -- --dry-run && exit 0
 
 # just-cluster-mutation-subagent — fires only inside a subagent; the main thread is never blocked
-if [ -n "$AGENT_ID" ] && printf '%s' "$COMMAND" | grep -qE -- '\bjust\b.*\b(kube\s+(apply|delete|suspend|resume)-ks|talos\s+apply-node)\b'; then
-    block 'A subagent may not mutate the live cluster — these commands are the human'"'"'s to run. The safety of '"'"'just kube apply-ks'"'"' is not in the recipe, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.' 'Write the manifests and validate them offline ('"'"'just kube render-ks <ns> <ks>'"'"' needs no cluster), or read live state with '"'"'just kube diff-ks <ns> <ks>'"'"'. Report the change and let the human apply it.'
+if [ -n "$AGENT_ID" ] && printf '%s' "$COMMAND" | grep -qE -- '\bjust\b.*\b(kube\s+(apply|delete|suspend|resume)-ks|talos\s+apply-node)\b|\bmise\b.*:((apply|delete|suspend|resume)-ks|apply-node)\b'; then
+    block 'A subagent may not mutate the live cluster — these commands are the human'"'"'s to run. The safety of '"'"'mise run //clusters/artemis/kubernetes:apply-ks'"'"' is not in the task, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.' 'Write the manifests and validate them offline ('"'"'mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>'"'"' needs no cluster), or read live state with '"'"'mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>'"'"'. Report the change and let the human apply it.'
 fi
 
 # git-write-subagent — fires only inside a subagent; the main thread is never blocked
@@ -71,7 +71,7 @@ fi
 
 # kubectl-apply
 if printf '%s' "$COMMAND" | grep -qE -- '\bkubectl\b.*\bapply\b'; then
-    block 'Direct kubectl apply bypasses GitOps' 'Use '"'"'just kube apply-ks <ns> <ks>'"'"' to apply changes via Flux'
+    block 'Direct kubectl apply bypasses GitOps' 'Apply through the repo'"'"'s apply-ks task (Artemis: '"'"'mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks>'"'"', frostlink: '"'"'just kube apply-ks <ns> <ks>'"'"')'
 fi
 
 # kubectl-delete-critical
@@ -94,7 +94,7 @@ fi
 
 # talosctl-patch-machineconfig
 if printf '%s' "$COMMAND" | grep -qE -- '\btalosctl\b.*patch\s+machineconfig\b'; then
-    block 'talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node' 'Use '"'"'just talos apply-node <node>'"'"' or talosctl apply-config --file for full config replacement'
+    block 'talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node' 'Use '"'"'mise run //clusters/artemis/talos:apply-node <node>'"'"' or talosctl apply-config --file for full config replacement'
 fi
 
 # talosctl-reset

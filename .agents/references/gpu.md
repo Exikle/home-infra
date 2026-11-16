@@ -44,7 +44,7 @@ A `ResourceClaimTemplate` creates a fresh claim for each pod. So two pods that m
 
 ```sh
 kubectl delete resourceclaimtemplate -n <ns> <name>
-just kube apply-ks <ns> <app>
+mise run //clusters/artemis/kubernetes:apply-ks <ns> <app>
 ```
 
 CEL selectors work. silo (and Jellyfin before it) pins the Arc with `device.attributes["gpu.intel.com"].model == "A380"` and allocates correctly. Test a new selector against a real allocation. Do not assume that it works. For the driver version, run `grep tag: clusters/artemis/kubernetes/apps/kube-system/intel-gpu-resource-driver/app/ocirepository.yaml`.

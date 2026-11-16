@@ -1,0 +1,117 @@
+[tasks.cluster]
+description = "Bootstrap a Talos & Kubernetes cluster end-to-end"
+confirm = { message = "Bootstrap cluster?", default = "no" }
+run = [
+  { task = ":nodes" },
+  { task = ":k8s" },
+  { task = ":kubeconfig", args = [
+    "node",
+  ] },
+  { task = ":base" },
+  { task = ":apps" },
+  { task = ":kubeconfig" },
+]
+
+[tasks.nodes]
+hide = true
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+talos="//$(dirname "${MISE_CONFIG_ROOT#"$MISE_MONOREPO_ROOT"/}")/talos"
+for n in $(mise run :node-list); do
+    if ! op=$(mise run --yes "$talos:apply-node" "$n" --insecure 2>&1); then
+        if [[ "$op" == *"certificate required"* ]]; then
+            mise run //:log info "Talos already configured, skipping apply of config" stage "$MISE_TASK_NAME" node "$n"
+            continue
+        fi
+        mise run //:log fatal "Failed to apply Talos configuration" stage "$MISE_TASK_NAME" node "$n" output "$op"
+    fi
+done
+'''
+
+[tasks.k8s]
+hide = true
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+controller="$(talosctl config info -o yaml | yq -r -e '.endpoints[0]')"
+until op=$(talosctl -n "$controller" bootstrap 2>&1 || true) && [[ "$op" == *"AlreadyExists"* ]]; do
+    mise run //:log info "Kubernetes bootstrap in progress. Retrying in 5 seconds..." stage "$MISE_TASK_NAME"
+    sleep 5
+done
+'''
+
+[tasks.kubeconfig]
+hide = true
+usage = 'arg "[lb]" default="cilium"'
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+controller="$(talosctl config info -o yaml | yq -r -e '.endpoints[0]')"
+if ! talosctl kubeconfig -n "$controller" -f --force-context-name "$KUBE_CONTEXT" "$(dirname "$KUBECONFIG")"; then
+    mise run //:log fatal "Failed to fetch kubeconfig" stage "$MISE_TASK_NAME"
+fi
+if [[ "$usage_lb" != "cilium" ]]; then
+    cluster="$(kubectl config view -o yaml | yq -r -e ".contexts[] | select(.name == \"$KUBE_CONTEXT\") | .context.cluster")"
+    if ! kubectl config set-cluster "$cluster" --server "https://${controller}:6443"; then
+        mise run //:log fatal "Failed to set kubectl cluster server address" stage "$MISE_TASK_NAME"
+    fi
+fi
+'''
+
+[tasks.base]
+hide = true
+depends = [":nodes-ready"]
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+find ../kubernetes/apps -mindepth 1 -maxdepth 1 -type d | while IFS= read -r dir; do
+    if ! kustomize build "$dir" | yq ea -r -e 'select(.kind == "Namespace")' | kubectl --context "$KUBE_CONTEXT" apply --server-side --field-manager kustomize-controller --force-conflicts -f -; then
+        mise run //:log fatal "Failed to apply namespace" stage "$MISE_TASK_NAME" namespace "$(basename "$dir")"
+    fi
+done
+if ! mise run //:template resources.yaml.j2 | kubectl --context "$KUBE_CONTEXT" apply --server-side --field-manager kustomize-controller --force-conflicts -f -; then
+    mise run //:log fatal "Failed to apply resources" stage "$MISE_TASK_NAME"
+fi
+if ! helmfile -f helmfile.d/00-crds.yaml template -q | yq ea -r -e 'select(.kind == "CustomResourceDefinition")' | kubectl --context "$KUBE_CONTEXT" apply --server-side --field-manager kustomize-controller --force-conflicts -f -; then
+    mise run //:log fatal "Failed to apply crds" stage "$MISE_TASK_NAME"
+fi
+'''
+
+[tasks.apps]
+hide = true
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+if ! helmfile --kube-context "$KUBE_CONTEXT" -f helmfile.d/01-apps.yaml sync --hide-notes; then
+    mise run //:log fatal "Failed to sync helmfile" stage "$MISE_TASK_NAME"
+fi
+'''
+
+[tasks.api-ready]
+hide = true
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+controlplanes="$(talosctl config info -o yaml | yq -r -e '.endpoints | join(" ")')"
+for n in $controlplanes; do
+    until [[ "$(curl -ks -o /dev/null -w '%{http_code}' --connect-timeout 2 "https://${n}:6443/readyz")" == "200" ]]; do
+        mise run //:log info "Waiting for kube-apiserver. Retrying in 5 seconds..." stage "$MISE_TASK_NAME" node "$n"
+        sleep 5
+    done
+done
+'''
+
+[tasks.nodes-ready]
+hide = true
+depends = [":api-ready"]
+run = '''
+mise run //:log info "Running stage..." stage "$MISE_TASK_NAME"
+until kubectl --context "$KUBE_CONTEXT" wait nodes --for=condition=Ready=True --all --timeout=10s &>/dev/null ||
+    kubectl --context "$KUBE_CONTEXT" wait nodes --for=condition=Ready=False --all --timeout=10s &>/dev/null; do
+    mise run //:log info "Nodes not available, waiting for nodes to be available. Retrying in 5 seconds..." stage "$MISE_TASK_NAME"
+    sleep 5
+done
+'''
+
+[tasks.node-list]
+hide = true
+run = '''
+all="$(find ../talos/nodes -name '*.yaml.j2' -exec basename {} .yaml.j2 \; | sort)"
+printf '%s\n' "$all" | grep -- '-cp-' || true
+printf '%s\n' "$all" | grep -v -- '-cp-' || true
+'''

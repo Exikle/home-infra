@@ -62,7 +62,7 @@ reconciles it. When you push to main, the change appears in the cluster.
 
 CI packs each cluster folder into its own Flux artifact, so Flux on Artemis sees only
 `clusters/artemis/`. Flux reconciles only its `kubernetes/` folder. You run `talos/`,
-`ansible/` and `terraform/` by hand through `just`.
+`ansible/` and `terraform/` by hand through mise tasks.
 
 ---
 

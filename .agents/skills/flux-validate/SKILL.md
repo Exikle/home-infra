@@ -12,13 +12,13 @@ Always validate before you commit. `main` reconciles directly to production.
 ## Quick Render (single kustomization)
 
 ```bash
-just kube render-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
 ```
 
 This runs `flate build ks --namespace <namespace> --output yaml <ks-name>` and prints the rendered manifests. It catches schema errors, missing references, and HelmRelease value mistakes.
 
 The root (`render-ks flux-system flux-system`) is the exception. flux-operator generates it, so
-flate cannot see it. The recipe runs `flux build kustomization` against the live root instead,
+flate cannot see it. The task runs `flux build kustomization` against the live root instead,
 which needs the cluster.
 
 The `<ks-name>` is `metadata.name` from the `ks.yaml` of the app, not the directory name.
@@ -40,7 +40,7 @@ flate test all --path ./kubernetes --allow-missing-secrets
 ## Diff Against the Live Cluster
 
 ```bash
-just kube diff-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
 ```
 
 This is read-only. It renders locally with `flate`, then runs `kubectl diff --server-side`, which is a server-side
@@ -80,9 +80,9 @@ flate build hr --namespace <namespace> --output yaml <helmrelease-name>
 
 ## Validate Workflow (pre-commit checklist)
 
-1. Run `just kube render-ks <ns> <ks>` to render the changed kustomization.
+1. Run `mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>` to render the changed kustomization.
 2. Review the output for unexpected changes.
-3. Run `just kube diff-ks <ns> <ks>` to see what the change would actually move in the cluster.
+3. Run `mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>` to see what the change would actually move in the cluster.
 4. Run `flate test all --path ./kubernetes --allow-missing-secrets` for the full suite.
 5. If the tests pass, continue with `.agents/skills/modules/test-and-commit.md`. The sequence is in
    `.agents/instructions/commit-style.md` § The sequence: suspend root and target, apply, wait for the

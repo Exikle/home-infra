@@ -17,7 +17,7 @@ talosconfig
 *.iso
 *.key
 *.pem
-# Local agent env — MCP bearer tokens, sourced from 1Password via `just ai env`
+# Local agent env — MCP bearer tokens, sourced from 1Password via `mise run //ai:env`
 .env
 
 # AI — what is tracked under .claude/ is decided by .claude/.gitignore, not here

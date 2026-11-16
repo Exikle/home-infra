@@ -20,11 +20,11 @@ reasoning and the traps.
 - Talos nodes. They have no SSH, no package manager, and no Python interpreter. There is no
   `siderolabs` Ansible collection. People build `command:` wrappers around
   `talosctl`, which is Ansible as a shell script with none of the value of Ansible. Talos machine
-  config _is_ the declarative state. `just talos render-config` already does this, and
+  config _is_ the declarative state. `mise run //clusters/artemis/talos:render-config` already does this, and
   the wider home-operations community converged on it after dropping Ansible.
 - Anything inside Kubernetes. Flux owns it.
 - Restore drills and runbooks. They are interactive, branching procedures that need human judgment,
-  the opposite of convergent state. They stay as `just` recipes and `.agents/skills/`.
+  the opposite of convergent state. They stay as mise tasks and `.agents/skills/`.
 - Windows / Arcana. It is one GUI-managed desktop, and WinRM plumbing has negative payback.
 - The WSL2 dev machine. mise owns both dotfiles and tools. It manages dotfiles with `symlink-each`
   in `~/dotfiles/mise.toml`, applied with `mise bootstrap dotfiles apply`. The only genuine
@@ -33,7 +33,7 @@ reasoning and the traps.
 
 ## Collections
 
-`ansible/requirements.yml` pins the collections. `just ansible deps` installs them into the gitignored
+`ansible/requirements.yml` pins the collections. `mise run //ansible:deps` installs them into the gitignored
 `collections` directory under `ansible`. That directory is absent in a fresh worktree until the command runs.
 
 `community.proxmox` is the current home of the `proxmox_*` modules. They were split
@@ -186,7 +186,7 @@ This sequence replaces the container with a fresh tofu-built one that takes over
 2. Run `tofu apply` on `terraform/stacks/proxmox/forgejo.tf` with `vm_id = 106` and a free LAB address.
    The `.20`–`.49` range is outside DHCP (`.50`–`.70`) and the Cilium pool (`.71`–`.99`). ARP cannot
    find a free address, because the UCG proxy-ARPs every unused address with its own MAC.
-3. Run `just --yes ansible apply forgejo -e ansible_host=<temp IP>`. It builds and starts a fresh
+3. Run `mise run --yes //ansible:apply forgejo -e ansible_host=<temp IP>`. It builds and starts a fresh
    instance, which the copy then overwrites.
 4. On pantheon, copy at the ZFS level with `rsync -aHAX --numeric-ids --delete` from
    `/vmpool/subvol-105-disk-0/{var/lib/forgejo,etc/forgejo,home/git}` into the rootfs and data
@@ -208,7 +208,7 @@ This sequence replaces the container with a fresh tofu-built one that takes over
 [`SierraSoftworks/tailscale-unifi`](https://github.com/SierraSoftworks/tailscale-unifi) package
 so the gateway can be a subnet router to the tailnet. UniFi has no native Tailscale. The team applied it
 2026-10-02 against Headscale. `host_vars/ucg-max.yml` sets `ucg_tailscale_up: true` and the
-login server, so a plain `just ansible apply ucg-max` also brings the node up and re-applies any
+login server, so a plain `mise run //ansible:apply ucg-max` also brings the node up and re-applies any
 drifted pref (routes, hostname, SNAT). The role default stays `ucg_tailscale_up: false`.
 
 - Pinned, not `curl | sh latest`. The role does what the `install.sh` of upstream does. It unpacks
@@ -329,7 +329,7 @@ hypervisor in the house leaves an undefined state with no reconcile loop to heal
 can apply continuously because Kubernetes self-heals. Bare metal does not. An
 unattended run after a Renovate bump could reboot the box that holds the ZFS pools.
 
-Always run `just ansible check <playbook>` first. Modules without check-mode
+Always run `mise run //ansible:check <playbook>` first. Modules without check-mode
 support skip or report inaccurately, so a clean check run is a strong hint, not proof.
 
 CI runs `ansible-lint` and `--syntax-check`, and it resolves `requirements.yml`. A human applies

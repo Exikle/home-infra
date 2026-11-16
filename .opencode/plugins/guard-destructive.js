@@ -11,7 +11,7 @@ const RULES = [
     id: "kubectl-apply",
     pattern: new RegExp("\\bkubectl\\b.*\\bapply\\b"),
     reason: "Direct kubectl apply bypasses GitOps",
-    alternative: "Use 'just kube apply-ks <ns> <ks>' to apply changes via Flux",
+    alternative: "Apply through the repo's apply-ks task (Artemis: 'mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks>', frostlink: 'just kube apply-ks <ns> <ks>')",
   },
   {
     id: "kubectl-delete-critical",
@@ -36,7 +36,7 @@ const RULES = [
     id: "talosctl-patch-machineconfig",
     pattern: new RegExp("\\btalosctl\\b.*patch\\s+machineconfig\\b"),
     reason: "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
-    alternative: "Use 'just talos apply-node <node>' or talosctl apply-config --file for full config replacement",
+    alternative: "Use 'mise run //clusters/artemis/talos:apply-node <node>' or talosctl apply-config --file for full config replacement",
   },
   {
     id: "talosctl-reset",

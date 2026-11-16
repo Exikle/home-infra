@@ -15,7 +15,6 @@
   "files.trimTrailingWhitespace": true,
   "material-icon-theme.files.associations": {
     "*.gotmpl": "smarty",
-    "*.just": "just",
     "*.yaml.j2": "jinja",
     "helmfile.yaml": "helm",
     "kubeconfig": "kubernetes",

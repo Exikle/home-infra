@@ -87,7 +87,7 @@ clusters/artemis/kubernetes/apps/external-endpoints/services/
 ```
 
 The tradeoff is deliberate. One Kustomization means one failure domain, so a build error in one
-member stalls them all. Validate with `just kube render-ks <ns> <ks>` before you commit. Prefer a
+member stalls them all. Validate with `mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>` before you commit. Prefer a
 fleet over N near-identical `ks.yaml` files once N is more than about three and the members share
 a lifecycle and a single controller.
 

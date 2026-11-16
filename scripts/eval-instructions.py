@@ -34,7 +34,7 @@ Usage:
   eval-instructions.py --runs 3             # majority of 3 per case — use this for --ab
   eval-instructions.py --model <id>         # override the model
 
-Needs `.env` (`just ai env`) for AGENTGATEWAY_API_KEY, and `yq` to read the case files.
+Needs `.env` (`mise run //ai:env`) for AGENTGATEWAY_API_KEY, and `yq` to read the case files.
 """
 
 from __future__ import annotations
@@ -355,7 +355,7 @@ def main() -> int:
                 api_key = line.split("=", 1)[1].strip()
     api_key = os.environ.get("AGENTGATEWAY_API_KEY", api_key)
     if not api_key:
-        raise SystemExit("error: no AGENTGATEWAY_API_KEY — run `just ai env`")
+        raise SystemExit("error: no AGENTGATEWAY_API_KEY — run `mise run //ai:env`")
 
     cases = load_cases()
     if args.case:

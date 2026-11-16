@@ -1,6 +1,6 @@
 {
   "//": "Canonical destructive-command rule table for both cluster repos. This file is the single source of truth: .claude/hooks/guard-destructive.sh and .opencode/plugins/guard-destructive.js are GENERATED from it by gen-guards.py, so the bash and JS guards cannot drift apart. Patterns are written in the intersection of POSIX ERE (grep -E) and JavaScript RegExp so one string serves both.",
-  "fast_path_keywords": ["kubectl", "helm", "flux", "talosctl", "just"],
+  "fast_path_keywords": ["kubectl", "helm", "flux", "talosctl", "just", "mise"],
   "fast_path_words": ["rm", "mv", "git"],
   "always_allow": {
     "pattern": "--dry-run",
@@ -11,9 +11,9 @@
       "id": "just-cluster-mutation-subagent",
       "subagent_only": true,
       "repos": ["artemis"],
-      "pattern": "\\bjust\\b.*\\b(kube\\s+(apply|delete|suspend|resume)-ks|talos\\s+apply-node)\\b",
-      "reason": "A subagent may not mutate the live cluster — these commands are the human's to run. The safety of 'just kube apply-ks' is not in the recipe, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.",
-      "alternative": "Write the manifests and validate them offline ('just kube render-ks <ns> <ks>' needs no cluster), or read live state with 'just kube diff-ks <ns> <ks>'. Report the change and let the human apply it."
+      "pattern": "\\bjust\\b.*\\b(kube\\s+(apply|delete|suspend|resume)-ks|talos\\s+apply-node)\\b|\\bmise\\b.*:((apply|delete|suspend|resume)-ks|apply-node)\\b",
+      "reason": "A subagent may not mutate the live cluster — these commands are the human's to run. The safety of 'mise run //clusters/artemis/kubernetes:apply-ks' is not in the task, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.",
+      "alternative": "Write the manifests and validate them offline ('mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>' needs no cluster), or read live state with 'mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>'. Report the change and let the human apply it."
     },
     {
       "id": "just-cluster-mutation-subagent-frostlink",
@@ -34,7 +34,7 @@
       "id": "kubectl-apply",
       "pattern": "\\bkubectl\\b.*\\bapply\\b",
       "reason": "Direct kubectl apply bypasses GitOps",
-      "alternative": "Use 'just kube apply-ks <ns> <ks>' to apply changes via Flux"
+      "alternative": "Apply through the repo's apply-ks task (Artemis: 'mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks>', frostlink: 'just kube apply-ks <ns> <ks>')"
     },
     {
       "id": "kubectl-delete-critical",
@@ -61,7 +61,7 @@
       "repos": ["artemis"],
       "pattern": "\\btalosctl\\b.*patch\\s+machineconfig\\b",
       "reason": "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
-      "alternative": "Use 'just talos apply-node <node>' or talosctl apply-config --file for full config replacement"
+      "alternative": "Use 'mise run //clusters/artemis/talos:apply-node <node>' or talosctl apply-config --file for full config replacement"
     },
     {
       "id": "talosctl-patch-machineconfig",

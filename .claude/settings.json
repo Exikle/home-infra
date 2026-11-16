@@ -38,7 +38,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(just kube apply-ks *)"
+      "Bash(mise run //clusters/artemis/kubernetes:apply-ks *)"
     ]
   }
 }

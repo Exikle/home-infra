@@ -79,6 +79,6 @@ having no power backup.
 update replaces `/etc/netdata`. That silently stops the `[web]` bind that VMStaticScrape
 `netdata-atlas` scrapes on `10.10.99.100:19999`. `ansible/roles/netdata_exporter` keeps the
 canonical config on a dataset (`/mnt/atlas/config/netdata/`) and registers a POSTINIT init script
-so the box repairs itself at boot. If it ever drifts, run `just ansible apply atlas` again. The team retired the
+so the box repairs itself at boot. If it ever drifts, run `mise run //ansible:apply atlas` again. The team retired the
 graphite bridge (`truenas-exporter`). `ansible.md` § The netdata.conf chore has the
 current path and the reason that `exporting.conf` belongs to TrueNAS middleware.

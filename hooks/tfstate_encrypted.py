@@ -71,7 +71,7 @@ def main(argv: list[str]) -> int:
         print(f"  {path} {problem}", file=sys.stderr)
     print(
         "\nState in this repo must be encrypted with OpenTofu's native state\n"
-        "encryption. Check that TF_ENCRYPTION was set — `just tofu` recipes do\n"
+        "encryption. Check that TF_ENCRYPTION was set — `mise run //terraform:` tasks do\n"
         "this for you; a bare `tofu apply` does not.\n"
         "See .agents/references/terraform.md for the recovery procedure.",
         file=sys.stderr,

@@ -21,7 +21,7 @@ initContainer that copies the file into an `emptyDir`. Point the app at the `emp
 ## ExternalSecret not syncing
 
 - Make sure that the 1Password field names match exactly (case-sensitive). A mismatch returns an empty secret with no error.
-- To force a refresh, run `just kube sync-flux es`.
+- To force a refresh, run `mise run //clusters/artemis/kubernetes:sync-flux es`.
 - To read the sync status, run `kubectl describe externalsecret <app> -n <namespace>`.
 
 ## HelmRelease stuck / not progressing

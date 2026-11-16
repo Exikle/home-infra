@@ -1,0 +1,102 @@
+[task_templates.stack]
+usage = '''
+arg "<stack>" help="Stack name in stacks/"
+arg "[args]" var=#true help="Extra arguments for tofu"
+complete "stack" run="find \"$(git rev-parse --show-toplevel)/terraform/stacks\" -mindepth 2 -maxdepth 2 -name main.tf -printf '%h\\n' | xargs -rn1 basename | sort"
+'''
+
+[tasks.init]
+description = "Initialise a stack (downloads providers, configures the backend)"
+extends = "stack"
+run = '''
+eval "args=(${usage_args:-})"
+mise run :run "$usage_stack" init "${args[@]}"
+'''
+
+[tasks.plan]
+description = "Show what a stack would change — always run this before apply"
+extends = "stack"
+run = '''
+eval "args=(${usage_args:-})"
+mise run :run "$usage_stack" plan "${args[@]}"
+'''
+
+[tasks.apply]
+description = "Apply a stack"
+extends = "stack"
+confirm = { message = "Apply OpenTofu changes to stack {{ usage.stack }}?", default = "no" }
+run = '''
+eval "args=(${usage_args:-})"
+mise run :run "$usage_stack" apply "${args[@]}"
+'''
+
+[tasks.import]
+description = "Import an existing object into state (address, then provider-specific id)"
+usage = '''
+arg "<stack>" help="Stack name in stacks/"
+arg "<address>" help="Resource address"
+arg "<id>" help="Provider-specific id"
+'''
+run = 'mise run :run "$usage_stack" import "$usage_address" "$usage_id"'
+
+[tasks.validate]
+description = "Validate a stack"
+usage = 'arg "<stack>" help="Stack name in stacks/"'
+run = 'mise run :run "$usage_stack" validate'
+
+[tasks.show]
+description = "Show the current state of a stack"
+extends = "stack"
+run = '''
+eval "args=(${usage_args:-})"
+mise run :run "$usage_stack" show "${args[@]}"
+'''
+
+[tasks.fmt]
+description = "Format all OpenTofu files in place"
+run = 'tofu fmt -recursive .'
+
+[tasks.fmt-check]
+description = "Check formatting without writing — used by CI"
+run = 'tofu fmt -recursive -check -diff .'
+
+[tasks.stacks]
+description = "List available stacks"
+run = '''
+for d in stacks/*/; do
+    [[ -f "${d}main.tf" ]] || continue
+    basename "$d"
+done
+'''
+
+[tasks.run]
+hide = true
+usage = '''
+arg "<stack>"
+arg "<args>" var=#true
+'''
+run = '''
+dir="$MISE_CONFIG_ROOT/stacks/$usage_stack"
+[[ -d "$dir" ]] || mise run //:log fatal "No such stack" stack "$usage_stack"
+ref="${TOFU_PASSPHRASE_REF:-op://infrastructure/tofu-state/password}"
+passphrase="${TOFU_PASSPHRASE:-$(op read "$ref")}"
+(( $(printf '%s' "$passphrase" | wc -m) >= 16 )) \
+    || mise run //:log fatal "State passphrase missing or under 16 characters" ref "$ref"
+
+esc="${passphrase//\\/\\\\}"
+esc="${esc//\"/\\\"}"
+esc="${esc//'${'/'$${'}"
+esc="${esc//'%{'/'%%{'}"
+unset passphrase
+
+export TF_ENCRYPTION
+TF_ENCRYPTION="$(printf 'key_provider "pbkdf2" "main" {\n  passphrase = "%s"\n}\nmethod "aes_gcm" "main" {\n  keys = key_provider.pbkdf2.main\n}\nstate {\n  method = method.aes_gcm.main\n}\nplan {\n  method = method.aes_gcm.main\n}\n' "$esc")"
+
+eval "args=(${usage_args:-})"
+cd "$dir"
+if [[ -f secrets.env ]]; then
+    op run --no-masking --env-file=secrets.env -- tofu "${args[@]}"
+else
+    tofu "${args[@]}"
+fi
+'''

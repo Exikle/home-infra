@@ -110,7 +110,7 @@ this today. `identity-stack.md` § Handing the app an authenticated session desc
 
 ## Step 5: Test live before committing
 
-Follow `.agents/skills/modules/test-and-commit.md` (edit in a worktree: `just wt new feat/<slug>`).
+Follow `.agents/skills/modules/test-and-commit.md` (edit in a worktree: `mise run //:wt:new feat/<slug>`).
 Suspend the root and each target. Apply both `security tinyauth` and the app, then:
 
 ```bash

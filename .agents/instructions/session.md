@@ -8,7 +8,7 @@ what is specific to this repo lives here.
   compaction, a `SessionStart` `compact` hook re-injects only `## Current State`. Keep that
   section current.
 - There is no staging cluster, so the reason for a live change matters more than usual. Record
-  what you applied with `just kube apply-ks`, what the user confirmed, and anything left
+  what you applied with `mise run //clusters/artemis/kubernetes:apply-ks`, what the user confirmed, and anything left
   suspended.
 - memini gets non-obvious operational discoveries: a quirk, a failure mode, or a workaround that
   would cost real time to re-derive. `.agents/` gets conventions, architecture and policy.

@@ -9,7 +9,7 @@ compatibility: Requires the Grafana Operator and its CRDs. Dashboards are CRs, n
 Create and manage Grafana resources through the Grafana Operator (CRD-based, not ConfigMaps or HelmRelease values).
 
 > Also read `.agents/references/observability.md` before you work on dashboards. Edit in a worktree:
-> run `just wt new feat/<slug>` first (`AGENTS.md` rule 7).
+> run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7).
 
 ## All Resources Use `grafana.integreatly.org/v1beta1`
 

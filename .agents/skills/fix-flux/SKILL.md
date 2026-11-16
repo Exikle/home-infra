@@ -20,7 +20,7 @@ push, because that can apply a stale tree mid-build. Escalate to the user instea
 
 The source is the OCIRepository `flux-system`. There is no GitRepository. App Kustomizations
 live in the namespace of their app, not `flux-system`. A fix that changes manifests follows
-`.agents/instructions/commit-style.md` § The sequence, in a worktree (`just wt new fix/<slug>`).
+`.agents/instructions/commit-style.md` § The sequence, in a worktree (`mise run //:wt:new fix/<slug>`).
 
 ## Step 1: Identify What Is Broken
 
@@ -59,14 +59,14 @@ flux describe kustomization <ks-name> -n <namespace>
 Common causes:
 
 - A `dependsOn` target is not Ready. Check the dependency chain.
-- A schema validation error. Run `just kube render-ks <namespace> <ks-name>` to catch it locally.
+- A schema validation error. Run `mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>` to catch it locally.
 - The source is not synced. Run `flux reconcile source oci flux-system -n flux-system`.
 
 ### ExternalSecret Not Syncing / Empty Secret
 
 ```bash
 kubectl describe externalsecret <app> -n <namespace>
-just kube sync-flux es <app>
+mise run //clusters/artemis/kubernetes:sync-flux es <app>
 kubectl get secret <app> -n <namespace> -o yaml
 ```
 

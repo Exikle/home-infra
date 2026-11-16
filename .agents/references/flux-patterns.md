@@ -21,7 +21,7 @@ These points are specific to Flux behavior:
   while the root is still suspended. The child would reconcile its OLD spec and write stale values
   straight back. That regrew 13 PVCs, and `allowVolumeExpansion` made it one-way. Going in, the
   order does not matter, and `suspend-ks` only warns.
-- `just kube diff-ks <ns> <ks>` is read-only and safe to run at any time. It renders locally and
+- `mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>` is read-only and safe to run at any time. It renders locally and
   runs `kubectl diff --server-side`, so you see only real drift. For the root, it renders through
   `flux build` against the live root, because flate cannot see the root. Exit 0 means no
   differences. Exit 1 means differences or a failed render. Tell them apart by the last line, not
@@ -33,15 +33,15 @@ These points are specific to Flux behavior:
 Other force-sync targets:
 
 ```bash
-just kube sync-flux hr                   # all HelmReleases
-just kube sync-flux ks                   # all Kustomizations
-just kube sync-flux es                   # all ExternalSecrets
-just kube sync-flux ocirepo flux-system  # the one source that carries the repo
+mise run //clusters/artemis/kubernetes:sync-flux hr                   # all HelmReleases
+mise run //clusters/artemis/kubernetes:sync-flux ks                   # all Kustomizations
+mise run //clusters/artemis/kubernetes:sync-flux es                   # all ExternalSecrets
+mise run //clusters/artemis/kubernetes:sync-flux ocirepo flux-system  # the one source that carries the repo
 ```
 
 Name the resource in `sync-flux ocirepo`. The bare form annotates **every** OCIRepository in the
 cluster (`kubectl get ocirepository -A --no-headers | wc -l`). There is no `GitRepository` to sync.
-The Flux source is an OCIRepository that CI builds, and `just kube sync-flux gitrepo` has no live
+The Flux source is an OCIRepository that CI builds, and `mise run //clusters/artemis/kubernetes:sync-flux gitrepo` has no live
 target.
 
 Annotating does not make CI finish faster. If the `Push OCI Artifact` run is not green, the source

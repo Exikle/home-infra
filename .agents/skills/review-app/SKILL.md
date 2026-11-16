@@ -95,7 +95,7 @@ because they are the only cross-file checks that a lint can afford:
 A lint that never builds can pass a file that kustomize rejects. Render before you report:
 
 ```bash
-just kube render-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
 ```
 
 `<ks-name>` is `metadata.name` from `ks.yaml`, not the directory name. A non-zero exit is a
@@ -144,7 +144,7 @@ the check IDs, and code-format the values:
 - OCIRepository is standalone and correctly named.
 - Security context is complete.
 - All sorting checks pass.
-- `just kube render-ks` builds clean.
+- `mise run //clusters/artemis/kubernetes:render-ks` builds clean.
 
 ---
 
@@ -173,7 +173,7 @@ are needed. Still use the full headed format, including **Not checked**.
 
 ## Step 6: Fix Issues (if fix mode is enabled)
 
-Work in a worktree: run `just wt new fix/<slug>` first (`AGENTS.md` rule 7). For each FAIL or WARN, edit the file in place. Do NOT auto-fix ADVISORY items, because those
+Work in a worktree: run `mise run //:wt:new fix/<slug>` first (`AGENTS.md` rule 7). For each FAIL or WARN, edit the file in place. Do NOT auto-fix ADVISORY items, because those
 require user confirmation. Use these files:
 
 - `.agents/instructions/yaml-conventions.md` for all ordering rules

@@ -1,49 +1,87 @@
-# `include` needs 2026.9.18; an older mise ignores it silently and installs none of the
-# shared tools, so refuse to run instead.
-min_version = "2026.9.18"
+min_version = "2026.11.8"
 
-# Shared pins from exikle/mise-config: base.toml (every repo) and cluster.toml (both cluster
-# repos). Renovate bumps the tools there and moves this commit pin here. A [tools] entry
-# below wins over an included one.
+monorepo_root = true
+
 include = [
   "git::https://git.dcunha.io/exikle/mise-config.git//base.toml?ref=b705bffeda6f8f051b9866a8507f959f539c8f59",
   "git::https://git.dcunha.io/exikle/mise-config.git//cluster.toml?ref=b705bffeda6f8f051b9866a8507f959f539c8f59",
 ]
 
+[monorepo]
+config_roots = [
+  "ai",
+  "ansible",
+  "clusters/*",
+  "clusters/*/bootstrap",
+  "clusters/*/kubernetes",
+  "clusters/*/talos",
+  "terraform",
+]
+
 [env]
-# Agent MCP bearer tokens (gitignored). Regenerate with `just ai env`.
-# opencode has no headersHelper equivalent, so opencode.json interpolates
-# {env:...} and the values have to be real environment variables.
 _.file = { path = "{{config_root}}/.env", redact = true }
-# ansible refuses to start unless the locale is a generated UTF-8 one; this box
-# has LANG=en_US.utf-8 exported but only C.utf8 actually generated.
 LANG = "C.UTF-8"
 LC_ALL = "C.UTF-8"
-# Without these, running `ansible` from the repo root silently picks up
-# /etc/ansible/ansible.cfg — wrong inventory, wrong roles path. Absolute so they
-# hold no matter which directory the command is run from.
 ANSIBLE_CONFIG = "{{config_root}}/ansible/ansible.cfg"
 ANSIBLE_INVENTORY = "{{config_root}}/ansible/inventory/hosts.yml"
 ANSIBLE_ROLES_PATH = "{{config_root}}/ansible/roles"
 ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/ansible/collections"
-# fjo reads the host from the environment; the matching FORGEJO_TOKEN is a
-# secret and comes from .env via `just ai env`, not from here.
 FORGEJO_HOST = "git.dcunha.io"
 MINIJINJA_CONFIG_FILE = "{{config_root}}/.minijinja.toml"
-JUST_UNSTABLE = "1"
 
 [settings]
-# No mise.lock here. Every tool is an exact pin that Renovate bumps, and mise still
-# verifies signatures at install; the lock only added churn and a slow `mise lock`.
-# The global config says the same; this holds it for CI and machines without it.
 lockfile = false
+task.quiet = true
+
+[task_config]
+cascade = true
+shell = "bash -euo pipefail -c"
+
+[tasks.log]
+hide = true
+run = "gum log -t rfc3339 -s -l"
+
+[tasks.template]
+hide = true
+dir = "{{ cwd }}"
+usage = '''
+arg "<file>" help="Template path, or - for stdin"
+arg "[args]" var=#true help="Extra arguments for minijinja-cli"
+'''
+run = '''
+eval "args=(${usage_args:-})"
+minijinja-cli "$usage_file" "${args[@]}" | op inject
+'''
+
+[tasks."wt:new"]
+description = "Create .worktrees/<type>-<slug> on branch <type>/<slug>, with .worktreeinclude files copied in"
+usage = 'arg "<branch>" help="Branch name, <type>/<slug>"'
+run = '''
+main="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+dir="$main/.worktrees/${usage_branch//\//-}"
+git -C "$main" worktree add "$dir" -b "$usage_branch" main
+grep -v -e '^#' -e '^$' "$main/.worktreeinclude" | while read -r f; do
+    if [[ -e "$main/$f" ]]; then (cd "$main" && cp -a --parents "$f" "$dir/"); fi
+done
+mise trust -q "$dir/.mise/config.toml"
+echo "$dir"
+'''
+
+[tasks."wt:rm"]
+description = "Remove a worktree and its branch; refuses if it has uncommitted work or unmerged commits"
+usage = 'arg "<branch>" help="Branch name, <type>/<slug>"'
+run = '''
+main="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+git -C "$main" merge-base --is-ancestor "$usage_branch" main || mise run //:log fatal "Branch is not merged into main" branch "$usage_branch"
+git -C "$main" worktree remove "$main/.worktrees/${usage_branch//\//-}"
+git -C "$main" branch -d "$usage_branch"
+'''
+
+[tasks."wt:ls"]
+description = "List worktrees"
+run = "git worktree list"
 
 [tools]
-# Only what this repo needs beyond the shared pins. Exact versions, never "latest";
-# Renovate bumps them in one grouped "mise tools" PR.
-#
-# Pin to the cluster's Talos version. Previously unpinned here, so `render-config` and
-# `validate` silently used whatever the global mise install resolved to.
 talos = "1.14.4"
 "github:home-operations/kopiur" = "0.10.21"
 opentofu = "1.13.9"

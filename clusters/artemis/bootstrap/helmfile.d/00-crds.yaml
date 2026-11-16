@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
 
 # Bootstraps cluster-wide CustomResourceDefinitions by rendering them out of the
-# upstream charts and applying them directly with kubectl (see `just bootstrap base`).
+# upstream charts and applying them directly with kubectl (see `mise run //clusters/artemis/bootstrap:base`).
 # These releases are never installed — only their CRDs are extracted.
 #
 # Installing CRDs out-of-band means Flux can apply any manifest that references them

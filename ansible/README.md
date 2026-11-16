@@ -9,10 +9,10 @@ Flux cannot see this directory. The root Kustomization is scoped to
 ## What does NOT belong here
 
 - Talos nodes. Talos is immutable and API-driven, with no SSH and no package manager. Its
-  machine config is already the declarative state. Use `just talos render-config`.
+  machine config is already the declarative state. Use `mise run //clusters/artemis/talos:render-config`.
 - Anything inside Kubernetes. Flux owns that.
 - Restore drills and runbooks. Those are interactive, branching procedures. They stay
-  as `just` recipes and `.agents/skills/`.
+  as mise tasks and `.agents/skills/`.
 
 ## Usage
 
@@ -21,17 +21,17 @@ Playbooks: `atlas` (TrueNAS), `pantheon` (Proxmox host), `forgejo` (the Forgejo 
 not applied yet). `crs309` is in the inventory but has no playbook yet.
 
 ```bash
-just ansible deps               # install pinned Galaxy collections
-just ansible playbooks          # list playbooks
-just ansible lint
-just ansible syntax-check
-just ansible check <playbook>   # --check --diff, changes nothing
-just ansible apply <playbook>   # prompts for confirmation
+mise run //ansible:deps               # install pinned Galaxy collections
+mise run //ansible:playbooks          # list playbooks
+mise run //ansible:lint
+mise run //ansible:syntax-check
+mise run //ansible:check <playbook>   # --check --diff, changes nothing
+mise run //ansible:apply <playbook>   # prompts for confirmation
 ```
 
 Always run `check` before `apply`. Modules without check-mode support skip or report inaccurately. A clean check run is a strong hint, but it is not proof.
 
-A `[confirm]` prompt gates `apply`. `just --yes ansible apply <playbook>` bypasses it for
+A `[confirm]` prompt gates `apply`. `mise run --yes //ansible:apply <playbook>` bypasses it for
 a non-interactive run.
 
 Run these commands in a real terminal. Ansible refuses non-blocking stdio, and some non-interactive
@@ -55,7 +55,7 @@ The `op://vault/item/field` URI form fails under a service-account token with
 Laptop runs are exactly the service-account case, so the URI form is broken in the common
 path. (This file documented the URI form until 2026-09-07.)
 
-Recipes run under `op run`, so a service-account token or an active `op` session is
+Tasks run under `op run`, so a service-account token or an active `op` session is
 required. Do not introduce ansible-vault or SOPS. This repo deliberately has exactly
 one secrets system. Put `no_log: true` on tasks that consume secrets.
 

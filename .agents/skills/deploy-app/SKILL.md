@@ -31,9 +31,9 @@ Before you write any files, read these files:
 
 Goal: scaffold one new app and prove that it renders, then hand it to the user to confirm live.
 
-Success means that `just kube render-ks <ns> <app>` succeeds, root and target are suspended and
-`just kube apply-ks` applies cleanly, and the user has confirmed that the app works.
-Edit in a worktree: run `just wt new feat/<slug>` first (`AGENTS.md` rule 7).
+Success means that `mise run //clusters/artemis/kubernetes:render-ks <ns> <app>` succeeds, root and target are suspended and
+`mise run //clusters/artemis/kubernetes:apply-ks` applies cleanly, and the user has confirmed that the app works.
+Edit in a worktree: run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7).
 
 Stop when the app is applied and you have asked for confirmation. Do NOT commit before the
 user confirms. This repo reconciles `main` straight to production with no staging. The
@@ -168,7 +168,7 @@ find clusters/artemis/kubernetes/apps/<namespace>/<app> -type f | sort
 Then make sure that the kustomization renders cleanly with flate before you apply it:
 
 ```bash
-just kube render-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
 ```
 
 This runs `flate build ks`. It catches schema errors, missing substitution variables, and malformed YAML before anything touches the cluster. Fix any errors before you proceed to Step 8.

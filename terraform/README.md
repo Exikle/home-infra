@@ -28,15 +28,15 @@ change does not refresh every provider in the house.
 ## Usage
 
 ```bash
-just tofu stacks              # list stacks
-just tofu init <stack>
-just tofu plan <stack>        # always, before apply
-just tofu apply <stack>       # prompts for confirmation
-just tofu import <stack> <address> <id>
-just tofu fmt
+mise run //terraform:stacks              # list stacks
+mise run //terraform:init <stack>
+mise run //terraform:plan <stack>        # always, before apply
+mise run //terraform:apply <stack>       # prompts for confirmation
+mise run //terraform:import <stack> <address> <id>
+mise run //terraform:fmt
 ```
 
-Every recipe reads the state-encryption passphrase from 1Password and injects it as
+Every task reads the state-encryption passphrase from 1Password and injects it as
 `TF_ENCRYPTION`. To test without 1Password, set `TOFU_PASSPHRASE` directly. To point
 at a different item, set `TOFU_PASSPHRASE_REF`.
 
@@ -46,12 +46,12 @@ The repo contains the state, encrypted with the native state
 encryption of OpenTofu. `terraform/stacks/<name>/terraform.tfstate` is a tracked file and is
 always ciphertext.
 
-`terraform/mod.just` reads the passphrase from 1Password at run time and
+The hidden `run` task in `terraform/mise.toml` reads the passphrase from 1Password at run time and
 injects it as `TF_ENCRYPTION`. The passphrase never lands in a file.
 
 A pre-commit hook (`hooks/tfstate_encrypted.py`) refuses to commit plaintext state.
-`just tofu ...` sets up encryption. A bare `tofu apply` does not. Use the
-recipes, and the hook catches the mistake if you forget.
+`mise run //terraform:...` sets up encryption. A bare `tofu apply` does not. Use the
+tasks, and the hook catches the mistake if you forget.
 
 If you lose the passphrase, every state file is unrecoverable. The passphrase lives in two vaults.
 

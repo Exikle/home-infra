@@ -42,7 +42,7 @@ Claude Code runs the helper without the environment of the pod, so an env-based 
 headers. Then the 401 of the server sends Claude into OAuth discovery, which fails.
 The entrypoint sets `enableAllProjectMcpServers`, so the tiers need no approval prompt.
 
-There is no `op`, so 1Password-backed recipes stay on the workstation.
+There is no `op`, so 1Password-backed tasks stay on the workstation.
 
 ## The PVC is not backed up
 

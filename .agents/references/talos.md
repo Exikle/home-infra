@@ -25,10 +25,10 @@ from the working directory, in non-interactive `sh` too.
 ## Config Management
 
 ```bash
-just talos render-config <node>     # render node config from template
-just talos validate [node]          # render + talosctl validate; all nodes if omitted, exits non-zero on failure
-just talos diff-node <node>         # apply-config --dry-run: what would change on that node
-just talos apply-node <node>        # apply config to node (live, no reboot)
+mise run //clusters/artemis/talos:render-config <node>     # render node config from template
+mise run //clusters/artemis/talos:validate [node]          # render + talosctl validate; all nodes if omitted, exits non-zero on failure
+mise run //clusters/artemis/talos:diff-node <node>         # apply-config --dry-run: what would change on that node
+mise run //clusters/artemis/talos:apply-node <node>        # apply config to node (live, no reboot)
 ```
 
 Run `validate` after you edit a template, and run `diff-node` before `apply-node`. An empty
@@ -38,7 +38,7 @@ diff-node across all nodes is the check that the cluster and git actually agree.
 
 1. `clusters/artemis/talos/cluster.yaml.j2` — everything shared by every node
 2. `clusters/artemis/talos/<controlplane|worker>.yaml.j2` — selected by `machine.type` in the node file
-   (`just talos machine-type`), which is why every node file must declare it
+   (`mise run //clusters/artemis/talos:machine-type`), which is why every node file must declare it
 3. `clusters/artemis/talos/nodes/<node>.yaml.j2` — hostname, labels, install disk
 
 Patching the v1alpha1 document merges per struct field, and some structs are leaves.
@@ -50,7 +50,7 @@ kind + `name`, so partial overrides there are safe.
 `cluster.yaml.j2` defines the installer image **once**, in its `UnattendedInstallConfig`, as
 `factory.talos.dev/installer/{{ ENV.SCHEMATIC }}:<version>`. `render-config` derives the schematic
 type from the node name, resolves it against the Image Factory, and injects the ID. The mapping
-lives in `clusters/artemis/talos/mod.just` § `schematic-type`:
+lives in `clusters/artemis/talos/mise.toml` § `schematic-type`:
 
 | Node name pattern | Schematic      |
 | ----------------- | -------------- |
@@ -71,14 +71,14 @@ returns one ID for both. These are the live node annotations (`extensions.talos.
 | `talos-w-01`, `talos-w-02`      | `a67271c479dead6a…` | `worker.yaml`                      |
 | `talos-gpu-01`                  | `5bfc5ba67508c0c6…` | `gpu.yaml`                         |
 
-Never copy an ID out of this table into a manifest. Resolve it with `just talos schematic-id <type>`,
+Never copy an ID out of this table into a manifest. Resolve it with `mise run //clusters/artemis/talos:schematic-id <type>`,
 which POSTs the schematic file to the Image Factory. The table explains the collision between ymir
 and the control planes. It is not a source of truth.
 
 Two consequences follow, and neither is obvious:
 
 - You cannot tell `ymir` from a control plane by its annotation. Do not use the schematic ID that a
-  node reports to infer which schematic _file_ the node tracks. Use `just talos schematic-type <node>`,
+  node reports to infer which schematic _file_ the node tracks. Use `mise run //clusters/artemis/talos:schematic-type <node>`,
   which is the only authority.
 - A change to `controlplane.yaml` alone silently changes `ymir` too, and the reverse is also true.
   Both files still hash to one ID until their contents diverge. When one file gains an extension
@@ -100,10 +100,10 @@ nothing to update by hand:
 
 1. Edit the schematic in `clusters/artemis/talos/schematics/<controlplane|worker|gpu|metal>.yaml`. There are **four**
    files, not three. `metal.yaml` is the one that people usually forget.
-2. Run `just talos apply-node <node> --mode=reboot`.
+2. Run `mise run //clusters/artemis/talos:apply-node <node> --mode=reboot`.
 
 To see the image that a node will get without applying, run
-`just talos render-config <node> | yq 'select(.kind == "UnattendedInstallConfig") | .installer.image'`.
+`mise run //clusters/artemis/talos:render-config <node> | yq 'select(.kind == "UnattendedInstallConfig") | .installer.image'`.
 
 A schematic change at the same Talos version leaves a boot-order trap. Talos writes the new UKI as
 `Talos-<version>~N.efi` beside the original `Talos-<version>.efi` (`sdboot.go:generateNextUKIName()`).
@@ -133,16 +133,16 @@ what it runs against what it must run:
 
 ```bash
 kubectl get nodes -o json | jq -r '.items[].metadata | "\(.name) \(.annotations["extensions.talos.dev/schematic"][0:12]) drbd=\(.labels["extensions.talos.dev/drbd"] // "-")"'
-just talos schematic-id worker          # or controlplane / gpu / metal
+mise run //clusters/artemis/talos:schematic-id worker          # or controlplane / gpu / metal
 talosctl -n <ip> get bootedentries      # which ESP entry actually booted
 ```
 
-To fix a mismatch, run a same-version `talosctl -n <ip> upgrade -i "$(just talos machine-image <node>)" -m powercycle`.
+To fix a mismatch, run a same-version `talosctl -n <ip> upgrade -i "$(mise run //clusters/artemis/talos:machine-image <node>)" -m powercycle`.
 Only `upgrade` writes an image to disk. `apply-node --mode=reboot` changes the configuration and
 reboots, but it does not reinstall. Run `talosctl` against the node **IP**. The short names resolve
-only through LAN DNS (public DNS has no record for them). A non-interactive `just` call does not
-apply `TALOSCONFIG` from `.mise/config.toml`, so export it in any script. That is why
-`just talos upgrade-node` fails from a script with "failed to determine endpoints".
+only through LAN DNS (public DNS has no record for them). A mise task gets `TALOSCONFIG` from
+`clusters/artemis/mise.toml`. A bare `talosctl` call in a script does not, so export it there.
+Without it, `talosctl` fails with "failed to determine endpoints".
 
 When you diagnose this, read the boot variables directly. They persist correctly, so you can trust
 the values:
@@ -326,7 +326,7 @@ tuppr rewrites `.machine.install.image` to `factory.talos.dev/installer/<schemat
 uses the schematic that the **node reports at runtime**, not the schematic in `clusters/artemis/talos/schematics/`.
 So extensions survive an upgrade without any repo change. It also means that a **stale recorded
 schematic silently reinstalls an extension that you removed from git**. Removing an extension takes
-two steps. First, edit the schematic file. Then run `just talos apply-node <node> --mode=reboot`, so
+two steps. First, edit the schematic file. Then run `mise run //clusters/artemis/talos:apply-node <node> --mode=reboot`, so
 that the node re-records the new ID _before_ the next tuppr run. If you edit the schematic file
 alone, nothing changes in what tuppr installs.
 

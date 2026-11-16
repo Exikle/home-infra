@@ -36,7 +36,7 @@ Read this file when you touch a hook, add a skill or subagent, or wonder why a g
   `paths:` loads every session, which costs the same as an `@import`. So you wire an instruction
   file exactly one way, never both. opencode has no equivalent: `opencode.json` globs
   `.agents/instructions/*.md` and loads all five unconditionally, frontmatter and all.
-- `just ai lint-agents` (`scripts/check-agent-config.py`) audits all of the above. It finds
+- `mise run //ai:lint-agents` (`scripts/check-agent-config.py`) audits all of the above. It finds
   invalid frontmatter YAML, missing or dangling symlinks, skills and subagents without
   `name:`/`description:`/`mode:`, dangling `@imports`, an instruction file wired twice or not at
   all, a reference doc absent from the AGENTS.md index, an index row that names a file that does
@@ -46,7 +46,7 @@ Read this file when you touch a hook, add a skill or subagent, or wonder why a g
   confirmed that they fire. The frontmatter-YAML check has not been mutation-tested. The
   mutation test matters because a checker that crashes also exits non-zero and would otherwise
   look like a working gate.
-- `just ai eval` (`scripts/eval-instructions.py`) is the behavioural counterpart to
+- `mise run //ai:eval` (`scripts/eval-instructions.py`) is the behavioural counterpart to
   `lint-agents`. The lint proves that a file is _wired_. The eval proves that the wiring carries
   meaning. It assembles the real context that an agent gets: CLAUDE.md with `@` imports expanded
   recursively, plus the `paths:`-scoped rules that match the declared file of a case. It asks the

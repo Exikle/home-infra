@@ -21,7 +21,7 @@ Before you edit, read these files:
 
 Goal: land one change and prove that it is the change you meant.
 
-Success means that `just kube diff-ks` shows only your intended difference, the app is applied
+Success means that `mise run //clusters/artemis/kubernetes:diff-ks` shows only your intended difference, the app is applied
 live, and the user has confirmed that it still works.
 
 Stop when you applied the change and requested confirmation. Never commit before the user confirms.
@@ -64,7 +64,7 @@ Each kind of change lives in a specific file:
 creating: there is a running object to compare against.
 
 ```bash
-just kube diff-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
 ```
 
 Exit 0 means that the tree already matches the cluster. That is a clean starting point. Exit 1 means that the tree
@@ -89,7 +89,7 @@ Ready, or a Kustomization that reports success while the live object keeps its o
 ## Step 4: Make the edit, then render offline
 
 ```bash
-just kube render-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
 ```
 
 This needs no cluster. It is `flate build ks`, so it catches schema errors, missing substitution
@@ -101,7 +101,7 @@ in without its `postBuild.substitute` keys renders with an empty value and does 
 ## Step 5: Diff against live, and read it
 
 ```bash
-just kube diff-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
 ```
 
 Read every line of the output. The diff must contain your change and nothing else. Anything
@@ -112,7 +112,7 @@ bug you will ever catch.
 ## Step 6: Test and commit
 
 Read `.agents/skills/modules/test-and-commit.md` and follow it. Edit in a worktree: run
-`just wt new <type>/<slug>` before the first edit of Step 1 (`AGENTS.md` rule 7).
+`mise run //:wt:new <type>/<slug>` before the first edit of Step 1 (`AGENTS.md` rule 7).
 
 If anything fails, read `.agents/skills/modules/common-issues.md`.
 

@@ -755,7 +755,7 @@ explicit `context_length`), plugin update checks, and `hermes plugins install`. 
 a real constraint. If you bump the memini SHA in `install-memini`, it clones from github.com and installs
 dependencies from PyPI, and the init container fails (and the pod stays in `Init`) while the policy
 blocks that. For a bump, add a temporary egress rule for `0.0.0.0/0` on 443 with
-`just kube apply-ks cortex hermes`, bump, and take it out again.
+`mise run //clusters/artemis/kubernetes:apply-ks cortex hermes`, bump, and take it out again.
 
 ---
 

@@ -24,12 +24,12 @@ reconciles only `clusters/artemis/kubernetes/`. Flux cannot see `terraform/`, `a
 Everything else is conditional. These rules are not.
 
 1. `main` is production. There is no staging cluster. Every push reconciles immediately.
-   Suspend the root Kustomization and the target Kustomization. Run `just kube apply-ks`. Then
+   Suspend the root Kustomization and the target Kustomization. Run `mise run //clusters/artemis/kubernetes:apply-ks`. Then
    wait for the user to confirm the live deployment before you commit. Suspend twice, not once.
    `apply-ks` suspends nothing, and a child that reconciles on its own interval silently reverts
    your edits.
 2. Never apply cluster changes through an MCP tool. The MCP k8s tools are for read-only
-   inspection. Writes go through git, or through `just kube apply-ks` during a test.
+   inspection. Writes go through git, or through `mise run //clusters/artemis/kubernetes:apply-ks` during a test.
 3. Secrets are 1Password ExternalSecrets (`ClusterSecretStore: onepassword-connect`). SOPS is
    fully removed. Never suggest age encryption or `sops --encrypt`.
 4. Pods are dual-stack, but in practice they talk IPv4. Pods get a ULA IPv6 address beside
@@ -39,9 +39,9 @@ Everything else is conditional. These rules are not.
 5. Cluster traffic uses `<app>.<namespace>.svc.cluster.local`, never an external hostname.
 6. Parked or blocked work becomes a Forgejo issue, never only a journal bullet.
 7. Agents edit in a worktree, never the main checkout. Before the first edit, run
-   `just wt new <type>/<slug>` (`feat`, `fix`, `chore`, … as in commit subjects). Work only in
+   `mise run //:wt:new <type>/<slug>` (`feat`, `fix`, `chore`, … as in commit subjects). Work only in
    the `.worktrees/<type>-<slug>` path that it prints. One agent per worktree. Run
-   `just wt rm <type>/<slug>` when the branch is merged. A pre-commit check refuses agent commits
+   `mise run //:wt:rm <type>/<slug>` when the branch is merged. A pre-commit check refuses agent commits
    made in the main checkout.
 
 The system enforces a rule that has to hold. It is not only written down. `guard-destructive.sh`
@@ -60,7 +60,7 @@ one when its trigger comes up.
 
 | File                           | What it settles                                     |
 | ------------------------------ | --------------------------------------------------- |
-| `instructions/tooling.md`      | `just` recipes, the MCP tiers, briefing subagents   |
+| `instructions/tooling.md`      | mise tasks, the MCP tiers, briefing subagents       |
 | `instructions/commit-style.md` | The test-then-commit sequence and the signing model |
 | `instructions/session.md`      | Journal hooks, memini vs `.agents/` boundary        |
 
@@ -119,7 +119,7 @@ drifted twice before this note replaced it.
 
 Auto-invocation cannot see a skill without frontmatter. Claude Code cannot see a skill without a
 `.claude/skills/<name>` symlink. It also cannot see a subagent without a
-`.claude/agents/<name>.md` symlink. `just ai lint-agents` checks all of this.
+`.claude/agents/<name>.md` symlink. `mise run //ai:lint-agents` checks all of this.
 
 Cluster-agnostic skills live in `~/.claude/skills/` and work everywhere: `forgejo`,
 `triage-renovate`, `build-container`, `playwright`, `add-agent-content`, `simple-english`.
@@ -136,7 +136,7 @@ Hermes and Claude Code pods mount. Write the new text in the style of the skill.
 the parts of a file that you did not need to change.
 
 The skill never changes code, commands, identifiers, paths, quoted errors or facts. A skill
-description in frontmatter stays on one line. It can use an em-dash, because `just ai lint-agents`
+description in frontmatter stays on one line. It can use an em-dash, because `mise run //ai:lint-agents`
 rejects a colon followed by a space in that value.
 
 ### The list rule

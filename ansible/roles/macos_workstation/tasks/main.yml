@@ -90,7 +90,7 @@
   # Tagged so the unprivileged majority of this role can run unattended. This
   # account's sudo prompts for a password and ansible.cfg sets
   # become_ask_pass = False, so the rename needs an explicit -K:
-  #   just ansible apply grimoire --tags privileged -K
+  #   mise run //ansible:apply grimoire --tags privileged -K
   # Everything else runs with --skip-tags privileged and no prompt at all.
   tags:
     - privileged

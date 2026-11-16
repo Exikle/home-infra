@@ -27,7 +27,7 @@ The tier argument is required. `~/.claude/scripts/ai-headers.mjs` (dotfiles) req
 `{"x-api-key": …}`. There is no fallback key. If you omit the tier, the script fails. It does not
 authenticate as something broader. When you add a registration, pass the tier.
 
-opencode reads its keys from the gitignored `.env`. Run `just ai env` to regenerate it (it pulls from
+opencode reads its keys from the gitignored `.env`. Run `mise run //ai:env` to regenerate it (it pulls from
 1Password). The command writes `MCP_OPS_KEY`, `MCP_GENERAL_KEY` and `AGENTGATEWAY_API_KEY` (the model
 key, used by `scripts/eval-instructions.py` against `https://ai.dcunha.io/v1`). Claude Code never
 reads `.env`. Its helper script fetches the key itself. If a tier works in one client and

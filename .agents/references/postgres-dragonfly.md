@@ -74,11 +74,11 @@ Every further app migration is its own session. This doc is what you need once y
     You cannot test the first postgres app in a namespace with `apply-ks` on the app alone.
     The `tenants` ResourceSet is a namespace-level resource, so it belongs to the root
     Kustomization (`flux-system/flux-system`, path `./kubernetes/apps`), not to the app's own
-    Kustomization. `just kube apply-ks <ns> <app>` renders only the app path. The ResourceSet
+    Kustomization. `mise run //clusters/artemis/kubernetes:apply-ks <ns> <app>` renders only the app path. The ResourceSet
     never appears, no `Database` CR is templated, no role Secret is created, and the pod of the app sits
     forever on the `k8s.ksgate.org/database-applied` scheduling gate.
 
-    Apply the root as well: `just kube apply-ks flux-system flux-system`. It renders ~300
+    Apply the root as well: `mise run //clusters/artemis/kubernetes:apply-ks flux-system flux-system`. It renders ~300
     objects, but they are all control-plane (Kustomization CRs, namespaces, alerts, ExternalSecrets,
     Databases, ResourceSets). It has no HelmReleases and no workloads, so nothing restarts. First make sure that your
     checkout matches `origin/main`. Otherwise the apply silently reverts untouched apps to your
@@ -102,7 +102,7 @@ Every further app migration is its own session. This doc is what you need once y
     | `url_node`   | postgres-js               | `?sslmode=verify-full` only; CA via `NODE_EXTRA_CA_CERTS`                    |
     | `url_prisma` | Prisma                    | `?sslmode=verify-full&sslcert=<CA path>` — `sslcert` means the **root** cert |
 
-    `just kube check-postgres <ns> <app>` validates the `url` key only, and that is deliberate.
+    `mise run //clusters/artemis/kubernetes:check-postgres <ns> <app>` validates the `url` key only, and that is deliberate.
     psql is libpq, so it reads `sslcert=` of Prisma as a _client_ cert and has no CA at all for the
     postgres-js shape. A psql pass on those two would give false confidence about exactly the failure
     below. All three keys carry the same credentials, host and database. The check therefore still proves
@@ -407,14 +407,14 @@ commit. If you do, follow these rules:
 
 ### Common issues — dedicated or shared
 
-| Symptom                          | Cause                                                                   | Fix                                                                                                                                                                                       |
-| -------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pod stuck `Pending`              | `miroir` PVC not bound (WaitForFirstConsumer — needs a consumer)        | Check the miroir agent and CSI pods in `miroir-system`                                                                                                                                    |
-| `role "<app>" does not exist`    | The `DatabaseRole` CR has not reconciled yet                            | `kubectl -n database get databaserole <app> -o yaml` — `status.applied` and `status.message`                                                                                              |
-| `password authentication failed` | Stale or wrong `POSTGRES_PASSWORD` in the app's `<app>-postgres` secret | Force-sync the ExternalSecret, then `just kube check-postgres <ns> <app>` to confirm the credential — it connects with the Secret's own `url` DSN, so it tests what the app actually uses |
-| WAL directory fills              | No separate `walStorage` volume                                         | Add `walStorage` and reapply                                                                                                                                                              |
-| Cluster stuck `Initializing`     | CRD not installed                                                       | `kubectl get crd clusters.postgresql.cnpg.io`                                                                                                                                             |
-| App can't connect                | Wrong Service name                                                      | `postgres-rw.database.svc.cluster.local` for shared; `<name>-rw` for dedicated                                                                                                            |
+| Symptom                          | Cause                                                                   | Fix                                                                                                                                                                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pod stuck `Pending`              | `miroir` PVC not bound (WaitForFirstConsumer — needs a consumer)        | Check the miroir agent and CSI pods in `miroir-system`                                                                                                                                                                 |
+| `role "<app>" does not exist`    | The `DatabaseRole` CR has not reconciled yet                            | `kubectl -n database get databaserole <app> -o yaml` — `status.applied` and `status.message`                                                                                                                           |
+| `password authentication failed` | Stale or wrong `POSTGRES_PASSWORD` in the app's `<app>-postgres` secret | Force-sync the ExternalSecret, then `mise run //clusters/artemis/kubernetes:check-postgres <ns> <app>` to confirm the credential — it connects with the Secret's own `url` DSN, so it tests what the app actually uses |
+| WAL directory fills              | No separate `walStorage` volume                                         | Add `walStorage` and reapply                                                                                                                                                                                           |
+| Cluster stuck `Initializing`     | CRD not installed                                                       | `kubectl get crd clusters.postgresql.cnpg.io`                                                                                                                                                                          |
+| App can't connect                | Wrong Service name                                                      | `postgres-rw.database.svc.cluster.local` for shared; `<name>-rw` for dedicated                                                                                                                                         |
 
 ## Gotchas
 

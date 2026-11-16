@@ -1,0 +1,84 @@
+[task_templates.playbook]
+usage = '''
+arg "<name>" help="Playbook name in playbooks/"
+arg "[args]" var=#true help="Extra arguments for ansible-playbook"
+complete "name" run="find \"$(git rev-parse --show-toplevel)/ansible/playbooks\" -maxdepth 1 -name '*.yml' -exec basename {} .yml \\; | sort"
+'''
+
+[tasks.deps]
+description = "Install the Galaxy collections pinned in requirements.yml"
+run = 'ansible-galaxy collection install -r requirements.yml'
+
+[tasks.check]
+description = "Dry run a playbook — --check --diff, changes nothing"
+extends = "playbook"
+run = '''
+file="$(mise run :playbook-path "$usage_name")"
+eval "args=(${usage_args:-})"
+op run --no-masking -- ansible-playbook "$file" --check --diff "${args[@]}"
+'''
+
+[tasks.apply]
+description = "Run a playbook for real — dry run with check first"
+extends = "playbook"
+confirm = { message = "Apply Ansible playbook {{ usage.name }} for real?", default = "no" }
+run = '''
+file="$(mise run :playbook-path "$usage_name")"
+eval "args=(${usage_args:-})"
+op run --no-masking -- ansible-playbook "$file" --diff "${args[@]}"
+'''
+
+[tasks.lint]
+description = "Lint every playbook and role"
+usage = 'arg "[args]" var=#true help="Extra arguments for ansible-lint"'
+run = '''
+eval "args=(${usage_args:-})"
+ansible-lint "${args[@]}" 2>&1 | cat
+'''
+
+[tasks.syntax-check]
+description = "Parse-check every playbook without connecting to anything"
+run = '''
+rc=0
+for f in playbooks/*.yml; do
+    [[ -e "$f" ]] || continue
+    if ansible-playbook "$f" --syntax-check >/dev/null 2>&1; then
+        mise run //:log info "Syntax valid" playbook "$(basename "$f" .yml)"
+    else
+        mise run //:log error "Syntax INVALID" playbook "$(basename "$f" .yml)"
+        rc=1
+    fi
+done
+exit "$rc"
+'''
+
+[tasks.inventory]
+description = "Show the resolved inventory"
+usage = 'arg "[args]" var=#true help="Extra arguments for ansible-inventory"'
+run = '''
+eval "args=(${usage_args:-})"
+ansible-inventory --list "${args[@]}"
+'''
+
+[tasks.facts]
+description = "Gather facts from a host or group"
+usage = 'arg "<pattern>" help="Host or group"'
+run = 'ansible "$usage_pattern" -m ansible.builtin.setup'
+
+[tasks.playbooks]
+description = "List available playbooks"
+run = '''
+for f in playbooks/*.yml; do
+    [[ -e "$f" ]] || continue
+    basename "$f" .yml
+done
+'''
+
+[tasks.playbook-path]
+hide = true
+usage = 'arg "<name>"'
+run = '''
+file="$MISE_CONFIG_ROOT/playbooks/$usage_name.yml"
+[[ -f "$file" ]] || mise run //:log fatal "No such playbook" playbook "$usage_name"
+echo "$file"
+'''

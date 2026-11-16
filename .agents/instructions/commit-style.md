@@ -20,8 +20,8 @@ Step 0. Suspend first, in two calls, root and target (`AGENTS.md` rule 1 wins). 
 not suspend for you.
 
 ```bash
-just kube suspend-ks flux-system flux-system
-just kube suspend-ks <ns> <ks-name>
+mise run //clusters/artemis/kubernetes:suspend-ks flux-system flux-system
+mise run //clusters/artemis/kubernetes:suspend-ks <ns> <ks-name>
 ```
 
 Order does not matter going in, and both are idempotent.
@@ -36,20 +36,20 @@ objects do not.
 Nothing errors if you forget. The apply succeeds. Minutes later a controller reverts it, and it
 looks as if the change never landed.
 
-Step 1. Write the changes in your worktree (`AGENTS.md` rule 7). `just wt new` branches from the
+Step 1. Write the changes in your worktree (`AGENTS.md` rule 7). `mise run //:wt:new` branches from the
 local `main`. The local `main` falls behind as Renovate merges land, and `apply-ks` from a stale
 tree silently reverts those bumps live. Pull first. `<main>` below is the main checkout, the
 parent of `.worktrees/` (`dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`):
 
 ```bash
 git -C <main> pull --ff-only
-just wt new <type>/<slug>
+mise run //:wt:new <type>/<slug>
 ```
 
-Step 2. Apply to the live cluster from the worktree: `just kube apply-ks <ns> <ks-name>`. Run it
-with the worktree as the working directory, so that `just` picks up the `.justfile` of the
-worktree. If you run it from the main checkout (or with `-f <main>/.justfile`), it builds the
-manifests of `main` and silently re-applies the old version.
+Step 2. Apply to the live cluster from the worktree: `mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks-name>`. Run it
+with the worktree as the working directory, so that mise picks up the task files of the
+worktree. If you run it from the main checkout, it builds the manifests of `main` and silently
+re-applies the old version.
 
 Step 3. Wait for explicit user confirmation that it works. A running pod is not confirmation.
 Only the word of the user is.
@@ -67,11 +67,11 @@ git -C <main> merge --ff-only <type>/<slug>
 git -C <main> push origin main
 ```
 
-Run `just wt rm <type>/<slug>` after step 5. It refuses unless the branch is an ancestor of
+Run `mise run //:wt:rm <type>/<slug>` after step 5. It refuses unless the branch is an ancestor of
 `main`.
 
 Step 5. Wait for the `Push OCI Artifact` run on your commit to go green. Then run
-`just kube sync-flux ocirepo flux-system` until the artifact carries your commit:
+`mise run //clusters/artemis/kubernetes:sync-flux ocirepo flux-system` until the artifact carries your commit:
 
 ```bash
 kubectl get ocirepository -n flux-system flux-system \
@@ -85,14 +85,14 @@ watching it merely _change_ is racy in both directions. If an earlier sync alrea
 artifact, the digest never changes again, and the check waits forever on work that is already
 done.
 
-Name `flux-system` in the sync. The bare `just kube sync-flux ocirepo` force-annotates every
+Name `flux-system` in the sync. The bare `mise run //clusters/artemis/kubernetes:sync-flux ocirepo` force-annotates every
 OCIRepository in the cluster, but step 5 needs exactly one.
 
 Then resume, root first and then the target, as two calls:
 
 ```bash
-just kube resume-ks flux-system flux-system
-just kube resume-ks <ns> <ks-name>
+mise run //clusters/artemis/kubernetes:resume-ks flux-system flux-system
+mise run //clusters/artemis/kubernetes:resume-ks <ns> <ks-name>
 ```
 
 `resume-ks` refuses to wake a child while the root is still suspended. When it finishes, it warns

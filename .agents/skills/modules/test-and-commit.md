@@ -4,7 +4,7 @@ The suspend, apply, confirm, commit, artifact-wait and resume sequence is define
 `.agents/instructions/commit-style.md` § The sequence. Follow it from there. This module does not
 restate it. This module adds only what is specific to a skill-driven session.
 
-Edit in a worktree. Before the first edit, run `just wt new <type>/<slug>` (`AGENTS.md` rule 7).
+Edit in a worktree. Before the first edit, run `mise run //:wt:new <type>/<slug>` (`AGENTS.md` rule 7).
 
 ---
 
@@ -15,8 +15,8 @@ Edit in a worktree. Before the first edit, run `just wt new <type>/<slug>` (`AGE
 grep "^  name:" clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
 
 # Render offline, then see what the change would move in the live cluster
-just kube render-ks <namespace> <ks-name>
-just kube diff-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
+mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
 ```
 
 `flux-validate` covers both in detail.

@@ -11,7 +11,7 @@ Wire a new application into Pocket-ID for single sign-on. Pocket-ID is at `https
 `PocketIDOIDCClient` CRs. Never create them by hand in the web UI.
 
 > Read `.agents/references/networking.md` for gateway names and route syntax before you add any
-> HTTPRoute. Edit in a worktree: run `just wt new feat/<slug>` first (`AGENTS.md` rule 7). An app that
+> HTTPRoute. Edit in a worktree: run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7). An app that
 > cannot do OIDC itself uses `components/envoy-oidc` (Step 2, last section). The tinyauth gate is a
 > different mechanism: `.agents/skills/add-tinyauth-app/SKILL.md`.
 

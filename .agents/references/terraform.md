@@ -53,7 +53,7 @@ VM/LXC CRUD, storage, pools, users, and `download_file` are all pure API.
 
 Talos does not use cloud-init, so you can avoid the snippet path, and therefore SSH,
 entirely. Use `proxmox_virtual_environment_download_file` to pull the Talos image, then
-`..._vm`. Machine config does not belong to tofu. It comes from `just talos` plus the node templates.
+`..._vm`. Machine config does not belong to tofu. It comes from the `//clusters/artemis/talos` tasks plus the node templates.
 
 GPU passthrough (`hostpci`) works, but any change force-stops the VM. Raw PCI IDs are
 better covered than the newer resource-mapping style.
@@ -81,14 +81,14 @@ rebuild. The same circularity applies to the shared CNPG Postgres through the `p
 
 ### How the passphrase gets in
 
-`terraform/mod.just` reads the passphrase from 1Password at run time and builds `TF_ENCRYPTION`
+The hidden `run` task in `terraform/mise.toml` reads the passphrase from 1Password at run time and builds `TF_ENCRYPTION`
 in the environment. It never writes the passphrase to a file. It never passes it through the
 `onepassword` provider. Providers initialise _after_ the encryption block is
 evaluated, so that route would store the state key inside the state that it encrypts.
 
 Override the reference with `TOFU_PASSPHRASE_REF`, or the literal value with
 `TOFU_PASSPHRASE` (used to test the mechanism without touching 1Password).
-The recipes refuse to run on a passphrase shorter than 16 characters.
+The tasks refuse to run on a passphrase shorter than 16 characters.
 
 Vault placement: The reference points at `op://infrastructure/tofu-state/password`.
 `infrastructure` is in the read set of the in-cluster Connect token. See the vault order in
@@ -113,8 +113,8 @@ and refuses plaintext. It passes only on a document that has a non-empty
 `encrypted_data` key, so an unrecognised shape fails closed. It also rejects an empty file, which is the
 signature of a backend path that pointed somewhere wrong.
 
-This matters because `just tofu ...` sets `TF_ENCRYPTION` but a bare `tofu apply`
-does not. The team tested both paths. The recipe produces ciphertext, a bare apply
+This matters because `mise run //terraform:...` sets `TF_ENCRYPTION` but a bare `tofu apply`
+does not. The team tested both paths. The task produces ciphertext, a bare apply
 produces plaintext, and the hook catches the second.
 
 `.gitignore` deliberately does not ignore `*.tfstate`, because git must track it.
@@ -133,8 +133,8 @@ Everything in this house already exists. Every stack is therefore an import exer
 never a create one.
 
 1. Write the resource block.
-2. Run `just tofu import <stack> <address> <id>`.
-3. Run `just tofu plan <stack>` until it reports no changes.
+2. Run `mise run //terraform:import <stack> <address> <id>`.
+3. Run `mise run //terraform:plan <stack>` until it reports no changes.
 
 A clean plan after import is the only real success signal. If the plan wants to change
 something you did not intend, the resource block is wrong. Fix it and do not apply.
