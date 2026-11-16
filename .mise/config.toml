@@ -82,7 +82,7 @@ run = "git worktree list"
 
 [tools]
 talos = "1.14.4"
-"github:home-operations/kopiur" = "0.10.21"
+"github:home-operations/kopiur" = "0.11.0"
 opentofu = "1.13.9"
 "pypi:ansible-core" = "2.22.0"
 "pipx:ansible-lint" = "26.11.0"
