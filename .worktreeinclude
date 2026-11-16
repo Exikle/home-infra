@@ -2,4 +2,6 @@
 # from the main checkout.
 clusters/artemis/kubeconfig
 clusters/artemis/talosconfig
+clusters/frostlink/kubeconfig
+clusters/frostlink/talosconfig
 .env

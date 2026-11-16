@@ -1,0 +1,20 @@
+[tasks.upgrade]
+description = "Upgrade Talos on the frostlink node to the current schematic and the given version (single node: a full cluster outage)"
+usage = 'arg "<version>" help="Talos version, for example v1.14.4"'
+confirm = { message = "Upgrade the only frostlink node to {{ usage.version }}? The whole cluster goes down.", default = "no" }
+run = '''
+schematic="$(mise run :schematic-id)"
+endpoint="$(talosctl --context "$KUBE_CONTEXT" config info -o yaml | yq -e '.endpoints[0]')"
+mise run //:log warn "Upgrading the only node" node "$endpoint" version "$usage_version" schematic "$schematic"
+talosctl --context "$KUBE_CONTEXT" -n "$endpoint" upgrade \
+    --image "factory.talos.dev/installer/$schematic:$usage_version" \
+    --reboot-mode powercycle \
+    --timeout 10m
+'''
+
+[tasks.schematic-id]
+description = "Get the schematic ID from factory.talos.dev for the current schematic"
+hide = true
+run = '''
+curl -fsSX POST --data-binary @"$MISE_CONFIG_ROOT/schematic.yaml" "https://factory.talos.dev/schematics" | jq -er '.id'
+'''

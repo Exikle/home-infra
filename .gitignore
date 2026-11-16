@@ -12,6 +12,10 @@ Thumbs.db
 kubeconfig
 talosconfig
 
+# Frostlink bootstrap (generated Talos configs; its talosconfig is covered above)
+clusters/frostlink/bootstrap/controlplane.yaml
+clusters/frostlink/bootstrap/worker.yaml
+
 # Secrets
 *.crt
 *.iso
