@@ -12,13 +12,28 @@ area/backup:
       - any-glob-to-any-file:
           - clusters/artemis/kubernetes/apps/kopiur-system/**/*
           - clusters/artemis/kubernetes/components/kopiur/**/*
+          - clusters/frostlink/kubernetes/apps/kopiur-system/**/*
+          - clusters/frostlink/kubernetes/components/kopiur/**/*
+          - clusters/frostlink/kubernetes/components/kopiur-deep-verify/**/*
 area/ci:
   - changed-files:
       - any-glob-to-any-file: ".forgejo/**/*"
+area/database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - clusters/frostlink/kubernetes/apps/database/**/*
+          - clusters/frostlink/kubernetes/apps/cnpg-system/**/*
+          - clusters/frostlink/kubernetes/apps/dragonfly-system/**/*
+          - clusters/frostlink/kubernetes/components/postgres/**/*
+area/fediverse:
+  - changed-files:
+      - any-glob-to-any-file:
+          - clusters/frostlink/kubernetes/apps/fediverse/**/*
 area/flux:
   - changed-files:
       - any-glob-to-any-file:
           - clusters/artemis/kubernetes/apps/flux-system/**/*
+          - clusters/frostlink/kubernetes/apps/flux-system/**/*
 area/home-automation:
   - changed-files:
       - any-glob-to-any-file:
@@ -28,29 +43,43 @@ area/infra:
       - any-glob-to-any-file:
           - ansible/**/*
           - clusters/artemis/bootstrap/**/*
+          - clusters/frostlink/bootstrap/**/*
           - terraform/**/*
 area/kubernetes:
   - changed-files:
-      - any-glob-to-any-file: "clusters/artemis/kubernetes/**/*"
+      - any-glob-to-any-file: "clusters/*/kubernetes/**/*"
 area/media:
   - changed-files:
       - any-glob-to-any-file:
           - clusters/artemis/kubernetes/apps/media/**/*
+area/matrix:
+  - changed-files:
+      - any-glob-to-any-file:
+          - clusters/frostlink/kubernetes/apps/matrix/**/*
 area/network:
   - changed-files:
       - any-glob-to-any-file:
           - clusters/artemis/kubernetes/apps/network/**/*
+          - clusters/frostlink/kubernetes/apps/network/**/*
+          - clusters/frostlink/kubernetes/apps/towonel/**/*
           - clusters/artemis/kubernetes/apps/kube-system/cilium/**/*
+          - clusters/frostlink/kubernetes/apps/kube-system/cilium/**/*
 area/observability:
   - changed-files:
       - any-glob-to-any-file:
           - clusters/artemis/kubernetes/apps/observability/**/*
+          - clusters/frostlink/kubernetes/apps/observability/**/*
 area/renovate:
   - changed-files:
       - any-glob-to-any-file:
           - .renovate/**/*
           - .renovaterc.json5
+area/storage:
+  - changed-files:
+      - any-glob-to-any-file:
+          - clusters/frostlink/kubernetes/apps/openebs-system/**/*
 area/talos:
   - changed-files:
       - any-glob-to-any-file:
           - clusters/artemis/talos/**/*
+          - clusters/frostlink/talos/**/*

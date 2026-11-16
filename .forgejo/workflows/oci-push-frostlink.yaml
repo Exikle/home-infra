@@ -1,18 +1,17 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Push OCI Artifact
+name: Push OCI Artifact (Frostlink)
 
 on:
   push:
     branches:
       - main
     paths:
-      - kubernetes/**
-      - .sourceignore
+      - clusters/frostlink/kubernetes/**
   workflow_dispatch:
 
 concurrency:
-  group: oci-push-${{ forgejo.ref }}
+  group: oci-push-frostlink-${{ forgejo.ref }}
   cancel-in-progress: true
 
 # permissions: unsupported in Forgejo — grant via repo Settings → Actions → Authorized Integrations
@@ -23,7 +22,14 @@ jobs:
   push:
     uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
     with:
+      path: clusters/frostlink
       registry-host: registry.frostlink.dev
       forgejo-oci-url: oci://git.dcunha.io/exikle/frostlink
       registry-oci-url: oci://registry.frostlink.dev/exikle/frostlink
-    secrets: inherit # zizmor: ignore[secrets-inherit]
+    secrets:
+      EXIKLE_PACKAGES_TOKEN: ${{ secrets.EXIKLE_PACKAGES_TOKEN }}
+      REGISTRY_TOKEN: ${{ secrets.FROSTLINK_REGISTRY_TOKEN }}
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+      FLUX_WEBHOOK_TOKEN: ${{ secrets.FROSTLINK_FLUX_WEBHOOK_TOKEN }}
+      FLUX_WEBHOOK_URL: ${{ secrets.FROSTLINK_FLUX_WEBHOOK_URL }}

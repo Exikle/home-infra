@@ -63,6 +63,13 @@ local linters = new Mapping<String, Step> {
     check = "python3 scripts/check-doc-paths.py {{files}}"
   }
 
+  // No explanatory comments in Frostlink manifests (instructions/frostlink.md). Artemis carries no
+  // such check, and Frostlink manifests are not key-ordered by yaml-order above.
+  ["yaml-comments"] {
+    glob = "clusters/frostlink/kubernetes/**/*.yaml"
+    check = "python3 scripts/check-yaml-comments.py"
+  }
+
   // --- Agent config -----------------------------------------------------------------------
   ["agent-hooks-generated"] {
     glob = List(".claude/hooks/*", ".opencode/plugins/guard-destructive.js")
