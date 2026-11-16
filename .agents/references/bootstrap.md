@@ -15,6 +15,13 @@ rendered and filtered down to `kind: CustomResourceDefinition`, and none is inst
 matters. `apps` syncs `kube/clusters/artemis/bootstrap/helmfile.d/01-apps.yaml`, in order: Cilium → CoreDNS → Spegel →
 cert-manager → external-secrets → onepassword-connect → flux-operator → flux-instance.
 
+Each release reads its chart, version and values from the app that Flux runs. The helmfile
+templates look in `kube/clusters/<cluster>/apps/<ns>/<app>/app/` first, then in
+`kube/base/<ns>/<app>/app/`. For a shared app they also merge
+`kube/clusters/<cluster>/apps/<ns>/<app>/extras/values.yaml`, with the base values winning, the
+same order as Flux. So a rebuild installs the versions and values that Flux runs. Frostlink's
+`cni` task does the same for Cilium, CoreDNS and cert-manager.
+
 You no longer need to apply node configs by hand first. That step was here because the `nodes`
 stage was broken. It took its list from `talosctl config info`, whose `.nodes` is one hand-set
 IP, and fed IPs to `mise run //kube/clusters/artemis/talos:apply-node`, which is keyed on hostname. The list now comes from

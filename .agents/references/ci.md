@@ -84,8 +84,9 @@ the label (and its podspec) and make sure that it exists with `fjo api /admin/ac
 It is one job with one step, on `ubuntu-latest` with the `ci-toolbox` image. The step does this:
 
 1. It shallow-clones the commit. The `path` input names the folder that becomes the artifact
-   root. It defaults to `.` (the whole repo). This repo passes `kube/clusters/artemis`, so the artifact
-   holds only the Artemis cluster folder.
+   root, and `ignore-paths` names what to leave out. This repo passes `path: .` and an ignore
+   list per cluster. So each artifact holds `kube/base/` and the Flux folders
+   of one cluster, but not the other cluster, `talos/` or `bootstrap/`.
 2. In the background, it releases to the Forgejo mirror (`git.dcunha.io/exikle/<repo>`).
 3. In the foreground, it releases to the standalone registry (`registry.dcunha.io`), then pings Flux.
 4. It waits for the mirror and fails the run if the mirror failed.
@@ -104,6 +105,21 @@ which breaks the receiver of Frostlink behind its tunnel.
 
 The workflow has one step, not five. On this runner, each extra step costs about 4s of exec round
 trips, so related commands share a step and a job.
+
+---
+
+## `render` — both clusters on every change under `kube/`
+
+`.forgejo/workflows/render.yaml` runs on each push to `main` and each pull request that changes
+`kube/**`, and by hand (`workflow_dispatch`). It has one job per cluster on the default runner
+image. The job installs `flate` with `mise-action` from the shared mise-config pin and runs
+`flate build all --path kube/clusters/<cluster>` with `FLATE_ALLOW_MISSING_SECRETS=true`. A broken
+render fails the job. This matters most for `kube/base/`, because a change there reaches both
+clusters in one push.
+
+The render reads the git checkout, not the artifact. flate resolves every `spec.path` from the repo
+root, so this view equals what Flux gets. That flag also skips every `valuesFrom`, so per-cluster
+values are not in this render (`app-structure.md` § Per-cluster values and extras).
 
 ---
 

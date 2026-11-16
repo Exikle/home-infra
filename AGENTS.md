@@ -24,7 +24,7 @@ A change under `kube/base/` reaches both clusters in one push. The layout, its r
 remaining steps are in #3333. `app-structure.md` § Shared apps has the file shape.
 
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
-the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
+the repo root. Each artifact keeps only `kube/base/` and the Flux folders of
 its own cluster. So every `spec.path` is relative to the repo root and starts with
 `./kube/clusters/<cluster>/` or `./kube/base/`. Flux cannot see `terraform/`, `ansible/`, the
 other cluster, or `talos/` and `bootstrap/`.
