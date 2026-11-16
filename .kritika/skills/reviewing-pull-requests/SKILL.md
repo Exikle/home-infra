@@ -189,3 +189,14 @@ score.
 For an update, give each entry under the breaking changes and upgrade notes of the release, and
 each step that the upgrade guide names, a checked line of its own. This includes an entry that
 touches nothing here. Name the entry, then say why it does not apply or what it changes.
+
+## How to write
+
+The reader skims on a phone. Write less.
+
+- One short sentence per bullet, in plain words. One fact per sentence.
+- A checked line names the entry and the result, nothing more. For example: "Postgres v12
+  migration: additive, no config key here changes."
+- Do not restate the diff, the version numbers, or what you read. The sources list says what you
+  read.
+- A finding says what breaks and where, in two sentences at most.
