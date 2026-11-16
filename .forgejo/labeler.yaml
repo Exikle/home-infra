@@ -1,4 +1,10 @@
 ---
+cluster/artemis:
+  - changed-files:
+      - any-glob-to-any-file: "clusters/artemis/**/*"
+cluster/frostlink:
+  - changed-files:
+      - any-glob-to-any-file: "clusters/frostlink/**/*"
 area/agents:
   - changed-files:
       - any-glob-to-any-file:

@@ -12,6 +12,7 @@ spec:
   values:
     config:
       clusterPath: clusters/frostlink
+      prFilterExpr: pr.labels.exists(l, l.name == "cluster/frostlink")
       repo: forgejo://git.dcunha.io/exikle/home-infra
       statusChecks: true
       prComments: true

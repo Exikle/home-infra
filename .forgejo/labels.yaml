@@ -49,6 +49,13 @@
   color: "0e8a16"
   description: "Issues related to TalosOS configuration and operations"
 
+# Cluster
+- name: "cluster/artemis"
+  color: "1d76db"
+  description: "Touches clusters/artemis"
+- name: "cluster/frostlink"
+  color: "1d76db"
+  description: "Touches clusters/frostlink"
 # Work Kind
 - name: "kind/bug"
   color: "d73a4a"
