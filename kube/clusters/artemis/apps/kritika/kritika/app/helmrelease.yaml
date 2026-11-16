@@ -28,6 +28,8 @@ spec:
             - profile
             - groups
       confidence:
+        effort: low
+        fallback: agentgateway/opencode-go/minimax-m3
         gate:
           when:
             - name: renovate
@@ -37,6 +39,23 @@ spec:
       egress:
         allow:
           - 10.10.99.90
+          - api.github.com
+          - auth.docker.io
+          - codeberg.org
+          - cr.agentgateway.dev
+          - ghcr.io
+          - git.erwanleboucher.dev
+          - github.com
+          - gsoci.azurecr.io
+          - mirror.gcr.io
+          - objects.githubusercontent.com
+          - pkg-containers.githubusercontent.com
+          - production.cloudflare.docker.com
+          - quay.io
+          - raw.githubusercontent.com
+          - registry-1.docker.io
+          - registry.erwanleboucher.dev
+          - release-assets.githubusercontent.com
       forgejo:
         forgejo:
           accounts:
@@ -55,6 +74,8 @@ spec:
           apiKey:
             env: AGENTGATEWAY_API_KEY
           baseUrl: http://agentgateway.cortex.svc.cluster.local:4000/v1
+          concurrency: 1
+          retries: 2
           type: openai
       review:
         model: agentgateway/opencode-go/minimax-m3

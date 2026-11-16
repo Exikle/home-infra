@@ -14,6 +14,17 @@
   "ansible-galaxy": {
     managerFilePatterns: ["ansible/requirements.yml"],
   },
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Bump the review tools pinned in .kritika.yaml",
+      managerFilePatterns: ["/^\\.kritika\\.yaml$/"],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\n\\s*"?aqua:[^"\\s]+"?:[ \\t]*"?(?<currentValue>[^"\\s]+)"?',
+      ],
+      versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
+    },
+  ],
   packageRules: [
     {
       description: "Never automerge pocket-id — the operator halts on an unsupported version",

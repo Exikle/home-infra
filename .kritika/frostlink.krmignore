@@ -1,0 +1,10 @@
+/*
+!/kube/
+/kube/*
+!/kube/base/
+!/kube/components/
+!/kube/clusters/
+/kube/clusters/*
+!/kube/clusters/frostlink/
+/kube/clusters/frostlink/talos/
+/kube/clusters/frostlink/bootstrap/

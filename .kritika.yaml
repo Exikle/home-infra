@@ -2,6 +2,15 @@
 context:
   - path: AGENTS.md
     description: Repo rules that apply to every change.
+skills:
+  paths:
+    - .kritika/skills
+  scope:
+    reviewing-pull-requests:
+      load: true
+tools:
+  # renovate: datasource=github-releases depName=home-operations/flate
+  aqua:home-operations/flate: v0.7.3
 rules:
   - id: no-plaintext-secrets
     rule: A secret in plain text, or SOPS / age encryption, is a blocker. Secrets are ExternalSecrets on the onepassword-connect ClusterSecretStore.
