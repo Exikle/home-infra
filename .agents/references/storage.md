@@ -25,7 +25,7 @@ Both classes use `volumeBindingMode: WaitForFirstConsumer`.
 This applies to POPULATOR restores only. A populator restore is a `Restore` CR that hands a volume to a new, unbound PVC. You must drive these restores with the workload scaled back UP. If you scale to 0 and wait, the restore deadlocks.
 
 It does not apply to an in-place restore into an existing, bound PVC. That restore is `kopiur restore
---to-pvc <claim>`, which `mise run //clusters/artemis/kubernetes:restore-pvc` runs. A bound PVC stays bound when its consumer scales to 0, and the mover pod is itself the consumer. For this restore you _must_ scale to 0, so that nothing writes while the data is replaced. The two flows are opposites. Pick the flow by whether the claim already exists.
+--to-pvc <claim>`, which `mise run //kube/clusters/artemis:restore-pvc` runs. A bound PVC stays bound when its consumer scales to 0, and the mover pod is itself the consumer. For this restore you _must_ scale to 0, so that nothing writes while the data is replaced. The two flows are opposites. Pick the flow by whether the claim already exists.
 
 On a miroir-backed PVC, the populator starts only after a pod that references the PVC is scheduled. The sequence is:
 

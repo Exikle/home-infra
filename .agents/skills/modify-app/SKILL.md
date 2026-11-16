@@ -21,7 +21,7 @@ Before you edit, read these files:
 
 Goal: land one change and prove that it is the change you meant.
 
-Success means that `mise run //clusters/artemis/kubernetes:diff-ks` shows only your intended difference, the app is applied
+Success means that `mise run //kube/clusters/artemis:diff-ks` shows only your intended difference, the app is applied
 live, and the user has confirmed that it still works.
 
 Stop when you applied the change and requested confirmation. Never commit before the user confirms.
@@ -35,15 +35,15 @@ Stop when you applied the change and requested confirmation. Never commit before
 
 ## Step 1: Locate what you are changing
 
-The app directory is `clusters/artemis/kubernetes/apps/<namespace>/<app>/`. Two things routinely waste time here:
+The app directory is `kube/clusters/artemis/apps/<namespace>/<app>/`. Two things routinely waste time here:
 
 ```bash
 # The Kustomization name is metadata.name in ks.yaml — it is NOT always <app>,
 # and one ks.yaml may hold several documents (one per sub-directory).
-grep -n "^  name:" clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
+grep -n "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
 
 # What files exist for this app
-find clusters/artemis/kubernetes/apps/<namespace>/<app> -type f | sort
+find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
 ```
 
 Each kind of change lives in a specific file:
@@ -64,7 +64,7 @@ Each kind of change lives in a specific file:
 creating: there is a running object to compare against.
 
 ```bash
-mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
 Exit 0 means that the tree already matches the cluster. That is a clean starting point. Exit 1 means that the tree
@@ -89,7 +89,7 @@ Ready, or a Kustomization that reports success while the live object keeps its o
 ## Step 4: Make the edit, then render offline
 
 ```bash
-mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
 This needs no cluster. It is `flate build ks`, so it catches schema errors, missing substitution
@@ -101,7 +101,7 @@ in without its `postBuild.substitute` keys renders with an empty value and does 
 ## Step 5: Diff against live, and read it
 
 ```bash
-mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
 Read every line of the output. The diff must contain your change and nothing else. Anything

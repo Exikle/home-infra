@@ -17,7 +17,7 @@ upstream behavior of the app.
 
 ## Rules
 
-- Read-only. Always. Never run `kubectl apply|edit|patch|delete|scale`, never run `mise run //clusters/artemis/kubernetes:apply-ks`,
+- Read-only. Always. Never run `kubectl apply|edit|patch|delete|scale`, never run `mise run //kube/clusters/artemis:apply-ks`,
   never edit a repo file, and never run a `git` write command. You produce a report. A human applies it.
 - Prefer the `-ops` MCP tools (k8s and Flux) and the Grafana MCP tools over shell commands. List the
   tools and match on server and tool. Never use a hardcoded prefixed name (`tooling.md` § MCP servers).
@@ -33,25 +33,25 @@ upstream behavior of the app.
 ## Inputs
 
 - App name and namespace. If you get only a namespace, audit each app in it in turn
-  (`ls clusters/artemis/kubernetes/apps/<ns>/`). Never work from a remembered app list.
+  (`ls kube/clusters/artemis/apps/<ns>/`). Never work from a remembered app list.
 
 ## Reading
 
 Always read `.agents/instructions/cluster-conventions.md` and `.agents/instructions/yaml-conventions.md`.
 Then load only the files that apply. These files are on-demand for a reason:
 
-| If the app has…                      | Read                                                                                                         |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| any component wired in `ks.yaml`     | the component's own files under `clusters/artemis/kubernetes/components/<name>/` (the definition, not a doc) |
-| a PVC or kopiur                      | `.agents/references/kopiur.md`, `.agents/references/storage.md`                                              |
-| Postgres, Redis, or any cache        | `.agents/references/postgres-dragonfly.md` (mandatory, especially § Cert-incapable apps)                     |
-| an HTTPRoute                         | `.agents/references/networking.md`                                                                           |
-| OIDC, tinyauth, or a SecurityPolicy  | `.agents/references/identity-stack.md`                                                                       |
-| zeroscaler, or metrics/scrape config | `.agents/references/observability.md`                                                                        |
-| a `frostlink.dev` hostname           | `.agents/references/towonel-agent.md`                                                                        |
-| namespace `media`                    | `.agents/references/media-stack.md`                                                                          |
-| an MCP server that reaches it        | `.agents/references/cortex-mcp.md`, `.agents/references/memory-config.md`                                    |
-| a stuck or odd reconciliation        | `.agents/references/flux-patterns.md`                                                                        |
+| If the app has…                      | Read                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| any component wired in `ks.yaml`     | the component's own files under `kube/clusters/artemis/components/<name>/` (the definition, not a doc) |
+| a PVC or kopiur                      | `.agents/references/kopiur.md`, `.agents/references/storage.md`                                        |
+| Postgres, Redis, or any cache        | `.agents/references/postgres-dragonfly.md` (mandatory, especially § Cert-incapable apps)               |
+| an HTTPRoute                         | `.agents/references/networking.md`                                                                     |
+| OIDC, tinyauth, or a SecurityPolicy  | `.agents/references/identity-stack.md`                                                                 |
+| zeroscaler, or metrics/scrape config | `.agents/references/observability.md`                                                                  |
+| a `frostlink.dev` hostname           | `.agents/references/towonel-agent.md`                                                                  |
+| namespace `media`                    | `.agents/references/media-stack.md`                                                                    |
+| an MCP server that reaches it        | `.agents/references/cortex-mcp.md`, `.agents/references/memory-config.md`                              |
+| a stuck or odd reconciliation        | `.agents/references/flux-patterns.md`                                                                  |
 
 ---
 
@@ -60,7 +60,7 @@ Then load only the files that apply. These files are on-demand for a reason:
 Before you make any judgment, gather the live picture. Do this once, at the start.
 
 ```bash
-find clusters/artemis/kubernetes/apps/<ns>/<app> -type f | sort
+find kube/clusters/artemis/apps/<ns>/<app> -type f | sort
 ```
 
 ```bash
@@ -90,20 +90,20 @@ or config file of the app, where you can reach one read-only.
 
 This check most often finds a real bug, and a manifest lint cannot make it.
 For every path in the `components:` list of `ks.yaml`, open the component's own files under
-`clusters/artemis/kubernetes/components/`. Extract every `${VAR}` that the component reads, including the `:=` and `:-`
+`kube/clusters/artemis/components/`. Extract every `${VAR}` that the component reads, including the `:=` and `:-`
 defaults. Then check each one against what the app actually is.
 
 ```bash
-grep -rn '\${' clusters/artemis/kubernetes/components/<name>/
+grep -rn '\${' kube/clusters/artemis/components/<name>/
 ```
 
-| Component       | Precondition to verify                                                                                                                                                                                                                                                                                                                                                                                                         | How                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kopiur/backup` | The mover's uid/gid matches the on-disk ownership of the app's data. `KOPIUR_PUID`/`KOPIUR_PGID` both default to `1000` (`components/kopiur/backup/snapshotpolicy.yaml`, `restore.yaml`).                                                                                                                                                                                                                                      | Compare to the pod's `runAsUser`/`fsGroup`. If they differ and `ks.yaml` sets no `KOPIUR_PUID`, that is a finding. `kopiur.md` § Mover uid says `fsGroup` misleads, so make sure of the real ownership with `mise run //clusters/artemis/kubernetes:browse-pvc <ns> <claim>` and `ls -ln` before you call it broken. Also make sure that the identity in `restore.yaml` mirrors the identity of the SnapshotPolicy. A mismatch shows only during a restore, which is the worst time to find it. |
-| `zeroscaler`    | `${CONTROLLER}` defaults to `Deployment`. A StatefulSet app without it targets a resource that does not exist. Also, the metric is not what the name suggests. Check how many series the metric of the HPA actually has.                                                                                                                                                                                                       | Run `kubectl get hpa -n <ns> <app>`. If `TARGETS` reads `<unknown>/1`, the metric does not resolve. If `REFERENCE` names a kind that the app does not use, the substitution is wrong. Then query the metric itself. If every HPA in the cluster reads the _same single series_, this is a shared-fate gate, not per-app autoscaling.                                                                                                                                                            |
-| `postgres/app`  | The app uses the DSN key that matches its driver: `url` (libpq), `url_node` (postgres-js), or `url_prisma` (Prisma). `pg_hba` is `scram-sha-256` (`postgres-dragonfly.md`).                                                                                                                                                                                                                                                    | Step 2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `tinyauth`      | The three ACL keys exist in `security/tinyauth/app/helmrelease.yaml`: `TINYAUTH_APPS_<NAME>_OAUTH_WHITELIST` (must be `"/.*/"`), `_OAUTH_GROUPS`, and `_LDAP_GROUPS`. Under `TINYAUTH_AUTH_ACLS_POLICY: deny` an app with none is locked out entirely. The app's namespace must also appear in `security/tinyauth/app/resourceset.yaml`'s `spec.inputs`, or the `SecurityPolicy` sits `Accepted=False` with `RefNotPermitted`. | `grep TINYAUTH_APPS_<NAME> clusters/artemis/kubernetes/apps/security/tinyauth/app/helmrelease.yaml`, `sed -n '/inputs:/,/resources:/p' clusters/artemis/kubernetes/apps/security/tinyauth/app/resourceset.yaml`, `kubectl get referencegrant -n security`. Then Step 3.                                                                                                                                                                                                                         |
-| `envoy-oidc`    | A `PocketIDOIDCClient` exists for the app with `callbackUrls` ending `/oauth2/callback` and `secret.keys.clientSecret: client-secret`. Also, `dependsOn` includes `pocket-id-operator` (`security`); the component's `SecurityPolicy` `<app>-oidc` targets the app's real HTTPRoute (`${HTTP_ROUTE_TARGET:=${APP}}`), and `${OIDC_HOST}` matches the route's hostname.                                                         | `kubectl get securitypolicy -n <ns> <app>-oidc -o yaml`, `kubectl get pocketidoidcclient -n <ns> <app>`, `kubectl get httproute -n <ns>`. Then Step 3.                                                                                                                                                                                                                                                                                                                                          |
+| Component       | Precondition to verify                                                                                                                                                                                                                                                                                                                                                                                                         | How                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kopiur/backup` | The mover's uid/gid matches the on-disk ownership of the app's data. `KOPIUR_PUID`/`KOPIUR_PGID` both default to `1000` (`components/kopiur/backup/snapshotpolicy.yaml`, `restore.yaml`).                                                                                                                                                                                                                                      | Compare to the pod's `runAsUser`/`fsGroup`. If they differ and `ks.yaml` sets no `KOPIUR_PUID`, that is a finding. `kopiur.md` § Mover uid says `fsGroup` misleads, so make sure of the real ownership with `mise run //kube/clusters/artemis:browse-pvc <ns> <claim>` and `ls -ln` before you call it broken. Also make sure that the identity in `restore.yaml` mirrors the identity of the SnapshotPolicy. A mismatch shows only during a restore, which is the worst time to find it. |
+| `zeroscaler`    | `${CONTROLLER}` defaults to `Deployment`. A StatefulSet app without it targets a resource that does not exist. Also, the metric is not what the name suggests. Check how many series the metric of the HPA actually has.                                                                                                                                                                                                       | Run `kubectl get hpa -n <ns> <app>`. If `TARGETS` reads `<unknown>/1`, the metric does not resolve. If `REFERENCE` names a kind that the app does not use, the substitution is wrong. Then query the metric itself. If every HPA in the cluster reads the _same single series_, this is a shared-fate gate, not per-app autoscaling.                                                                                                                                                      |
+| `postgres/app`  | The app uses the DSN key that matches its driver: `url` (libpq), `url_node` (postgres-js), or `url_prisma` (Prisma). `pg_hba` is `scram-sha-256` (`postgres-dragonfly.md`).                                                                                                                                                                                                                                                    | Step 2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `tinyauth`      | The three ACL keys exist in `security/tinyauth/app/helmrelease.yaml`: `TINYAUTH_APPS_<NAME>_OAUTH_WHITELIST` (must be `"/.*/"`), `_OAUTH_GROUPS`, and `_LDAP_GROUPS`. Under `TINYAUTH_AUTH_ACLS_POLICY: deny` an app with none is locked out entirely. The app's namespace must also appear in `security/tinyauth/app/resourceset.yaml`'s `spec.inputs`, or the `SecurityPolicy` sits `Accepted=False` with `RefNotPermitted`. | `grep TINYAUTH_APPS_<NAME> kube/clusters/artemis/apps/security/tinyauth/app/helmrelease.yaml`, `sed -n '/inputs:/,/resources:/p' kube/clusters/artemis/apps/security/tinyauth/app/resourceset.yaml`, `kubectl get referencegrant -n security`. Then Step 3.                                                                                                                                                                                                                               |
+| `envoy-oidc`    | A `PocketIDOIDCClient` exists for the app with `callbackUrls` ending `/oauth2/callback` and `secret.keys.clientSecret: client-secret`. Also, `dependsOn` includes `pocket-id-operator` (`security`); the component's `SecurityPolicy` `<app>-oidc` targets the app's real HTTPRoute (`${HTTP_ROUTE_TARGET:=${APP}}`), and `${OIDC_HOST}` matches the route's hostname.                                                         | `kubectl get securitypolicy -n <ns> <app>-oidc -o yaml`, `kubectl get pocketidoidcclient -n <ns> <app>`, `kubectl get httproute -n <ns>`. Then Step 3.                                                                                                                                                                                                                                                                                                                                    |
 
 Then ask the inverse: is a component obviously needed and absent? Examples are a PVC with no
 `kopiur/backup` (advisory A2) and a publicly routed app with no gate (A10). Also ask the reverse:
@@ -196,8 +196,8 @@ before anything else. ext_authz intercepts every request on the route. The rule:
 Find the callers. Do not reason about them from memory:
 
 ```bash
-grep -rn '<app>\.dcunha\.io' clusters/artemis/kubernetes/ .agents/
-grep -rn '<app>\.<ns>\.svc' clusters/artemis/kubernetes/
+grep -rn '<app>\.dcunha\.io' kube/clusters/artemis/ .agents/
+grep -rn '<app>\.<ns>\.svc' kube/clusters/artemis/
 ```
 
 Then look where grep cannot reach, because the highest-risk callers are not in the tree:
@@ -262,7 +262,7 @@ Never propose a number without the observation behind it.
 ## Step 5 — Storage and backup reality
 
 - Does the PVC exist, and is it `Bound`? Is its size sane against actual use
-  (`kubelet_volume_stats_used_bytes`, or `mise run //clusters/artemis/kubernetes:browse-pvc <ns> <claim>`)? Report both the
+  (`kubelet_volume_stats_used_bytes`, or `mise run //kube/clusters/artemis:browse-pvc <ns> <claim>`)? Report both the
   nearly full and the wildly oversized.
 - Is anything important on an `emptyDir`? A database or a state directory on an emptyDir is
   silently wiped on every restart. This looks completely normal in a manifest.

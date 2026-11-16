@@ -1,0 +1,169 @@
+[task_templates.node]
+usage = '''
+complete "node" run="find \"$(git rev-parse --show-toplevel)/kube/clusters/artemis/talos/nodes\" -name '*.yaml.j2' -exec basename {} .yaml.j2 \\; | sort"
+'''
+
+[tasks.apply-node]
+description = "Apply Talos config to a node"
+extends = "node"
+usage = '''
+arg "<node>" help="Node to apply the config to"
+arg "[args]" var=#true help="Extra arguments for talosctl apply-config"
+'''
+confirm = { message = "Apply Talos config to {{ usage.node }}?", default = "no" }
+run = '''
+eval "args=(${usage_args:-})"
+config="$(mise run :render-config "$usage_node")"
+printf '%s\n' "$config" | talosctl -n "$usage_node" apply-config -f /dev/stdin "${args[@]}"
+'''
+
+[tasks.download-image]
+description = "Download Talos machine image for a schematic (e.g. controlplane, worker, gpu)"
+usage = '''
+arg "<version>" help="Talos version"
+arg "<schematic>" help="Schematic name in schematics/"
+'''
+run = '''
+schematic="$(mise run :schematic-id "$usage_schematic")"
+curl -fL --remove-on-error --retry 5 --retry-delay 5 --retry-all-errors --progress-bar \
+    -o "talos-${usage_version}-${usage_schematic}.iso" \
+    "https://factory.talos.dev/image/${schematic}/${usage_version}/metal-amd64.iso"
+mise run //:log info "Downloaded Talos" version "$usage_version" schematic "$usage_schematic"
+'''
+
+[tasks.diff-node]
+description = "Show what applying the rendered config would change on a node"
+extends = "node"
+usage = 'arg "<node>" help="Node to diff"'
+run = '''
+config="$(mise run :render-config "$usage_node")"
+printf '%s\n' "$config" | talosctl -n "$usage_node" apply-config -f /dev/stdin --dry-run
+'''
+
+[tasks.reboot-node]
+description = "Reboot a node"
+extends = "node"
+usage = 'arg "<node>" help="Node to reboot"'
+confirm = { message = "Reboot node {{ usage.node }}?", default = "no" }
+run = 'talosctl -n "$usage_node" reboot -m powercycle'
+
+[tasks.render-config]
+description = "Render Talos config for a node"
+extends = "node"
+usage = 'arg "<node>" help="Node to render the config for"'
+run = '''
+type="$(mise run :machine-type "$usage_node")"
+SCHEMATIC="$(mise run :schematic-id "$(mise run :schematic-type "$usage_node")")"
+export SCHEMATIC
+cluster="$(mise run //:template cluster.yaml.j2)"
+type_patch="$(mise run //:template "${type}.yaml.j2")"
+node_patch="$(mise run //:template "nodes/${usage_node}.yaml.j2")"
+talosctl machineconfig patch <(printf '%s\n' "$cluster") \
+    -p @<(printf '%s\n' "$type_patch") \
+    -p @<(printf '%s\n' "$node_patch")
+'''
+
+[tasks.reset-node]
+description = "Reset a node"
+extends = "node"
+usage = '''
+arg "<node>" help="Node to reset"
+arg "[args]" var=#true help="Extra arguments for talosctl reset"
+'''
+confirm = { message = "Reset node {{ usage.node }}?", default = "no" }
+run = '''
+eval "args=(${usage_args:-})"
+talosctl -n "$usage_node" reset --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL --graceful=false "${args[@]}"
+'''
+
+[tasks.shutdown-node]
+description = "Shutdown a node"
+extends = "node"
+usage = '''
+arg "<node>" help="Node to shut down"
+arg "[args]" var=#true help="Extra arguments for talosctl shutdown"
+'''
+confirm = { message = "Shutdown node {{ usage.node }}?", default = "no" }
+run = '''
+eval "args=(${usage_args:-})"
+talosctl -n "$usage_node" shutdown --force "${args[@]}"
+'''
+
+[tasks.upgrade-k8s]
+description = "Upgrade Kubernetes version on the cluster"
+usage = 'arg "<version>" help="Kubernetes version"'
+confirm = { message = "Upgrade Kubernetes to {{ usage.version }}?", default = "no" }
+run = '''
+controller="$(talosctl config info -o yaml | yq -r -e '.endpoints[0]')"
+talosctl -n "$controller" upgrade-k8s --to "$usage_version"
+'''
+
+[tasks.upgrade-node]
+description = "Upgrade Talos version on a node"
+extends = "node"
+usage = '''
+arg "<node>" help="Node to upgrade"
+arg "[args]" var=#true help="Extra arguments for talosctl upgrade"
+'''
+confirm = { message = "Upgrade node {{ usage.node }}?", default = "no" }
+run = '''
+eval "args=(${usage_args:-})"
+image="$(mise run :machine-image "$usage_node")"
+talosctl -n "$usage_node" upgrade -i "$image" -m powercycle --timeout=10m "${args[@]}"
+'''
+
+[tasks.validate]
+description = "Validate the rendered config for a node, or every node if omitted"
+extends = "node"
+usage = 'arg "[node]" help="Node to validate; all nodes if omitted"'
+run = '''
+nodes="${usage_node:-}"
+if [[ -z "$nodes" ]]; then
+    nodes="$(find nodes -name '*.yaml.j2' -exec basename {} .yaml.j2 \; | sort)"
+fi
+rc=0
+for n in $nodes; do
+    if mise run :render-config "$n" | talosctl validate -m metal -c /dev/stdin >/dev/null 2>&1; then
+        mise run //:log info "Config valid" node "$n"
+    else
+        mise run //:log error "Config INVALID" node "$n"
+        rc=1
+    fi
+done
+exit "$rc"
+'''
+
+[tasks.machine-type]
+hide = true
+usage = 'arg "<node>"'
+run = '''
+mise run //:template "nodes/${usage_node}.yaml.j2" | yq -r -e 'select(.machine) | .machine.type'
+'''
+
+[tasks.machine-image]
+hide = true
+usage = 'arg "<node>"'
+run = '''
+SCHEMATIC="$(mise run :schematic-id "$(mise run :schematic-type "$usage_node")")"
+export SCHEMATIC
+minijinja-cli cluster.yaml.j2 | yq -r -e 'select(.kind == "UnattendedInstallConfig") | .installer.image'
+'''
+
+[tasks.schematic-type]
+hide = true
+usage = 'arg "<node>"'
+run = '''
+case "$usage_node" in
+    *-cp-*) echo "controlplane" ;;
+    *-gpu-*) echo "gpu" ;;
+    ymir) echo "metal" ;;
+    *) echo "worker" ;;
+esac
+'''
+
+[tasks.schematic-id]
+hide = true
+usage = 'arg "<schematic>"'
+run = '''
+curl -fsSX POST --data-binary @"schematics/${usage_schematic}.yaml" "https://factory.talos.dev/schematics" | jq -er '.id'
+'''

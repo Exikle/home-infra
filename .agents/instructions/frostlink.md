@@ -1,13 +1,14 @@
 ---
 paths:
-    - "clusters/frostlink/kubernetes/**"
+    - "kube/clusters/frostlink/apps/**"
+    - "kube/clusters/frostlink/components/**"
 ---
 
 # Frostlink — differences from Artemis
 
-Frostlink is a single-node Talos cluster under `clusters/frostlink/`. `cluster-conventions.md`
+Frostlink is a single-node Talos cluster under `kube/clusters/frostlink/`. `cluster-conventions.md`
 and `yaml-conventions.md` also load here and hold the shared rules. Rules in this file win over
-any rule they label (Artemis). Tasks are `mise run //clusters/frostlink/kubernetes:<task>`.
+any rule they label (Artemis). Tasks are `mise run //kube/clusters/frostlink:<task>`.
 
 ## Apps
 
@@ -21,7 +22,7 @@ any rule they label (Artemis). Tasks are `mise run //clusters/frostlink/kubernet
 ## Single node
 
 - Workloads schedule on the control plane (`taints: $patch: delete` in
-  `clusters/frostlink/talos/patches/controlplane.yaml`). No `nodeSelector` is needed.
+  `kube/clusters/frostlink/talos/patches/controlplane.yaml`). No `nodeSelector` is needed.
 - No Rook-Ceph. Node work: `.agents/references/oci-talos.md`. Rebuild: `.agents/references/oci-rebuild.md`.
 
 ## Storage
@@ -36,12 +37,12 @@ the `database` namespace. No app runs its own Postgres, Redis or Valkey. Full de
 `.agents/references/database.md`.
 
 - Connect only through `pooler-rw.database.svc:5432`. Never to the `Cluster` directly.
-- Onboard an app with the `clusters/frostlink/kubernetes/components/postgres/cert` component in
+- Onboard an app with the `kube/clusters/frostlink/components/postgres/cert` component in
   its `ks.yaml`. It makes the `Database` CR, a client `Certificate` and a `ConfigMap` with the
   mTLS DSN. Auth is by certificate, so there is no password. Apps read the DSN from the ConfigMap.
   `ksgate` holds the app pod until the `Database` CR is Ready.
 - Also add the app's role (`name: <app>`, `login: true`, `disablePassword: true`) to
-  `spec.managed.roles` in `clusters/frostlink/kubernetes/apps/database/postgres/cluster/cluster.yaml`.
+  `spec.managed.roles` in `kube/clusters/frostlink/apps/database/postgres/cluster/cluster.yaml`.
   Without it you get `role "<app>" does not exist (SQLSTATE 42704)`.
 - Client keys use PKCS8 through the CSI path. History and reissue traps: `database.md`
   § Client certificates and § CNPG PKI gotchas.

@@ -4,7 +4,7 @@ This directory holds everything in the house that has an API and _creates object
 UniFi networks, Cloudflare tunnels, TrueNAS datasets and shares.
 
 Flux cannot see this directory. The root Kustomization is scoped to
-`./kubernetes/apps`. Flux never reconciles anything here into the cluster.
+`./clusters/<cluster>/apps`. Flux never reconciles anything here into the cluster.
 
 ## The ownership rule
 

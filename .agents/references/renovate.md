@@ -3,11 +3,11 @@
 Rules live in three places. `.renovaterc.json5` at the repo root is deliberately bare of prose.
 Every "why" below used to be a comment block in it.
 
-| Layer          | Where                                      | What it holds                                                                                               |
-| -------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| Shared default | `default.json` in `exikle/renovate-config` | Policy every repo on git.dcunha.io shares                                                                   |
-| Cluster preset | `cluster.json` in `exikle/renovate-config` | Rules shared by Artemis and Frostlink only                                                                  |
-| This repo      | `.renovaterc.json5`                        | Artemis rules, plus Frostlink rules scoped to `clusters/frostlink/**`; its `packageRules` come last and win |
+| Layer          | Where                                      | What it holds                                                                                                    |
+| -------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Shared default | `default.json` in `exikle/renovate-config` | Policy every repo on git.dcunha.io shares                                                                        |
+| Cluster preset | `cluster.json` in `exikle/renovate-config` | Rules shared by Artemis and Frostlink only                                                                       |
+| This repo      | `.renovaterc.json5`                        | Artemis rules, plus Frostlink rules scoped to `kube/clusters/frostlink/**`; its `packageRules` come last and win |
 
 Shared presets: <https://git.dcunha.io/exikle/renovate-config>. Read `default.json` and
 `cluster.json` there for the rules themselves. This doc does not restate them, and the preset wins
@@ -65,12 +65,12 @@ A silent abort looks exactly like "no updates were due". Check the Renovate log,
 app-specific manager or datasource that this repo depends on. If you drop one, nothing tells you:
 the custom manager stops extracting and the dependency goes stale with no error.
 
-| Preset                    | What it feeds here            | Listed in           |
-| ------------------------- | ----------------------------- | ------------------- |
-| `cnpg.json5`              | `Cluster.spec.imageName`      | cluster preset      |
-| `grafanaDashboards.json5` | every `grafanadashboard.yaml` | `.renovaterc.json5` |
-| `searxng.json5`           | searxng's sha-suffixed tags   | `.renovaterc.json5` |
-| `talosFactory.json5`      | `clusters/artemis/talos/*.j2` | cluster preset      |
+| Preset                    | What it feeds here                 | Listed in           |
+| ------------------------- | ---------------------------------- | ------------------- |
+| `cnpg.json5`              | `Cluster.spec.imageName`           | cluster preset      |
+| `grafanaDashboards.json5` | every `grafanadashboard.yaml`      | `.renovaterc.json5` |
+| `searxng.json5`           | searxng's sha-suffixed tags        | `.renovaterc.json5` |
+| `talosFactory.json5`      | `kube/clusters/artemis/talos/*.j2` | cluster preset      |
 
 ### 7.0.0 ➔ 8.0.0 — the helm-values narrowing
 
@@ -136,7 +136,7 @@ The cluster is back on a stable release (`grep '^talos' .mise/config.toml`), and
 The guard is deliberately not scoped to `matchDatasources`. The Talos version is pinned in two places that
 resolve to the same `packageName` through different datasources:
 
-- The installer image in `clusters/artemis/talos/*.j2` → `custom.talos-factory`
+- The installer image in `kube/clusters/artemis/talos/*.j2` → `custom.talos-factory`
 - The `talos` CLI in `.mise/config.toml` → `github-tags`, through the mise manager
 
 A datasource filter covers only the first. The CLI would then automerge on the patch/minor rules
@@ -215,7 +215,7 @@ change.
 
 ### kube-prometheus-stack — a CRD source, not a deployment
 
-Bumps to `kube-prometheus-stack` in `clusters/artemis/bootstrap/helmfile.d/00-crds.yaml` are inert until a
+Bumps to `kube-prometheus-stack` in `kube/clusters/artemis/bootstrap/helmfile.d/00-crds.yaml` are inert until a
 cluster rebuild. Nothing installs the release. Bootstrap keeps only its CRDs, and the live
 `monitoring.coreos.com` CRDs are still orphans from a HelmRelease removed ~2026-05-16. Three bumps
 have landed, some presenting as `feat(container)!:` majors. Nothing reconciles from them, so do not triage one as a risky major. The risk lands at the
@@ -415,7 +415,7 @@ There are three traps, all verified against the pinned source:
   when it does fire, it only swaps prompt text. It never shrinks the corpus or skips the call.
 - Do not enable `review_routing_mode: auto` without overriding `escalate_on_risk_flags`. The
   `FILE_SERVING_PATTERNS` of the classifier matches the substring `media/`, so everything under
-  `clusters/artemis/kubernetes/apps/media/` trips a risk flag that is in the default escalation list
+  `kube/clusters/artemis/apps/media/` trips a risk flag that is in the default escalation list
   and routes to the expensive model for no reason.
 
 Pin by SHA, not tag. Upstream plans to remove incremental review and `review_scope` in v3.
@@ -478,7 +478,7 @@ trigger it here: `git.dcunha.io` (hostType `forgejo`, every discovered repo) and
 `registry.dcunha.io` (hostType `docker`, Artemis only).
 
 The grant lives in the `extraEnv` of the RenovateJob as `RENOVATE_HOST_RULES`
-(`clusters/artemis/kubernetes/apps/kube-system/renovate-operator/jobs/job.yaml`), not in `.renovaterc.json5`:
+(`kube/clusters/artemis/apps/kube-system/renovate-operator/jobs/job.yaml`), not in `.renovaterc.json5`:
 
 ```text
 RENOVATE_HOST_RULES=[{"matchHost":"https://git.dcunha.io/","allowInternal":true},
@@ -511,7 +511,7 @@ waiting for v45, and it would abort every run if the team missed some internal h
 ## Where Artemis and Frostlink deliberately differ
 
 The two clusters share one `.renovaterc.json5`, and the mechanisms rhyme, so the divergences are
-easy to mis-copy. Frostlink's rules are scoped to `clusters/frostlink/**` (§ Frostlink below). These are intentional:
+easy to mis-copy. Frostlink's rules are scoped to `kube/clusters/frostlink/**` (§ Frostlink below). These are intentional:
 
 |                            | Artemis                                                   | Frostlink                                                      |
 | -------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
@@ -529,11 +529,11 @@ Do not "harmonise" a row without reading the rationale of both files for it.
 ## Frostlink
 
 Frostlink has no `.renovaterc.json5` of its own. Its rules sit in the root file and carry
-`matchFileNames: ["clusters/frostlink/**"]`. Read the file for the rules. This section holds only
+`matchFileNames: ["kube/clusters/frostlink/**"]`. Read the file for the rules. This section holds only
 the reasons. The two cluster presets and the guards above apply to both clusters.
 
 - **Single node.** A merged tuppr bump reboots the only node, with nowhere to drain. So the tuppr
-  upgrade files (`clusters/frostlink/kubernetes/apps/system-upgrade/tuppr/upgrades/`) never
+  upgrade files (`kube/clusters/frostlink/apps/system-upgrade/tuppr/upgrades/`) never
   automerge and wait 7 days. The never-automerge rule must stay after the broad automerge rules,
   because later `packageRules` win. The Talos and Kubernetes groups come from the cluster preset.
 - **Why Talos and Kubernetes PRs open at once.** The talos-factory datasource and the
@@ -541,7 +541,7 @@ the reasons. The two cluster presets and the guards above apply to both clusters
   so the 7-day wait cannot be enforced. `automerge: false` is what keeps them safe. The talosctl
   pin in `.mise/config.toml` has a timestamp, so its 7 days apply.
 - **Kubernetes is pinned in two files.** `kubernetesupgrade.yaml` (kubelet) and
-  `clusters/frostlink/talos/patches/controlplane.yaml` (`kube-proxy`, needed because Talos 1.14
+  `kube/clusters/frostlink/talos/patches/controlplane.yaml` (`kube-proxy`, needed because Talos 1.14
   wants an explicit `image:` on a disabled `KubeProxyConfig`, see `oci-talos.md`). The Kubernetes
   group moves them in one PR. CoreDNS is not in the group: its tag is Talos's own pin, not tied to
   the Kubernetes version.

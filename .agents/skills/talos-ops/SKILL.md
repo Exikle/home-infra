@@ -25,19 +25,19 @@ second node until the first is back and healthy.
 
 Edit in a worktree (`mise run //:wt:new <type>/<slug>`, `AGENTS.md` rule 7). Every write verb below is
 confirm-gated, so from a non-interactive shell put `--yes` before the module:
-`mise run --yes //clusters/artemis/talos:apply-node <node>` (`.agents/instructions/tooling.md`).
+`mise run --yes //kube/clusters/artemis/talos:apply-node <node>` (`.agents/instructions/tooling.md`).
 
 ## Config Changes (no reboot)
 
-1. Edit `clusters/artemis/talos/nodes/<node>.yaml.j2`.
-2. Run `mise run //clusters/artemis/talos:render-config <node>`, then `mise run //clusters/artemis/talos:diff-node <node>` for a dry run.
-3. Run `mise run --yes //clusters/artemis/talos:apply-node <node>`.
+1. Edit `kube/clusters/artemis/talos/nodes/<node>.yaml.j2`.
+2. Run `mise run //kube/clusters/artemis/talos:render-config <node>`, then `mise run //kube/clusters/artemis/talos:diff-node <node>` for a dry run.
+3. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node>`.
 
 ## Config Changes (with reboot)
 
 ```bash
-mise run //clusters/artemis/talos:render-config <node>
-mise run --yes //clusters/artemis/talos:apply-node <node> --mode=reboot
+mise run //kube/clusters/artemis/talos:render-config <node>
+mise run --yes //kube/clusters/artemis/talos:apply-node <node> --mode=reboot
 ```
 
 If the node runs stateful workloads, drain it first:
@@ -52,22 +52,22 @@ Use `drain` when you mean to empty the node. Do not use a bare `cordon` (`.agent
 
 ## Extension Changes
 
-Schematics are per node type, not per node: run `ls clusters/artemis/talos/schematics`. `mise run //clusters/artemis/talos:schematic-type <node>`
-(hidden, in `clusters/artemis/talos/mise.toml`) maps a node name to its type. Extensions need a new schematic ID
+Schematics are per node type, not per node: run `ls kube/clusters/artemis/talos/schematics`. `mise run //kube/clusters/artemis/talos:schematic-type <node>`
+(hidden, in `kube/clusters/artemis/talos/mise.toml`) maps a node name to its type. Extensions need a new schematic ID
 and a reboot:
 
-1. Edit `clusters/artemis/talos/schematics/<type>.yaml`.
-2. Run `mise run //clusters/artemis/talos:schematic-id <type>`. It registers the schematic with Sidero Image Factory and prints the ID. It is
+1. Edit `kube/clusters/artemis/talos/schematics/<type>.yaml`.
+2. Run `mise run //kube/clusters/artemis/talos:schematic-id <type>`. It registers the schematic with Sidero Image Factory and prints the ID. It is
    hidden, so it does not appear in `mise tasks`, but it is still a real task.
 3. Edit nothing by hand. `render-config` computes the ID and injects it into `cluster.yaml.j2` as
    `ENV.SCHEMATIC`.
-4. Run `mise run --yes //clusters/artemis/talos:apply-node <node> --mode=reboot`.
+4. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node> --mode=reboot`.
 
 ## NEVER use `talosctl patch machineconfig` with a full config
 
 If you pass a full config as a patch, array fields (`machine.files`, `machine.certSANs`) are **duplicated** in the merge. This can produce a read-only filesystem on the next boot. Always use one of these:
 
-- `mise run //clusters/artemis/talos:apply-node <node>` for full config replacement (render-config output)
+- `mise run //kube/clusters/artemis/talos:apply-node <node>` for full config replacement (render-config output)
 - A minimal 6-line delta patch file for targeted changes (for example, certSANs only)
 
 Minimal certSANs patch example:
@@ -106,13 +106,13 @@ kubectl get talosupgrades,kubernetesupgrades
 
 ```bash
 kubectl drain <node> --ignore-daemonsets --delete-emptydir-data
-mise run --yes //clusters/artemis/talos:upgrade-node <node>
+mise run --yes //kube/clusters/artemis/talos:upgrade-node <node>
 kubectl uncordon <node>
 ```
 
 The task resolves the installer image (schematic plus version) from the rendered config. For Kubernetes, run
-`mise run --yes //clusters/artemis/talos:upgrade-k8s <version>`.
+`mise run --yes //kube/clusters/artemis/talos:upgrade-k8s <version>`.
 
 ## Nodes
 
-`ls clusters/artemis/talos/nodes` lists them and `kubectl get nodes -o wide` gives roles and IPs.
+`ls kube/clusters/artemis/talos/nodes` lists them and `kubectl get nodes -o wide` gives roles and IPs.

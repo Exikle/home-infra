@@ -7,9 +7,7 @@ on:
     branches:
       - main
     paths:
-      - clusters/artemis/kubernetes/**
-      - clusters/frostlink/kubernetes/**
-      - .sourceignore
+      - kube/**
   workflow_dispatch:
 
 # Forgejo has workflow-level concurrency only. cancel-in-progress is false so that a push to one
@@ -54,8 +52,8 @@ jobs:
             fetch -q --depth 1 "$CLONE_URL" "$SHA" "$BEFORE"
           files=$(git diff --name-only "$BEFORE" "$SHA")
           printf 'changed:\n%s\n' "$files"
-          if printf '%s\n' "$files" | grep -Eq '^(clusters/artemis/kubernetes/|\.sourceignore$)'; then a=true; else a=false; fi
-          if printf '%s\n' "$files" | grep -Eq '^clusters/frostlink/kubernetes/'; then f=true; else f=false; fi
+          if printf '%s\n' "$files" | grep -Eq '^kube/(base/|components/|clusters/artemis/(apps|components|settings)/)'; then a=true; else a=false; fi
+          if printf '%s\n' "$files" | grep -Eq '^kube/(base/|components/|clusters/frostlink/(apps|components|settings)/)'; then f=true; else f=false; fi
           echo "artemis=$a" >> "$FORGEJO_OUTPUT"
           echo "frostlink=$f" >> "$FORGEJO_OUTPUT"
 
@@ -63,9 +61,10 @@ jobs:
     name: Artemis
     needs: changes
     if: needs.changes.outputs.artemis == 'true'
-    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@3fa0aca0d9cfd3971299f1ed37089a6af4a2fbbb
     with:
-      path: clusters/artemis
+      path: .
+      ignore-paths: "/*,!/kube/,/kube/*,!/kube/base/,!/kube/components/,!/kube/clusters/,/kube/clusters/*,!/kube/clusters/artemis/,/kube/clusters/artemis/talos/,/kube/clusters/artemis/bootstrap/,/kube/clusters/artemis/mise.toml,/kube/clusters/artemis/kubeconfig,/kube/clusters/artemis/talosconfig"
       registry-host: registry.dcunha.io
       forgejo-oci-url: oci://git.dcunha.io/exikle/artemis
       registry-oci-url: oci://registry.dcunha.io/exikle/artemis
@@ -75,9 +74,10 @@ jobs:
     name: Frostlink
     needs: changes
     if: needs.changes.outputs.frostlink == 'true'
-    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@cc6c41f25d718f0411b0d8fe4ebac1dde3c808df
+    uses: Exikle/forgejo-workflows/.forgejo/workflows/oci-push.yaml@3fa0aca0d9cfd3971299f1ed37089a6af4a2fbbb
     with:
-      path: clusters/frostlink
+      path: .
+      ignore-paths: "/*,!/kube/,/kube/*,!/kube/base/,!/kube/components/,!/kube/clusters/,/kube/clusters/*,!/kube/clusters/frostlink/,/kube/clusters/frostlink/talos/,/kube/clusters/frostlink/bootstrap/,/kube/clusters/frostlink/mise.toml,/kube/clusters/frostlink/kubeconfig,/kube/clusters/frostlink/talosconfig"
       registry-host: registry.frostlink.dev
       forgejo-oci-url: oci://git.dcunha.io/exikle/frostlink
       registry-oci-url: oci://registry.frostlink.dev/exikle/frostlink

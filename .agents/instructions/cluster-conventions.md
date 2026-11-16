@@ -1,17 +1,20 @@
 ---
 paths:
-    - "clusters/*/kubernetes/**"
+    - "kube/base/**"
+    - "kube/components/**"
+    - "kube/clusters/*/apps/**"
+    - "kube/clusters/*/components/**"
 ---
 
 # Cluster Conventions — home-infra
 
 These rules cover both clusters. Items that hold for one cluster only carry a label. Frostlink's
-differences are in `frostlink.md` (it loads on `clusters/frostlink/kubernetes/**`, and wins there).
+differences are in `frostlink.md` (it loads on `kube/clusters/frostlink/**`, and wins there).
 Sections without a label are shared.
 
 ## App Directory Structure
 
-Every app is one directory under `clusters/<cluster>/kubernetes/apps/<namespace>/`. The directory holds exactly one
+Every app is one directory under `kube/clusters/<cluster>/apps/<namespace>/`. The directory holds exactly one
 `ks.yaml`. That file can contain several Flux Kustomization documents, one per sub-directory.
 There is never more than one `ks.yaml` per app directory. There is never a grouping directory
 between a namespace and its apps. Add `- ./<app>/ks.yaml` to the namespace `kustomization.yaml`
@@ -37,7 +40,7 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
 
 - Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` (note: `-labs`, not `-bjw-s`). Renovate
   bumps the tag fleet-wide. Recover it with the command in `AGENTS.md` § Make a version fact a
-  command (for Frostlink, use `clusters/frostlink/` in its path)
+  command (for Frostlink, use `kube/clusters/frostlink/` in its path)
 - Every app gets its own standalone `OCIRepository`. Never share or reuse one
 - `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`
 - OCIRepository API version: `source.toolkit.fluxcd.io/v1` (not `v1beta2`)

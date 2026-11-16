@@ -6,8 +6,8 @@ restate it. This module adds only what is specific to a skill-driven session.
 
 Edit in a worktree. Before the first edit, run `mise run //:wt:new <type>/<slug>` (`AGENTS.md` rule 7).
 
-On Frostlink, the paths and tasks use `clusters/frostlink/kubernetes/apps/<namespace>/<app>/` and
-`mise run //clusters/frostlink/kubernetes:<task>`, and every `kubectl` takes `--context frostlink`.
+On Frostlink, the paths and tasks use `kube/clusters/frostlink/apps/<namespace>/<app>/` and
+`mise run //kube/clusters/frostlink:<task>`, and every `kubectl` takes `--context frostlink`.
 The commit step differs. The artifact only rebuilds on a push to `main`, so after the user confirms,
 hand the branch back and ask the user to land it on `main`. Do not push it yourself, and do not
 leave the root and target suspended. Once the artifact has rebuilt (`sync-flux ocirepo` until the
@@ -19,11 +19,11 @@ leave the root and target suspended. Once the artifact has rebuilt (`sync-flux o
 
 ```bash
 # The ks name is metadata.name in ks.yaml, not always <app>
-grep "^  name:" clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
+grep "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
 
 # Render offline, then see what the change would move in the live cluster
-mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
-mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
 `flux-validate` covers both in detail.
@@ -46,7 +46,7 @@ Wait for the explicit confirmation of the user before you commit. A running pod 
 Stage specific files only. Then run `git diff --staged`:
 
 ```bash
-git add clusters/artemis/kubernetes/apps/<namespace>/<app>/ clusters/artemis/kubernetes/apps/<namespace>/kustomization.yaml
+git add kube/clusters/artemis/apps/<namespace>/<app>/ kube/clusters/artemis/apps/<namespace>/kustomization.yaml
 ```
 
 - New app: `feat(<namespace>): deploy <app>`

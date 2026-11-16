@@ -20,8 +20,8 @@ Step 0. Suspend first, in two calls, root and target (`AGENTS.md` rule 1 wins). 
 not suspend for you.
 
 ```bash
-mise run //clusters/artemis/kubernetes:suspend-ks flux-system flux-system
-mise run //clusters/artemis/kubernetes:suspend-ks <ns> <ks-name>
+mise run //kube/clusters/artemis:suspend-ks flux-system flux-system
+mise run //kube/clusters/artemis:suspend-ks <ns> <ks-name>
 ```
 
 Order does not matter going in, and both are idempotent.
@@ -46,7 +46,7 @@ git -C <main> pull --ff-only
 mise run //:wt:new <type>/<slug>
 ```
 
-Step 2. Apply to the live cluster from the worktree: `mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks-name>`. Run it
+Step 2. Apply to the live cluster from the worktree: `mise run //kube/clusters/artemis:apply-ks <ns> <ks-name>`. Run it
 with the worktree as the working directory, so that mise picks up the task files of the
 worktree. If you run it from the main checkout, it builds the manifests of `main` and silently
 re-applies the old version.
@@ -71,7 +71,7 @@ Run `mise run //:wt:rm <type>/<slug>` after step 5. It refuses unless the branch
 `main`.
 
 Step 5. Wait for the `Push OCI Artifact` run on your commit to go green. Then run
-`mise run //clusters/artemis/kubernetes:sync-flux ocirepo flux-system` until the artifact carries your commit:
+`mise run //kube/clusters/artemis:sync-flux ocirepo flux-system` until the artifact carries your commit:
 
 ```bash
 kubectl get ocirepository -n flux-system flux-system \
@@ -85,14 +85,14 @@ watching it merely _change_ is racy in both directions. If an earlier sync alrea
 artifact, the digest never changes again, and the check waits forever on work that is already
 done.
 
-Name `flux-system` in the sync. The bare `mise run //clusters/artemis/kubernetes:sync-flux ocirepo` force-annotates every
+Name `flux-system` in the sync. The bare `mise run //kube/clusters/artemis:sync-flux ocirepo` force-annotates every
 OCIRepository in the cluster, but step 5 needs exactly one.
 
 Then resume, root first and then the target, as two calls:
 
 ```bash
-mise run //clusters/artemis/kubernetes:resume-ks flux-system flux-system
-mise run //clusters/artemis/kubernetes:resume-ks <ns> <ks-name>
+mise run //kube/clusters/artemis:resume-ks flux-system flux-system
+mise run //kube/clusters/artemis:resume-ks <ns> <ks-name>
 ```
 
 `resume-ks` refuses to wake a child while the root is still suspended. When it finishes, it warns
@@ -106,12 +106,13 @@ your field.
 ## Frostlink
 
 The sequence is the same, with the Frostlink tasks:
-`mise run //clusters/frostlink/kubernetes:suspend-ks flux-system flux-system`, then the same for
+`mise run //kube/clusters/frostlink:suspend-ks flux-system flux-system`, then the same for
 `<ns> <ks-name>`, then `apply-ks`, `sync-flux` and `resume-ks`. Run each from the worktree.
 
 - `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
-  diffs the push, and only the job of a cluster whose `clusters/<cluster>/kubernetes/**` changed
-  runs. The other shows as skipped. Wait for the job of the cluster that you changed.
+  diffs the push. The job of a cluster runs when its `apps/`, `components/` or `settings/`
+  under `kube/clusters/<cluster>/` changed. A job that does not run shows as skipped. Wait for
+  the job of each cluster that your change reaches.
 - Check that the artifact carries your commit with the Frostlink context:
   `kubectl get ocirepository -n flux-system flux-system --context frostlink -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.
   The artifact names are `exikle/artemis` and `exikle/frostlink`.

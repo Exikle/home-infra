@@ -1,7 +1,7 @@
 # Gitignored files every worktree needs. `mise run //:wt:new` and Claude Code's own worktrees copy these
 # from the main checkout.
-clusters/artemis/kubeconfig
-clusters/artemis/talosconfig
-clusters/frostlink/kubeconfig
-clusters/frostlink/talosconfig
+kube/clusters/artemis/kubeconfig
+kube/clusters/artemis/talosconfig
+kube/clusters/frostlink/kubeconfig
+kube/clusters/frostlink/talosconfig
 .env

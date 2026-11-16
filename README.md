@@ -50,23 +50,23 @@ by Flux the same way. Its rebuild runbook is `.agents/references/oci-rebuild.md`
 ## 🗂️ Layout
 
 ```sh
-📁 clusters
-└── 📁 artemis
-    ├── 📁 kubernetes      # What Flux reconciles
+📁 kube                    # Everything Flux deploys
+└── 📁 clusters
+    ├── 📁 artemis
     │   ├── 📁 apps        # Flux-managed applications, one directory per namespace
-    │   └── 📁 components  # Reusable Kustomize components (kopiur, zeroscaler, postgres, tinyauth)
-    ├── 📁 talos
-    │   ├── 📁 nodes       # Per-node machine config as Jinja2 templates
-    │   └── 📁 schematics  # Image schematics: extensions and kernel args per node type
-    └── 📁 bootstrap       # Rebuild the cluster from nothing (helmfile and seed resources)
-└── 📁 frostlink           # Same three folders: kubernetes, talos (one node), bootstrap
+    │   ├── 📁 components  # Kustomize components only Artemis uses (kopiur, zeroscaler, postgres, tinyauth)
+    │   ├── 📁 talos
+    │   │   ├── 📁 nodes       # Per-node machine config as Jinja2 templates
+    │   │   └── 📁 schematics  # Image schematics: extensions and kernel args per node type
+    │   └── 📁 bootstrap   # Rebuild the cluster from nothing (helmfile and seed resources)
+    └── 📁 frostlink       # Same folders: apps, components, talos (one node), bootstrap
 
 📁 ansible                 # Host config for what is not in Kubernetes: atlas, pantheon, the Forgejo LXC
 📁 terraform               # OpenTofu: proxmox and unifi stacks
 ```
 
-CI packs each cluster folder into its own Flux artifact, so Flux on a cluster sees only
-`clusters/<cluster>/`. Flux reconciles only its `kubernetes/` folder. You run `talos/`,
+CI builds one Flux artifact per cluster from the repo root, so Flux on a cluster sees only
+`kube/base/`, `kube/components/` and the `apps/` and `components/` of its own cluster. You run `talos/`,
 `ansible/` and `terraform/` by hand through mise tasks.
 
 ---

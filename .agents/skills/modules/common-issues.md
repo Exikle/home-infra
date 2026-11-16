@@ -1,6 +1,6 @@
 # Module: Common Issues
 
-On Frostlink, use `mise run //clusters/frostlink/kubernetes:<task>` for the tasks below, and add
+On Frostlink, use `mise run //kube/clusters/frostlink:<task>` for the tasks below, and add
 `--context frostlink` to every `kubectl` and `flux` command. A stuck HelmRelease, OCIRepository or
 Kustomization is the `fix-flux` skill.
 
@@ -25,7 +25,7 @@ initContainer that copies the file into an `emptyDir`. Point the app at the `emp
 ## ExternalSecret not syncing
 
 - Make sure that the 1Password field names match exactly (case-sensitive). A mismatch returns an empty secret with no error.
-- To force a refresh, run `mise run //clusters/artemis/kubernetes:sync-flux es`.
+- To force a refresh, run `mise run //kube/clusters/artemis:sync-flux es`.
 - To read the sync status, run `kubectl describe externalsecret <app> -n <namespace>`.
 
 ## HelmRelease stuck / not progressing

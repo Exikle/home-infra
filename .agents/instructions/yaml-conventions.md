@@ -1,13 +1,15 @@
 ---
 paths:
-    - "clusters/*/kubernetes/**/*.yaml"
-    - "clusters/*/kubernetes/**/*.yml"
+    - "kube/base/**/*.yaml"
+    - "kube/components/**/*.yaml"
+    - "kube/clusters/*/apps/**/*.yaml"
+    - "kube/clusters/*/components/**/*.yaml"
 ---
 
 # YAML Conventions — home-infra
 
 How manifests in this repo are shaped, ordered, and kept clean. These rules apply to both
-clusters (`clusters/artemis/kubernetes/` and `clusters/frostlink/kubernetes/`). Frostlink uses
+clusters (`kube/clusters/artemis/` and `kube/clusters/frostlink/`). Frostlink uses
 the same field ordering and has no YAML rule of its own. Checked against the live tree
 and the home-operations reference repos (onedr0p/home-ops et al.) on 2026-07-11.
 
@@ -217,7 +219,7 @@ form. It checks the rules. It does not define them.
 ## No Comments in Manifests
 
 Manifests carry configuration, not prose. Do not add explanatory comments to anything under
-`clusters/*/kubernetes/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
+`kube/clusters/*/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
 history, no "keep this ordered" warnings, and no commented-out alternatives. Rationale belongs in
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.

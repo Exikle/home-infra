@@ -9,13 +9,13 @@ Validate and diff Flux manifests offline before you commit, with `flate` (alread
 
 Always validate before you commit. `main` reconciles directly to production.
 
-On Frostlink, use `mise run //clusters/frostlink/kubernetes:render-ks` and `:diff-ks` the same
-way. Run the `flate` commands from `clusters/frostlink/` so that `./kubernetes` resolves there.
+On Frostlink, use `mise run //kube/clusters/frostlink:render-ks` and `:diff-ks` the same
+way, and pass `--path kube/clusters/frostlink` to the `flate` commands.
 
 ## Quick Render (single kustomization)
 
 ```bash
-mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
 This runs `flate build ks --namespace <namespace> --output yaml <ks-name>` and prints the rendered manifests. It catches schema errors, missing references, and HelmRelease value mistakes.
@@ -29,7 +29,7 @@ The `<ks-name>` is `metadata.name` from the `ks.yaml` of the app, not the direct
 ## Full Test Suite
 
 ```bash
-flate test all --path ./kubernetes
+flate test all --path kube/clusters/artemis
 ```
 
 This prints a pytest-style `PASS`/`FAIL`/`SKIPPED` result per resource. The exit code is non-zero on any failure.
@@ -37,13 +37,13 @@ This prints a pytest-style `PASS`/`FAIL`/`SKIPPED` result per resource. The exit
 Add `--allow-missing-secrets` to skip ExternalSecret-backed secret refs (1Password secrets do not exist offline):
 
 ```bash
-flate test all --path ./kubernetes --allow-missing-secrets
+flate test all --path kube/clusters/artemis --allow-missing-secrets
 ```
 
 ## Diff Against the Live Cluster
 
 ```bash
-mise run //clusters/artemis/kubernetes:diff-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
 This is read-only. It renders locally with `flate`, then runs `kubectl diff --server-side`, which is a server-side
@@ -63,7 +63,7 @@ and `flate diff` compares local against **main**.
 
 ```bash
 git worktree add --detach /tmp/artemis-baseline main
-flate diff ks --path ./kubernetes --path-orig /tmp/artemis-baseline/kubernetes
+flate diff ks --path kube/clusters/artemis --path-orig /tmp/artemis-baseline/kube/clusters/artemis
 git worktree remove /tmp/artemis-baseline
 ```
 
@@ -72,7 +72,7 @@ Changed-only mode reconciles only the subtree that a change touches. It is fast 
 ## List All Kustomizations
 
 ```bash
-flate get ks --path ./kubernetes
+flate get ks --path kube/clusters/artemis
 ```
 
 ## Build a Specific HelmRelease
@@ -83,10 +83,10 @@ flate build hr --namespace <namespace> --output yaml <helmrelease-name>
 
 ## Validate Workflow (pre-commit checklist)
 
-1. Run `mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>` to render the changed kustomization.
+1. Run `mise run //kube/clusters/artemis:render-ks <ns> <ks>` to render the changed kustomization.
 2. Review the output for unexpected changes.
-3. Run `mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>` to see what the change would actually move in the cluster.
-4. Run `flate test all --path ./kubernetes --allow-missing-secrets` for the full suite.
+3. Run `mise run //kube/clusters/artemis:diff-ks <ns> <ks>` to see what the change would actually move in the cluster.
+4. Run `flate test all --path kube/clusters/artemis --allow-missing-secrets` for the full suite.
 5. If the tests pass, continue with `.agents/skills/modules/test-and-commit.md`. The sequence is in
    `.agents/instructions/commit-style.md` § The sequence: suspend root and target, apply, wait for the
    user, commit, wait for the artifact, resume.

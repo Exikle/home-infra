@@ -67,7 +67,7 @@ it as `TOWONEL_INVITE_TOKEN`; never commit it or paste it into a transcript.
 
 1. Issue (or extend) an invite covering the hostname and any ports.
 2. Publish DNS for it pointing at the VPS, **DNS-only**. Follow the pattern in
-   `clusters/frostlink/kubernetes/apps/towonel/towonel/app/dnsendpoint.yaml`.
+   `kube/clusters/frostlink/apps/towonel/towonel/app/dnsendpoint.yaml`.
 3. The origin keeps its own certificate — this is passthrough. It needs a cert valid
    for that hostname; on Artemis the `*.frostlink.dev` cert can be pulled from
    1Password (Frostlink pushes it via `network/certificates/export`).
@@ -93,7 +93,7 @@ it as `TOWONEL_INVITE_TOKEN`; never commit it or paste it into a transcript.
 ## Backup and recovery
 
 Key material and the sqlite hub DB live on the `towonel` PVC, backed up hourly by kopiur.
-`mise run //clusters/frostlink/kubernetes:snapshot-pvc towonel towonel` takes an on-demand snapshot (`towonel.md` § Operating).
-Restore with the `kopiur-restore` skill; `mise run //clusters/frostlink/kubernetes:restore-pvc` scales the workload down itself.
+`mise run //kube/clusters/frostlink:snapshot-pvc towonel towonel` takes an on-demand snapshot (`towonel.md` § Operating).
+Restore with the `kopiur-restore` skill; `mise run //kube/clusters/frostlink:restore-pvc` scales the workload down itself.
 Losing `invite_hash.key` invalidates every outstanding invite, so confirm a snapshot exists before
 anything that could destroy the volume.

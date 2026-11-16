@@ -8,7 +8,7 @@
 | `edge-gateway`     | `network` | `10.10.99.90` | `*.frostlink.dev`, `*.dcunha.io`, `dcunha.io` | Public via towonel on frostlink + LAN | Every public service        |
 | `external-gateway` | `network` | `10.10.99.97` | `*.dcunha.io`                                 | Nothing upstream                      | **Nothing** — no new routes |
 
-All three gateways are in `clusters/artemis/kubernetes/apps/network/envoy-gateway/app/envoy.yaml`. `external-gateway` was the
+All three gateways are in `kube/clusters/artemis/apps/network/envoy-gateway/app/envoy.yaml`. `external-gateway` was the
 Cloudflare-tunnel path. The team retired the tunnel (`06a0fe138`) after every public `*.dcunha.io` app
 moved to `edge-gateway`. The gateway still exists and carries only the shared `https-redirect`.
 
@@ -98,7 +98,7 @@ Two routes for one app are correct only across **different hostnames** (the jell
 above). Never use one route with two parents.
 
 The one legitimate dual-parent in the tree is `https-redirect` in
-`clusters/artemis/kubernetes/apps/network/envoy-gateway/app/envoy.yaml`. It attaches to the `http` listener of
+`kube/clusters/artemis/apps/network/envoy-gateway/app/envoy.yaml`. It attaches to the `http` listener of
 all three gateways (`edge-gateway`, `external-gateway`, `internal-gateway`), carries no hostnames,
 and therefore generates no DNS record.
 
@@ -197,7 +197,7 @@ LAN client gets whatever public DNS says for the gateway name
 (`dig AAAA git.dcunha.io @10.10.99.1`).
 
 The fix (`6086a4b2e`) is a public, grey
-`edge.dcunha.io CNAME edge.frostlink.dev` in `clusters/artemis/kubernetes/apps/network/towonel-agent/app/dnsendpoint.yaml`
+`edge.dcunha.io CNAME edge.frostlink.dev` in `kube/clusters/artemis/apps/network/towonel-agent/app/dnsendpoint.yaml`
 (external-dns-cloudflare reads it with its `crd` source). The forwarded AAAA then comes back NODATA, and the
 client uses the local A. `internal.dcunha.io` has no public record and the wildcard is gone, so
 its AAAA gets NXDOMAIN upstream and not a wrong address.
@@ -326,7 +326,7 @@ opts in with `PreferDualStack`/`RequireDualStack`.
 - Why an annotation and not `spec.podCIDRs`: the podCIDRs of a Node can only go from empty to set, so
   existing nodes never gain a v6 range from kcm. Cilium reads the annotation because
   `annotateK8sNode: true`. `spec.podCIDRs` wins if both exist. The annotation lives in each
-  `clusters/artemis/talos/nodes/<node>.yaml.j2`, so drop it when a node is rebuilt and gets a kcm range.
+  `kube/clusters/artemis/talos/nodes/<node>.yaml.j2`, so drop it when a node is rebuilt and gets a kcm range.
   `n` is the third octet of the IPv4 podCIDR of the node.
 - Why `/32` and not `/48`: `fd00:42::/48` does not contain `fd00:42:1::`, because the third hextet is
   outside it.
@@ -395,7 +395,7 @@ All of them run `--policy=sync`. They delete anything that they believe they own
 
 ## CoreDNS
 
-Manifest: `clusters/artemis/kubernetes/apps/kube-system/coredns/app/helmrelease.yaml`. It is the upstream
+Manifest: `kube/clusters/artemis/apps/kube-system/coredns/app/helmrelease.yaml`. It is the upstream
 coredns chart with the home-operations plugin chain. The two `template` plugins between
 `autopath` and `forward` are ours and are load-bearing. Their rationale lives here, not in
 the manifest.
@@ -471,7 +471,7 @@ query time. Flux `postBuild` uses `${...}` and does not touch them either.
 
 ```bash
 helm template coredns oci://ghcr.io/coredns/charts/coredns --version <ver> \
-  -f <(yq eval '.spec.values' clusters/artemis/kubernetes/apps/kube-system/coredns/app/helmrelease.yaml) \
+  -f <(yq eval '.spec.values' kube/clusters/artemis/apps/kube-system/coredns/app/helmrelease.yaml) \
   --show-only templates/configmap.yaml
 ```
 

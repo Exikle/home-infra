@@ -20,7 +20,7 @@ reasoning and the traps.
 - Talos nodes. They have no SSH, no package manager, and no Python interpreter. There is no
   `siderolabs` Ansible collection. People build `command:` wrappers around
   `talosctl`, which is Ansible as a shell script with none of the value of Ansible. Talos machine
-  config _is_ the declarative state. `mise run //clusters/artemis/talos:render-config` already does this, and
+  config _is_ the declarative state. `mise run //kube/clusters/artemis/talos:render-config` already does this, and
   the wider home-operations community converged on it after dropping Ansible.
 - Anything inside Kubernetes. Flux owns it.
 - Restore drills and runbooks. They are interactive, branching procedures that need human judgment,
@@ -299,7 +299,7 @@ race with the next update.
 
 How netdata reaches the cluster now: Nothing is pushed. VMStaticScrape
 `observability/netdata-atlas`
-(`clusters/artemis/kubernetes/apps/observability/victoria/agent/vmstaticscrape-atlas.yaml`) scrapes the Prometheus endpoint of netdata,
+(`kube/clusters/artemis/apps/observability/victoria/agent/vmstaticscrape-atlas.yaml`) scrapes the Prometheus endpoint of netdata,
 `10.10.99.100:19999/api/v1/allmetrics?format=prometheus`, as
 `job=netdata, instance=atlas`. That endpoint exists only because the role rewrites the `[web]`
 section of `/etc/netdata/netdata.conf` to bind `10.10.99.100:19999` (`netdata_exporter_bind`,

@@ -188,7 +188,7 @@ Two consequences worth keeping:
 
 `Dragonfly/dragonfly` in `database` is the cache/queue half of the shared data layer
 (`frostlink.md` § Database and cache): one replica, a memory limit, no auth, no
-persistence. Nothing uses it today — `grep -rn 'dragonfly.database' clusters/frostlink/kubernetes` finds no
+persistence. Nothing uses it today — `grep -rn 'dragonfly.database' kube/clusters/frostlink` finds no
 consumer — so a Dragonfly restart currently breaks nothing. Once a second app is onboarded, give
 each app its own DB index and reserve index 0 as a forgot-to-configure tripwire; an unallocated
 index is a silent cross-app eviction.

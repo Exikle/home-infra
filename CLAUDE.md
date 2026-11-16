@@ -12,7 +12,7 @@ conventions or rules here.
 
 This file does not import `cluster-conventions.md`, `yaml-conventions.md` and `frostlink.md`. They
 are `paths:`-scoped rules symlinked into `.claude/rules/`. They load only when Claude touches
-`clusters/*/kubernetes/**` (the first two) or `clusters/frostlink/kubernetes/**` (the third). If a
+the Flux folders under `kube/` (the first two) or `kube/clusters/frostlink/{apps,components}/` (the third). If a
 convention seems absent while you edit a manifest, that is the reason. Make sure that the rule loaded before you assume it changed.
 
 The Claude-Code-only mechanics are in `.agents/references/claude-code-setup.md`. They are the

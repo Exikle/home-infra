@@ -4,12 +4,12 @@ This directory holds everything in the house that has an _operating system_ need
 host `pantheon`, TrueNAS `atlas`, the Forgejo LXC, the Mikrotik CRS309.
 
 Flux cannot see this directory. The root Kustomization is scoped to
-`./kubernetes/apps`. Flux never reconciles anything here into the cluster.
+`./clusters/<cluster>/apps`. Flux never reconciles anything here into the cluster.
 
 ## What does NOT belong here
 
 - Talos nodes. Talos is immutable and API-driven, with no SSH and no package manager. Its
-  machine config is already the declarative state. Use `mise run //clusters/artemis/talos:render-config`.
+  machine config is already the declarative state. Use `mise run //kube/clusters/artemis/talos:render-config`.
 - Anything inside Kubernetes. Flux owns that.
 - Restore drills and runbooks. Those are interactive, branching procedures. They stay
   as mise tasks and `.agents/skills/`.

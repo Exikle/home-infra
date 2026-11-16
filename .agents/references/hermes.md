@@ -4,14 +4,14 @@ This is the operational reference for the Nous Research hermes-agent that runs i
 2026-08-14 and ported it from [eleboucher/homelab](https://git.erwanleboucher.dev/eleboucher/homelab).
 The port is finished. Nothing here describes how to redo it. The team last reviewed this file against the v0.22
 image on 2026-10-20. The image tag is in the HelmRelease
-(`grep -n 'repository:' -A2 clusters/artemis/kubernetes/apps/cortex/hermes/app/helmrelease.yaml`).
+(`grep -n 'repository:' -A2 kube/clusters/artemis/apps/cortex/hermes/app/helmrelease.yaml`).
 
 Read § Cost before you change anything about models, cron cadence or the MCP tier. hermes is
 the largest inference consumer in the cluster. The OpenCode Go allowance is a hard monthly ceiling,
 not a bill.
 
-The manifests are in `clusters/artemis/kubernetes/apps/cortex/hermes/`. The skills that ship from git are in
-`clusters/artemis/kubernetes/apps/cortex/hermes/app/skills/`.
+The manifests are in `kube/clusters/artemis/apps/cortex/hermes/`. The skills that ship from git are in
+`kube/clusters/artemis/apps/cortex/hermes/app/skills/`.
 
 ---
 
@@ -331,7 +331,7 @@ hermes uses its own tier, `mcp-agent`. It carries only what the skills of hermes
 `general` together. Only the hermes key can use it.
 
 To add a target to the reach of hermes, add it to `mcp-agent` in
-`clusters/artemis/kubernetes/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml`. Then hermes pays for its schema on
+`kube/clusters/artemis/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml`. Then hermes pays for its schema on
 every turn of every run. Weigh that against § Cost first. `forgejo` alone is 40 tools and
 `github` is 44, and no hermes skill calls either (both skills reach Forgejo over `curl` with
 `$FORGEJO_PAT`). The tier rules are in `cortex-mcp.md`.
@@ -526,7 +526,7 @@ kubectl -n cortex exec "$POD" -c app -- hermes cron list
 
 ## Skills — read-only from git
 
-Git is the only source of the skills we own: `ls clusters/artemis/kubernetes/apps/cortex/hermes/app/skills/`. Each one is a generated ConfigMap `hermes-skill-<name>`, mounted as a directory at `/etc/hermes-skills/<name>` on `app` and `init`, read-only, and loaded through `skills.external_dirs` in `configmap.yaml`. Nothing is copied onto the PVC, so there is no drift and no orphan to clean up.
+Git is the only source of the skills we own: `ls kube/clusters/artemis/apps/cortex/hermes/app/skills/`. Each one is a generated ConfigMap `hermes-skill-<name>`, mounted as a directory at `/etc/hermes-skills/<name>` on `app` and `init`, read-only, and loaded through `skills.external_dirs` in `configmap.yaml`. Nothing is copied onto the PVC, so there is no drift and no orphan to clean up.
 
 - There is no `subPath`. A `subPath` mount never receives ConfigMap updates. A skill with subdirectories places files with `items` in the `persistence` entry (`path: references/x.md`). Scripts carry `mode: 0o755`. Reloader restarts the pod when a ConfigMap changes.
 - Hermes cannot change the skills. The mount is read-only, external dirs are read-only to autonomous curation, and `skills.write_approval: true` stages any skill write under `/opt/data/pending/skills/` instead of applying it. A skill change is a PR, merged by a human. See § Changing a skill.
@@ -611,7 +611,7 @@ hermes reaches the cluster one way: the k8s MCP tools, under `mcp-k8s-sa`, throu
   (`hermes-read-all`, `hermes-pod-delete`, `hermes-exec-deploy`) on 2026-10-20. With no
   token, none of their grants could ever be exercised, cluster-wide pod delete included.
 - No skill or config calls the kube API from inside the pod.
-  `grep -rniE 'kubectl|serviceaccount|KUBERNETES_SERVICE' clusters/artemis/kubernetes/apps/cortex/hermes/app/skills`
+  `grep -rniE 'kubectl|serviceaccount|KUBERNETES_SERVICE' kube/clusters/artemis/apps/cortex/hermes/app/skills`
   finds only prose that says not to.
 
 To verify, run `kubectl auth can-i --list --as=system:serviceaccount:cortex:hermes -n cortex`. It shows only
@@ -638,7 +638,7 @@ and it cannot touch Talos or node-level state.
 > `mcp-k8s-sa` is the only path to the cluster, and it cannot read Secret data. The deny globs
 > and the smart-policy ESCALATE rule bound the shell only. Approvals gate the `terminal` tool
 > and RBAC gates the k8s tools, so RBAC is the real control. The
-> `mcp-k8s` ClusterRole is `clusters/artemis/kubernetes/apps/cortex/mcp/app/k8s/rbac.yaml`.
+> `mcp-k8s` ClusterRole is `kube/clusters/artemis/apps/cortex/mcp/app/k8s/rbac.yaml`.
 
 ---
 
@@ -755,7 +755,7 @@ explicit `context_length`), plugin update checks, and `hermes plugins install`. 
 a real constraint. If you bump the memini SHA in `install-memini`, it clones from github.com and installs
 dependencies from PyPI, and the init container fails (and the pod stays in `Init`) while the policy
 blocks that. For a bump, add a temporary egress rule for `0.0.0.0/0` on 443 with
-`mise run //clusters/artemis/kubernetes:apply-ks cortex hermes`, bump, and take it out again.
+`mise run //kube/clusters/artemis:apply-ks cortex hermes`, bump, and take it out again.
 
 ---
 

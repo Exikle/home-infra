@@ -1,11 +1,11 @@
 # Media Stack — home-infra
 
 Service ports re-checked against the live cluster 2026-10-13. App lists go stale, so run
-`ls clusters/artemis/kubernetes/apps/media/` for the current set. Do not trust this section.
+`ls kube/clusters/artemis/apps/media/` for the current set. Do not trust this section.
 
 ## Architecture
 
-Apps in `clusters/artemis/kubernetes/apps/media/`:
+Apps in `kube/clusters/artemis/apps/media/`:
 
 ### Acquisition
 
@@ -59,7 +59,7 @@ Deployment down and back up on an external `probe_success` metric. The set of ap
 them:
 
 ```bash
-grep -rln 'components/zeroscaler' clusters/artemis/kubernetes/apps/   # the tree
+grep -rln 'components/zeroscaler' kube/clusters/artemis/apps/   # the tree
 kubectl get hpa -A                                   # what is actually live
 ```
 
@@ -86,7 +86,7 @@ These consequences catch people out:
   renaming it and was closed without a decision.
   Decision (2026-10-15, [#2767](https://git.dcunha.io/Exikle/home-infra/issues/2767)):
   leave it as it is. No drop, no per-app probes, no rename, and the `HPAScaleToZero` feature
-  gate in `clusters/artemis/talos/controlplane.yaml.j2` stays. Do not reopen this as cleanup.
+  gate in `kube/clusters/artemis/talos/controlplane.yaml.j2` stays. Do not reopen this as cleanup.
 
 ### The wake-up path is a chain, and blackbox-exporter is only its first link
 
@@ -341,7 +341,7 @@ nothing that is not either in Postgres or regenerable.
 
 ## seerr (formerly Jellyseerr)
 
-The app was renamed. The directory is `clusters/artemis/kubernetes/apps/media/seerr/`, the image is
+The app was renamed. The directory is `kube/clusters/artemis/apps/media/seerr/`, the image is
 `ghcr.io/seerr-team/seerr`, and there is no `jellyseerr` directory. Anything that still says
 "Jellyseerr" is stale. The `ai-general` MCP tools also surface as `seerr_*`.
 

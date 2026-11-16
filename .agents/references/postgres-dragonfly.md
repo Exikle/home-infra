@@ -6,7 +6,7 @@ apps. See `.agents/instructions/cluster-conventions.md` § Deployment Philosophy
 
 Shared Postgres cluster: every app that carries `components/postgres/app` with `APP` in
 its `ks.yaml` `postBuild` is on it. This file has no roster on purpose, because the roster changes with every onboarding.
-Run `grep -rln 'components/postgres' clusters/artemis/kubernetes/apps/` for the tree, and `kubectl get database -n database`
+Run `grep -rln 'components/postgres' kube/clusters/artemis/apps/` for the tree, and `kubectl get database -n database`
 for what actually reconciled.
 
 Shared Dragonfly: the index table further down is the authoritative list of which app
@@ -58,7 +58,7 @@ Every further app migration is its own session. This doc is what you need once y
     app that sets only `PG_APP` fails its whole post-build with
     `variable not set (strict mode): "APP"` and takes down anything that has `dependsOn` on it.
 
-2. The namespace needs `components/postgres/tenants` in `clusters/artemis/kubernetes/apps/<ns>/kustomization.yaml`,
+2. The namespace needs `components/postgres/tenants` in `kube/clusters/artemis/apps/<ns>/kustomization.yaml`,
    exactly like `components/kopiur/secret`. It creates one `ResourceSet` per namespace. That `ResourceSet` watches
    for the input providers that the app component emits. It templates the `DatabaseRole` CR, the `Database`
    CR and the role Secret into `database`.
@@ -73,12 +73,12 @@ Every further app migration is its own session. This doc is what you need once y
 
     You cannot test the first postgres app in a namespace with `apply-ks` on the app alone.
     The `tenants` ResourceSet is a namespace-level resource, so it belongs to the root
-    Kustomization (`flux-system/flux-system`, path `./kubernetes/apps`), not to the app's own
-    Kustomization. `mise run //clusters/artemis/kubernetes:apply-ks <ns> <app>` renders only the app path. The ResourceSet
+    Kustomization (`flux-system/flux-system`, path `./clusters/<cluster>/apps`), not to the app's own
+    Kustomization. `mise run //kube/clusters/artemis:apply-ks <ns> <app>` renders only the app path. The ResourceSet
     never appears, no `Database` CR is templated, no role Secret is created, and the pod of the app sits
     forever on the `k8s.ksgate.org/database-applied` scheduling gate.
 
-    Apply the root as well: `mise run //clusters/artemis/kubernetes:apply-ks flux-system flux-system`. It renders ~300
+    Apply the root as well: `mise run //kube/clusters/artemis:apply-ks flux-system flux-system`. It renders ~300
     objects, but they are all control-plane (Kustomization CRs, namespaces, alerts, ExternalSecrets,
     Databases, ResourceSets). It has no HelmReleases and no workloads, so nothing restarts. First make sure that your
     checkout matches `origin/main`. Otherwise the apply silently reverts untouched apps to your
@@ -102,7 +102,7 @@ Every further app migration is its own session. This doc is what you need once y
     | `url_node`   | postgres-js               | `?sslmode=verify-full` only; CA via `NODE_EXTRA_CA_CERTS`                    |
     | `url_prisma` | Prisma                    | `?sslmode=verify-full&sslcert=<CA path>` — `sslcert` means the **root** cert |
 
-    `mise run //clusters/artemis/kubernetes:check-postgres <ns> <app>` validates the `url` key only, and that is deliberate.
+    `mise run //kube/clusters/artemis:check-postgres <ns> <app>` validates the `url` key only, and that is deliberate.
     psql is libpq, so it reads `sslcert=` of Prisma as a _client_ cert and has no CA at all for the
     postgres-js shape. A psql pass on those two would give false confidence about exactly the failure
     below. All three keys carry the same credentials, host and database. The check therefore still proves
@@ -226,7 +226,7 @@ Dragonfly this way with no gating at all.
 3. Drop the old sidecar or embedded Redis or Valkey container, its config, and any PVC it had.
    Dragonfly needs none of that.
 4. Add the namespace of the app to `dragonfly-clients`
-   (`clusters/artemis/kubernetes/apps/database/dragonfly/cluster/networkpolicy.yaml`). The dragonfly-operator
+   (`kube/clusters/artemis/apps/database/dragonfly/cluster/networkpolicy.yaml`). The dragonfly-operator
    generates its own `dragonfly` NetworkPolicy. The Dragonfly CR owns it, so you cannot manage it
    from git. Its 6379 ingress rule is a bare `podSelector: {}`, which means "this namespace
    only" and drops every cross-namespace client. NetworkPolicies union, so `dragonfly-clients`
@@ -407,14 +407,14 @@ commit. If you do, follow these rules:
 
 ### Common issues — dedicated or shared
 
-| Symptom                          | Cause                                                                   | Fix                                                                                                                                                                                                                    |
-| -------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pod stuck `Pending`              | `miroir` PVC not bound (WaitForFirstConsumer — needs a consumer)        | Check the miroir agent and CSI pods in `miroir-system`                                                                                                                                                                 |
-| `role "<app>" does not exist`    | The `DatabaseRole` CR has not reconciled yet                            | `kubectl -n database get databaserole <app> -o yaml` — `status.applied` and `status.message`                                                                                                                           |
-| `password authentication failed` | Stale or wrong `POSTGRES_PASSWORD` in the app's `<app>-postgres` secret | Force-sync the ExternalSecret, then `mise run //clusters/artemis/kubernetes:check-postgres <ns> <app>` to confirm the credential — it connects with the Secret's own `url` DSN, so it tests what the app actually uses |
-| WAL directory fills              | No separate `walStorage` volume                                         | Add `walStorage` and reapply                                                                                                                                                                                           |
-| Cluster stuck `Initializing`     | CRD not installed                                                       | `kubectl get crd clusters.postgresql.cnpg.io`                                                                                                                                                                          |
-| App can't connect                | Wrong Service name                                                      | `postgres-rw.database.svc.cluster.local` for shared; `<name>-rw` for dedicated                                                                                                                                         |
+| Symptom                          | Cause                                                                   | Fix                                                                                                                                                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pod stuck `Pending`              | `miroir` PVC not bound (WaitForFirstConsumer — needs a consumer)        | Check the miroir agent and CSI pods in `miroir-system`                                                                                                                                                           |
+| `role "<app>" does not exist`    | The `DatabaseRole` CR has not reconciled yet                            | `kubectl -n database get databaserole <app> -o yaml` — `status.applied` and `status.message`                                                                                                                     |
+| `password authentication failed` | Stale or wrong `POSTGRES_PASSWORD` in the app's `<app>-postgres` secret | Force-sync the ExternalSecret, then `mise run //kube/clusters/artemis:check-postgres <ns> <app>` to confirm the credential — it connects with the Secret's own `url` DSN, so it tests what the app actually uses |
+| WAL directory fills              | No separate `walStorage` volume                                         | Add `walStorage` and reapply                                                                                                                                                                                     |
+| Cluster stuck `Initializing`     | CRD not installed                                                       | `kubectl get crd clusters.postgresql.cnpg.io`                                                                                                                                                                    |
+| App can't connect                | Wrong Service name                                                      | `postgres-rw.database.svc.cluster.local` for shared; `<name>-rw` for dedicated                                                                                                                                   |
 
 ## Gotchas
 
@@ -435,7 +435,7 @@ commit. If you do, follow these rules:
 - All apps share one Dragonfly memory budget (`limits.memory: 512Mi` today). There is no per-app
   quota. A DB index only prevents key collisions, not eviction interference. If the working
   set of one app fills the cache, the eviction of Dragonfly can reclaim keys from the DB index of any other app. Revisit
-  `resources.limits.memory` in `clusters/artemis/kubernetes/apps/database/dragonfly/cluster/dragonfly.yaml` once more
+  `resources.limits.memory` in `kube/clusters/artemis/apps/database/dragonfly/cluster/dragonfly.yaml` once more
   than one or two apps are actually onboarded.
 - Never reflect a cert-manager `isCA: true` secret cluster-wide. It contains `tls.key`, the
   private signing key of the CA, alongside `ca.crt`/`tls.crt`. Distribute the public cert only, through a

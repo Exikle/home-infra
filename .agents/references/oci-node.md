@@ -8,7 +8,7 @@ Frostlink is one machine. Its facts are load-bearing, so they are not inventory.
 - **ca-toronto-1 AD-1**, instance `instance-20260612-2239`.
 - **Public** `40.233.88.33` (reserved). **Internal** `10.0.0.203`: the management address, reached over the Headscale site link.
 - **Extensions**: `iscsi-tools`, `tailscale`, `util-linux-tools`, `zfs`. **`zfs` is load-bearing.** The whole `openebs-zfs` storage layer depends on it.
-- Live versions are a command, not a number: `talosctl version --talosconfig clusters/frostlink/talosconfig` and `kubectl version --context frostlink`.
+- Live versions are a command, not a number: `talosctl version --talosconfig kube/clusters/frostlink/talosconfig` and `kubectl version --context frostlink`.
 
 Management access is over the Headscale site link (`oci-networking.md` § Access Methods). An agent's
 tool calls do not get the cluster kubeconfig, so always pass `--context frostlink`. The VCN, DNS
@@ -16,7 +16,7 @@ records, the security-list ingress set and the front door are in `oci-networking
 
 ## Namespaces
 
-`ls clusters/frostlink/kubernetes/apps/` is the live list. The table keeps only the purpose column,
+`ls kube/clusters/frostlink/apps/` is the live list. The table keeps only the purpose column,
 which no command recovers.
 
 | Namespace          | Purpose                                                                       |

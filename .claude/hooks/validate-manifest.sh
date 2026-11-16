@@ -18,7 +18,7 @@ FILE=$(printf '%s' "$INPUT" | python3 -c \
     2>/dev/null || echo "")
 
 [[ "$FILE" =~ \.ya?ml$ ]] || exit 0
-[[ "$FILE" =~ /kubernetes/ ]] || exit 0
+[[ "$FILE" =~ /kube/ ]] || exit 0
 
 # Resolve a tool without installing one. `mise exec` would INSTALL a missing tool
 # mid-hook — it has been observed pulling down a whole toolchain from a lint hook —

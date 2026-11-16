@@ -34,7 +34,7 @@ The HD 530s of the control planes are deliberately in neither lane. They publish
 
 ## Node affinity keys
 
-Key on `node.kubernetes.io/gpu-tier`. Never key on `extensions.talos.dev/i915`. `instructions/cluster-conventions.md` § GPU Workloads is the home for that rule, and it wins. Each node declares its tier in `clusters/artemis/talos/nodes/*.yaml.j2` under `KubeNodeConfig.labels`. The label is absent on nodes with no GPU. The `i915` label means only that the extension is installed, and every schematic carries it. It would also stop matching if a card moved to `xe`, which is a separate extension with a different label.
+Key on `node.kubernetes.io/gpu-tier`. Never key on `extensions.talos.dev/i915`. `instructions/cluster-conventions.md` § GPU Workloads is the home for that rule, and it wins. Each node declares its tier in `kube/clusters/artemis/talos/nodes/*.yaml.j2` under `KubeNodeConfig.labels`. The label is absent on nodes with no GPU. The `i915` label means only that the extension is installed, and every schematic carries it. It would also stop matching if a card moved to `xe`, which is a separate extension with a different label.
 
 ## Claims
 
@@ -44,10 +44,10 @@ A `ResourceClaimTemplate` creates a fresh claim for each pod. So two pods that m
 
 ```sh
 kubectl delete resourceclaimtemplate -n <ns> <name>
-mise run //clusters/artemis/kubernetes:apply-ks <ns> <app>
+mise run //kube/clusters/artemis:apply-ks <ns> <app>
 ```
 
-CEL selectors work. silo (and Jellyfin before it) pins the Arc with `device.attributes["gpu.intel.com"].model == "A380"` and allocates correctly. Test a new selector against a real allocation. Do not assume that it works. For the driver version, run `grep tag: clusters/artemis/kubernetes/apps/kube-system/intel-gpu-resource-driver/app/ocirepository.yaml`.
+CEL selectors work. silo (and Jellyfin before it) pins the Arc with `device.attributes["gpu.intel.com"].model == "A380"` and allocates correctly. Test a new selector against a real allocation. Do not assume that it works. For the driver version, run `grep tag: kube/clusters/artemis/apps/kube-system/intel-gpu-resource-driver/app/ocirepository.yaml`.
 
 `memory` reports `0` on every device, including the Arc. So capacity-aware placement on VRAM is not available. A workload that overcommits VRAM fails at runtime, not at scheduling.
 
@@ -88,7 +88,7 @@ No board swap fixes this while the E-2124G stays. ReBAR support begins at Intel 
 
 ## Arc A380 on bare metal
 
-Today the `i915` extension of Talos enumerates the card from inside a Proxmox VM, and the card reports a correct model string. If you move it to bare metal, you remove the passthrough layer and add no driver problem. `clusters/artemis/talos/schematics/gpu.yaml` already carries `i915.force_probe=*`, `intel_iommu=on` and `iommu=pt`.
+Today the `i915` extension of Talos enumerates the card from inside a Proxmox VM, and the card reports a correct model string. If you move it to bare metal, you remove the passthrough layer and add no driver problem. `kube/clusters/artemis/talos/schematics/gpu.yaml` already carries `i915.force_probe=*`, `intel_iommu=on` and `iommu=pt`.
 
 Two things do not transfer from upstream repos. First, Intel **GVT-g** is mediated passthrough of an _integrated_ GPU and cannot slice a discrete card (ours is already full VFIO). Second, no public home-ops repo runs a discrete Arc on bare-metal Talos, so no reference config exists for it.
 

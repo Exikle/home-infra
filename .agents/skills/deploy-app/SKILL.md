@@ -7,15 +7,15 @@ description: Deploy a new app into the Flux cluster end to end — scaffold the 
 
 Deploy a new application to home-infra with the canonical GitOps workflow.
 
-For Frostlink, the paths and tasks use `clusters/frostlink/kubernetes/apps/<namespace>/<app>/` and
-`mise run //clusters/frostlink/kubernetes:<task>`. Read `.agents/instructions/frostlink.md` in place
+For Frostlink, the paths and tasks use `kube/clusters/frostlink/apps/<namespace>/<app>/` and
+`mise run //kube/clusters/frostlink:<task>`. Read `.agents/instructions/frostlink.md` in place
 of the two Artemis convention files, and `.agents/references/oci-networking.md` and
 `.agents/references/openebs-zfs.md` in place of `networking.md` and `storage.md`. The differences:
 
 - The only route is `external-gateway`, with a hostname like `myapp.frostlink.dev`. An HTTPRoute on
   it gets its DNS record automatically. A manual `DNSEndpoint` does not.
 - Persistence uses the `openebs-zfs` StorageClass.
-- A new namespace gets `components/alerts` in its `kustomization.yaml` (`clusters/frostlink/kubernetes/apps/network/`
+- A new namespace gets `components/alerts` in its `kustomization.yaml` (`kube/clusters/frostlink/apps/network/`
   is a good model). Add no PodSecurity labels, because the namespace inherits `baseline`. A
   privileged one needs the justification in `.agents/references/towonel.md` § Why its own namespace.
 - Kubesearch results adapt with `.agents/instructions/frostlink.md`, not the Artemis conventions.
@@ -44,8 +44,8 @@ Before you write any files, read these files:
 
 Goal: scaffold one new app and prove that it renders, then hand it to the user to confirm live.
 
-Success means that `mise run //clusters/artemis/kubernetes:render-ks <ns> <app>` succeeds, root and target are suspended and
-`mise run //clusters/artemis/kubernetes:apply-ks` applies cleanly, and the user has confirmed that the app works.
+Success means that `mise run //kube/clusters/artemis:render-ks <ns> <app>` succeeds, root and target are suspended and
+`mise run //kube/clusters/artemis:apply-ks` applies cleanly, and the user has confirmed that the app works.
 Edit in a worktree: run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7).
 
 Stop when the app is applied and you have asked for confirmation. Do NOT commit before the
@@ -69,9 +69,9 @@ Make sure that you have these before you proceed:
 Read one or two existing apps in the same namespace to match local patterns before you write anything:
 
 ```bash
-ls clusters/artemis/kubernetes/apps/<namespace>/
-cat clusters/artemis/kubernetes/apps/<namespace>/<existing-app>/ks.yaml
-cat clusters/artemis/kubernetes/apps/<namespace>/<existing-app>/app/helmrelease.yaml
+ls kube/clusters/artemis/apps/<namespace>/
+cat kube/clusters/artemis/apps/<namespace>/<existing-app>/ks.yaml
+cat kube/clusters/artemis/apps/<namespace>/<existing-app>/app/helmrelease.yaml
 ```
 
 ---
@@ -107,7 +107,7 @@ Read `.agents/skills/modules/templates/directory.md` and create the layout.
 If the namespace does not exist yet, create it first:
 
 ```
-clusters/artemis/kubernetes/apps/<namespace>/
+kube/clusters/artemis/apps/<namespace>/
 ├── namespace.yaml
 └── kustomization.yaml
 ```
@@ -166,7 +166,7 @@ All YAML must follow `.agents/instructions/yaml-conventions.md`.
 
 ## Step 6: Add to Namespace Kustomization
 
-Add `- ./<app>/ks.yaml` to `clusters/artemis/kubernetes/apps/<namespace>/kustomization.yaml` resources.
+Add `- ./<app>/ks.yaml` to `kube/clusters/artemis/apps/<namespace>/kustomization.yaml` resources.
 
 ---
 
@@ -175,13 +175,13 @@ Add `- ./<app>/ks.yaml` to `clusters/artemis/kubernetes/apps/<namespace>/kustomi
 Make sure that all expected files are present:
 
 ```bash
-find clusters/artemis/kubernetes/apps/<namespace>/<app> -type f | sort
+find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
 ```
 
 Then make sure that the kustomization renders cleanly with flate before you apply it:
 
 ```bash
-mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
 This runs `flate build ks`. It catches schema errors, missing substitution variables, and malformed YAML before anything touches the cluster. Fix any errors before you proceed to Step 8.

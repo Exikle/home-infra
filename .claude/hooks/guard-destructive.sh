@@ -61,7 +61,7 @@ printf '%s' "$COMMAND" | grep -qE -- --dry-run && exit 0
 
 # mise-cluster-mutation-subagent — fires only inside a subagent; the main thread is never blocked
 if [ -n "$AGENT_ID" ] && printf '%s' "$COMMAND" | grep -qE -- '\bmise\b.*:((apply|delete|suspend|resume)-ks|apply-node)\b'; then
-    block 'A subagent may not mutate a live cluster — these tasks are the human'"'"'s to run. The safety of '"'"'mise run //clusters/<cluster>/kubernetes:apply-ks'"'"' is not in the task, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.' 'Write the manifests and validate them offline ('"'"'mise run //clusters/<cluster>/kubernetes:render-ks <ns> <ks>'"'"' needs no cluster), or read live state with '"'"'mise run //clusters/<cluster>/kubernetes:diff-ks <ns> <ks>'"'"'. On Frostlink read with '"'"'kubectl get <kind> -n <ns> <name> --context frostlink'"'"'. Report the change and let the human apply it.'
+    block 'A subagent may not mutate a live cluster — these tasks are the human'"'"'s to run. The safety of '"'"'mise run //kube/clusters/<cluster>:apply-ks'"'"' is not in the task, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.' 'Write the manifests and validate them offline ('"'"'mise run //kube/clusters/<cluster>:render-ks <ns> <ks>'"'"' needs no cluster), or read live state with '"'"'mise run //kube/clusters/<cluster>:diff-ks <ns> <ks>'"'"'. On Frostlink read with '"'"'kubectl get <kind> -n <ns> <name> --context frostlink'"'"'. Report the change and let the human apply it.'
 fi
 
 # git-write-subagent — fires only inside a subagent; the main thread is never blocked
@@ -71,14 +71,14 @@ fi
 
 # kubectl-apply
 if printf '%s' "$COMMAND" | grep -qE -- '\bkubectl\b.*\bapply\b'; then
-    block 'Direct kubectl apply bypasses GitOps' 'Apply through the apply-ks task of the cluster: '"'"'mise run //clusters/<cluster>/kubernetes:apply-ks <ns> <ks>'"'"' (standalone frostlink repo: '"'"'just kube apply-ks <ns> <ks>'"'"')'
+    block 'Direct kubectl apply bypasses GitOps' 'Apply through the apply-ks task of the cluster: '"'"'mise run //kube/clusters/<cluster>:apply-ks <ns> <ks>'"'"' (standalone frostlink repo: '"'"'just kube apply-ks <ns> <ks>'"'"')'
 fi
 
 # kubectl-delete-critical
 if printf '%s' "$COMMAND" | grep -qE -- '\bkubectl\b.*\bdelete\b.*\b(namespace|pvc|pv|persistentvolumeclaim|node|deployment|secret|helmrelease|kustomization|gateway|httproute|clusterrole)\b'; then
-    # exempt: PVC recreation (miroir StorageClass migrations, restore drills) is routine and always paired with a verified kopiur snapshot. The marker opts a single command out of THIS rule only -- every other rule, including talosctl reset/wipe, still applies. Runbook: .agents/skills/recreate-pvc (Artemis). Frostlink restores go through 'mise run //clusters/frostlink/kubernetes:restore-pvc' (kopiur-restore skill) and need no marker.
+    # exempt: PVC recreation (miroir StorageClass migrations, restore drills) is routine and always paired with a verified kopiur snapshot. The marker opts a single command out of THIS rule only -- every other rule, including talosctl reset/wipe, still applies. Runbook: .agents/skills/recreate-pvc (Artemis). Frostlink restores go through 'mise run //kube/clusters/frostlink:restore-pvc' (kopiur-restore skill) and need no marker.
     if ! printf '%s' "$COMMAND" | grep -qE -- I_HAVE_A_KOPIUR_SNAPSHOT; then
-        block 'Deleting a critical Kubernetes resource' 'Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, append the marker documented in .agents/skills/recreate-pvc (Artemis); on Frostlink use '"'"'mise run //clusters/frostlink/kubernetes:restore-pvc'"'"' instead'
+        block 'Deleting a critical Kubernetes resource' 'Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, append the marker documented in .agents/skills/recreate-pvc (Artemis); on Frostlink use '"'"'mise run //kube/clusters/frostlink:restore-pvc'"'"' instead'
     fi
 fi
 
@@ -94,7 +94,7 @@ fi
 
 # talosctl-patch-machineconfig
 if printf '%s' "$COMMAND" | grep -qE -- '\btalosctl\b.*patch\s+machineconfig\b'; then
-    block 'talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node' 'Artemis: '"'"'mise run //clusters/artemis/talos:apply-node <node>'"'"' or talosctl apply-config --file for full config replacement. Frostlink: a minimal DELTA patch file, or '"'"'talosctl apply-config --file'"'"' — never pass clusters/frostlink/talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node'
+    block 'talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node' 'Artemis: '"'"'mise run //kube/clusters/artemis/talos:apply-node <node>'"'"' or talosctl apply-config --file for full config replacement. Frostlink: a minimal DELTA patch file, or '"'"'talosctl apply-config --file'"'"' — never pass kube/clusters/frostlink/talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node'
 fi
 
 # talosctl-reset
@@ -106,7 +106,7 @@ fi
 if printf '%s' "$COMMAND" | grep -qE -- '\btalosctl\b.*\b(upgrade|upgrade-k8s|reboot|shutdown)\b'; then
     # exempt: A bare talosctl call cannot say which cluster it targets, so it is treated as Frostlink unless the command names Artemis (a talosconfig path or context containing 'artemis'). The mise tasks run talosctl inside the task, so this rule never sees them.
     if ! printf '%s' "$COMMAND" | grep -qE -- artemis; then
-        block 'Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to. This command does not name Artemis, so it may target Frostlink' 'Frostlink: '"'"'mise run //clusters/frostlink/talos:upgrade <version>'"'"' (it resolves the schematic first), and only with the user watching. Artemis: '"'"'mise run //clusters/artemis/talos:upgrade-node <node>'"'"', or name Artemis in the command (--context artemis or its talosconfig)'
+        block 'Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to. This command does not name Artemis, so it may target Frostlink' 'Frostlink: '"'"'mise run //kube/clusters/frostlink/talos:upgrade <version>'"'"' (it resolves the schematic first), and only with the user watching. Artemis: '"'"'mise run //kube/clusters/artemis/talos:upgrade-node <node>'"'"', or name Artemis in the command (--context artemis or its talosconfig)'
     fi
 fi
 

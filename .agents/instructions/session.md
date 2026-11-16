@@ -8,7 +8,7 @@ what is specific to this repo lives here.
   compaction, a `SessionStart` `compact` hook re-injects only `## Current State`. Keep that
   section current.
 - There is no staging cluster, so the reason for a live change matters more than usual. Record
-  what you applied with `mise run //clusters/artemis/kubernetes:apply-ks`, what the user confirmed, and anything left
+  what you applied with `mise run //kube/clusters/artemis:apply-ks`, what the user confirmed, and anything left
   suspended.
 - Frostlink is one node with no failover. A journal entry for a Talos or Kubernetes upgrade says
   what the outage window was and whether the node came back clean. There is no second node to

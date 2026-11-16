@@ -11,10 +11,9 @@ include = [
 config_roots = [
   "ai",
   "ansible",
-  "clusters/*",
-  "clusters/*/bootstrap",
-  "clusters/*/kubernetes",
-  "clusters/*/talos",
+  "kube/clusters/*",
+  "kube/clusters/*/bootstrap",
+  "kube/clusters/*/talos",
   "terraform",
 ]
 

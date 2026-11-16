@@ -14,11 +14,11 @@ Management below).
 
 ## Config Management
 
-Frostlink uses **patch files** in `clusters/frostlink/talos/patches/` — not Jinja2/render-config like Artemis.
+Frostlink uses **patch files** in `kube/clusters/frostlink/talos/patches/` — not Jinja2/render-config like Artemis.
 
 ### Multi-document format (Talos 1.14)
 
-`clusters/frostlink/talos/patches/controlplane.yaml` uses the 1.14 typed-document layout. It is a
+`kube/clusters/frostlink/talos/patches/controlplane.yaml` uses the 1.14 typed-document layout. It is a
 patch over `talosctl gen config`, which on 1.14 already emits 28 typed documents on its own — so
 unlike Artemis, Frostlink does not hand-author the mandatory
 `KubeAuthorizerConfig`/`KubeAuthenticationConfig` set. The patch adds only what differs from gen.
@@ -52,7 +52,7 @@ Other notes:
   `DiscoveryServiceConfig` (would switch public discovery **on**; Frostlink reports
   `discoveryEnabled: false`).
 - No tuppr `KubeNodeConfig` annotations here, unlike Artemis — the schematic ID must never be
-  hand-written; `mise run //clusters/frostlink/talos:schematic-id` derives it.
+  hand-written; `mise run //kube/clusters/frostlink/talos:schematic-id` derives it.
 
 **Migrating a running node is a full config replacement, not a patch.** Documents and their
 v1alpha1 equivalents cannot coexist. Never regenerate — that mints new PKI and destroys the
@@ -60,12 +60,12 @@ cluster. Take the live `persistent` machine config, delete the migrated v1alpha1
 in complete documents from a patched `gen config`, excluding every gen document carrying
 freshly-minted secrets (`KubeAPIServerCAConfig`, `KubeAggregatorCAConfig`,
 `KubeServiceAccountConfig`, `KubeEtcdEncryptionConfig`, `DiscoveryIdentityConfig`). Verify with
-`talosctl apply-config --talosconfig clusters/frostlink/talosconfig --dry-run` — and **redirect its output to a file**, because it prints every
+`talosctl apply-config --talosconfig kube/clusters/frostlink/talosconfig --dry-run` — and **redirect its output to a file**, because it prints every
 private key and token in the config to the terminal.
 
-- `clusters/frostlink/talos/patches/controlplane.yaml` — main machine + cluster config
-- `clusters/frostlink/talos/patches/tailscale.yaml.j2` — Tailscale extension service config (1Password auth key reference)
-- `clusters/frostlink/talos/patches/firewall.yaml` — host ingress firewall, day-2 only (§ Host ingress firewall)
+- `kube/clusters/frostlink/talos/patches/controlplane.yaml` — main machine + cluster config
+- `kube/clusters/frostlink/talos/patches/tailscale.yaml.j2` — Tailscale extension service config (1Password auth key reference)
+- `kube/clusters/frostlink/talos/patches/firewall.yaml` — host ingress firewall, day-2 only (§ Host ingress firewall)
 
 ### Host ingress firewall
 
@@ -78,8 +78,8 @@ cut management access; pods reaching hostNetwork ports (the backhaul endpoint, m
 through the pod CIDR. It is hot-applied with no reboot.
 
 - **Not in `gen config`.** A rebuild reaches 6443 from the home public /32 before the tailnet
-  exists; this rule would block that. Apply it after `mise run //clusters/frostlink/bootstrap:tailnet`.
-- **Apply / change:** `talosctl patch mc --talosconfig clusters/frostlink/talosconfig -n 10.0.0.203 --patch @clusters/frostlink/talos/patches/firewall.yaml --mode try --timeout 10m`,
+  exists; this rule would block that. Apply it after `mise run //kube/clusters/frostlink/bootstrap:tailnet`.
+- **Apply / change:** `talosctl patch mc --talosconfig kube/clusters/frostlink/talosconfig -n 10.0.0.203 --patch @kube/clusters/frostlink/talos/patches/firewall.yaml --mode try --timeout 10m`,
   verify with new connections (`talosctl get nftableschain` shows `ingress` + `prerouting`, talosctl
   via `-e 40.233.88.33`, kubectl, the front door, `up == 0` empty in VictoriaMetrics), then confirm by
   re-sending the active config as below. Remove it with a `$patch: delete` document for
@@ -88,21 +88,21 @@ through the pod CIDR. It is hot-applied with no reboot.
 
 ### Changing the Tailscale extension config (Headscale)
 
-`tailscale.yaml.j2` is the source for the live `ExtensionServiceConfig` (logged into Headscale). A rebuild applies it with `mise run //clusters/frostlink/bootstrap:tailnet`, which substitutes a freshly
+`tailscale.yaml.j2` is the source for the live `ExtensionServiceConfig` (logged into Headscale). A rebuild applies it with `mise run //kube/clusters/frostlink/bootstrap:tailnet`, which substitutes a freshly
 minted one-hour key for the `op://` reference — a fresh node has no tailscale document yet, so a
 plain patch is correct there (`oci-rebuild.md` § Rebuild order). Day-2 changes to the running node
 follow the rules below, each of which cost a failed attempt:
 
 - **Replace the document, don't merge it.** Talos merges `environment` lists by appending, so a
   plain patch keeps the old key and flags. Send a `$patch: delete` for the document and the new one
-  in the same call: `talosctl patch mc --talosconfig clusters/frostlink/talosconfig --patch @delete.yaml --patch @<rendered>.yaml`. Render with
+  in the same call: `talosctl patch mc --talosconfig kube/clusters/frostlink/talosconfig --patch @delete.yaml --patch @<rendered>.yaml`. Render with
   `op inject` into a `chmod 600` temp file; never print it.
 - **No reboot** — Talos restarts `ext-tailscale` when the config changes.
 - **Use `--mode try --timeout 15m` first**, verify, then confirm. Confirming by re-running the same
   `patch` with `--mode auto` does **not** work: talosctl sees no diff client-side and never calls
   the API, so the rollback stays armed. Confirm by re-sending the active config:
-  `talosctl get machineconfig v1alpha1 --talosconfig clusters/frostlink/talosconfig -o jsonpath='{.spec}' > f` (600, has secrets) then
-  `talosctl apply-config --talosconfig clusters/frostlink/talosconfig --file f --mode no-reboot`.
+  `talosctl get machineconfig v1alpha1 --talosconfig kube/clusters/frostlink/talosconfig -o jsonpath='{.spec}' > f` (600, has secrets) then
+  `talosctl apply-config --talosconfig kube/clusters/frostlink/talosconfig --file f --mode no-reboot`.
 - **No `--advertise-tags`.** The node's tag (`tag:frostlink`) comes from the Headscale pre-auth key;
   Headscale rejects any requested tag on a pre-auth-key registration.
 - **`TS_AUTH_ONCE` stays unset**, so every restart re-applies `TS_EXTRA_ARGS`. Headscale accepts a
@@ -112,7 +112,7 @@ follow the rules below, each of which cost a failed attempt:
 
 ### CRITICAL: never `apply-config` the patch file
 
-`clusters/frostlink/talos/patches/controlplane.yaml` is a **gen-time config patch, not a full machine config**. It has no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` — the Headscale auth key exists only in the node's live config — minted by `mise run //clusters/frostlink/bootstrap:tailnet` on a rebuild, or rendered via `op inject` for day-2 changes — and never persisted to git. `talosctl apply-config` REPLACES the whole config, so pointing it at this file strands the node.
+`kube/clusters/frostlink/talos/patches/controlplane.yaml` is a **gen-time config patch, not a full machine config**. It has no `machine.token`, no certs, no install config, and no `ExtensionServiceConfig` — the Headscale auth key exists only in the node's live config — minted by `mise run //kube/clusters/frostlink/bootstrap:tailnet` on a rebuild, or rendered via `op inject` for day-2 changes — and never persisted to git. `talosctl apply-config` REPLACES the whole config, so pointing it at this file strands the node.
 
 There is no way to regenerate a complete config for this node from git alone.
 
@@ -120,7 +120,7 @@ To apply a change, patch the delta instead:
 
 ```bash
 # 1. write ONLY the changed fields to a patch file, then dry-run it
-mise exec -- talosctl --talosconfig clusters/frostlink/talosconfig patch machineconfig \
+mise exec -- talosctl --talosconfig kube/clusters/frostlink/talosconfig patch machineconfig \
   -n 10.0.0.203 --patch-file /tmp/delta.yaml --dry-run
 
 # 2. read the printed diff, then re-run without --dry-run
@@ -159,11 +159,11 @@ cluster:
 
 ## Schematic
 
-The schematic ID is never typed into docs. Read it from `clusters/frostlink/talos/schematic.yaml` (the header; `mise run //clusters/frostlink/talos:schematic-id` recomputes it), from the live node
+The schematic ID is never typed into docs. Read it from `kube/clusters/frostlink/talos/schematic.yaml` (the header; `mise run //kube/clusters/frostlink/talos:schematic-id` recomputes it), from the live node
 (`kubectl get node frostlink --context frostlink -o jsonpath='{.metadata.annotations.extensions\.talos\.dev/schematic}'`),
-or list the installed extensions with `talosctl get extensions --talosconfig clusters/frostlink/talosconfig`. The three should agree.
+or list the installed extensions with `talosctl get extensions --talosconfig kube/clusters/frostlink/talosconfig`. The three should agree.
 
-Extensions are in `clusters/frostlink/talos/schematic.yaml` — **four, and there is no `qemu-guest-agent`.** OCI
+Extensions are in `kube/clusters/frostlink/talos/schematic.yaml` — **four, and there is no `qemu-guest-agent`.** OCI
 A1.Flex does not need one, and Artemis's `worker`/`gpu` schematics do carry it, so do not copy an
 extension list between the clusters. `siderolabs/zfs` is **load-bearing** (the whole `openebs-zfs` storage
 layer) and `siderolabs/tailscale` carries all management access; losing either strands the node.
@@ -172,15 +172,15 @@ The ZFS kernel module is loaded by `KernelModuleConfig name: zfs`.
 ### Never hand-edit a schematic ID, anywhere
 
 tuppr rebuilds the installer from the **node's recorded schematic**, not from
-`clusters/frostlink/talos/schematic.yaml`. A stale or hand-written ID therefore silently reinstalls an extension you
+`kube/clusters/frostlink/talos/schematic.yaml`. A stale or hand-written ID therefore silently reinstalls an extension you
 removed — or, worse, drops `zfs` and takes every PVC offline. Always derive the ID; never type it.
 
 To add or change an extension:
 
-1. Edit `clusters/frostlink/talos/schematic.yaml`
-2. `mise run //clusters/frostlink/talos:schematic-id` — recompute the ID (it is `[private]`; `mise run //clusters/frostlink/talos:upgrade` calls it)
-3. Update the header comment in `clusters/frostlink/talos/schematic.yaml`
-4. `mise run //clusters/frostlink/talos:upgrade <current-talos-version>` — **required.** Editing `schematic.yaml` alone
+1. Edit `kube/clusters/frostlink/talos/schematic.yaml`
+2. `mise run //kube/clusters/frostlink/talos:schematic-id` — recompute the ID (it is `[private]`; `mise run //kube/clusters/frostlink/talos:upgrade` calls it)
+3. Update the header comment in `kube/clusters/frostlink/talos/schematic.yaml`
+4. `mise run //kube/clusters/frostlink/talos:upgrade <current-talos-version>` — **required.** Editing `schematic.yaml` alone
    changes nothing on the node, and tuppr will keep rebuilding from the old recorded ID until an
    upgrade re-records it. Same Talos version is fine; the point is the reinstall.
 5. Re-read the node annotation and confirm it matches
@@ -188,14 +188,14 @@ To add or change an extension:
 ## Talos + Kubernetes Upgrades — owned by tuppr
 
 Upgrades are declarative. Edit the version in
-`clusters/frostlink/kubernetes/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (or
+`kube/clusters/frostlink/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (or
 `kubernetesupgrade.yaml`), merge, and tuppr performs the upgrade.
 
 Frostlink is a **single node**, so every upgrade is full cluster downtime. Draining is skipped
 automatically — there is nowhere to drain to — and completion is tracked by
 polling node readiness after reboot.
 
-The `TalosUpgrade` sets `policy.rebootMode: powercycle`, matching `mise run //clusters/frostlink/talos:upgrade`: the OCI
+The `TalosUpgrade` sets `policy.rebootMode: powercycle`, matching `mise run //kube/clusters/frostlink/talos:upgrade`: the OCI
 A1.Flex VM does not come back cleanly from a default (kexec) reboot.
 
 The tuppr controller's memory limit is deliberately generous: steady state is ~77Mi, but a 128Mi
@@ -210,8 +210,8 @@ installer and wiping extensions.
 
 The flip side: because the **node** is the authority, a schematic change that has
 not yet been applied to the node is invisible to tuppr, and an extension deleted
-from `clusters/frostlink/talos/schematic.yaml` gets silently reinstalled on the next upgrade. See
-§ Schematic — the fix is to run `mise run //clusters/frostlink/talos:upgrade` so the node re-records the
+from `kube/clusters/frostlink/talos/schematic.yaml` gets silently reinstalled on the next upgrade. See
+§ Schematic — the fix is to run `mise run //kube/clusters/frostlink/talos:upgrade` so the node re-records the
 new ID.
 
 Note the path is `metal-installer`. Artemis pins the legacy `installer/` prefix to
@@ -234,11 +234,11 @@ Only when tuppr is unavailable. Note this uses the legacy
 `factory.talos.dev/installer/` path, while tuppr uses `metal-installer`:
 
 ```bash
-mise run //clusters/frostlink/talos:upgrade <version>   # reboots with --reboot-mode powercycle, 10m timeout
-mise run //clusters/frostlink/talos:schematic-id        # recompute the schematic ID from clusters/frostlink/talos/schematic.yaml
+mise run //kube/clusters/frostlink/talos:upgrade <version>   # reboots with --reboot-mode powercycle, 10m timeout
+mise run //kube/clusters/frostlink/talos:schematic-id        # recompute the schematic ID from kube/clusters/frostlink/talos/schematic.yaml
 ```
 
-`mise run //clusters/frostlink/talos:upgrade` resolves the schematic from `clusters/frostlink/talos/schematic.yaml` at run time, so it
+`mise run //kube/clusters/frostlink/talos:upgrade` resolves the schematic from `kube/clusters/frostlink/talos/schematic.yaml` at run time, so it
 installs whatever is currently checked in — which is exactly what tuppr will **not** do. Use it
 deliberately, with the current version, and confirm the node annotation afterwards.
 
@@ -252,7 +252,7 @@ command below when tuppr is unavailable, and expect the next Flux reconcile to f
 still names the old version.
 
 ```bash
-talosctl --talosconfig clusters/frostlink/talosconfig upgrade-k8s \
+talosctl --talosconfig kube/clusters/frostlink/talosconfig upgrade-k8s \
   --to <k8s-version> \
   -n 10.0.0.203
 ```
@@ -260,10 +260,10 @@ talosctl --talosconfig clusters/frostlink/talosconfig upgrade-k8s \
 ## Node Health
 
 ```bash
-talosctl --talosconfig clusters/frostlink/talosconfig health -n 10.0.0.203
-talosctl --talosconfig clusters/frostlink/talosconfig dmesg -n 10.0.0.203 | tail -30
-talosctl --talosconfig clusters/frostlink/talosconfig version -n 10.0.0.203
-talosctl --talosconfig clusters/frostlink/talosconfig get machineconfig -n 10.0.0.203 -o yaml
+talosctl --talosconfig kube/clusters/frostlink/talosconfig health -n 10.0.0.203
+talosctl --talosconfig kube/clusters/frostlink/talosconfig dmesg -n 10.0.0.203 | tail -30
+talosctl --talosconfig kube/clusters/frostlink/talosconfig version -n 10.0.0.203
+talosctl --talosconfig kube/clusters/frostlink/talosconfig get machineconfig -n 10.0.0.203 -o yaml
 ```
 
 ## Known OCI / Talos Quirks

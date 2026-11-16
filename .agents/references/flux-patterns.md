@@ -21,7 +21,7 @@ These points are specific to Flux behavior:
   while the root is still suspended. The child would reconcile its OLD spec and write stale values
   straight back. That regrew 13 PVCs, and `allowVolumeExpansion` made it one-way. Going in, the
   order does not matter, and `suspend-ks` only warns.
-- `mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>` is read-only and safe to run at any time. It renders locally and
+- `mise run //kube/clusters/artemis:diff-ks <ns> <ks>` is read-only and safe to run at any time. It renders locally and
   runs `kubectl diff --server-side`, so you see only real drift. For the root, it renders through
   `flux build` against the live root, because flate cannot see the root. Exit 0 means no
   differences. Exit 1 means differences or a failed render. Tell them apart by the last line, not
@@ -33,15 +33,15 @@ These points are specific to Flux behavior:
 Other force-sync targets:
 
 ```bash
-mise run //clusters/artemis/kubernetes:sync-flux hr                   # all HelmReleases
-mise run //clusters/artemis/kubernetes:sync-flux ks                   # all Kustomizations
-mise run //clusters/artemis/kubernetes:sync-flux es                   # all ExternalSecrets
-mise run //clusters/artemis/kubernetes:sync-flux ocirepo flux-system  # the one source that carries the repo
+mise run //kube/clusters/artemis:sync-flux hr                   # all HelmReleases
+mise run //kube/clusters/artemis:sync-flux ks                   # all Kustomizations
+mise run //kube/clusters/artemis:sync-flux es                   # all ExternalSecrets
+mise run //kube/clusters/artemis:sync-flux ocirepo flux-system  # the one source that carries the repo
 ```
 
 Name the resource in `sync-flux ocirepo`. The bare form annotates **every** OCIRepository in the
 cluster (`kubectl get ocirepository -A --no-headers | wc -l`). There is no `GitRepository` to sync.
-The Flux source is an OCIRepository that CI builds, and `mise run //clusters/artemis/kubernetes:sync-flux gitrepo` has no live
+The Flux source is an OCIRepository that CI builds, and `mise run //kube/clusters/artemis:sync-flux gitrepo` has no live
 target.
 
 Annotating does not make CI finish faster. If the `Push OCI Artifact` run is not green, the source
@@ -112,7 +112,7 @@ in `flux-system`.
 
 - Set `prune: false` on the `flux-instance` Kustomization. Never prune Flux itself.
 - `dependsOn` must list the actual runtime dependencies, not only the chart sources.
-- `interval: 1h` is the standard in `ks.yaml`. `grep -h 'interval:' clusters/artemis/kubernetes/apps/*/*/ks.yaml | sort | uniq -c`
+- `interval: 1h` is the standard in `ks.yaml`. `grep -h 'interval:' kube/clusters/artemis/apps/*/*/ks.yaml | sort | uniq -c`
   shows the exceptions.
 - The child-defaults patch that the FluxInstance puts on the root injects `retryInterval: 1m`. An
   explicit one in a child is redundant. It is harmless, but do not add it "because it's missing".
@@ -142,12 +142,12 @@ spec:
 Flux does not find the source. The same applies to every cross-namespace `dependsOn` entry. If
 either is missing, the reconciliation fails with a silent "not found".
 
-| Field            | Correct         | Wrong                                                                                                                                      |
-| ---------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `sourceRef.kind` | `OCIRepository` | `GitRepository` — the flux source is OCI; `grep -L 'kind: OCIRepository' clusters/artemis/kubernetes/apps/*/*/ks.yaml` should list nothing |
+| Field            | Correct         | Wrong                                                                                                                                |
+| ---------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `sourceRef.kind` | `OCIRepository` | `GitRepository` — the flux source is OCI; `grep -L 'kind: OCIRepository' kube/clusters/artemis/apps/*/*/ks.yaml` should list nothing |
 
 The only live `kind: GitRepository` in the repo is
-`clusters/artemis/kubernetes/components/alerts/alertmanager/alert.yaml`. There it is a notification `eventSource`
+`kube/clusters/artemis/components/alerts/alertmanager/alert.yaml`. There it is a notification `eventSource`
 selector, which is unrelated to Kustomization sources.
 
 ## CRD Timing Race
@@ -166,8 +166,8 @@ flux reconcile kustomization <name> -n <namespace>
 
 ## The root Kustomization overwrites every child's `spec.patches`
 
-The FluxInstance (`clusters/artemis/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`) patches the
-root `flux-system` Kustomization, which syncs `./kubernetes/apps` directly. The patch is a
+The FluxInstance (`kube/clusters/artemis/apps/flux-system/flux-instance/app/helmrelease.yaml`) patches the
+root `flux-system` Kustomization, which syncs `./clusters/<cluster>/apps` directly. The patch is a
 `patches:` block that targets `kustomize.toolkit.fluxcd.io/Kustomization` with `metadata.name: _`.
 This means **every child `ks.yaml` in the repo**. It sets `deletionPolicy`, `retryInterval`, and a
 nested `spec.patches` that applies the HelmRelease install, upgrade, and rollback defaults.
@@ -221,13 +221,13 @@ plaintext, and an item-wide strategy corrupts it.
 
 ## Frostlink
 
-Everything above applies to Frostlink too, with its own tasks (`mise run //clusters/frostlink/kubernetes:<task>`)
+Everything above applies to Frostlink too, with its own tasks (`mise run //kube/clusters/frostlink:<task>`)
 and `--context frostlink` on `kubectl` and `flux`. Only the differences are here.
 
 - **Source.** `FluxInstance/flux` syncs `kind: OCIRepository` from
   `oci://registry.frostlink.dev/exikle/frostlink` at `interval: 1m`. CI builds and pushes it.
   `kubectl get gitrepository -A --context frostlink` returns nothing, so
-  `mise run //clusters/frostlink/kubernetes:sync-flux gitrepo` is a no-op that looks like it
+  `mise run //kube/clusters/frostlink:sync-flux gitrepo` is a no-op that looks like it
   worked. Versions: `kubectl get fluxinstance flux -n flux-system --context frostlink -o jsonpath='{.status.components}'`.
 - **Do not sync before CI has rebuilt the artifact.** It re-resolves the pre-commit digest and
   reverts what you landed. Check the digest changed:
@@ -235,10 +235,10 @@ and `--context frostlink` on `kubectl` and `flux`. Only the differences are here
   This holds during a rebuild too (`oci-rebuild.md`).
 - **`prune: false`** is set on `flux-instance` and on `kube-system/coredns`. Everything else
   prunes. Some infrastructure `ks.yaml` files use `interval: 30m`
-  (`grep -rh 'interval:' clusters/frostlink/kubernetes/apps/*/*/ks.yaml | sort | uniq -c`).
+  (`grep -rh 'interval:' kube/clusters/frostlink/apps/*/*/ks.yaml | sort | uniq -c`).
   A few children override the injected `retryInterval: 1m` on purpose.
 - **Root patch.** The FluxInstance that carries the child-defaults patch is
-  `clusters/frostlink/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`. The
+  `kube/clusters/frostlink/apps/flux-system/flux-instance/app/helmrelease.yaml`. The
   `spec.patches` rule above applies unchanged.
 - **kopiur `wait: true` stall.** Frostlink dropped `wait: true` and gate on the HelmRelease for
   `fediverse/apoci`, `fediverse/gotosocial` and `matrix/continuwuity`. `Restore` can stall the

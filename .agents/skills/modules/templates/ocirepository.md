@@ -3,7 +3,7 @@
 Every app gets its own standalone OCIRepository. Never share one between apps.
 
 Frostlink: `interval` is `1h`, and the tag comes from
-`grep -rh 'tag:' clusters/frostlink/kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c`.
+`grep -rh 'tag:' kube/clusters/frostlink/apps/*/*/app/ocirepository.yaml | sort | uniq -c`.
 
 ```yaml
 ---
@@ -36,6 +36,6 @@ Renovate bumps `ref.tag` fleet-wide, so a number written here goes stale by desi
 tag and the usual `interval`:
 
 ```bash
-grep -h 'tag:' clusters/artemis/kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
-grep -h 'interval:' clusters/artemis/kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
+grep -h 'tag:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
+grep -h 'interval:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
 ```

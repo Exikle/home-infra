@@ -14,8 +14,8 @@ Frostlink has **one gateway**: `external-gateway` in the `network` namespace. Th
 - HTTPS listener: `allowedRoutes.namespaces.from: All` — all namespaces can attach routes
 - `headscale` listener: TLS passthrough on the same port, for `headscale.frostlink.dev` only.
   See _Headscale ingress_.
-- CrowdSec runs on the whole gateway (`clusters/frostlink/kubernetes/components/envoy/crowdsec`, `crowdsec.md`).
-  `clusters/frostlink/kubernetes/components/envoy/response-hardening` adds the response headers.
+- CrowdSec runs on the whole gateway (`kube/clusters/frostlink/components/envoy/crowdsec`, `crowdsec.md`).
+  `kube/clusters/frostlink/components/envoy/response-hardening` adds the response headers.
 
 Routes attach to `external-gateway` in `network` and are defined **inline in helmrelease values**
 under `route.app:` (`frostlink.md`).
@@ -24,7 +24,7 @@ under `route.app:` (`frostlink.md`).
 
 ### external-dns-cloudflare
 
-The app directory is `clusters/frostlink/kubernetes/apps/network/cloudflare-dns/`; the **Deployment is named
+The app directory is `kube/clusters/frostlink/apps/network/cloudflare-dns/`; the **Deployment is named
 `external-dns-cloudflare`** — search for the latter when inspecting the cluster. Flags are in
 `cloudflare-dns/app/helmrelease.yaml`; the ones that bite: `--policy sync` (it **deletes** records
 it believes it owns), `--gateway-name external-gateway` (routes on no other gateway). There is no
@@ -75,7 +75,7 @@ write it.
 `frostlink-dev-tls` there. A PushSecret backs that secret up to the 1Password item
 `frostlink-dev-tls`; on a rebuild the `certificates-import` ExternalSecret (`CreatedOnce`,
 `Orphan`) restores it from 1Password before `certificates-export` runs, so cert-manager adopts the
-existing cert instead of requesting a new one. Manifests: `clusters/frostlink/kubernetes/apps/network/certificates/`.
+existing cert instead of requesting a new one. Manifests: `kube/clusters/frostlink/apps/network/certificates/`.
 
 ## CoreDNS suppresses AAAA — the cluster is IPv4-only
 
@@ -235,7 +235,7 @@ tailnet. If Headscale itself is down, the public Talos port is the only break-gl
 ## Tailnet policy — Headscale
 
 Every device is on Headscale; no Tailscale SaaS tailnet remains. The policy is checked in at
-`clusters/frostlink/kubernetes/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
+`kube/clusters/frostlink/apps/network/headscale/app/resources/policy.hujson` and mounted into the Headscale pod
 at `/etc/headscale/policy.hujson` — see § Headscale ingress for how the server is reached.
 `kubectl --context frostlink -n network exec deploy/headscale -c app -- headscale nodes list`
 shows the live devices (the node is `tag:frostlink`, the UCG Max `tag:home-router`, the rest user
@@ -321,4 +321,4 @@ listener only accepts routes from the `network` namespace.
   `3478/udp` for STUN, which is not open on OCI. Relayed traffic therefore crosses Tailscale Inc.'s
   DERP servers, still end-to-end WireGuard-encrypted.
 
-`clusters/frostlink/mise.toml` sets `KUBE_CONTEXT=frostlink` and every task in `clusters/frostlink/kubernetes/mise.toml` passes it, so `mise run //clusters/frostlink/kubernetes:<task>` targets Frostlink automatically. Bare `kubectl` needs `--context frostlink` (`tooling.md` § kubectl and talosctl scoping).
+`kube/clusters/frostlink/mise.toml` sets `KUBE_CONTEXT=frostlink` and every task in `kube/clusters/frostlink/mise.toml` passes it, so `mise run //kube/clusters/frostlink:<task>` targets Frostlink automatically. Bare `kubectl` needs `--context frostlink` (`tooling.md` § kubectl and talosctl scoping).

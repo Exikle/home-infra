@@ -8,8 +8,8 @@ someone will "fix" a deviation with no recorded reason back to the default and b
 The tree gives the current set, not a list here:
 
 ```bash
-grep -rln 'runAsNonRoot: false' clusters/artemis/kubernetes/apps/
-grep -rln 'readOnlyRootFilesystem: false' clusters/artemis/kubernetes/apps/
+grep -rln 'runAsNonRoot: false' kube/clusters/artemis/apps/
+grep -rln 'readOnlyRootFilesystem: false' kube/clusters/artemis/apps/
 ```
 
 ## Why each one deviates

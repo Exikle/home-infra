@@ -48,7 +48,7 @@ Kopiur is deployed in `kopiur-system`. It snapshots PVCs via ZFS and pushes to *
 
 ### Component template
 
-All stateful apps use the shared component at `clusters/frostlink/kubernetes/components/kopiur/`. Add to `ks.yaml`:
+All stateful apps use the shared component at `kube/clusters/frostlink/components/kopiur/`. Add to `ks.yaml`:
 
 ```yaml
 spec:
@@ -57,7 +57,7 @@ spec:
 ```
 
 And in `postBuild.substitute` set `KOPIUR_APP`; the other knobs and their defaults are
-`grep -rn 'KOPIUR_' clusters/frostlink/kubernetes/components/kopiur` (capacity, storage class, snapshot class, cache,
+`grep -rn 'KOPIUR_' kube/clusters/frostlink/components/kopiur` (capacity, storage class, snapshot class, cache,
 schedule, retention). `KOPIUR_APP` names every Kopiur resource: PVC, SnapshotPolicy,
 SnapshotSchedule, Restore.
 
@@ -85,7 +85,7 @@ Three behaviours the component enables that nothing else documents:
   inherited from the repository's `scheduleDefaults`. This is a blob-level verify, not a restore
   drill; it shows up as the `LAST-VERIFIED` column in `kubectl get snapshotpolicy -A --context frostlink`. A
   `LAST-VERIFIED` older than ~8 days means verification is not running, even if backups are.
-- **Monthly deep verify** — the optional `clusters/frostlink/kubernetes/components/kopiur-deep-verify` layer
+- **Monthly deep verify** — the optional `kube/clusters/frostlink/components/kopiur-deep-verify` layer
   (`H 5 1 * *`, jitter 1h, scratch PVC sized by `KOPIUR_DEEP_VERIFY_CAPACITY`, default `5Gi`).
   Deep verify is a real scratch restore, so it is the only check that proves the data comes back
   and the only one that costs CPU and disk. Used by `fediverse/gotosocial` and `network/headscale`.
@@ -114,7 +114,7 @@ Cadence and retention are per-app overridable from `postBuild.substitute` (`KOPI
 
 ### The R2 credential key is unrecoverable if repointed — read before editing
 
-`clusters/frostlink/kubernetes/apps/kopiur-system/kopiur/repository/externalsecret.yaml` pulls `KOPIA_PASSWORD`
+`kube/clusters/frostlink/apps/kopiur-system/kopiur/repository/externalsecret.yaml` pulls `KOPIA_PASSWORD`
 from the 1Password item **`kopiur-frostlink`**. The `-frostlink` suffix is load-bearing: the
 item plainly named `kopiur` belongs to **Artemis**. Pointing this key at the wrong item syncs
 cleanly and only fails later, at connect time, with `invalid repository password`.
@@ -131,7 +131,7 @@ its trash.
 ### barman WAL retention
 
 The shared Postgres cluster archives WAL to the same bucket under `barman/`
-(`clusters/frostlink/kubernetes/apps/database/postgres/cluster/objectstore.yaml`). `retentionPolicy: 14d` — ample
+(`kube/clusters/frostlink/apps/database/postgres/cluster/objectstore.yaml`). `retentionPolicy: 14d` — ample
 PITR for a single-node homelab VPS, and it roughly halves both the `barman/` footprint and its
 object count. WAL segments dominate the bucket's _object count_ even though they are a small
 share of its bytes. `data.compression` is `gzip`: the CRD enum is `[bzip2, gzip, lz4, snappy]`,
@@ -161,7 +161,7 @@ so zstd is not available there (it is for `wal.compression`, which uses it).
   `Ready=True` with reason **`TargetAlreadyBound`** and does nothing at all — no prime PVC, no
   mover, the live volume untouched. `fediverse/apoci-data` sits in exactly this state. That is the correct and safe behaviour, but it means **editing a `Restore` and
   waiting will never restore anything**: the PVC must be deleted so it is re-created unbound,
-  keeping its `dataSourceRef`. `mise run //clusters/frostlink/kubernetes:restore-pvc` is the sequence that does this safely.
+  keeping its `dataSourceRef`. `mise run //kube/clusters/frostlink:restore-pvc` is the sequence that does this safely.
 - **`ClusterRepository/r2` pins a few defaults on purpose.** `deletionProtection.threshold: 10`
   holds external Snapshot deletions until the `kopiur.home-operations.com/allow-mass-deletion`
   annotation acknowledges them (the CRD default, kept visible). `health.probe.enabled` is off by
@@ -173,7 +173,7 @@ so zstd is not available there (it is for `wal.compression`, which uses it).
 
 ## Restore
 
-Use `mise run //clusters/frostlink/kubernetes:restore-pvc <ns> <ks> <claim>` (add a snapshot offset as a 4th arg to go back
+Use `mise run //kube/clusters/frostlink:restore-pvc <ns> <ks> <claim>` (add a snapshot offset as a 4th arg to go back
 further). It encodes every constraint below and, critically, **asserts the restore actually
 came from a snapshot** before declaring success. Do not hand-roll the sequence.
 
@@ -245,11 +245,11 @@ manifest.
 > a Kustomization atomically, so one rejected PVC blocks the _entire_ Kustomization (a safe
 > failure — the app keeps running — but nothing else in that Kustomization reconciles either).
 > A PVC predating the component and lacking
-> `dataSourceRef` has to be recreated through `mise run //clusters/frostlink/kubernetes:restore-pvc` before the annotation can come
+> `dataSourceRef` has to be recreated through `mise run //kube/clusters/frostlink:restore-pvc` before the annotation can come
 > off. Check with a server dry-run before touching this:
 >
 > ```
-> mise run //clusters/frostlink/kubernetes:render-ks <ns> <app> | kubectl apply --server-side \
+> mise run //kube/clusters/frostlink:render-ks <ns> <app> | kubectl apply --server-side \
 >   --force-conflicts --field-manager=kustomize-controller --dry-run=server --context frostlink -f -
 > ```
 
@@ -257,7 +257,7 @@ manifest.
 > **live object**, not just the rendered manifest, so a resource still carrying a stale
 > `ssa: ignore` keeps being skipped forever — silently, since the Kustomization still reports
 > Ready. Strip it from the live objects with a server-side apply that no longer includes the
-> field (`mise run //clusters/frostlink/kubernetes:apply-ks <ns> <app>` does exactly that). Confirm with:
+> field (`mise run //kube/clusters/frostlink:apply-ks <ns> <app>` does exactly that). Confirm with:
 >
 > ```
 > kubectl -n flux-system logs deploy/kustomize-controller --since=2m --context frostlink \
@@ -266,7 +266,7 @@ manifest.
 >
 > `unchanged`/`configured` means Flux is managing it; `skipped` means it is still ignored.
 
-Because a bound PVC is now a no-op apply, `mise run //clusters/frostlink/kubernetes:apply-ks` works on Kopiur-backed apps
+Because a bound PVC is now a no-op apply, `mise run //kube/clusters/frostlink:apply-ks` works on Kopiur-backed apps
 again. Any future app whose PVC is created outside the component will reintroduce the problem —
 the fix is always to recreate that PVC through the restore path, never to re-add the annotation.
 
@@ -279,11 +279,11 @@ opposite of the usual instinct.
 
 Side effect: the real app is the first consumer, so it starts mutating the volume the moment
 the restore lands. To inspect a restored volume pristine, use a throwaway consumer pod
-(`mise run //clusters/frostlink/kubernetes:browse-pvc`) as the first consumer instead of the app.
+(`mise run //kube/clusters/frostlink:browse-pvc`) as the first consumer instead of the app.
 
 ### Always retain the old volume first
 
-Flip the PV to `Retain` before deleting the PVC — the `mise run //clusters/frostlink/kubernetes:restore-pvc` task does this
+Flip the PV to `Retain` before deleting the PVC — the `mise run //kube/clusters/frostlink:restore-pvc` task does this
 automatically. The storage class reclaim policy is `Delete`, so without it the old volume is
 destroyed the instant the PVC goes away, and the empty-restore failure above becomes
 unrecoverable. This is the only reason the 2026-08-18 test was not data loss.

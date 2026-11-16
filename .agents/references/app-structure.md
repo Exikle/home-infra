@@ -9,7 +9,7 @@ decide whether something is a fleet.
 ### Single-component app (the common case)
 
 ```text
-clusters/artemis/kubernetes/apps/<namespace>/<app>/
+kube/clusters/artemis/apps/<namespace>/<app>/
 ├── ks.yaml                  # one Flux Kustomization, name: <app>, path: .../<app>/app
 └── app/
     ├── kustomization.yaml
@@ -24,7 +24,7 @@ The primary component keeps the name `app/`. The other components are named for 
 (`microservices/`, `machine-learning/`, `cluster/`, `instance/`, `operator/`).
 
 ```text
-clusters/artemis/kubernetes/apps/media/immich/
+kube/clusters/artemis/apps/media/immich/
 ├── ks.yaml                  # 3 Kustomizations: immich-app, immich-microservices,
 │                            # immich-machine-learning
 ├── app/
@@ -47,7 +47,7 @@ If the operand of the operator lives in the same namespace, the operator is a su
 the app directory of the operand. It is never a sibling top-level app directory.
 
 ```text
-clusters/artemis/kubernetes/apps/security/pocket-id/
+kube/clusters/artemis/apps/security/pocket-id/
 ├── ks.yaml                  # pocket-id-operator, pocket-id, pocket-id-groups,
 │                            # pocket-id-extclients
 ├── operator/
@@ -75,7 +75,7 @@ Kustomization. The members are kustomize sub-directories, wired by `resources:` 
 own `configMapGenerator` or extra resources.
 
 ```text
-clusters/artemis/kubernetes/apps/external-endpoints/services/
+kube/clusters/artemis/apps/external-endpoints/services/
 ├── ks.yaml                  # ONE Kustomization, name: external-endpoints
 └── app/
     ├── kustomization.yaml   # resources: ./forgejo ./pve ./templates ./truenas ./unifi
@@ -87,7 +87,7 @@ clusters/artemis/kubernetes/apps/external-endpoints/services/
 ```
 
 The tradeoff is deliberate. One Kustomization means one failure domain, so a build error in one
-member stalls them all. Validate with `mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>` before you commit. Prefer a
+member stalls them all. Validate with `mise run //kube/clusters/artemis:render-ks <ns> <ks>` before you commit. Prefer a
 fleet over N near-identical `ks.yaml` files once N is more than about three and the members share
 a lifecycle and a single controller.
 

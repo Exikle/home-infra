@@ -23,7 +23,7 @@ On Frostlink, read `frostlink.md` in this folder first. Its `restore-pvc` takes
 >   scheduled. If the workload stays at 0, the restore deadlocks. A populator only hands a volume to an _unbound_
 >   claim.
 > - Existing, bound PVC restored in place: scale to 0, which is what
->   `mise run //clusters/artemis/kubernetes:restore-pvc` does. The mover pod is the consumer, and the app must not write
+>   `mise run //kube/clusters/artemis:restore-pvc` does. The mover pod is the consumer, and the app must not write
 >   while its data is replaced.
 > - `target.pvcRef` Restore into a pre-created PVC (§ Extract-only recovery): this is not a populator.
 >   The mover pod mounts the claim, and it is the first consumer. A fresh, unbound `miroir` claim
@@ -31,7 +31,7 @@ On Frostlink, read `frostlink.md` in this folder first. Its `restore-pvc` takes
 >   reader pod and nothing to scale. Verified 2026-10-15
 >   ([#2769](https://git.dcunha.io/Exikle/home-infra/issues/2769)).
 
-The `//clusters/artemis/kubernetes` tasks use `clusters/artemis/kubeconfig` with context `artemis`.
+The `//kube/clusters/artemis` tasks use `kube/clusters/artemis/kubeconfig` with context `artemis`.
 Outside a task, pass `--context artemis` explicitly before you run anything destructive.
 
 Goal: get one PVC's data back from a kopiur snapshot, or pull specific files out of one.
@@ -61,8 +61,8 @@ claim. Restore into a _separate_ PVC and copy what you need out.
 
 - Everything below goes through git, not a direct cluster write. The global `~/.claude/hooks/bash-guard.sh`
   blocks direct applies in this repo. This is deliberate, so do not route around it. Put the
-  recovery objects in a temporary directory under the app, then run `mise run //clusters/artemis/kubernetes:apply-ks`. It renders
-  from local files and therefore needs no CI round-trip. Clean up with `mise run //clusters/artemis/kubernetes:delete-ks`
+  recovery objects in a temporary directory under the app, then run `mise run //kube/clusters/artemis:apply-ks`. It renders
+  from local files and therefore needs no CI round-trip. Clean up with `mise run //kube/clusters/artemis:delete-ks`
   plus a removal commit. § Extract-only recovery has a worked example.
 - The guard also matches `git commit -m` message text. It blocks a commit message that only _quotes_ a
   guarded command. Use `git commit -F -` with a heredoc. The guard strips heredoc
@@ -78,7 +78,7 @@ claim. Restore into a _separate_ PVC and copy what you need out.
 - Artemis has two StorageClasses, both `WaitForFirstConsumer`: `miroir` (default, 2 replicas) and
   `miroir-local` (1 replica). There is no RWX class. `kubectl get sc` gives the live answer.
 - Flux Kustomizations live in the app's target namespace. Look up the real name:
-  `grep "^  name:" clusters/artemis/kubernetes/apps/<ns>/<app>/ks.yaml`.
+  `grep "^  name:" kube/clusters/artemis/apps/<ns>/<app>/ks.yaml`.
 - Suspend, apply, confirm, commit, wait for the artifact and resume as
   `.agents/instructions/commit-style.md` § The sequence describes. Do not resume until the artifact carries
   your commit. If you resume earlier, Flux reverts the change.
@@ -142,7 +142,7 @@ app.
 
 ### 1. Stage the objects locally
 
-Create `clusters/artemis/kubernetes/apps/<ns>/<app>/recovery/` with a `kustomization.yaml` that lists:
+Create `kube/clusters/artemis/apps/<ns>/<app>/recovery/` with a `kustomization.yaml` that lists:
 
 ```yaml
 ---
@@ -181,8 +181,8 @@ The recovery Kustomization exists only locally. Suspend the root first, or its n
 prunes the recovery objects mid-restore:
 
 ```bash
-mise run //clusters/artemis/kubernetes:suspend-ks flux-system flux-system
-mise run //clusters/artemis/kubernetes:apply-ks <ns> <app>-recovery
+mise run //kube/clusters/artemis:suspend-ks flux-system flux-system
+mise run //kube/clusters/artemis:apply-ks <ns> <app>-recovery
 kubectl get restore -n <ns> <app>-recovery -o jsonpath='{.status.phase}'
 ```
 
@@ -210,12 +210,12 @@ the expected size. A copy that lacks its WAL reads as an older, smaller database
 
 ```bash
 kubectl delete pod -n <ns> <app>-recovery-reader --wait=false
-mise run //clusters/artemis/kubernetes:delete-ks <ns> <app>-recovery
+mise run //kube/clusters/artemis:delete-ks <ns> <app>-recovery
 ```
 
 Then delete `recovery/` and remove the Kustomization document from `ks.yaml` (keep the leading
 `---` on the first remaining document). You commit nothing here. Resume the root
-(`mise run //clusters/artemis/kubernetes:resume-ks flux-system flux-system`) after `delete-ks` finishes.
+(`mise run //kube/clusters/artemis:resume-ks flux-system flux-system`) after `delete-ks` finishes.
 
 ---
 
@@ -224,7 +224,7 @@ Then delete `recovery/` and remove the Kustomization document from `ks.yaml` (ke
 Use this only when you must replace the contents of the live claim. Use the task:
 
 ```bash
-mise run //clusters/artemis/kubernetes:restore-pvc <ns> <app> [offset]
+mise run //kube/clusters/artemis:restore-pvc <ns> <app> [offset]
 ```
 
 `offset` 0 is the latest snapshot, 1 the previous, and so on. The task suspends the Kustomization
@@ -254,7 +254,7 @@ Verify row counts per table, not the exit code. A load can report success and st
 - Restore `Failed`, `kopiaErrorClass: Locked`, `mkdir /repository/...: read-only file system`
   in `.status.failure`: kopia tried to auto-compact the repository mid-restore, and restore
   movers mount it read-only. The fault is intermittent and the snapshot is fine. A `Failed` Restore is
-  terminal. Run `mise run //clusters/artemis/kubernetes:delete-ks <ns> <app>-recovery`, then `apply-ks` again. A retry completed
+  terminal. Run `mise run //kube/clusters/artemis:delete-ks <ns> <app>-recovery`, then `apply-ks` again. A retry completed
   on 2026-10-15.
 - Recovered data vanishes when the Restore completes: you used `target.pvc` instead of
   `target.pvcRef`. Kubernetes garbage-collected the owned PVC.

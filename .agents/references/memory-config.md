@@ -59,7 +59,7 @@ Tiers and their tools: the tier URL is `https://ai.dcunha.io/<tier>/mcp`, where 
 `general` or `ops`. This file does not list which target sits in which tier. Read it with this command:
 
 ```bash
-grep -n -B1 'name:' clusters/artemis/kubernetes/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml
+grep -n -B1 'name:' kube/clusters/artemis/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml
 ```
 
 The media tools (arr, seerr) are in `ai-general`. There is no separate media tier.
@@ -87,8 +87,8 @@ exposes, list the tools in a client. To check the proxy side, run this command:
 kubectl logs -n cortex -l app.kubernetes.io/name=agentgateway --tail=200
 ```
 
-The gateway configuration is in `clusters/artemis/kubernetes/apps/cortex/agentgateway/`. The individual MCP servers are in
-`clusters/artemis/kubernetes/apps/cortex/mcp/app/<name>/`.
+The gateway configuration is in `kube/clusters/artemis/apps/cortex/agentgateway/`. The individual MCP servers are in
+`kube/clusters/artemis/apps/cortex/mcp/app/<name>/`.
 
 When to update this section: when someone adds a new MCP server, a tier changes, or a URL moves.
 
@@ -117,7 +117,7 @@ writes to a place that nothing reads.
   instead, where it is version-controlled and reviewable.
 
 The `memini` app itself (embeddings and storage) runs in the cluster at
-`clusters/artemis/kubernetes/apps/cortex/memini/`. That is the service the plugin talks to. It is separate from the
+`kube/clusters/artemis/apps/cortex/memini/`. That is the service the plugin talks to. It is separate from the
 plugin and client side described above. It embeds with `qwen3-embedding` and reranks with
 `jina-reranker`. Both are `llmkube` models in `cortex`. `MEMINI_BACKEND` is `postgres` (shared CNPG).
 `MEMINI_SQLITE_PATH` is also set but unused.
@@ -333,7 +333,7 @@ If it names a convention, a workflow, or a difference between the two, it is `ho
   Check `GET /v1/namespaces` before you assume the memories of a project are gone.
 
 - The deployment sets `homelab/hermes`, not a pin. The hermes HelmRelease sets
-  `MEMINI_NAMESPACE: homelab/hermes` (`clusters/artemis/kubernetes/apps/cortex/hermes/app/helmrelease.yaml`).
+  `MEMINI_NAMESPACE: homelab/hermes` (`kube/clusters/artemis/apps/cortex/hermes/app/helmrelease.yaml`).
   The team moved it from a top-level `hermes` on 2026-10-20 so the agent reads the shared `homelab` facts.
   Its own writes stay in `homelab/hermes`. Only a `visibility: "homelab"` write reaches the
   parent that your sessions read.

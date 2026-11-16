@@ -6,10 +6,10 @@ Frostlink differences for Kopiur: add `dependsOn` for `kopiur-repository` (names
 use `../../../../components/kopiur` (no `/backup`), and set `KOPIUR_APP: *app` under
 `postBuild.substitute`. The component owns the PVC, so do not declare one. Every `KOPIUR_*`
 substitution except `KOPIUR_APP` has a default (`KOPIUR_CAPACITY` is `5Gi`), see
-`clusters/frostlink/kubernetes/components/kopiur/`. For a periodic full restore check, add
+`kube/clusters/frostlink/components/kopiur/`. For a periodic full restore check, add
 `../../../../components/kopiur-deep-verify` and `KOPIUR_DEEP_VERIFY_CAPACITY`. Paths use
-`clusters/frostlink/kubernetes/apps/<ns>/<app>/`, and the Frostlink `wait` and `healthChecks`
-placement is as in `clusters/frostlink/kubernetes/apps/fediverse/gotosocial/ks.yaml`.
+`kube/clusters/frostlink/apps/<ns>/<app>/`, and the Frostlink `wait` and `healthChecks`
+placement is as in `kube/clusters/frostlink/apps/fediverse/gotosocial/ks.yaml`.
 
 ## Minimal (no persistence, no secrets)
 
@@ -25,7 +25,7 @@ spec:
     commonMetadata:
         labels:
             app.kubernetes.io/name: *app
-    path: ./kubernetes/apps/<namespace>/<app>/app
+    path: ./clusters/<cluster>/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
         kind: OCIRepository
@@ -85,7 +85,7 @@ spec:
     commonMetadata:
         labels:
             app.kubernetes.io/name: *app
-    path: ./kubernetes/apps/<namespace>/<app>/app
+    path: ./clusters/<cluster>/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
         kind: OCIRepository
@@ -106,13 +106,13 @@ spec:
 
 ## Components
 
-`ls clusters/artemis/kubernetes/components` lists them. Each component's substitutions are the `${...}` references in
-its own files (`grep -rho '\${[A-Z_]*' clusters/artemis/kubernetes/components/<name>`), and
-`grep -rln 'components/<name>' clusters/artemis/kubernetes/apps/` shows who uses it, with a working example.
+`ls kube/clusters/artemis/components` lists them. Each component's substitutions are the `${...}` references in
+its own files (`grep -rho '\${[A-Z_]*' kube/clusters/artemis/components/<name>`), and
+`grep -rln 'components/<name>' kube/clusters/artemis/apps/` shows who uses it, with a working example.
 `kopiur/backup` renders a PVC, `Restore`, `SnapshotPolicy` and `SnapshotSchedule`.
 `envoy-oidc` needs `pocket-id-operator` in `dependsOn` and an `oidcclient.yaml` (see `add-oidc-app`).
 
-All paths sit four `../` from `clusters/artemis/kubernetes/apps/<ns>/<app>/`. A wrong count is the most common
+All paths sit four `../` from `kube/clusters/artemis/apps/<ns>/<app>/`. A wrong count is the most common
 failure here: `../../../` resolves outside the kustomize root and the build fails with an error. Components
 stack.
 

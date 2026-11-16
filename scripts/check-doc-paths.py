@@ -15,18 +15,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Repo-relative paths the docs cite. Deliberately narrow: only prefixes that are
-# real directories in this repo, so prose like "clusters/artemis/kubernetes/" alone is ignored.
+# real directories in this repo, so prose like "kube/clusters/artemis/" alone is ignored.
 PATH_RE = re.compile(
-    r'`((?:clusters|kubernetes|talos|ansible|terraform|bootstrap|scripts|hooks|\.agents|\.claude|\.forgejo)'
+    r'`((?:kube|clusters|kubernetes|talos|ansible|terraform|bootstrap|scripts|hooks|\.agents|\.claude|\.forgejo)'
     r'/[A-Za-z0-9_./\*-]+)`'
 )
 
 MACHINE_LOCAL = {
     ".claude/session-journal.md",
-    "clusters/artemis/kubeconfig",
-    "clusters/artemis/talosconfig",
-    "clusters/frostlink/kubeconfig",
-    "clusters/frostlink/talosconfig",
+    "kube/clusters/artemis/kubeconfig",
+    "kube/clusters/artemis/talosconfig",
+    "kube/clusters/frostlink/kubeconfig",
+    "kube/clusters/frostlink/talosconfig",
 }
 
 def candidates(files: list[Path]) -> list[tuple[Path, int, str]]:

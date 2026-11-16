@@ -11,26 +11,26 @@ file does not restate them. That duplicate would drift.
 
 Tasks run with `mise run //<folder>:<task>`. The folder is the task's own path from the repo
 root. Each cluster folder sets its own `KUBECONFIG`, `TALOSCONFIG` and `KUBE_CONTEXT` in
-`clusters/<cluster>/mise.toml`. The repo root sets none of them, so a cluster task never uses the
+`kube/clusters/<cluster>/mise.toml`. The repo root sets none of them, so a cluster task never uses the
 wrong cluster.
 
 ```bash
-mise run //clusters/artemis/kubernetes:suspend-ks <ns> <ks>        # suspend ONE ks; run it for the root too, it does not bundle
-mise run //clusters/artemis/kubernetes:apply-ks <ns> <ks>          # render and apply a Kustomization live (suspends nothing)
-mise run //clusters/artemis/kubernetes:diff-ks <ns> <ks>           # read-only diff of a local render vs live; exit 1 = differs
-mise run //clusters/artemis/kubernetes:resume-ks <ns> <ks>         # resume ONE ks; root FIRST, then the target
-mise run //clusters/artemis/kubernetes:sync-flux <res> [name]      # force-sync hr|ks|gitrepo|ocirepo|es; NAME it, or it hits all
-mise run //clusters/artemis/kubernetes:render-ks <ns> <ks>         # validate with flate (offline; hidden, runs by name); the root uses flux build against the live cluster
-mise run //clusters/artemis/kubernetes:snapshot-pvc [ns] [policy]  # snapshot one policy, a namespace, or all if no args
-mise run //clusters/artemis/kubernetes:browse-pvc <ns> <pvc>       # browse a PVC interactively
-mise run //clusters/artemis/kubernetes:check-postgres <ns> <app>   # verify an app's Postgres DSN + TLS actually work
-mise run //clusters/artemis/kubernetes:prune-pods                  # delete every pod not Running (incl. Pending)
-mise run //clusters/artemis/kubernetes:view-secret <ns> <secret>   # print a secret with every value decoded
-mise run //clusters/artemis/talos:render-config <node>             # render Jinja2 node config
-mise run //clusters/artemis/talos:apply-node <node>                # apply config live (no reboot)
-mise run //clusters/frostlink/kubernetes:<task>                    # the same task names for Frostlink (below)
-mise run //clusters/frostlink/talos:upgrade <version>              # Frostlink only: upgrades the ONE node, a full outage
-mise run //clusters/frostlink/bootstrap:phase1|phase2|tailnet      # Frostlink only: one-time rebuild, see oci-rebuild.md
+mise run //kube/clusters/artemis:suspend-ks <ns> <ks>        # suspend ONE ks; run it for the root too, it does not bundle
+mise run //kube/clusters/artemis:apply-ks <ns> <ks>          # render and apply a Kustomization live (suspends nothing)
+mise run //kube/clusters/artemis:diff-ks <ns> <ks>           # read-only diff of a local render vs live; exit 1 = differs
+mise run //kube/clusters/artemis:resume-ks <ns> <ks>         # resume ONE ks; root FIRST, then the target
+mise run //kube/clusters/artemis:sync-flux <res> [name]      # force-sync hr|ks|gitrepo|ocirepo|es; NAME it, or it hits all
+mise run //kube/clusters/artemis:render-ks <ns> <ks>         # validate with flate (offline; hidden, runs by name); the root uses flux build against the live cluster
+mise run //kube/clusters/artemis:snapshot-pvc [ns] [policy]  # snapshot one policy, a namespace, or all if no args
+mise run //kube/clusters/artemis:browse-pvc <ns> <pvc>       # browse a PVC interactively
+mise run //kube/clusters/artemis:check-postgres <ns> <app>   # verify an app's Postgres DSN + TLS actually work
+mise run //kube/clusters/artemis:prune-pods                  # delete every pod not Running (incl. Pending)
+mise run //kube/clusters/artemis:view-secret <ns> <secret>   # print a secret with every value decoded
+mise run //kube/clusters/artemis/talos:render-config <node>             # render Jinja2 node config
+mise run //kube/clusters/artemis/talos:apply-node <node>                # apply config live (no reboot)
+mise run //kube/clusters/frostlink:<task>                    # the same task names for Frostlink (below)
+mise run //kube/clusters/frostlink/talos:upgrade <version>              # Frostlink only: upgrades the ONE node, a full outage
+mise run //kube/clusters/frostlink/bootstrap:phase1|phase2|tailnet      # Frostlink only: one-time rebuild, see oci-rebuild.md
 mise run //ai:lint-agents                                          # audit this repo's own agent config for drift
 mise run //:wt:new <type>/<slug>                                   # create a worktree + branch from main (AGENTS.md rule 7)
 mise run //:wt:rm <type>/<slug>                                    # remove it; refuses unless the branch is an ancestor of main
@@ -50,17 +50,17 @@ Both clusters share the task names `apply-ks`, `delete-ks`, `suspend-ks`, `resum
   runs `flux build kustomization` against the live root instead.
 
 For the full task list, run `mise tasks --all`. A plain `mise tasks` at the repo root lists only
-the root tasks. Each folder keeps its tasks in its own `mise.toml`: `clusters/artemis/kubernetes/`,
-`clusters/<cluster>/talos/`, `clusters/<cluster>/bootstrap/`, `terraform/`, `ansible/` and `ai/`.
+the root tasks. Each folder keeps its tasks in its own `mise.toml`: `kube/clusters/artemis/`,
+`kube/clusters/<cluster>/talos/`, `kube/clusters/<cluster>/bootstrap/`, `terraform/`, `ansible/` and `ai/`.
 `[monorepo] config_roots` in `.mise/config.toml` lists these folders. The root holds the hidden
 `log` and `template` tasks and the `wt:` tasks.
 
 Confirm-gated tasks need `mise run --yes`. Every `talos` write verb (`apply-node`, `reboot-node`,
 `reset-node`, `shutdown-node`, `upgrade-k8s`, `upgrade-node`), `//terraform:apply`,
-`//ansible:apply`, `//clusters/artemis/bootstrap:cluster`, `//clusters/frostlink/talos:upgrade` and
-`//clusters/frostlink/bootstrap:phase1|phase2|tailnet` ask first. From a non-interactive
+`//ansible:apply`, `//kube/clusters/artemis/bootstrap:cluster`, `//kube/clusters/frostlink/talos:upgrade` and
+`//kube/clusters/frostlink/bootstrap:phase1|phase2|tailnet` ask first. From a non-interactive
 shell, they stop with exit 1 (`task requires confirmation but there was nobody to ask`). Put
-`--yes` before the task path: `mise run --yes //clusters/artemis/talos:apply-node <node>`. Do not
+`--yes` before the task path: `mise run --yes //kube/clusters/artemis/talos:apply-node <node>`. Do not
 pipe `printf 'y\n'` into it. The permission classifier blocks that form.
 
 ## mise
@@ -101,13 +101,13 @@ portion. Within a server, tools are `<target>_<tool>` (for example `victoria-log
   pre-authenticated and structured, and they have no shell quoting to get wrong.
 - **The MCP k8s tools point at Artemis only.** For Frostlink use `kubectl get ... --context frostlink`
   (flag after the verb, so `Bash(kubectl get:*)` still matches) and
-  `talosctl ... --talosconfig clusters/frostlink/talosconfig`. An agent's tool calls do not get the
+  `talosctl ... --talosconfig kube/clusters/frostlink/talosconfig`. An agent's tool calls do not get the
   cluster kubeconfig of a mise shell, and `~/.zshenv` merges both clusters with `artemis` as the
   current context. So a bare `kubectl` hits Artemis with no warning.
 - Web lookups go through the SearXNG tools, never a built-in web-search tool.
 - There is no repo-wide `KUBECONFIG` or `TALOSCONFIG`. Each cluster's files live in its own
-  folder (`clusters/<cluster>/kubeconfig`, `clusters/<cluster>/talosconfig`, gitignored), and
-  `clusters/<cluster>/mise.toml` sets them, with `KUBE_CONTEXT`, for the tasks of that cluster.
+  folder (`kube/clusters/<cluster>/kubeconfig`, `kube/clusters/<cluster>/talosconfig`, gitignored), and
+  `kube/clusters/<cluster>/mise.toml` sets them, with `KUBE_CONTEXT`, for the tasks of that cluster.
   Outside a task, pass `--context` explicitly.
 - There are six MCP registration files across this machine. A tier change means that you edit
   all of them. `.agents/references/memory-config.md` § Six registration files is canonical.
@@ -118,7 +118,7 @@ How and when to delegate is in `~/.agents/AGENTS.md` § Delegation and context. 
 rules are in `~/.agents/rules/bash-calls.md`. These rules are specific to the clusters:
 
 - Name the forbidden verbs in the brief. "Follow the repo conventions" is not enough. Write
-  "do not commit, do not push, do not run `mise run //clusters/artemis/kubernetes:apply-ks`" in those words.
+  "do not commit, do not push, do not run `mise run //kube/clusters/artemis:apply-ks`" in those words.
   For Frostlink also write "use `kubectl --context frostlink`, not the MCP tools". Otherwise the
   agent reports Artemis's state as Frostlink's.
-- `mise run //clusters/artemis/kubernetes:apply-ks` applies the tree of the worktree that you run it from (`AGENTS.md` rule 7).
+- `mise run //kube/clusters/artemis:apply-ks` applies the tree of the worktree that you run it from (`AGENTS.md` rule 7).

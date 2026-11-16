@@ -1,7 +1,7 @@
 # Kopiur Restore on Frostlink
 
 Restore a Kopiur-managed PVC from a snapshot in the `r2` ClusterRepository (Cloudflare R2). The
-Artemis steps in SKILL.md do not apply. `mise run //clusters/frostlink/kubernetes:restore-pvc`
+Artemis steps in SKILL.md do not apply. `mise run //kube/clusters/frostlink:restore-pvc`
 and `snapshot-pvc` take different arguments and behave differently here.
 
 `.agents/references/openebs-zfs.md` § Restore is the companion doc. It carries the rationale for
@@ -9,7 +9,7 @@ every rule below. Every `kubectl` pins `--context frostlink`.
 
 ## Rules (reasons in openebs-zfs.md)
 
-- Use `mise run //clusters/frostlink/kubernetes:restore-pvc <ns> <ks> <claim> [offset]`. It encodes
+- Use `mise run //kube/clusters/frostlink:restore-pvc <ns> <ks> <claim> [offset]`. It encodes
   the ordering and asserts that the restore came from a snapshot. Do not hand-roll the sequence
   unless the task is broken.
 - An empty restore is silent. A `Restore` CR created before the first snapshot pins
@@ -44,8 +44,8 @@ is empty, stop. There is nothing to restore, and deleting the PVC would be pure 
 ## Step 3: Run the restore
 
 ```bash
-mise run //clusters/frostlink/kubernetes:restore-pvc <ns> <ks> <claim>
-mise run //clusters/frostlink/kubernetes:restore-pvc <ns> <ks> <claim> 2   # two snapshots older than the latest
+mise run //kube/clusters/frostlink:restore-pvc <ns> <ks> <claim>
+mise run //kube/clusters/frostlink:restore-pvc <ns> <ks> <claim> 2   # two snapshots older than the latest
 ```
 
 The task does this, in order. It patches the PV to `Retain`. It scales down every workload that
@@ -76,7 +76,7 @@ Skipping this leaks the space for good. To inspect a restored volume before the 
 make a throwaway pod the first consumer:
 
 ```bash
-mise run //clusters/frostlink/kubernetes:browse-pvc <ns> <claim>
+mise run //kube/clusters/frostlink:browse-pvc <ns> <claim>
 ```
 
 ## Common issues

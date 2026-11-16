@@ -34,7 +34,7 @@ key files and the sqlite DB, so the 1Gi `KOPIUR_CAPACITY` is ample. The node's p
 ### The backhaul to Artemis
 
 Artemis's agent publishes **one** TCP service, `artemis-backhaul`, on edge port 15001. It lands on
-Artemis `edge-gateway:443`. `clusters/frostlink/kubernetes/apps/towonel/home-backhaul` holds the Frostlink half:
+Artemis `edge-gateway:443`. `kube/clusters/frostlink/apps/towonel/home-backhaul` holds the Frostlink half:
 Services `artemis-backhaul` and `artemis-backhaul-apex` (both to the towonel pod on `:15001`),
 BackendTLSPolicies, HTTPRoutes for `*.dcunha.io` and `dcunha.io`, and a BackendTrafficPolicy with a
 TCP health check and the `home-down` page. How it works and why: `oci-networking.md` § The front door.
@@ -100,7 +100,7 @@ Do not add `globalMounts`/`advancedMounts`; the chart supplies a mount at
 
 ## kopiur movers need an explicit security context
 
-Both patches live in `clusters/frostlink/kubernetes/apps/towonel/towonel/app/kustomization.yaml`, and
+Both patches live in `kube/clusters/frostlink/apps/towonel/towonel/app/kustomization.yaml`, and
 the component is pulled in **there** rather than via the Flux Kustomization's
 `components:` — patches in the app kustomization do not apply to resources a Flux
 `spec.components` introduces.
@@ -197,7 +197,7 @@ kubectl -n towonel run q --rm -i --restart=Never --context frostlink --image=mir
 kubectl -n towonel logs ds/towonel --tail=200 --context frostlink | grep 'agent session'
 
 # on-demand backup of the key material
-mise run //clusters/frostlink/kubernetes:snapshot-pvc towonel towonel
+mise run //kube/clusters/frostlink:snapshot-pvc towonel towonel
 ```
 
 Creating an invite uses the operator API key the node generates into `/data` (`/data/operator.key`;

@@ -8,7 +8,7 @@ description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease
 Diagnose and fix Flux reconciliation issues in home-infra.
 
 On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command (bare ones hit
-Artemis, and the MCP k8s tools do too). Use `mise run //clusters/frostlink/kubernetes:<task>`
+Artemis, and the MCP k8s tools do too). Use `mise run //kube/clusters/frostlink:<task>`
 for `render-ks` and `sync-flux`. The source is an `OCIRepository` there too, and Flux's own
 Kustomizations (`flux-instance`, `flux-operator`, `flux-webhook`, `konflate`) are in `flux-system`.
 
@@ -57,21 +57,21 @@ flux resume helmrelease <app> -n <namespace>
 Look up the exact kustomization name first. It is the `metadata.name` in `ks.yaml`, not always `<namespace>-<app>`:
 
 ```bash
-grep "^  name:" clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
+grep "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
 flux describe kustomization <ks-name> -n <namespace>
 ```
 
 Common causes:
 
 - A `dependsOn` target is not Ready. Check the dependency chain.
-- A schema validation error. Run `mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>` to catch it locally.
+- A schema validation error. Run `mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>` to catch it locally.
 - The source is not synced. Run `flux reconcile source oci flux-system -n flux-system`.
 
 ### ExternalSecret Not Syncing / Empty Secret
 
 ```bash
 kubectl describe externalsecret <app> -n <namespace>
-mise run //clusters/artemis/kubernetes:sync-flux es <app>
+mise run //kube/clusters/artemis:sync-flux es <app>
 kubectl get secret <app> -n <namespace> -o yaml
 ```
 
@@ -125,7 +125,7 @@ flux reconcile helmrelease <app> -n <namespace> --with-source
 ## Step 3: Force Reconciliation
 
 ```bash
-grep "^  name:" clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
+grep "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
 flux reconcile kustomization <ks-name> -n <namespace> --with-source
 flux reconcile helmrelease <app> -n <namespace>
 ```

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail on any YAML comment under clusters/frostlink/kubernetes/ except schema modelines and Renovate directives.
+"""Fail on any YAML comment under kube/clusters/frostlink/{apps,components}/ except schema modelines and Renovate directives.
 
 `#` inside block scalars and quoted strings is data, not a comment.
 """
@@ -36,9 +36,9 @@ def comments(text):
 
 
 def main():
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "clusters/frostlink/kubernetes")
+    roots = [Path(a) for a in sys.argv[1:]] or [Path("kube/clusters/frostlink/apps"), Path("kube/clusters/frostlink/components")]
     bad = 0
-    for path in sorted(p for p in root.rglob("*.yaml") if "resources" not in p.parts):
+    for path in sorted(p for root in roots for p in root.rglob("*.yaml") if "resources" not in p.parts):
         for n, _, text in comments(path.read_text()):
             print(f"{path}:{n}: {text}")
             bad += 1

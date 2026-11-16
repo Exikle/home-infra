@@ -53,7 +53,7 @@ VM/LXC CRUD, storage, pools, users, and `download_file` are all pure API.
 
 Talos does not use cloud-init, so you can avoid the snippet path, and therefore SSH,
 entirely. Use `proxmox_virtual_environment_download_file` to pull the Talos image, then
-`..._vm`. Machine config does not belong to tofu. It comes from the `//clusters/artemis/talos` tasks plus the node templates.
+`..._vm`. Machine config does not belong to tofu. It comes from the `//kube/clusters/artemis/talos` tasks plus the node templates.
 
 GPU passthrough (`hostpci`) works, but any change force-stops the VM. Raw PCI IDs are
 better covered than the newer resource-mapping style.
@@ -118,7 +118,7 @@ does not. The team tested both paths. The task produces ciphertext, a bare apply
 produces plaintext, and the hook catches the second.
 
 `.gitignore` deliberately does not ignore `*.tfstate`, because git must track it.
-The Flux OCI artifact holds only `clusters/artemis/`, so tracked state never ships to the
+The Flux OCI artifact holds only `kube/clusters/artemis/`, so tracked state never ships to the
 registry. `.sourceignore` also excludes `terraform/`, for a build that packs the whole repo.
 
 ### If plaintext state ever gets committed

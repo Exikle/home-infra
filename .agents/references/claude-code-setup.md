@@ -34,8 +34,8 @@ Read this file when you touch a hook, add a skill or subagent, or wonder why a g
 - Subagent symlinks: `.claude/agents/<name>.md` → `.agents/agents/<name>.md`.
 - Path-scoped rules: `.claude/rules/<name>.md` is a symlink to a file in
   `.agents/instructions/` that carries `paths:` frontmatter. Claude Code loads it only when it
-  touches a matching file, so `cluster-conventions.md` (`clusters/artemis/kubernetes/**`) and `yaml-conventions.md`
-  (`clusters/artemis/kubernetes/**/*.yaml`) stay out of the always-loaded set. A rule in `.claude/rules/` without
+  touches a matching file, so `cluster-conventions.md` (`kube/clusters/artemis/**`) and `yaml-conventions.md`
+  (`kube/clusters/artemis/**/*.yaml`) stay out of the always-loaded set. A rule in `.claude/rules/` without
   `paths:` loads every session, which costs the same as an `@import`. So you wire an instruction
   file exactly one way, never both. opencode has no equivalent: `opencode.json` globs
   `.agents/instructions/*.md` and loads all five unconditionally, frontmatter and all.

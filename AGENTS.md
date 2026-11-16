@@ -1,7 +1,7 @@
 # home-infra — Agent Context
 
-The home infrastructure repo. Each cluster has its own folder under `clusters/`. Today there are
-two, both Talos Linux clusters reconciled by Flux CD:
+The home infrastructure repo. Each cluster has its own folder under `kube/clusters/`. Today there
+are two, both Talos Linux clusters reconciled by Flux CD:
 
 - **Artemis**: the homelab cluster, many nodes, at home.
 - **Frostlink**: one node on Oracle Cloud. It is the public front door and the always-on host
@@ -16,14 +16,19 @@ holds what is true on every turn, and an index of where everything else is.
 - GitOps: Flux CD + Flux Operator | Secrets: 1Password ExternalSecret, no SOPS
 - CNI: Cilium | Ingress: Envoy Gateway (Gateway API / HTTPRoute)
 
-`ls` at the repo root is the map. Each cluster has its own CI workflow in `.forgejo/workflows/`.
-It builds the Flux artifact of that cluster from `clusters/<cluster>/` only. So every `spec.path`
-starts with `./kubernetes/`, not `./clusters/<cluster>/kubernetes/`. Flux of a cluster reconciles
-only `clusters/<cluster>/kubernetes/`. Flux cannot see `terraform/`, `ansible/` and
-`clusters/<cluster>/talos/` or `bootstrap/`.
+`ls` at the repo root is the map. `kube/` holds everything Flux deploys.
+`kube/clusters/<cluster>/` holds one cluster: its `apps/`, `components/`, `talos/`, `bootstrap/`
+and `mise.toml`. Issue #3333 adds `kube/base/` (apps that both clusters run) and
+`kube/components/` (shared kustomize components) next. The layout and its rules are in #3333.
 
-**A command names its cluster in its path.** `mise run //clusters/artemis/kubernetes:apply-ks`
-and `mise run //clusters/frostlink/kubernetes:apply-ks` are different tasks. Each cluster folder
+One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
+the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
+its own cluster. So every `spec.path` is relative to the repo root and starts with
+`./kube/clusters/<cluster>/` or `./kube/base/`. Flux cannot see `terraform/`, `ansible/`, the
+other cluster, or `talos/` and `bootstrap/`.
+
+**A command names its cluster in its path.** `mise run //kube/clusters/artemis:apply-ks`
+and `mise run //kube/clusters/frostlink:apply-ks` are different tasks. Each cluster folder
 sets its own `KUBECONFIG`, `TALOSCONFIG` and `KUBE_CONTEXT`. The repo root sets none. Never run a
 cluster task by its short name, and never use a bare `kubectl`. Frostlink is `kubectl --context frostlink`.
 
@@ -35,7 +40,7 @@ Everything else is conditional. These rules are not.
 
 1. `main` is production. There is no staging cluster. Every push reconciles immediately.
    Suspend the root Kustomization and the target Kustomization of that cluster. Run its `apply-ks`
-   (`mise run //clusters/<cluster>/kubernetes:apply-ks`). Then
+   (`mise run //kube/clusters/<cluster>:apply-ks`). Then
    wait for the user to confirm the live deployment before you commit. Suspend twice, not once.
    `apply-ks` suspends nothing, and a child that reconciles on its own interval silently reverts
    your edits.
@@ -56,9 +61,9 @@ Everything else is conditional. These rules are not.
    `mise run //:wt:rm <type>/<slug>` when the branch is merged. A pre-commit check refuses agent commits
    made in the main checkout.
 8. Frostlink is one node, so a reboot is a full outage. Never `talosctl upgrade`, `reboot` or
-   `shutdown` it by hand: use `mise run //clusters/frostlink/talos:upgrade <version>`, with the user
+   `shutdown` it by hand: use `mise run //kube/clusters/frostlink/talos:upgrade <version>`, with the user
    watching. Never type or hand-edit its Talos schematic ID. Derive it with
-   `mise run //clusters/frostlink/talos:schematic-id` (`oci-talos.md` § Schematic).
+   `mise run //kube/clusters/frostlink/talos:schematic-id` (`oci-talos.md` § Schematic).
 
 The system enforces a rule that has to hold. It is not only written down. `guard-destructive.sh`
 hard-blocks the destructive verbs, whatever the permission mode. If you
@@ -82,11 +87,11 @@ one when its trigger comes up.
 
 ### Loaded when you touch a matching path
 
-| File                                  | Loads on                                |
-| ------------------------------------- | --------------------------------------- |
-| `instructions/cluster-conventions.md` | `clusters/*/kubernetes/**`              |
-| `instructions/yaml-conventions.md`    | `clusters/*/kubernetes/**/*.{yaml,yml}` |
-| `instructions/frostlink.md`           | `clusters/frostlink/kubernetes/**`      |
+| File                                  | Loads on                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `instructions/cluster-conventions.md` | `kube/base/**`, `kube/components/**`, `kube/clusters/*/{apps,components}/**` |
+| `instructions/yaml-conventions.md`    | the same folders, `*.yaml` only                                              |
+| `instructions/frostlink.md`           | `kube/clusters/frostlink/{apps,components}/**`                               |
 
 All three are `paths:`-scoped rules symlinked into `.claude/rules/`. `frostlink.md` holds only
 what differs from the shared two, and wins there. If the manifest field ordering or
@@ -181,7 +186,7 @@ Keep these, because the fact is not in the tree:
 
 Delete these, because the tree already answers the question:
 
-- Which apps carry a component (`grep -rln 'components/<name>' clusters/artemis/kubernetes/apps/`).
+- Which apps carry a component (`grep -rln 'components/<name>' kube/clusters/artemis/apps/`).
 - How many apps carry it.
 - Which apps are on shared Postgres or in a namespace.
 - Dated snapshot columns, such as key counts and live versions.
@@ -199,11 +204,11 @@ drifted from its original.
 
 Renovate bumps `app-template` across the whole fleet. A doc that prints a tag is stale the week
 after the doc is written. Print the command that recovers the tag instead:
-`grep -h 'tag:' clusters/artemis/kubernetes/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1`.
+`grep -h 'tag:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1`.
 
 ### Manifests carry configuration, not prose
 
-No comments under `clusters/*/kubernetes/`. Rationale goes in a reference doc. There it is searchable, and
+No comments under `kube/clusters/*/`. Rationale goes in a reference doc. There it is searchable, and
 no one must re-read it on every manifest edit. The three machine-oriented exceptions are in
 `yaml-conventions.md`.
 

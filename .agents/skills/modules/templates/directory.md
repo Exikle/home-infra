@@ -3,7 +3,7 @@
 Every app uses this canonical layout:
 
 ```
-clusters/artemis/kubernetes/apps/<namespace>/<app>/
+kube/clusters/artemis/apps/<namespace>/<app>/
 ├── ks.yaml
 └── app/
     ├── kustomization.yaml
@@ -11,19 +11,19 @@ clusters/artemis/kubernetes/apps/<namespace>/<app>/
     └── helmrelease.yaml      ← secrets go inline under values.externalSecrets
 ```
 
-After creating the directory, add `- ./<app>/ks.yaml` to `clusters/artemis/kubernetes/apps/<namespace>/kustomization.yaml` resources.
+After creating the directory, add `- ./<app>/ks.yaml` to `kube/clusters/artemis/apps/<namespace>/kustomization.yaml` resources.
 
 ## Verify structure
 
 ```bash
-find clusters/artemis/kubernetes/apps/<namespace>/<app> -type f | sort
+find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
 ```
 
 Expected output (no ExternalSecret):
 
 ```
-clusters/artemis/kubernetes/apps/<namespace>/<app>/app/helmrelease.yaml
-clusters/artemis/kubernetes/apps/<namespace>/<app>/app/kustomization.yaml
-clusters/artemis/kubernetes/apps/<namespace>/<app>/app/ocirepository.yaml
-clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
+kube/clusters/artemis/apps/<namespace>/<app>/app/helmrelease.yaml
+kube/clusters/artemis/apps/<namespace>/<app>/app/kustomization.yaml
+kube/clusters/artemis/apps/<namespace>/<app>/app/ocirepository.yaml
+kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
 ```

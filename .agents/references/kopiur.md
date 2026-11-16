@@ -16,7 +16,7 @@ the other. Read both files first.
 
 VolSync is gone. `AGENTS.md` § "What was deliberately removed" is the home for that, and it wins.
 Every backed-up app uses kopiur against `ClusterRepository/atlas` (NFS
-`10.10.99.100:/mnt/atlas/Kopiur`). `grep -rln 'components/kopiur/backup' clusters/artemis/kubernetes/apps/` lists
+`10.10.99.100:/mnt/atlas/Kopiur`). `grep -rln 'components/kopiur/backup' kube/clusters/artemis/apps/` lists
 them. The old VolSync kopia repo remains on the NAS at `atlas/VolsyncKopia` as a frozen historical
 fallback. To restore from it, you need a manual kopia client.
 
@@ -93,11 +93,11 @@ stale for an hour. Read the `kopiur-controller` logs instead.
   reported 65534 but its data was 1000. With `copyMethod: Snapshot`, the source clone is mounted
   read-only, so the kubelet cannot chgrp it, and a mismatched mover just gets permission denied. The
   `fsGroup` of the mover also owns the cache PVC, which the mover must be able to write. To list the
-  apps that override the uid, run `grep -rn KOPIUR_PUID clusters/artemis/kubernetes/apps/`. `cortex/hermes` sets 10000. Its image only runs non-root as that uid, and its data was re-owned to match (`hermes.md`
+  apps that override the uid, run `grep -rn KOPIUR_PUID kube/clusters/artemis/apps/`. `cortex/hermes` sets 10000. Its image only runs non-root as that uid, and its data was re-owned to match (`hermes.md`
   § Run as uid 10000).
 - `kopiur-system` pulls in `components/kopiur/secret` too. The operator reads the repository
   password to connect, and maintenance movers run in that namespace. The repository child ks wires
-  it, not the namespace kustomization, so that `mise run //clusters/artemis/kubernetes:apply-ks` can still test it.
+  it, not the namespace kustomization, so that `mise run //kube/clusters/artemis:apply-ks` can still test it.
 - `restore.yaml` must mirror the mover identity of the SnapshotPolicy. Otherwise a restore writes
   files as 1000 regardless of the uid of the app, and the app cannot open its own data.
 - A `Restore` is one-shot and terminal by design. Upstream says: _"a Restore is one-shot — fix the
@@ -118,7 +118,7 @@ stale for an hour. Read the `kopiur-controller` logs instead.
   such objects entirely, so Flux would never create a Restore. `restore.yaml` keeps
   `mover.cache.mode: Ephemeral` and the mover identity block, which is load-bearing for every app
   that overrides the uid.
-- `mise run //clusters/artemis/kubernetes:apply-ks` overwrites a hand-created `Restore` with the rendered one. For any
+- `mise run //kube/clusters/artemis:apply-ks` overwrites a hand-created `Restore` with the rendered one. For any
   cross-policy restore (a rename, or recovering the data of one app into another app), set
   `onMissingSnapshot: Fail`. Then a bad source resolution fails loudly instead of silently binding
   an empty volume. The default is `Continue`. Create both the `Restore` and the PVC by hand, and do
@@ -236,12 +236,12 @@ Kustomization, which keeps reconciling `ClusterRepository/atlas` on its own 1h i
 child. It is harmless to reconcile that configuration while the controller is at 0 replicas.
 
 ```bash
-mise run //clusters/artemis/kubernetes:snapshot-pvc                     # every SnapshotPolicy in the cluster
-mise run //clusters/artemis/kubernetes:snapshot-pvc <ns>                # every policy in one namespace
-mise run //clusters/artemis/kubernetes:snapshot-pvc <ns> <policy>       # one policy
-mise run //clusters/artemis/kubernetes:browse-pvc <ns> <pvc>            # browse a PVC interactively
-mise run //clusters/artemis/kubernetes:toggle-kopiur <suspend|resume>   # suspend/resume the controller (webhook stays up)
-mise run //clusters/artemis/kubernetes:restore-pvc <ns> <app> [offset]  # in-place restore into a BOUND pvc; scales app to 0
+mise run //kube/clusters/artemis:snapshot-pvc                     # every SnapshotPolicy in the cluster
+mise run //kube/clusters/artemis:snapshot-pvc <ns>                # every policy in one namespace
+mise run //kube/clusters/artemis:snapshot-pvc <ns> <policy>       # one policy
+mise run //kube/clusters/artemis:browse-pvc <ns> <pvc>            # browse a PVC interactively
+mise run //kube/clusters/artemis:toggle-kopiur <suspend|resume>   # suspend/resume the controller (webhook stays up)
+mise run //kube/clusters/artemis:restore-pvc <ns> <app> [offset]  # in-place restore into a BOUND pvc; scales app to 0
 kopiur status -n <ns>                      # repositories, policies, schedules
 kopiur doctor -n <ns>                      # diagnose an installation
 ```

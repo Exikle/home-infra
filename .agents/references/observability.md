@@ -79,7 +79,7 @@ The names invite a wrong assumption, so keep these two shapes in mind:
 
 ### kube-prometheus-stack was here, and left litter
 
-A `kube-prometheus-stack` ran in `observability` until about 2026-05-16. Nothing in `clusters/artemis/kubernetes/`
+A `kube-prometheus-stack` ran in `observability` until about 2026-05-16. Nothing in `kube/clusters/artemis/`
 references it any more, which is exactly why Flux will never prune what it left:
 
 | Leftover                                                           | Cost            |
@@ -95,13 +95,13 @@ it yet.
 
 ### Where the `monitoring.coreos.com` CRDs come from
 
-The chart name survives in one live place, and it is not a deployment. `clusters/artemis/bootstrap/helmfile.d/00-crds.yaml`
+The chart name survives in one live place, and it is not a deployment. `kube/clusters/artemis/bootstrap/helmfile.d/00-crds.yaml`
 carries a `kube-prometheus-stack` release that is **never installed**. `base` renders it and keeps
 `kind: CustomResourceDefinition`. It throws the rest away: a `Prometheus` CR, an `Alertmanager`, the
 Deployments, a DaemonSet, both operator webhooks and the PrometheusRules. That one `yq` filter is
 the only thing that keeps a second metrics stack out of the cluster.
 
-It is load-bearing, because nothing under `clusters/artemis/kubernetes/` installs those CRDs. `crds.enabled: true` of
+It is load-bearing, because nothing under `kube/clusters/artemis/` installs those CRDs. `crds.enabled: true` of
 vm-operator ships the **VictoriaMetrics** CRDs. Its `disable_prometheus_converter: false` only makes
 it _watch_ `ServiceMonitor`, `PodMonitor`, `PrometheusRule` and `Probe`, which the repo uses
 everywhere. Registering those kinds is the job of bootstrap alone.
@@ -173,7 +173,7 @@ curl -s 'localhost:18428/api/v1/query?query=sum(vm_cache_entries{type="storage/h
 
 `observability/prometheus-adapter` backs the **`v1beta1.external.metrics.k8s.io` APIService**. It is
 the only provider of it. Every `components/zeroscaler` HPA scales on an `External` metric. For the
-current set, which spans more than one namespace, run `grep -rln 'components/zeroscaler' clusters/artemis/kubernetes/apps/`.
+current set, which spans more than one namespace, run `grep -rln 'components/zeroscaler' kube/clusters/artemis/apps/`.
 
 ```text
 probe_success{job="blackbox-tcp"}  →  target value 1  →  minReplicas 0 / maxReplicas 1
@@ -255,7 +255,7 @@ The path is `/badges/<id>`, not `/<id>`. A bare `https://kromgo.dcunha.io/cluste
 path serves a gallery page that prints a copy-paste Markdown snippet per badge. Open it instead of
 you guessing an id.
 
-The ids are in `clusters/artemis/kubernetes/apps/observability/kromgo/app/resources/config.yaml`
+The ids are in `kube/clusters/artemis/apps/observability/kromgo/app/resources/config.yaml`
 (`grep -n 'id:' <that file>`):
 
 | Group    | ids                                                                                                           |
@@ -374,7 +374,7 @@ families that genuinely do not exist on this cluster, and their rules come from 
 
 ## chaski Notification Templates
 
-`clusters/artemis/kubernetes/apps/observability/chaski/app/helmrelease.yaml` renders every Pushover notification.
+`kube/clusters/artemis/apps/observability/chaski/app/helmrelease.yaml` renders every Pushover notification.
 Four payload shapes reach it. `route-title`, `route-message` and `route-url` dispatch them in this
 order:
 

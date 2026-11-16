@@ -83,7 +83,7 @@ cases:
     category: quirks
     severity: major
     prompt: >-
-      `mise run //clusters/frostlink/kubernetes:apply-ks` fails resolving a dependsOn that points at a Kustomization in another
+      `mise run //kube/clusters/frostlink:apply-ks` fails resolving a dependsOn that points at a Kustomization in another
       namespace. Why?
     any_of: ["targetnamespace", "namespace:", "flate"]
 

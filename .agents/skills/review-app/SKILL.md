@@ -17,7 +17,7 @@ cluster. It answers "is this written the way this repo writes things", not "is t
 > limit is twenty times its working set, and whose tinyauth gate has no ACL keys in the tinyauth
 > HelmRelease. Those faults belong to `audit-app` by design. Do not try to cover them here.
 
-For a Frostlink app (`clusters/frostlink/kubernetes/apps/<namespace>/<app>/`), read
+For a Frostlink app (`kube/clusters/frostlink/apps/<namespace>/<app>/`), read
 `.agents/instructions/frostlink.md` in place of the two Artemis convention files below, and use
 `.agents/references/oci-networking.md` and `.agents/references/openebs-zfs.md` for the route and
 storage checks. The checklists in `.agents/skills/modules/checklists/` apply to both clusters. Where a
@@ -45,19 +45,19 @@ Make sure that you have these before you proceed:
 - Namespace (for example `media`)
 - Fix mode: report-only, or apply fixes in place
 
-Derive the root path: `clusters/artemis/kubernetes/apps/<namespace>/<app>/`
+Derive the root path: `kube/clusters/artemis/apps/<namespace>/<app>/`
 
 ---
 
 ## Step 2: Read All Manifests
 
 ```bash
-find clusters/artemis/kubernetes/apps/<namespace>/<app> -type f | sort
-cat clusters/artemis/kubernetes/apps/<namespace>/kustomization.yaml
-cat clusters/artemis/kubernetes/apps/<namespace>/<app>/ks.yaml
-cat clusters/artemis/kubernetes/apps/<namespace>/<app>/app/kustomization.yaml
-cat clusters/artemis/kubernetes/apps/<namespace>/<app>/app/ocirepository.yaml
-cat clusters/artemis/kubernetes/apps/<namespace>/<app>/app/helmrelease.yaml
+find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
+cat kube/clusters/artemis/apps/<namespace>/kustomization.yaml
+cat kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
+cat kube/clusters/artemis/apps/<namespace>/<app>/app/kustomization.yaml
+cat kube/clusters/artemis/apps/<namespace>/<app>/app/ocirepository.yaml
+cat kube/clusters/artemis/apps/<namespace>/<app>/app/helmrelease.yaml
 ```
 
 Read the files before you evaluate them. Do not guess at their contents.
@@ -102,7 +102,7 @@ because they are the only cross-file checks that a lint can afford:
 A lint that never builds can pass a file that kustomize rejects. Render before you report:
 
 ```bash
-mise run //clusters/artemis/kubernetes:render-ks <namespace> <ks-name>
+mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
 `<ks-name>` is `metadata.name` from `ks.yaml`, not the directory name. A non-zero exit is a
@@ -151,7 +151,7 @@ the check IDs, and code-format the values:
 - OCIRepository is standalone and correctly named.
 - Security context is complete.
 - All sorting checks pass.
-- `mise run //clusters/artemis/kubernetes:render-ks` builds clean.
+- `mise run //kube/clusters/artemis:render-ks` builds clean.
 
 ---
 

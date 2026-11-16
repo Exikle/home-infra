@@ -52,10 +52,10 @@
 # Cluster
 - name: "cluster/artemis"
   color: "1d76db"
-  description: "Touches clusters/artemis"
+  description: "Touches kube/clusters/artemis"
 - name: "cluster/frostlink"
   color: "1d76db"
-  description: "Touches clusters/frostlink"
+  description: "Touches kube/clusters/frostlink"
 # Work Kind
 - name: "kind/bug"
   color: "d73a4a"

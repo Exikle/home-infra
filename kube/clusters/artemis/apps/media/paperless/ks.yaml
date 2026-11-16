@@ -1,0 +1,71 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: paperless-tika
+spec:
+  targetNamespace: media
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: paperless
+  path: ./kube/clusters/artemis/apps/media/paperless/tika
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
+  interval: 1h
+  wait: true
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: paperless-gotenberg
+spec:
+  targetNamespace: media
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: paperless
+  path: ./kube/clusters/artemis/apps/media/paperless/gotenberg
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
+  interval: 1h
+  wait: true
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: paperless-app
+spec:
+  targetNamespace: media
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: paperless
+  path: ./kube/clusters/artemis/apps/media/paperless/app
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
+  interval: 1h
+  dependsOn:
+    - name: paperless-tika
+    - name: paperless-gotenberg
+    - name: pocket-id-operator
+      namespace: security
+  components:
+    - ../../../../components/kopiur/backup
+    - ../../../../components/postgres/app
+  postBuild:
+    substitute:
+      APP: paperless
+      KOPIUR_CAPACITY: 2Gi
+      KOPIUR_SNAPSHOTCLASS: miroir
+      KOPIUR_STORAGECLASS: miroir
+  wait: false

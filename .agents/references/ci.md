@@ -2,7 +2,7 @@
 
 This file explains how Forgejo Actions runs here: the `oci-push` workflow that builds the Flux
 artifact of this repo, the container builds for `Exikle/containers`, the runner that they all share,
-and the constraints behind each. Manifests under `clusters/artemis/kubernetes/` carry no comments
+and the constraints behind each. Manifests under `kube/clusters/artemis/` carry no comments
 (`yaml-conventions.md` § No Comments in Manifests), so the rationale lives here.
 
 Tekton (`tekton-system`, `forgejo/tekton-runner`) was retired on 2026-10-27. Every workflow now runs
@@ -13,13 +13,13 @@ runner.
 
 ## Where the workflows live
 
-| Piece                               | Where                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------ |
-| The jobs themselves                 | `Exikle/forgejo-workflows`, `.forgejo/workflows/*.yaml` (reusable)             |
-| The callers (triggers, concurrency) | each repo's `.forgejo/workflows/`, pinned to a forgejo-workflows commit        |
-| The job image                       | `ci-toolbox` in `Exikle/containers` (`apps/ci-toolbox/`)                       |
-| The runner, its labels and podspecs | `clusters/artemis/kubernetes/apps/forgejo/forgejo-runner/app/helmrelease.yaml` |
-| The remote image builder            | `clusters/artemis/kubernetes/apps/forgejo/buildkit/`                           |
+| Piece                               | Where                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| The jobs themselves                 | `Exikle/forgejo-workflows`, `.forgejo/workflows/*.yaml` (reusable)       |
+| The callers (triggers, concurrency) | each repo's `.forgejo/workflows/`, pinned to a forgejo-workflows commit  |
+| The job image                       | `ci-toolbox` in `Exikle/containers` (`apps/ci-toolbox/`)                 |
+| The runner, its labels and podspecs | `kube/clusters/artemis/apps/forgejo/forgejo-runner/app/helmrelease.yaml` |
+| The remote image builder            | `kube/clusters/artemis/apps/forgejo/buildkit/`                           |
 
 A change to a shared workflow reaches a repo only when the pin of that repo moves. Renovate moves
 pins through the `forgejo-workflows` manager in `exikle/renovate-config`. To test a change before it
@@ -84,7 +84,7 @@ the label (and its podspec) and make sure that it exists with `fjo api /admin/ac
 It is one job with one step, on `ubuntu-latest` with the `ci-toolbox` image. The step does this:
 
 1. It shallow-clones the commit. The `path` input names the folder that becomes the artifact
-   root. It defaults to `.` (the whole repo). This repo passes `clusters/artemis`, so the artifact
+   root. It defaults to `.` (the whole repo). This repo passes `kube/clusters/artemis`, so the artifact
    holds only the Artemis cluster folder.
 2. In the background, it releases to the Forgejo mirror (`git.dcunha.io/exikle/<repo>`).
 3. In the foreground, it releases to the standalone registry (`registry.dcunha.io`), then pings Flux.

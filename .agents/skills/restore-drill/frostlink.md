@@ -10,7 +10,7 @@ Kopiur snapshots to R2 for PVCs.
 | Database | `Cluster/postgres` + `ScheduledBackup/postgres-backup` in `database`, via the `barman-cloud.cnpg.io` plugin and `ObjectStore/r2-store` | `s3://frostlink-kopiur/barman/`, `retentionPolicy: 14d` |
 | PVCs     | Kopiur `SnapshotPolicy`/`SnapshotSchedule`/`Restore` from `components/kopiur`                                                          | `ClusterRepository/r2` (Cloudflare R2)                  |
 
-Apps with Kopiur: `grep -rl components/kopiur clusters/frostlink/kubernetes/apps/`.
+Apps with Kopiur: `grep -rl components/kopiur kube/clusters/frostlink/apps/`.
 
 ## Step 1: CNPG backups exist and are recent
 
@@ -67,7 +67,7 @@ kubectl -n kopiur-system get clusterrepository r2 -o yaml --context frostlink | 
 The cadence differs per app on purpose. Most are hourly, `vm-single` is daily (`H 3 * * *`) and
 `apoci` is six-hourly. Judge staleness against the `KOPIUR_SCHEDULE` in the app's `ks.yaml`, not a
 single global expectation. `KopiurPolicyBackupStale` in
-`clusters/frostlink/kubernetes/apps/observability/vm-alert/app/vmrule.yaml` encodes the same
+`kube/clusters/frostlink/apps/observability/vm-alert/app/vmrule.yaml` encodes the same
 per-policy thresholds.
 
 ## Step 5: The only check that proves the data comes back
@@ -99,7 +99,7 @@ backups are listed. Report format: as in SKILL.md, with a `Deep verify` line add
 ## Notes
 
 - Do not run a test restore unless asked. CNPG recovery overwrites the cluster, and
-  `mise run //clusters/frostlink/kubernetes:restore-pvc` deletes the PVC. For a real restore use
+  `mise run //kube/clusters/frostlink:restore-pvc` deletes the PVC. For a real restore use
   `kopiur-restore`.
 - If `Snapshot` objects are missing entirely, check that the `Restore` CR was not created before
   the first snapshot of the app. `.agents/references/openebs-zfs.md` § Restore covers the silent
