@@ -16,7 +16,7 @@ ui:
     - name: Artemis
       link: https://git.dcunha.io/Exikle/Artemis-Cluster
     - name: Frostlink
-      link: https://git.dcunha.io/Exikle/frostlink
+      link: https://git.dcunha.io/Exikle/home-infra
   custom-css: |
     html:root {
       --background: 210 16.7% 97.6%;
