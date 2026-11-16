@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/artemis/apps/flux-system/flux-instance/app
+  path: ./kube/base/flux-system/flux-instance/app
   prune: false
   sourceRef:
     kind: OCIRepository
@@ -18,4 +18,5 @@ spec:
   interval: 1h
   dependsOn:
     - name: flux-operator
+    - name: flux-instance-extras
   wait: true

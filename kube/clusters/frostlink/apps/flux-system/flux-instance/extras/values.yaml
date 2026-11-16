@@ -1,0 +1,4 @@
+instance:
+  sync:
+    url: "oci://registry.frostlink.dev/exikle/frostlink"
+    path: "kube/clusters/frostlink/apps"

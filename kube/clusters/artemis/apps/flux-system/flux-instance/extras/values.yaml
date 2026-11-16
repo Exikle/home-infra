@@ -1,0 +1,4 @@
+instance:
+  sync:
+    url: "oci://registry.dcunha.io/exikle/artemis"
+    path: "kube/clusters/artemis/apps"

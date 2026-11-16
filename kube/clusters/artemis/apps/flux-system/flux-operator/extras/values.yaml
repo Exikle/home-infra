@@ -1,0 +1,16 @@
+web:
+  config:
+    baseURL: https://flux.dcunha.io
+    authentication:
+      type: OAuth2
+      oauth2:
+        provider: OIDC
+        clientID: flux-operator
+        issuerURL: https://id.dcunha.io
+  httpRoute:
+    enabled: true
+    hostnames:
+      - flux.dcunha.io
+    parentRefs:
+      - name: edge-gateway
+        namespace: network

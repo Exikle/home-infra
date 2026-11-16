@@ -9,16 +9,19 @@ spec:
     kind: OCIRepository
     name: flux-operator
   interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: flux-operator-values
+      optional: true
+      valuesKey: values.yaml
+    - kind: Secret
+      name: flux-operator-oidc-credentials
+      optional: true
+      targetPath: web.config.authentication.oauth2.clientSecret
+      valuesKey: client-secret
   values:
     serviceMonitor:
       create: true
     web:
-      httpRoute:
-        enabled: false
-        hostnames:
-          - flux.frostlink.dev
-        parentRefs:
-          - name: external-gateway
-            namespace: network
       networkPolicy:
         create: false

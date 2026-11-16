@@ -147,7 +147,7 @@ either is missing, the reconciliation fails with a silent "not found".
 | `sourceRef.kind` | `OCIRepository` | `GitRepository` — the flux source is OCI; `grep -L 'kind: OCIRepository' kube/clusters/artemis/apps/*/*/ks.yaml` should list nothing |
 
 The only live `kind: GitRepository` in the repo is
-`kube/clusters/artemis/components/alerts/alertmanager/alert.yaml`. There it is a notification `eventSource`
+`kube/components/alerts/alertmanager/alert.yaml`. There it is a notification `eventSource`
 selector, which is unrelated to Kustomization sources.
 
 ## CRD Timing Race
@@ -166,7 +166,7 @@ flux reconcile kustomization <name> -n <namespace>
 
 ## The root Kustomization overwrites every child's `spec.patches`
 
-The FluxInstance (`kube/clusters/artemis/apps/flux-system/flux-instance/app/helmrelease.yaml`) patches the
+The FluxInstance (`kube/base/flux-system/flux-instance/app/helmrelease.yaml`, shared by both clusters) patches the
 root `flux-system` Kustomization, which syncs `./clusters/<cluster>/apps` directly. The patch is a
 `patches:` block that targets `kustomize.toolkit.fluxcd.io/Kustomization` with `metadata.name: _`.
 This means **every child `ks.yaml` in the repo**. It sets `deletionPolicy`, `retryInterval`, and a
@@ -237,8 +237,9 @@ and `--context frostlink` on `kubectl` and `flux`. Only the differences are here
   prunes. Some infrastructure `ks.yaml` files use `interval: 30m`
   (`grep -rh 'interval:' kube/clusters/frostlink/apps/*/*/ks.yaml | sort | uniq -c`).
   A few children override the injected `retryInterval: 1m` on purpose.
-- **Root patch.** The FluxInstance that carries the child-defaults patch is
-  `kube/clusters/frostlink/apps/flux-system/flux-instance/app/helmrelease.yaml`. The
+- **Root patch.** Frostlink uses the same FluxInstance as Artemis,
+  `kube/base/flux-system/flux-instance/app/helmrelease.yaml`. Only the sync URL and path come
+  from `kube/clusters/frostlink/apps/flux-system/flux-instance/extras/values.yaml`. The
   `spec.patches` rule above applies unchanged.
 - **kopiur `wait: true` stall.** Frostlink dropped `wait: true` and gate on the HelmRelease for
   `fediverse/apoci`, `fediverse/gotosocial` and `matrix/continuwuity`. `Restore` can stall the

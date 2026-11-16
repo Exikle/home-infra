@@ -1,0 +1,8 @@
+web:
+  httpRoute:
+    enabled: false
+    hostnames:
+      - flux.frostlink.dev
+    parentRefs:
+      - name: external-gateway
+        namespace: network
