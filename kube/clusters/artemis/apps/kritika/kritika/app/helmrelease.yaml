@@ -56,6 +56,7 @@ spec:
           - raw.githubusercontent.com
           - registry-1.docker.io
           - registry.erwanleboucher.dev
+          - registry.opentofu.org
           - release-assets.githubusercontent.com
       forgejo:
         forgejo:

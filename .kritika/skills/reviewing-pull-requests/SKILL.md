@@ -1,6 +1,6 @@
 ---
 name: reviewing-pull-requests
-description: Use when you review a pull request or a Renovate update in home-infra, or check what a change under kube/ affects. Covers the upstream of a dependency, breaking changes, the Renovate rules of this repo, the search for what depends on a change, the flate render, and what a check proves.
+description: Use when you review a pull request or a Renovate update in home-infra, or check what a change under kube/ or terraform/ affects. Covers the upstream of a dependency, breaking changes, the Renovate rules of this repo, the search for what depends on a change, the flate render, tofu validate, and what a check proves.
 ---
 
 # Reviewing pull requests in home-infra
@@ -21,7 +21,7 @@ The repo runs two clusters:
   apps include. A change there reaches every app that lists the component.
 
 Use the sections that fit the pull request: a Renovate update (a `renovate/` branch), a change
-under `kube/`, and what a check proves, for every review.
+under `kube/`, a change under `terraform/`, and what a check proves, for every review.
 
 ## A Renovate update
 
@@ -143,6 +143,31 @@ Before you suggest a rename or a new value, confirm it from the upstream PR or f
 template at the new tag. If you cannot, make it a check to do after the merge, not an edit.
 
 Anchor a finding to the changed line in the diff. Name the dependent file and line in its text.
+
+## A change under `terraform/`
+
+Each folder under `terraform/stacks/` is one OpenTofu stack. Validate every stack that the pull
+request changes. `tofu validate` checks the configuration against the provider schema. It needs no
+state and no credentials:
+
+```
+tofu -chdir=terraform/stacks/<stack> init -backend=false -input=false
+tofu -chdir=terraform/stacks/<stack> validate
+```
+
+A failed validate is not always caused by the change. Before you report it as a finding:
+
+1. Download the same stack from `main` with
+   `curl -s https://git.dcunha.io/Exikle/home-infra/raw/branch/main/terraform/stacks/<stack>/<file>`
+   for each `.tf` file and for `.terraform.lock.hcl`.
+2. Run the same two commands on that copy.
+3. If `main` fails with the same errors, the errors are older than this pull request. Do not report
+   them as a finding on this change. Name them in the summary as a problem that `main` already
+   has, with the error count.
+4. If only the pull request fails, report each new error as a finding on the line that causes it.
+
+A provider bump that moves a resource schema also changes what `tofu plan` does against the live
+system. You cannot run a plan, because it needs credentials. Say that the plan could not be checked.
 
 ## What a check proves
 
