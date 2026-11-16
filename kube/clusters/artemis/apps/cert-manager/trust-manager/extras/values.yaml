@@ -1,0 +1,4 @@
+secretTargets:
+  authorizedSecrets:
+    - postgres-client-ca
+    - postgres-server-ca

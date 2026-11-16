@@ -1,0 +1,8 @@
+monitoring:
+  dashboards:
+    enabled: true
+    grafanaOperator:
+      enabled: true
+      matchLabels:
+        dashboards: grafana
+replicaCount: 2

@@ -9,6 +9,11 @@ spec:
     kind: OCIRepository
     name: tuppr
   interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: tuppr-values
+      optional: true
+      valuesKey: values.yaml
   values:
     controller:
       logLevel: info
@@ -17,11 +22,3 @@ spec:
         enabled: true
       prometheusRule:
         enabled: true
-      dashboards:
-        enabled: false
-    resources:
-      requests:
-        cpu: 10m
-        memory: 96Mi
-      limits:
-        memory: 256Mi

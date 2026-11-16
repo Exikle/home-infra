@@ -9,12 +9,14 @@ spec:
     kind: OCIRepository
     name: trust-manager
   interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: trust-manager-values
+      optional: true
+      valuesKey: values.yaml
   values:
     app:
       trust:
         namespace: cert-manager
     secretTargets:
       enabled: true
-      authorizedSecrets:
-        - postgres-client-ca
-        - root-ca
