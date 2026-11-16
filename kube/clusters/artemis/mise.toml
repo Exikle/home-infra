@@ -190,15 +190,15 @@ if [[ "$usage_ns/$usage_ks" != "flux-system/flux-system" ]]; then
         "Root still suspended, resume it first: mise run $self:resume-ks flux-system flux-system"
 fi
 
-flux --context "$KUBE_CONTEXT" -n "$usage_ns" resume kustomization "$usage_ks" --timeout 10m \
-    || mise run //:log fatal "Could not resume" ns "$usage_ns" ks "$usage_ks"
-mise run //:log info "Resumed" ns "$usage_ns" ks "$usage_ks"
-
 if [[ "$usage_ns/$usage_ks" == "flux-system/flux-system" ]]; then
     kubectl --context "$KUBE_CONTEXT" -n flux-system annotate fluxinstance flux --overwrite \
         fluxcd.controlplane.io/reconcile=enabled "reconcile.fluxcd.io/requestedAt=$(date +%s)" >/dev/null
     mise run //:log info "Unpaused FluxInstance" name flux
 fi
+
+flux --context "$KUBE_CONTEXT" -n "$usage_ns" resume kustomization "$usage_ks" --timeout 10m \
+    || mise run //:log fatal "Could not resume" ns "$usage_ns" ks "$usage_ks"
+mise run //:log info "Resumed" ns "$usage_ns" ks "$usage_ks"
 
 left="$(kubectl --context "$KUBE_CONTEXT" get kustomization -A \
     -o jsonpath='{range .items[?(@.spec.suspend==true)]}{.metadata.namespace}/{.metadata.name} {end}')"
