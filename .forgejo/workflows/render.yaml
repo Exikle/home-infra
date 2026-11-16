@@ -18,8 +18,61 @@ on:
 #   contents: read
 
 jobs:
+  changes:
+    name: Which clusters changed
+    runs-on: ubuntu-latest
+    container: git.dcunha.io/exikle/ci-toolbox:0.2.0
+    timeout-minutes: 5
+    outputs:
+      clusters: ${{ steps.diff.outputs.clusters }}
+    steps:
+      # Same rule as oci-push.yaml: kube/base and kube/components reach both clusters, a cluster's
+      # apps and components reach only that cluster. A manual run renders both.
+      - name: Diff the change
+        id: diff
+        shell: bash
+        env:
+          API_URL: ${{ forgejo.server_url }}/api/v1/repos/${{ forgejo.repository }}
+          CLONE_URL: ${{ forgejo.server_url }}/${{ forgejo.repository }}.git
+          GIT_TOKEN: ${{ forgejo.token }}
+          EVENT: ${{ forgejo.event_name }}
+          PUSH_BEFORE: ${{ forgejo.event.before }}
+          PUSH_SHA: ${{ forgejo.sha }}
+          PR_NUMBER: ${{ forgejo.event.pull_request.number }}
+        run: |-
+          set -euo pipefail
+          both() { echo 'clusters=["artemis","frostlink"]' >> "$FORGEJO_OUTPUT"; exit 0; }
+          case "$EVENT" in
+            # The PR's own file list. pull_request.base.sha is main when the PR opened, not the
+            # merge base, so a sha diff would include everything merged since.
+            pull_request)
+              files=""; page=1
+              while :; do
+                batch=$(curl -sf -H "Authorization: token ${GIT_TOKEN}" "${API_URL}/pulls/${PR_NUMBER}/files?limit=50&page=${page}" | jq -r '(. // [])[].filename') || both
+                [ -n "$batch" ] || break
+                files+="${batch}"$'\n'; page=$((page + 1))
+              done
+              ;;
+            push)
+              { [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; } || both
+              git init -q src && cd src
+              git -c "http.extraHeader=Authorization: token ${GIT_TOKEN}" \
+                fetch -q --depth 1 "$CLONE_URL" "$PUSH_SHA" "$PUSH_BEFORE"
+              files=$(git diff --name-only "$PUSH_BEFORE" "$PUSH_SHA")
+              ;;
+            *) both ;;
+          esac
+          printf 'changed:\n%s\n' "$files"
+          list=()
+          for c in artemis frostlink; do
+            if grep -E "^kube/(base/|components/|clusters/${c}/(apps|components)/)" <<<"$files" >/dev/null; then list+=("\"$c\""); fi
+          done
+          echo "clusters=[$(IFS=,; echo "${list[*]}")]" >> "$FORGEJO_OUTPUT"
+
   render:
     name: Render ${{ matrix.cluster }}
+    needs: changes
+    if: needs.changes.outputs.clusters != '[]'
     # The runner's default image: Debian-based and ships node, so checkout and the cached
     # mise install work as actions.
     runs-on: ubuntu-latest
@@ -27,9 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cluster:
-          - artemis
-          - frostlink
+        cluster: ${{ fromJSON(needs.changes.outputs.clusters) }}
     steps:
       - name: Checkout
         uses: https://github.com/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

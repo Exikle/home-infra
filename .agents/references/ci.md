@@ -108,14 +108,20 @@ trips, so related commands share a step and a job.
 
 ---
 
-## `render` — both clusters on every change under `kube/`
+## `render` — the clusters that a change under `kube/` reaches
 
 `.forgejo/workflows/render.yaml` runs on each push to `main` and each pull request that changes
-`kube/**`, and by hand (`workflow_dispatch`). It has one job per cluster on the default runner
-image. The job installs `flate` with `mise-action` from the shared mise-config pin and runs
+`kube/**`, and by hand (`workflow_dispatch`). A `changes` job first picks the clusters with the
+rule of `oci-push.yaml`. A change under `kube/base/` or `kube/components/` reaches both clusters.
+A change under `kube/clusters/<cluster>/apps/` or `components/` reaches only that cluster. A manual
+run renders both. For a pull request, the job reads the file list of the PR from the API. The
+`pull_request.base.sha` of the event is `main` at the time that the PR opened, not the merge base,
+so a diff against it also holds everything that merged since.
+
+Then one job per picked cluster runs on the default runner image. The job installs `flate` with
+`mise-action` from the shared mise-config pin and runs
 `flate build all --path kube/clusters/<cluster>` with `FLATE_ALLOW_MISSING_SECRETS=true`. A broken
-render fails the job. This matters most for `kube/base/`, because a change there reaches both
-clusters in one push.
+render fails the job. A cluster that the change does not reach gets no render job.
 
 The render reads the git checkout, not the artifact. flate resolves every `spec.path` from the repo
 root, so this view equals what Flux gets. That flag also skips every `valuesFrom`, so per-cluster
