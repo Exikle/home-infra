@@ -365,6 +365,10 @@ forgejo_settings:
     option: ALLOWED_HOST_LIST
     value: external,10.10.99.0/24
 
+  - section: authorized_integration
+    option: ALLOWED_DOMAINS
+    value: kritika.dcunha.io
+
   - section: git.config
     option: user.name
     value: Forgejo

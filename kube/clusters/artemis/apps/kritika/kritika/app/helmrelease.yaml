@@ -21,15 +21,20 @@ spec:
               expr: pr.headRef.startsWith("renovate/")
         model: agentgateway/opencode-go/glm-5.2
         threshold: 4
+      egress:
+        allow:
+          - 10.10.99.90
       forgejo:
         forgejo:
           accounts:
             - exikle
+          audience: u:4:82134243-5108-4c8f-8d47-267c9c1d2164
           bots:
             - dusk-bot
           host: git.dcunha.io
           privateKey:
             env: FORGEJO_PRIVATE_KEY
+          runnerAudience: u:4:0323bdad-346c-409f-b65e-095237e030d3
           webhookSecret:
             env: FORGEJO_WEBHOOK_SECRET
       providers:
@@ -70,9 +75,17 @@ spec:
             - namespaceSelector:
                 matchLabels:
                   kubernetes.io/metadata.name: cortex
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
-      limits:
-        memory: 512Mi
+        - ports:
+            - port: 10443
+              protocol: TCP
+          to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: network
+              podSelector:
+                matchLabels:
+                  gateway.envoyproxy.io/owning-gateway-name: edge-gateway
+      postgres:
+        namespace: database
+        podSelector:
+          cnpg.io/cluster: postgres
