@@ -16,6 +16,8 @@ resources:
   - ./vm-scrapes/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./chaski/ks.yaml
-  - ./kube-state-metrics/ks.yaml
-  - ./node-exporter/ks.yaml
+  - ../../../../base/observability/kube-state-metrics
+  - ./kube-state-metrics/extras/ks.yaml
+  - ../../../../base/observability/node-exporter
+  - ./node-exporter/extras/ks.yaml
   - ./kromgo/ks.yaml

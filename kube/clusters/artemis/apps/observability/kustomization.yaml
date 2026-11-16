@@ -10,6 +10,8 @@ components:
 
 resources:
   - ./namespace.yaml
+  - ../../../../base/observability/kube-state-metrics
+  - ../../../../base/observability/node-exporter
   - ./alertmanager/ks.yaml
   - ./blackbox-exporter/ks.yaml
   - ./chaski/ks.yaml
@@ -18,8 +20,8 @@ resources:
   - ./gatus-sidecar/ks.yaml
   - ./grafana/ks.yaml
   - ./kromgo/ks.yaml
-  - ./kube-state-metrics/ks.yaml
-  - ./node-exporter/ks.yaml
+  - ./kube-state-metrics/extras/ks.yaml
+  - ./node-exporter/extras/ks.yaml
   - ./prometheus-adapter/ks.yaml
   - ./pve-exporter/ks.yaml
   - ./silence-operator/ks.yaml

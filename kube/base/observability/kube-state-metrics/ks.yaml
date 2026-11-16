@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/frostlink/apps/observability/kube-state-metrics/app
+  path: ./kube/base/observability/kube-state-metrics/app
   prune: true
   sourceRef:
     kind: OCIRepository
@@ -19,4 +19,6 @@ spec:
   retryInterval: 1m
   timeout: 5m
   dependsOn:
+    - name: kube-state-metrics-extras
     - name: vm-operator
+  wait: true
