@@ -111,9 +111,9 @@ The sequence is the same, with the Frostlink tasks:
 
 - `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
   diffs the push. The job of a cluster runs when its `apps/`, `components/` or `settings/`
-  under `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` changed. A job that
+  under `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/` changed. A job that
   does not run shows as skipped. Wait for the job of each cluster that your change reaches.
-- A change under `kube/base/` reaches both clusters in one push. Test it live on both clusters
+- A change under `kube/base/` or `kube/components/` reaches both clusters in one push. Test it live on both clusters
   before you commit: suspend, `apply-ks` and confirm on each.
 - Check that the artifact carries your commit with the Frostlink context:
   `kubectl get ocirepository -n flux-system flux-system --context frostlink -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.

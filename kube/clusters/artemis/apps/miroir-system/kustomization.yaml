@@ -5,7 +5,7 @@ kind: Kustomization
 namespace: miroir-system
 
 components:
-  - ../../components/alerts
+  - ../../../../components/alerts
 
 resources:
   - ./namespace.yaml

@@ -85,7 +85,7 @@ It is one job with one step, on `ubuntu-latest` with the `ci-toolbox` image. The
 
 1. It shallow-clones the commit. The `path` input names the folder that becomes the artifact
    root, and `ignore-paths` names what to leave out. This repo passes `path: .` and an ignore
-   list per cluster. So each artifact holds `kube/base/` and the Flux folders
+   list per cluster. So each artifact holds `kube/base/`, `kube/components/` and the Flux folders
    of one cluster, but not the other cluster, `talos/` or `bootstrap/`.
 2. In the background, it releases to the Forgejo mirror (`git.dcunha.io/exikle/<repo>`).
 3. In the foreground, it releases to the standalone registry (`registry.dcunha.io`), then pings Flux.

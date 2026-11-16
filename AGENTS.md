@@ -20,11 +20,14 @@ holds what is true on every turn, and an index of where everything else is.
 `kube/clusters/<cluster>/` holds one cluster: its `apps/`, `components/`, `talos/`, `bootstrap/`
 and `mise.toml`. `kube/base/<ns>/<app>/` holds one copy of an app that both clusters run. Each
 cluster turns it on with one line in its namespace menu, `kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`.
-A change under `kube/base/` reaches both clusters in one push. The layout, its rules and the
+`kube/components/` holds kustomize components that both clusters use the same way (today only
+`alerts`). Components that one cluster uses, or that each cluster builds differently, stay in
+`kube/clusters/<cluster>/components/`. A change under `kube/base/` or `kube/components/` reaches
+both clusters in one push. The layout, its rules and the
 remaining steps are in #3333. `app-structure.md` § Shared apps has the file shape.
 
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
-the repo root. Each artifact keeps only `kube/base/` and the Flux folders of
+the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
 its own cluster. So every `spec.path` is relative to the repo root and starts with
 `./kube/clusters/<cluster>/` or `./kube/base/`. Flux cannot see `terraform/`, `ansible/`, the
 other cluster, or `talos/` and `bootstrap/`.
