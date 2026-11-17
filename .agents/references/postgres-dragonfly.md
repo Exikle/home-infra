@@ -453,3 +453,20 @@ commit. If you do, follow these rules:
   operator and the `cloudnative-pg` chart have separate versions. Do not conflate them.
 - The ScheduledBackup cron runs in the local timezone of the pod (k8tz), not UTC. Trigger an on-demand
   `Backup` CR to test. Do not assume a schedule is overdue.
+
+## atuin
+
+atuin is the shell history sync server, `default/atuin` at `atuin.dcunha.io`. It moved from
+Frostlink on 2026-11-17 with a `pg_dump` and `pg_restore` of its database.
+
+- `ATUIN_OPEN_REGISTRATION` must stay `"false"`. atuin is public on `edge-gateway`, so open
+  registration lets anyone make an account. Set it to `"true"` only while you run
+  `atuin register`, then set it back.
+- `/config` must be writable (an `emptyDir`), even with an external database. atuin writes a
+  default `server.toml` at each start and stops if it cannot. With `readOnlyRootFilesystem`, `/tmp`
+  is an `emptyDir` too. There is no PVC. The history lives in the shared Postgres, so the CNPG
+  backups cover it.
+- Port `8888` is the default of atuin. Port 80 would need Kubernetes to lower
+  `net.ipv4.ip_unprivileged_port_start` for a uid-1000 container with all capabilities dropped.
+- The clients sync over the internet, so CrowdSec exempts the host from the bot challenge
+  (`crowdsec.md`).

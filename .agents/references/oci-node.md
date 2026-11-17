@@ -36,7 +36,6 @@ which no command recovers.
 | `observability`    | Metrics, alerting, status page                                                |
 | `openebs-system`   | zfs-localpv CSI. Provides the default `openebs-zfs` StorageClass              |
 | `system-upgrade`   | Talos and Kubernetes upgrade controller (tuppr)                               |
-| `tools`            | Small standalone services                                                     |
 | `towonel`          | Tunnel hub and edge, in its own `privileged` namespace for `hostNetwork`      |
 
 ## Known quirks
