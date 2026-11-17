@@ -43,13 +43,17 @@ The name of the StorageClass parameter is misleading. `quorum: freeze` does **no
 
 A momentary quorum dip once took 20 volumes read-only across all seven nodes at once. The failure cascaded from postgres to apoci to `registry.dcunha.io` to every Flux OCIRepository pull. Many apps stayed `Running` while they silently discarded writes.
 
-The default class is now `quorum: last-man-standing`, which configures no `on-no-quorum` action at all. To check a volume, run:
+`freeze` is the deliberate default. Since `1e27513bc` (2026-09-16), the `miroir` class sets no `quorum` parameter, so miroir gives every new volume `freeze`. The other value, `last-man-standing`, renders DRBD `quorum off`. It does not prevent the latch. The read-only cascades of 2026-09-09 and 2026-09-11 hit volumes that were already on `last-man-standing`. Do not recreate a volume to move it off `freeze`.
+
+To see the setting of a volume, run:
 
 ```bash
 kubectl exec -n miroir-system <miroir-agent> -c agent -- drbdsetup show <pv> | grep on-no-quorum
 ```
 
-No output = last-man-standing. `on-no-quorum io-error` = the volume is still on the old setting. You must recreate it (`.agents/skills/recreate-pvc/SKILL.md`), because StorageClass parameters are immutable and are set when the volume is provisioned.
+`on-no-quorum io-error` means `freeze`, which is the expected value. No output means `last-man-standing`.
+
+If a volume latches read-only, delete the pod that mounts it. The new pod remounts the filesystem. The triggers seen so far were pantheon tap drops on 2026-09-09 (#2160) and a UCG-Max firmware reboot on 2026-09-11 and 2026-10-29 (#3061).
 
 miroir exposes only `freeze` and `last-man-standing`. It has no `suspend-io` option. `nklmilojevic/home` runs an identical topology and differs from ours in this one parameter.
 

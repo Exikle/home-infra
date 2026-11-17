@@ -108,8 +108,8 @@ AGENT=$(kubectl get pods -n miroir-system -o json | jq -r '.items[] | select(.sp
 kubectl exec -n miroir-system "$AGENT" -c agent -- drbdsetup show <pv-name> | grep -E 'quorum|on-no-quorum'
 ```
 
-A `last-man-standing` volume prints **no** `on-no-quorum` line. A volume that is still on `freeze`
-prints `on-no-quorum io-error`.
+A volume on `freeze`, the current default, prints `on-no-quorum io-error`. A `last-man-standing`
+volume prints **no** `on-no-quorum` line.
 
 ## After the restore: check for state that did NOT roll back
 
