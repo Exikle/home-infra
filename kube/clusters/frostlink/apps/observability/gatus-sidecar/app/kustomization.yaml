@@ -7,11 +7,13 @@ resources:
   - ./externalsecret.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./service.yaml
 configMapGenerator:
   - name: gatus-sidecar-configmap
     files:
       - cluster-endpoints.yaml=./resources/cluster-endpoints.yaml
       - config.yaml=./resources/config.yaml
+      - receiver.py=./resources/receiver.py
 generatorOptions:
   disableNameSuffixHash: true
   annotations:

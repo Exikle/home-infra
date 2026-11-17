@@ -30,29 +30,37 @@ spec:
       enabled: true
       annotations:
         gatus.home-operations.com/enabled: "false"
+      additionalRules:
+        - backendRefs:
+            - name: gatus-home-push
+              port: 8081
+          matches:
+            - path:
+                type: Exact
+                value: /api/v1/home-push
       hostnames:
         - "{{ .Release.Name }}.frostlink.dev"
         - status.dcunha.io
+        - status.frostlink.dev
       parentRefs:
         - name: external-gateway
           namespace: network
           sectionName: https
     initContainers:
-      - name: gatus-sidecar-artemis
-        image: ghcr.io/home-operations/gatus-sidecar:0.6.1@sha256:c2b24374a8a4c5551c0122f3a7ae383ff65a0ea0bcd3b541530db84490fea2af
-        args:
-          - --output=/config/artemis-sidecar.yaml
-          - --default-interval=1m
-          - --probe-paths=true
-          - --log-level=info
-          - --enable-httproute
-          - --auto-httproute
-          - --enable-service
+      - name: home-push
+        image: docker.io/library/python:3.14-alpine@sha256:5862d971d1f0ae26b258cefa4e893556b1d3aba81bd2ff30888704ad378bab67
+        command:
+          - python3
+          - /scripts/receiver.py
         env:
-          - name: KUBECONFIG
-            value: /kube/config
-          - name: KUBERNETES_SERVICE_HOST
-            value: ""
+          - name: HOME_PUSH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: gatus
+                key: HOME_PUSH_TOKEN
+        ports:
+          - containerPort: 8081
+            name: home-push
         restartPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
@@ -63,8 +71,8 @@ spec:
         volumeMounts:
           - mountPath: /config
             name: config
-          - mountPath: /kube
-            name: artemis-kubeconfig
+          - mountPath: /scripts
+            name: receiver-script
             readOnly: true
     monitoring:
       serviceMonitor:
@@ -82,6 +90,9 @@ spec:
         service:
           enable: true
     volumes:
-      - name: artemis-kubeconfig
-        secret:
-          secretName: gatus-artemis-kubeconfig
+      - name: receiver-script
+        configMap:
+          name: gatus-sidecar-configmap
+          items:
+            - key: receiver.py
+              path: receiver.py

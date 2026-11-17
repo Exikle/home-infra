@@ -6,6 +6,8 @@ connectivity:
 
 metrics: true
 
+skip-invalid-config-update: true
+
 storage:
   type: sqlite
   caching: true

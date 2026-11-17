@@ -99,7 +99,6 @@ spec:
           gatus.home-operations.com/endpoint: |-
             url: "https://bazarr.dcunha.io/api/system/ping"
             client:
-              dns-resolver: tcp://10.10.99.1:53
               ignore-redirect: true
             group: internal
             conditions: ["[STATUS] == 302"]

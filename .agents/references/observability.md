@@ -212,12 +212,12 @@ CPU limit back in.
 
 This file does not cover them elsewhere, and it is easy to mistake them for something they are not:
 
-| App                 | What it is                                                                                                                                                                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `siren`             | Alertmanager web UI at `siren.dcunha.io` (internal). Reads the shared Alertmanager; holds no state of its own                                                                                                                                    |
-| `silence-operator`  | Declarative Alertmanager silences as CRs — scraped via a `VMPodScrape`, not a Service                                                                                                                                                            |
-| `gatus-sidecar`     | Not a status page any more — only `gatus-remote-reader`, the read-only account Frostlink's Gatus uses to generate checks from Artemis's routes. `status.dcunha.io` runs on Frostlink since 2026-10-03: see the Frostlink repo's `status-page.md` |
-| `blackbox-exporter` | Probe target for `VMProbe` `https`/`icmp`/`tcp` — and the wake signal for every zeroscaler app                                                                                                                                                   |
+| App                 | What it is                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `siren`             | Alertmanager web UI at `siren.dcunha.io` (internal). Reads the shared Alertmanager; holds no state of its own                                                       |
+| `silence-operator`  | Declarative Alertmanager silences as CRs — scraped via a `VMPodScrape`, not a Service                                                                               |
+| `gatus-sidecar`     | Gatus with no page of its own. It checks the home apps and pushes the results to Frostlink, which serves `status.dcunha.io`. See `status-page.md` § Home reports in |
+| `blackbox-exporter` | Probe target for `VMProbe` `https`/`icmp`/`tcp` — and the wake signal for every zeroscaler app                                                                      |
 
 ## Alert-rule choices that look like omissions
 

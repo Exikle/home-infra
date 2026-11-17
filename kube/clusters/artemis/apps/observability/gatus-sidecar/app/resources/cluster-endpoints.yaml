@@ -1,0 +1,43 @@
+---
+endpoints:
+  - name: MCP Ops
+    group: cortex
+    url: https://ai.dcunha.io/ops/mcp
+    method: POST
+    interval: 10m
+    client:
+      timeout: 15s
+    headers:
+      x-api-key: ${MCP_OPS_KEY}
+      Content-Type: application/json
+      Accept: application/json, text/event-stream
+    body: '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"gatus","version":"1"}}}'
+    ui:
+      hide-url: true
+      hide-hostname: true
+    conditions:
+      - "[STATUS] == 200"
+      - '[BODY] == pat(*"serverInfo"*)'
+    alerts:
+      - type: pushover
+
+  - name: MCP General
+    group: cortex
+    url: https://ai.dcunha.io/general/mcp
+    method: POST
+    interval: 10m
+    client:
+      timeout: 15s
+    headers:
+      x-api-key: ${MCP_GENERAL_KEY}
+      Content-Type: application/json
+      Accept: application/json, text/event-stream
+    body: '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"gatus","version":"1"}}}'
+    ui:
+      hide-url: true
+      hide-hostname: true
+    conditions:
+      - "[STATUS] == 200"
+      - '[BODY] == pat(*"serverInfo"*)'
+    alerts:
+      - type: pushover

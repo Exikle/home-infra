@@ -1,7 +1,8 @@
 # Status page — Frostlink hosts it for both clusters
 
 `status.dcunha.io` is Frostlink's Gatus (`observability/gatus-sidecar`). It moved off Artemis so the page stays up when the house is down. It is also served at
-`gatus-sidecar.frostlink.dev`; `status.frostlink.dev` was dropped. Live check count:
+`status.frostlink.dev` and `gatus-sidecar.frostlink.dev`. Frostlink's external-dns makes the
+`frostlink.dev` records from the HTTPRoute hostnames. Live check count:
 `curl -s 'https://status.dcunha.io/api/v1/endpoints/statuses?pageSize=500' | jq length`.
 
 ## How a request reaches it
@@ -18,36 +19,64 @@ new record. `dig status.dcunha.io @1.1.1.1` and `@10.10.99.1` before and after.
 
 ## Where the checks come from
 
-| Source                                 | What                                                                                                          | Alerts   |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------- |
-| `app/resources/cluster-endpoints.yaml` | Hand-written: core (ping, home-link, status-page, headscale), the two agentgateway MCP checks, the heartbeats | Pushover |
-| `gatus-sidecar` container              | Generated from Frostlink's own HTTPRoutes and Services                                                        | none     |
-| `gatus-sidecar-artemis` container      | Generated from **Artemis's** HTTPRoutes and Services                                                          | none     |
+| Source                                           | What                                                                                   | Alerts                       |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- | ---------------------------- |
+| Frostlink `app/resources/cluster-endpoints.yaml` | Hand-written: core (ping, status-page, headscale), the heartbeats                      | Pushover                     |
+| Frostlink `gatus-sidecar` container              | Generated from Frostlink's own HTTPRoutes and Services                                 | none                         |
+| Artemis Gatus, pushed to Frostlink (`home.yaml`) | Generated from Artemis's HTTPRoutes and Services, plus the two agentgateway MCP checks | MCP checks page from Artemis |
 
-Only hand-written checks page. A site-link outage therefore pages Home Link plus the two
-MCP checks, not every generated Artemis check.
+The tailnet carries no status traffic (#3297). Frostlink cannot reach any home-only service, so
+home runs its own checks and reports in.
 
-**The Artemis sidecar runs in remote mode.** `KUBERNETES_SERVICE_HOST=""` forces it off the
-in-cluster config and onto `KUBECONFIG=/kube/config`, mounted from secret
-`gatus-artemis-kubeconfig` (1Password `frostlink/gatus` → `ARTEMIS_KUBECONFIG`). That kubeconfig holds
-the token of Artemis's `observability/gatus-remote-reader` ServiceAccount — read-only on services,
-gateways and httproutes, a long-lived token that only changes when rotated by hand. It reaches the
-Artemis API over the Headscale site link.
+### Home reports in
+
+Artemis runs its own Gatus (`observability/gatus-sidecar` on Artemis) with gatus-sidecar in normal
+in-cluster mode. It reads the same `gatus.home-operations.com` annotations as before, so a new app
+gets a check with no extra step. The MCP checks are hand-written in Artemis's
+`app/resources/cluster-endpoints.yaml`, and they page through Artemis's Pushover title `Gatus | Artemis`.
+
+The checks for public sites (group `edge`) use the resolver `1.1.1.1`. They get the public answer,
+leave the house and come back through Frostlink's front door, the same path as a visitor.
+Internal checks use cluster DNS, which forwards `dcunha.io` to the UCG.
+
+Every minute, the `push` container (`app/resources/push.sh` on Artemis) reads the newest result of
+every check from the local Gatus API. It sends the whole list in one POST to
+`https://status.dcunha.io/api/v1/home-push`, with the token `HOME_PUSH_TOKEN` (1Password
+`frostlink/gatus`, read by both clusters).
+
+On Frostlink, the `home-push` container (`app/resources/receiver.py`) answers that path through
+Service `gatus-home-push`. It does three things:
+
+1. It refuses any request without the token.
+2. It writes `/config/home.yaml`: one `external-endpoint` for each check, with a 5 minute
+   heartbeat. It writes the file only when the list of names changes.
+3. It forwards each new result to the local Gatus external-endpoint API.
+
+The receiver accepts names, groups and results only, never URLs. A leaked token can post false
+results, but it cannot make Frostlink probe an address. Names must match `[A-Za-z0-9 ._-]`, so a
+name cannot inject a `${VAR}` into the Gatus config.
+
+If home stops pushing, `home.yaml` stays on the Frostlink PVC and every home check turns red. A
+test on 2026-11-17 (Artemis Gatus scaled to 0) turned all 57 red in 9 minutes. Gatus checks a
+heartbeat once for each interval, so the worst case is twice the interval. A 10 minute heartbeat
+took 20 minutes.
 
 Things that each cost a failed attempt:
 
-- **Gateway group names must be unique across both clusters.** Each sidecar names a gateway's
-  checks after its group; two gateways both grouped `external` produced a duplicate key and
-  crashed Gatus. Frostlink's `external-gateway` uses group `frostlink`.
-- **The sidecars do not regenerate when only a Gateway annotation changes.** Restart the
-  deployment after editing `gatus.home-operations.com/endpoint` on a Gateway.
-- **Internal names resolve over the site link per endpoint.** Artemis's `internal-gateway`
-  annotation sets `client.dns-resolver: tcp://10.10.99.1:53`, so every generated internal check asks
-  UniFi directly. Do not set a resolver on Artemis's _external_ gateway to UniFi — internal answers
-  for public names would make those checks lie.
-- **`gatus.delayStartSeconds: "20"`.** Gatus reads its config once at start, and the remote sidecar
-  needs ~7 s to write `artemis-sidecar.yaml`. With a shorter delay Gatus loaded a stale file. Gatus
-  also ignores a file rewrite landing in the same second as its last load.
+- Gatus re-reads its config folder every 30 seconds when a file changes. A reload restarts all
+  monitoring. The first push after a new app appears gets `404` from Gatus for that app. The
+  receiver retries on the next push. Frostlink sets `skip-invalid-config-update: true`, so a bad
+  `home.yaml` cannot crash Gatus at reload.
+- Deleting a file from `/config` does not trigger a reload, because Gatus compares modification
+  times. The old `artemis-sidecar.yaml` stayed loaded until the next write of `home.yaml`.
+- Two files that define the same key make the config invalid. A check that moves between a
+  regular endpoint and a pushed one needs the old file removed first.
+- Gateway group names must be unique across both clusters. Two gateways both grouped `external`
+  produced a duplicate key and crashed Gatus. Frostlink's `external-gateway` uses group `frostlink`.
+- The sidecars do not regenerate when only a Gateway annotation changes. Restart the deployment
+  after you edit `gatus.home-operations.com/endpoint` on a Gateway.
+- Artemis's Gatus sets `ndots: 1`. Without it, every public name walks the search list and sends
+  `<name>.observability.svc.cluster.local` lookups to `1.1.1.1`.
 
 ## Heartbeats
 
