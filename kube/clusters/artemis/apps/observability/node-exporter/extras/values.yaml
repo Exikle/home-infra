@@ -1,5 +1,5 @@
 extraArgs:
-  - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+|etc/nfsmount\.conf)($|/)
+  - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/plugins/.+|var/lib/kubelet/pods/[^/]+/(volume-subpaths|volumes/kubernetes\.io~([^c]|c[^s])[^/]*)/.+|etc/nfsmount\.conf)($|/)
   - --collector.mountstats
 prometheus:
   monitor:

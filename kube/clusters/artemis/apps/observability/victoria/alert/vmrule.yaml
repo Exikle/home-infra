@@ -210,6 +210,30 @@ spec:
           for: 1h
           labels:
             severity: critical
+        - alert: MiroirVolumeReadOnly
+          annotations:
+            description: >-
+              miroir volume {{ $labels.volume }} (PVC {{ $labels.pvc_namespace }}/{{ $labels.pvc }})
+              is read-only on {{ $labels.instance }} and is discarding writes.
+              Delete the pod that mounts it to remount the filesystem.
+            summary: A miroir volume latched read-only.
+          expr: >-
+            (
+              label_replace(
+                node_filesystem_readonly{job="prometheus-node-exporter", mountpoint=~"/var/lib/kubelet/pods/.+/volumes/kubernetes.io~csi/.+/mount"},
+                "volume", "$1", "mountpoint", ".+/kubernetes.io~csi/([^/]+)/mount"
+              ) == 1
+            )
+            * on (volume) group_left (pvc, pvc_namespace)
+              group by (volume, pvc, pvc_namespace) (miroir_volume_quorum)
+            or on (instance, mountpoint)
+            label_replace(
+              node_filesystem_readonly{job="prometheus-node-exporter", mountpoint=~"/var/lib/kubelet/pods/.+/volumes/kubernetes.io~csi/.+/mount"},
+              "volume", "$1", "mountpoint", ".+/kubernetes.io~csi/([^/]+)/mount"
+            ) == 1
+          for: 2m
+          labels:
+            severity: critical
 
     - name: node-exporter
       rules:

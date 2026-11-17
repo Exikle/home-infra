@@ -53,7 +53,7 @@ kubectl exec -n miroir-system <miroir-agent> -c agent -- drbdsetup show <pv> | g
 
 `on-no-quorum io-error` means `freeze`, which is the expected value. No output means `last-man-standing`.
 
-If a volume latches read-only, delete the pod that mounts it. The new pod remounts the filesystem. The triggers seen so far were pantheon tap drops on 2026-09-09 (#2160) and a UCG-Max firmware reboot on 2026-09-11 and 2026-10-29 (#3061).
+The `MiroirVolumeReadOnly` alert fires when a latch happens. It reads `node_filesystem_readonly` for the pod mount of each miroir volume, so the node-exporter `mount-points-exclude` of Artemis must keep `/var/lib/kubelet/pods/<uid>/volumes/kubernetes.io~csi/` visible. If a volume latches read-only, delete the pod that mounts it. The new pod remounts the filesystem. The triggers seen so far were pantheon tap drops on 2026-09-09 (#2160) and a UCG-Max firmware reboot on 2026-09-11 and 2026-10-29 (#3061).
 
 miroir exposes only `freeze` and `last-man-standing`. It has no `suspend-io` option. `nklmilojevic/home` runs an identical topology and differs from ours in this one parameter.
 
