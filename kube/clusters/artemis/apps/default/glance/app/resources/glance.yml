@@ -110,8 +110,7 @@ pages:
                       {{ $dup := and (ne (findMatch "(?i)^exikle/" $rn) "") (ne (findMatch (concat "(?i)\\|" (trimPrefix "Exikle/" $rn) "\\|") $names) "") }}
                       {{ if and $keep (not $dup) (gt $gt $t) (le $gt $prev) (lt $n 6.0) }}{{ template "gh" $g }}{{ $n = add $n 1.0 }}{{ end }}
                     {{ end }}
-                    {{ $skip := and (eq ($f.String "op_type") "comment_pull") (ne (findMatch "konflate:" ($f.String "content")) "") }}
-                    {{ if and (not $skip) (lt $n 6.0) }}{{ template "fj" $f }}{{ $n = add $n 1.0 }}{{ end }}
+                    {{ if lt $n 6.0 }}{{ template "fj" $f }}{{ $n = add $n 1.0 }}{{ end }}
                     {{ $prev = $t }}
                   {{ end }}
                   </ul>

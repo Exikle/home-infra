@@ -115,7 +115,7 @@ spec:
             - frostlink/forgejo-anon-label-scrape
           inband:
             pre_eval:
-              - filter: req.Host in ["atuin.frostlink.dev", "flux-webhook.frostlink.dev", "hub.frostlink.dev", "konflate.frostlink.dev", "kromgo.frostlink.dev", "matrix.frostlink.dev", "matrix.frostlink.dev:443", "jellyfin.dcunha.io", "kromgo.dcunha.io", "silo-jf.dcunha.io", "xbs.dcunha.io"]
+              - filter: req.Host in ["atuin.frostlink.dev", "flux-webhook.frostlink.dev", "hub.frostlink.dev","kromgo.frostlink.dev", "matrix.frostlink.dev", "matrix.frostlink.dev:443", "jellyfin.dcunha.io", "kromgo.dcunha.io", "silo-jf.dcunha.io", "xbs.dcunha.io"]
                 apply:
                   - ExemptFromChallenge("machine-host")
               - filter: req.Host in ["frostlink.dev", "dcunha.io"] && req.URL.Path startsWith "/.well-known/"

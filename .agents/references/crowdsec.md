@@ -35,7 +35,7 @@ The overlay lists every exemption, one rule per kind of client. Read it there, n
 - **Any host:** ActivityPub (`activity+json` or `ld+json` in `Accept` or `Content-Type`), signed
   requests (`Signature: keyId=`), and the `Gatus/` user agent.
 - **Whole hosts with machine clients only:** the towonel hub, Matrix, atuin, flux-webhook,
-  konflate, kromgo (both domains), Jellyfin and xBrowserSync.
+  kromgo (both domains), Jellyfin and xBrowserSync.
 - **Machine paths on browser hosts:** registry `/v2/` and `/ap/`; git smart-HTTP, LFS, API and
   Actions; OIDC on pocket-id; OPDS, KOReader, `/api/` and the `POST /login` of the Audiobookshelf-style API on books; the `/api/` of the phone-app services;
   GoToSocial's service routes; `/.well-known/` on both apex domains.
