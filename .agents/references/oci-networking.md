@@ -251,13 +251,10 @@ policy was rewritten from scratch on 2026-11-14:
   workstation's path; LAB has no reason to reach the node.
 - Tagged devices (Frostlink, the home router) have no grants of their own: they answer, never
   initiate.
-- **Exception, parked on Artemis #3082:** Frostlink pods → LAB still allows the host:port pairs
-  the status page uses (`status-page.md`), plus ICMP. Those grants and the `10.244.0.0/24` route
-  stay until #3082 decides whether monitoring keeps a narrow exception or moves off the tailnet.
-  The list was built from the UCG's conntrack table
-  (`ssh root@10.10.99.1 conntrack -L -s 10.244.0.0/24`, sampled for 10 minutes), not guessed — a
-  new Frostlink → home dependency needs its own grant, and the symptom of a missing one is a
-  connection timeout from the pod, never an error.
+- Frostlink pods have no path to home. The `10.244.0.0/24` route and its grants were removed in
+  #3297, after the status page moved to "home reports in" (`status-page.md`). A new Frostlink →
+  home dependency goes through the front door, not the tailnet. The symptom of a pod that still
+  tries the tailnet is a connection timeout, never an error.
 
 The policy's `tests` block asserts the admin paths stay open and tagged devices stay shut.
 

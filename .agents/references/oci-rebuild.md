@@ -50,8 +50,8 @@ Then, in order:
    `kube/clusters/frostlink/talos/patches/tailscale.yaml.j2` in a 600 temp file, and patches it onto the node over the
    public Talos API (no reboot). The key is never written to 1Password; it is spent on first use.
 5. **Delete the old frostlink node** it prints (`headscale nodes delete -i <id>`), and confirm the
-   new one shows routes `10.0.0.203/32` and `10.244.0.0/24` approved
-   (`headscale nodes list-routes`) — the policy auto-approves them for `tag:frostlink`.
+   new one shows route `10.0.0.203/32` approved
+   (`headscale nodes list-routes`). The policy auto-approves it for `tag:frostlink`.
 6. **Switch to the site link:** `kubectl config set-cluster frostlink --server=https://10.0.0.203:6443`
    and `talosctl config endpoint 10.0.0.203` (`kube/clusters/frostlink/talosconfig` was written with the
    public IP by phase2). Verify both, then **remove the OCI 6443 rule**. Leave 50000 as the
