@@ -136,7 +136,7 @@ spec:
               - filter: req.Host in ["audiobooks.dcunha.io", "auth.dcunha.io", "fitness.dcunha.io", "hass.dcunha.io", "hermes.dcunha.io", "home-assistant.dcunha.io", "komga.dcunha.io", "paperless.dcunha.io", "photos.dcunha.io", "renovate.dcunha.io", "requests.dcunha.io", "seerr.dcunha.io"] && (req.URL.Path startsWith "/api/" || req.URL.Path startsWith "/opds/" || req.URL.Path startsWith "/socket.io/" || req.URL.Path == "/auth/token")
                 apply:
                   - ExemptFromChallenge("app-api")
-              - filter: req.Host in ["gatus-sidecar.frostlink.dev", "status.dcunha.io", "status.frostlink.dev"] && req.URL.Path startsWith "/api/"
+              - filter: req.Host in ["gatus-sidecar.frostlink.dev", "status.dcunha.io", "status.frostlink.dev"] && (req.URL.Path startsWith "/api/" || req.URL.Path == "/metrics")
                 apply:
                   - ExemptFromChallenge("status-api")
               - filter: req.UserAgent() startsWith "Gatus/"
