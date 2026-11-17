@@ -391,6 +391,35 @@ spec:
           labels:
             severity: critical
 
+    - name: forgejo
+      rules:
+        - alert: ForgejoSlow
+          annotations:
+            description: >-
+              Forgejo took {{ $value | humanize }}s on average to serve
+              /metrics over the last 15 minutes. The healthy baseline is under
+              0.5s and the scrape times out at 10s. Forgejo exports no request
+              latency metric, and /metrics runs database queries, so a slow
+              scrape means slow web, API and CI requests. Check the host with
+              `uptime` and the slow-SQL rate in `journalctl -u forgejo` on
+              10.10.99.24.
+            summary: Forgejo is responding slowly.
+          expr: avg_over_time(scrape_duration_seconds{job="forgejo"}[15m]) > 3
+          for: 15m
+          labels:
+            severity: warning
+        - alert: ForgejoCpuSaturated
+          annotations:
+            description: >-
+              The Forgejo process has used {{ $value | humanize }} CPU cores
+              on average for 30 minutes. CT 105 has 2 cores, and normal use is
+              under 0.5. Look for a crawler or a runaway job in the request log.
+            summary: Forgejo is using most of its container's CPU.
+          expr: rate(process_cpu_seconds_total{job="forgejo"}[30m]) > 1.2
+          for: 30m
+          labels:
+            severity: warning
+
     - name: zfs
       rules:
         - alert: ZfsUnexpectedPoolState
