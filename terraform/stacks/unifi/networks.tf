@@ -20,48 +20,58 @@ resource "unifi_network" "iot" {
       enabled = false
     }
     conflict_checking   = true
-    dns_enabled         = false
-    dns_servers         = ["10.10.99.3"]
     enabled             = true
     gateway_enabled     = false
     leasetime           = "24h0m0s"
-    ntp_enabled         = false
     start               = "10.10.152.50"
     stop                = "10.10.152.200"
     time_offset_enabled = false
+    dns = {
+      enabled = false
+      servers = ["10.10.99.3"]
+    }
+    ntp = {
+      enabled = false
+    }
     wins = {
       enabled = false
     }
   }
-  dhcp_v6_server                 = null
-  domain_name                    = "dcunha.io"
-  enabled                        = true
-  gateway_type                   = "default"
-  igmp_snooping                  = false
-  internet_access                = true
-  ipv6_aliases                   = null
-  ipv6_client_address_assignment = "slaac"
-  ipv6_interface_type            = "pd"
-  ipv6_pd_auto_prefixid_enabled  = true
-  ipv6_pd_interface              = "wan"
-  ipv6_pd_prefixid               = null
-  ipv6_pd_start                  = "::2"
-  ipv6_pd_stop                   = "::7d1"
-  ipv6_ra                        = true
-  ipv6_ra_preferred_lifetime     = null
-  ipv6_ra_priority               = "high"
-  ipv6_ra_valid_lifetime         = null
-  ipv6_static_subnet             = null
-  lte_lan                        = true
-  multicast_dns                  = true
-  name                           = "IOT"
-  network_isolation              = false
-  purpose                        = "corporate"
-  setting_preference             = "manual"
-  site                           = "default"
-  subnet                         = "10.10.152.1/24"
-  third_party_gateway            = false
-  vlan                           = 1152
+  dhcp_v6_server  = null
+  domain_name     = "dcunha.io"
+  enabled         = true
+  gateway_type    = "default"
+  igmp_snooping   = false
+  internet_access = true
+  ipv6 = {
+    aliases                   = null
+    client_address_assignment = "slaac"
+    interface_type            = "pd"
+    pd = {
+      auto_prefixid_enabled = true
+      interface             = "wan"
+      prefixid              = null
+      start                 = "::2"
+      stop                  = "::7d1"
+    }
+    ra = {
+      enabled            = true
+      preferred_lifetime = null
+      priority           = "high"
+      valid_lifetime     = null
+    }
+    static_subnet = null
+  }
+  lte_lan             = true
+  multicast_dns       = true
+  name                = "IOT"
+  network_isolation   = false
+  purpose             = "corporate"
+  setting_preference  = "manual"
+  site                = "default"
+  subnet              = "10.10.152.1/24"
+  third_party_gateway = false
+  vlan                = 1152
 }
 
 # __generated__ by OpenTofu from "69d03195cefe6560e6b42f40"
@@ -72,48 +82,58 @@ resource "unifi_network" "hme" {
       enabled = false
     }
     conflict_checking   = true
-    dns_enabled         = false
-    dns_servers         = ["10.10.99.3"]
     enabled             = true
     gateway_enabled     = false
     leasetime           = "24h0m0s"
-    ntp_enabled         = false
     start               = "10.10.1.50"
     stop                = "10.10.1.200"
     time_offset_enabled = false
+    dns = {
+      enabled = false
+      servers = ["10.10.99.3"]
+    }
+    ntp = {
+      enabled = false
+    }
     wins = {
       enabled = false
     }
   }
-  dhcp_v6_server                 = null
-  domain_name                    = "dcunha.io"
-  enabled                        = true
-  gateway_type                   = "default"
-  igmp_snooping                  = false
-  internet_access                = true
-  ipv6_aliases                   = null
-  ipv6_client_address_assignment = null
-  ipv6_interface_type            = "none"
-  ipv6_pd_auto_prefixid_enabled  = false
-  ipv6_pd_interface              = null
-  ipv6_pd_prefixid               = null
-  ipv6_pd_start                  = null
-  ipv6_pd_stop                   = null
-  ipv6_ra                        = false
-  ipv6_ra_preferred_lifetime     = null
-  ipv6_ra_priority               = null
-  ipv6_ra_valid_lifetime         = null
-  ipv6_static_subnet             = null
-  lte_lan                        = true
-  multicast_dns                  = true
-  name                           = "HME"
-  network_isolation              = false
-  purpose                        = "corporate"
-  setting_preference             = "manual"
-  site                           = "default"
-  subnet                         = "10.10.1.1/24"
-  third_party_gateway            = false
-  vlan                           = 1001
+  dhcp_v6_server  = null
+  domain_name     = "dcunha.io"
+  enabled         = true
+  gateway_type    = "default"
+  igmp_snooping   = false
+  internet_access = true
+  ipv6 = {
+    aliases                   = null
+    client_address_assignment = null
+    interface_type            = "none"
+    pd = {
+      auto_prefixid_enabled = false
+      interface             = null
+      prefixid              = null
+      start                 = null
+      stop                  = null
+    }
+    ra = {
+      enabled            = false
+      preferred_lifetime = null
+      priority           = null
+      valid_lifetime     = null
+    }
+    static_subnet = null
+  }
+  lte_lan             = true
+  multicast_dns       = true
+  name                = "HME"
+  network_isolation   = false
+  purpose             = "corporate"
+  setting_preference  = "manual"
+  site                = "default"
+  subnet              = "10.10.1.1/24"
+  third_party_gateway = false
+  vlan                = 1001
 }
 
 # __generated__ by OpenTofu from "6955bb732442f037b9b78fdc"
@@ -124,47 +144,57 @@ resource "unifi_network" "lan" {
       enabled = false
     }
     conflict_checking   = true
-    dns_enabled         = false
-    dns_servers         = ["10.10.99.3"]
     enabled             = true
     gateway_enabled     = false
     leasetime           = "24h0m0s"
-    ntp_enabled         = false
     start               = "192.168.1.50"
     stop                = "192.168.1.200"
     time_offset_enabled = false
+    dns = {
+      enabled = false
+      servers = ["10.10.99.3"]
+    }
+    ntp = {
+      enabled = false
+    }
     wins = {
       enabled = false
     }
   }
-  dhcp_v6_server                 = null
-  domain_name                    = "dcunha.io"
-  enabled                        = true
-  gateway_type                   = "default"
-  igmp_snooping                  = false
-  internet_access                = true
-  ipv6_aliases                   = null
-  ipv6_client_address_assignment = "slaac"
-  ipv6_interface_type            = "none"
-  ipv6_pd_auto_prefixid_enabled  = false
-  ipv6_pd_interface              = null
-  ipv6_pd_prefixid               = null
-  ipv6_pd_start                  = "::2"
-  ipv6_pd_stop                   = "::7d1"
-  ipv6_ra                        = true
-  ipv6_ra_preferred_lifetime     = "4h0m0s"
-  ipv6_ra_priority               = "high"
-  ipv6_ra_valid_lifetime         = null
-  ipv6_static_subnet             = null
-  lte_lan                        = true
-  multicast_dns                  = true
-  name                           = "LAN"
-  network_isolation              = false
-  purpose                        = "corporate"
-  setting_preference             = "manual"
-  site                           = "default"
-  subnet                         = "192.168.1.1/24"
-  third_party_gateway            = false
+  dhcp_v6_server  = null
+  domain_name     = "dcunha.io"
+  enabled         = true
+  gateway_type    = "default"
+  igmp_snooping   = false
+  internet_access = true
+  ipv6 = {
+    aliases                   = null
+    client_address_assignment = "slaac"
+    interface_type            = "none"
+    pd = {
+      auto_prefixid_enabled = false
+      interface             = null
+      prefixid              = null
+      start                 = "::2"
+      stop                  = "::7d1"
+    }
+    ra = {
+      enabled            = true
+      preferred_lifetime = "4h0m0s"
+      priority           = "high"
+      valid_lifetime     = null
+    }
+    static_subnet = null
+  }
+  lte_lan             = true
+  multicast_dns       = true
+  name                = "LAN"
+  network_isolation   = false
+  purpose             = "corporate"
+  setting_preference  = "manual"
+  site                = "default"
+  subnet              = "192.168.1.1/24"
+  third_party_gateway = false
 }
 
 # __generated__ by OpenTofu from "69d02c5acefe6560e6b42e86"
@@ -175,48 +205,58 @@ resource "unifi_network" "gst" {
       enabled = false
     }
     conflict_checking   = true
-    dns_enabled         = false
-    dns_servers         = ["10.10.99.3"]
     enabled             = true
     gateway_enabled     = false
     leasetime           = "8h0m0s"
-    ntp_enabled         = false
     start               = "10.10.151.50"
     stop                = "10.10.151.200"
     time_offset_enabled = false
+    dns = {
+      enabled = false
+      servers = ["10.10.99.3"]
+    }
+    ntp = {
+      enabled = false
+    }
     wins = {
       enabled = false
     }
   }
-  dhcp_v6_server                 = null
-  domain_name                    = "dcunha.io"
-  enabled                        = true
-  gateway_type                   = "default"
-  igmp_snooping                  = false
-  internet_access                = true
-  ipv6_aliases                   = null
-  ipv6_client_address_assignment = null
-  ipv6_interface_type            = "none"
-  ipv6_pd_auto_prefixid_enabled  = false
-  ipv6_pd_interface              = null
-  ipv6_pd_prefixid               = null
-  ipv6_pd_start                  = null
-  ipv6_pd_stop                   = null
-  ipv6_ra                        = false
-  ipv6_ra_preferred_lifetime     = null
-  ipv6_ra_priority               = null
-  ipv6_ra_valid_lifetime         = null
-  ipv6_static_subnet             = null
-  lte_lan                        = true
-  multicast_dns                  = true
-  name                           = "GST"
-  network_isolation              = false
-  purpose                        = "corporate"
-  setting_preference             = "manual"
-  site                           = "default"
-  subnet                         = "10.10.151.1/24"
-  third_party_gateway            = false
-  vlan                           = 1151
+  dhcp_v6_server  = null
+  domain_name     = "dcunha.io"
+  enabled         = true
+  gateway_type    = "default"
+  igmp_snooping   = false
+  internet_access = true
+  ipv6 = {
+    aliases                   = null
+    client_address_assignment = null
+    interface_type            = "none"
+    pd = {
+      auto_prefixid_enabled = false
+      interface             = null
+      prefixid              = null
+      start                 = null
+      stop                  = null
+    }
+    ra = {
+      enabled            = false
+      preferred_lifetime = null
+      priority           = null
+      valid_lifetime     = null
+    }
+    static_subnet = null
+  }
+  lte_lan             = true
+  multicast_dns       = true
+  name                = "GST"
+  network_isolation   = false
+  purpose             = "corporate"
+  setting_preference  = "manual"
+  site                = "default"
+  subnet              = "10.10.151.1/24"
+  third_party_gateway = false
+  vlan                = 1151
 }
 
 # __generated__ by OpenTofu from "69d034c5cefe6560e6b42fb8"
@@ -227,46 +267,56 @@ resource "unifi_network" "lab" {
       enabled = false
     }
     conflict_checking   = true
-    dns_enabled         = false
-    dns_servers         = ["10.10.99.3"]
     enabled             = true
     gateway_enabled     = false
     leasetime           = "24h0m0s"
-    ntp_enabled         = false
     start               = "10.10.99.50"
     stop                = "10.10.99.70"
     time_offset_enabled = false
+    dns = {
+      enabled = false
+      servers = ["10.10.99.3"]
+    }
+    ntp = {
+      enabled = false
+    }
     wins = {
       enabled = false
     }
   }
-  dhcp_v6_server                 = null
-  domain_name                    = "dcunha.io"
-  enabled                        = true
-  gateway_type                   = "default"
-  igmp_snooping                  = false
-  internet_access                = true
-  ipv6_aliases                   = null
-  ipv6_client_address_assignment = "slaac"
-  ipv6_interface_type            = "pd"
-  ipv6_pd_auto_prefixid_enabled  = true
-  ipv6_pd_interface              = "wan"
-  ipv6_pd_prefixid               = null
-  ipv6_pd_start                  = "::2"
-  ipv6_pd_stop                   = "::7d1"
-  ipv6_ra                        = true
-  ipv6_ra_preferred_lifetime     = null
-  ipv6_ra_priority               = "high"
-  ipv6_ra_valid_lifetime         = null
-  ipv6_static_subnet             = null
-  lte_lan                        = true
-  multicast_dns                  = true
-  name                           = "LAB"
-  network_isolation              = false
-  purpose                        = "corporate"
-  setting_preference             = "manual"
-  site                           = "default"
-  subnet                         = "10.10.99.1/24"
-  third_party_gateway            = false
-  vlan                           = 1099
+  dhcp_v6_server  = null
+  domain_name     = "dcunha.io"
+  enabled         = true
+  gateway_type    = "default"
+  igmp_snooping   = false
+  internet_access = true
+  ipv6 = {
+    aliases                   = null
+    client_address_assignment = "slaac"
+    interface_type            = "pd"
+    pd = {
+      auto_prefixid_enabled = true
+      interface             = "wan"
+      prefixid              = null
+      start                 = "::2"
+      stop                  = "::7d1"
+    }
+    ra = {
+      enabled            = true
+      preferred_lifetime = null
+      priority           = "high"
+      valid_lifetime     = null
+    }
+    static_subnet = null
+  }
+  lte_lan             = true
+  multicast_dns       = true
+  name                = "LAB"
+  network_isolation   = false
+  purpose             = "corporate"
+  setting_preference  = "manual"
+  site                = "default"
+  subnet              = "10.10.99.1/24"
+  third_party_gateway = false
+  vlan                = 1099
 }

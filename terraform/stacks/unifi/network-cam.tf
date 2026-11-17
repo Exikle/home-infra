@@ -9,33 +9,43 @@ resource "unifi_network" "cam" {
       enabled = false
     }
     conflict_checking   = true
-    dns_enabled         = false
     enabled             = true
     gateway_enabled     = false
     leasetime           = "24h0m0s"
-    ntp_enabled         = false
     start               = "10.10.62.50"
     stop                = "10.10.62.200"
     time_offset_enabled = false
+    dns = {
+      enabled = false
+    }
+    ntp = {
+      enabled = false
+    }
     wins = {
       enabled = false
     }
   }
-  enabled                       = true
-  gateway_type                  = "default"
-  igmp_snooping                 = false
-  internet_access               = true
-  ipv6_interface_type           = "none"
-  ipv6_pd_auto_prefixid_enabled = false
-  ipv6_ra                       = false
-  lte_lan                       = true
-  multicast_dns                 = true
-  name                          = "CAM"
-  network_isolation             = false
-  purpose                       = "corporate"
-  setting_preference            = "manual"
-  site                          = "default"
-  subnet                        = "10.10.62.1/24"
-  third_party_gateway           = false
-  vlan                          = 1062
+  enabled         = true
+  gateway_type    = "default"
+  igmp_snooping   = false
+  internet_access = true
+  ipv6 = {
+    interface_type = "none"
+    pd = {
+      auto_prefixid_enabled = false
+    }
+    ra = {
+      enabled = false
+    }
+  }
+  lte_lan             = true
+  multicast_dns       = true
+  name                = "CAM"
+  network_isolation   = false
+  purpose             = "corporate"
+  setting_preference  = "manual"
+  site                = "default"
+  subnet              = "10.10.62.1/24"
+  third_party_gateway = false
+  vlan                = 1062
 }
