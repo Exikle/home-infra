@@ -19,3 +19,4 @@ spec:
         caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         serverName: kubernetes
       interval: 30s
+      max_scrape_size: 32MiB
