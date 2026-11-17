@@ -24,11 +24,3 @@ metadata:
   namespace: external-secrets
 stringData:
   token: op://artemis/access-token/credential
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cloudflare-dns-tunnel-secret
-  namespace: network
-stringData:
-  FROSTLINK_TUNNEL_ID: op://frostlink/cloudflare-frostlink/CLOUDFLARE_TUNNEL_ID

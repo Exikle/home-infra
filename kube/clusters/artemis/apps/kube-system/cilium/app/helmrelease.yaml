@@ -50,7 +50,6 @@ spec:
         masqLinkLocal: true
         nonMasqueradeCIDRs:
           - 10.42.0.0/16
-          - 10.244.0.0/24
     ipv4NativeRoutingCIDR: 10.42.0.0/16
     ipv6:
       enabled: true

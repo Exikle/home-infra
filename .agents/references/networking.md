@@ -578,7 +578,7 @@ reaches Artemis over the towonel backhaul (`towonel-agent.md`). The mesh LoadBal
 
 - the cluster `id` and `name` (changing them re-identifies every endpoint);
 - BGP advertising `PodCIDR` as well as `LoadBalancerIP` (`kube-system/cilium/app/network.yaml`);
-- ip-masq-agent `nonMasqueradeCIDRs: [10.42.0.0/16, 10.244.0.0/24]` with `masqLinkLocal: true`.
+- ip-masq-agent `nonMasqueradeCIDRs: [10.42.0.0/16]` with `masqLinkLocal: true`.
   Pod → LAN traffic is still masqueraded to the node IP. Do **not** widen `ipv4NativeRoutingCIDR`
   instead: Cilium checks the native CIDR before ip-masq-agent, so pod → LAN traffic would stop being
   masqueraded and LAN hosts would reply through the UCG;
