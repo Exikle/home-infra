@@ -73,6 +73,19 @@ spec:
           webhookSecret:
             env: FORGEJO_WEBHOOK_SECRET
       providers:
+        claude:
+          apiKey:
+            env: CLIPROXY_API_KEY
+          baseUrl: http://cliproxyapi.cortex.svc.cluster.local:8317
+          concurrency: 1
+          pricing:
+            claude-haiku-5-5:
+              cacheRead: 0.01
+              cacheWrite: 0.125
+              input: 0.1
+              output: 0.5
+          retries: 2
+          type: anthropic
         opencode:
           apiKey:
             env: OPENCODE_API_KEY
@@ -89,6 +102,18 @@ spec:
           retries: 2
           type: opencode
       review:
+        agents:
+          - categories:
+              - correctness
+              - security
+              - performance
+              - reliability
+              - compatibility
+              - accessibility
+              - maintainability
+              - tests
+            model: claude/claude-haiku-5-5
+            name: haiku
         model: opencode/minimax-m3
       webUrl: https://kritika.dcunha.io
     database:
@@ -115,6 +140,16 @@ spec:
         enabled: true
     networkPolicy:
       extraEgress:
+        - ports:
+            - port: 8317
+              protocol: TCP
+          to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: cortex
+              podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: cliproxyapi
         - ports:
             - port: 10443
               protocol: TCP
