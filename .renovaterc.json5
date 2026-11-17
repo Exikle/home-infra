@@ -13,64 +13,7 @@
   "ansible-galaxy": {
     managerFilePatterns: ["ansible/requirements.yml"],
   },
-  customManagers: [
-    {
-      customType: "regex",
-      description: "Bump the review tools pinned in .kritika.yaml",
-      managerFilePatterns: ["/^\\.kritika\\.yaml$/"],
-      matchStrings: [
-        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\n\\s*"?aqua:[^"\\s]+"?:[ \\t]*"?(?<currentValue>[^"\\s]+)"?',
-      ],
-      versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
-    },
-  ],
   packageRules: [
-    {
-      description: "Never automerge pocket-id — the operator halts on an unsupported version",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["ghcr.io/pocket-id/pocket-id"],
-      automerge: false,
-      prBodyNotes: [
-        "> ⛔ **Do not automerge.** pocket-id-operator halts on an unsupported version and every OIDC CR silently stops reconciling. The bump is one-way — recovery needs a database restore, not a redeploy.",
-      ],
-    },
-    {
-      description: "hermes-agent: v0.x only (the old v2026.x calendar tags sort higher), never automerge — state.db migrates one way",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["nousresearch/hermes-agent"],
-      allowedVersions: "/^v0\\./",
-      automerge: false,
-      prBodyNotes: [
-        "> ⛔ **Do not automerge.** Snapshot the hermes PVC first: `state.db` migrates one way, so rollback needs a kopiur restore, not a revert.",
-      ],
-    },
-    {
-      description: "Never automerge OpenTofu providers — these change real hardware",
-      matchManagers: ["terraform"],
-      automerge: false,
-      prBodyNotes: [
-        "> ⚠️ **Changes real hardware.** Review the provider changelog before merging.",
-      ],
-      addLabels: ["area/infra"],
-    },
-    {
-      description: "Never automerge Ansible collections — these change real hardware",
-      matchManagers: ["ansible-galaxy"],
-      automerge: false,
-      prBodyNotes: [
-        "> ⚠️ **Changes real hardware.** Review the collection changelog before merging.",
-      ],
-      addLabels: ["area/infra"],
-    },
-    {
-      description: "Envoy Gateway Group",
-      groupName: "envoy-gateway",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/envoyproxy\\/gateway-helm/"],
-      group: {
-        commitMessageTopic: "{{{groupName}}} group",
-      },
-    },
     {
       description: "Frostlink: container digests do not auto-merge by default, only trusted ones below",
       matchFileNames: ["kube/clusters/frostlink/**"],
