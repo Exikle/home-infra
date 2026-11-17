@@ -44,7 +44,7 @@ spec:
                 spec:
                   httpGet:
                     path: /healthz
-                    port: 8080
+                    port: &port 8080
                   initialDelaySeconds: 5
                   periodSeconds: 30
               readiness:
@@ -85,3 +85,15 @@ spec:
         type: emptyDir
         globalMounts:
           - path: /tmp
+    service:
+      app:
+        ports:
+          http:
+            port: *port
+    serviceMonitor:
+      app:
+        endpoints:
+          - port: http
+            path: /metrics
+            interval: 60s
+            scrapeTimeout: 15s
