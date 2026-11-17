@@ -4,7 +4,7 @@ endpoints:
     group: cortex
     url: https://ai.dcunha.io/ops/mcp
     method: POST
-    interval: 10m
+    interval: 3m
     client:
       timeout: 15s
     headers:
@@ -25,7 +25,7 @@ endpoints:
     group: cortex
     url: https://ai.dcunha.io/general/mcp
     method: POST
-    interval: 10m
+    interval: 3m
     client:
       timeout: 15s
     headers:
