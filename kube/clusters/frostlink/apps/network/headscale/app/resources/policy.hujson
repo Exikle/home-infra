@@ -12,7 +12,6 @@
     "routes": {
       "10.10.1.0/24": ["tag:home-router"],
       "10.10.99.0/24": ["tag:home-router"],
-      "10.42.0.0/16": ["tag:home-router"],
       "10.0.0.203/32": ["tag:frostlink"],
     },
     "exitNode": ["tag:home-router"],

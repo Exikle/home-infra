@@ -209,8 +209,8 @@ is still gateways with ULA IPv6 addresses and external-dns-unifi that publishes 
 ### Remote access — the UCG is the subnet router
 
 The tailnet is self-hosted Headscale on Frostlink (`headscale.frostlink.dev`). The UCG Max is the
-home subnet router, `tag:home-router`. It advertises LAB `10.10.99.0/24`, HME `10.10.1.0/24` and
-the pod range of Artemis `10.42.0.0/16` (left over from the removed ClusterMesh). Ansible manages it. See `ansible.md` § The UCG Max role. Away from home, a Headscale device with
+home subnet router, `tag:home-router`. It advertises LAB `10.10.99.0/24` and HME `10.10.1.0/24`. It no
+longer advertises the Artemis pod range `10.42.0.0/16`, a ClusterMesh leftover. Ansible manages it. See `ansible.md` § The UCG Max role. Away from home, a Headscale device with
 subnet routes on reaches every LAB address and every `*.dcunha.io` gateway name, because the split
 DNS of Headscale sends `dcunha.io` to `10.10.99.1`. This is how git SSH works remotely. Nothing is
 port-forwarded. Public `dcunha.io` HTTPS now goes through towonel, but SSH does not

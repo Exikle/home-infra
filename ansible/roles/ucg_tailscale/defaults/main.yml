@@ -47,7 +47,6 @@ ucg_tailscale_hostname: ucg-max
 ucg_tailscale_advertise_routes:
   - 10.10.1.0/24
   - 10.10.99.0/24
-  - 10.42.0.0/16
 # Lets tailnet devices send all their internet traffic out the home WAN.
 # Headscale auto-approves it for tag:home-router. tailscale warns that
 # --snat-subnet-routes=false may break exit traffic; it does not here, because
