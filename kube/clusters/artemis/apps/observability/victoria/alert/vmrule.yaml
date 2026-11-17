@@ -247,11 +247,11 @@ spec:
             summary: Filesystem has less than 5% space left.
           expr: >-
             (
-              node_filesystem_avail_bytes{job="node-exporter", fstype!=""} /
-              node_filesystem_size_bytes{job="node-exporter", fstype!=""}
+              node_filesystem_avail_bytes{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"} /
+              node_filesystem_size_bytes{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"}
               * 100 < 5
             )
-            and node_filesystem_readonly{job="node-exporter", fstype!=""} == 0
+            and node_filesystem_readonly{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"} == 0
           for: 30m
           labels:
             severity: critical
@@ -265,11 +265,11 @@ spec:
             summary: Filesystem has less than 15% space left.
           expr: >-
             (
-              node_filesystem_avail_bytes{job="node-exporter", fstype!=""} /
-              node_filesystem_size_bytes{job="node-exporter", fstype!=""}
+              node_filesystem_avail_bytes{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"} /
+              node_filesystem_size_bytes{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"}
               * 100 < 15
             )
-            and node_filesystem_readonly{job="node-exporter", fstype!=""} == 0
+            and node_filesystem_readonly{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"} == 0
           for: 30m
           labels:
             severity: warning
@@ -284,12 +284,12 @@ spec:
             summary: Filesystem is predicted to run out of inodes within 4 hours.
           expr: >-
             (
-              node_filesystem_files_free{job="node-exporter", fstype!=""} /
-              node_filesystem_files{job="node-exporter", fstype!=""}
+              node_filesystem_files_free{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"} /
+              node_filesystem_files{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"}
               * 100 < 20
             )
-            and predict_linear(node_filesystem_files_free{job="node-exporter", fstype!=""}[6h], 4*3600) < 0
-            and node_filesystem_readonly{job="node-exporter", fstype!=""} == 0
+            and predict_linear(node_filesystem_files_free{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"}[6h], 4*3600) < 0
+            and node_filesystem_readonly{job=~"node-exporter|prometheus-node-exporter", fstype!="", mountpoint!~"/var/lib/kubelet/.+"} == 0
           for: 1h
           labels:
             severity: critical
@@ -303,13 +303,13 @@ spec:
             summary: Host is running out of memory.
           expr: >-
             (
-              100 - (100 * node_memory_MemAvailable_bytes{job="node-exporter",instance!="pantheon"}
-              / node_memory_MemTotal_bytes{job="node-exporter",instance!="pantheon"}) > 90
+              100 - (100 * node_memory_MemAvailable_bytes{job=~"node-exporter|prometheus-node-exporter",instance!="pantheon"}
+              / node_memory_MemTotal_bytes{job=~"node-exporter|prometheus-node-exporter",instance!="pantheon"}) > 90
             )
             or
             (
-              100 - (100 * node_memory_MemAvailable_bytes{job="node-exporter",instance="pantheon"}
-              / node_memory_MemTotal_bytes{job="node-exporter",instance="pantheon"}) > 98
+              100 - (100 * node_memory_MemAvailable_bytes{job=~"node-exporter|prometheus-node-exporter",instance="pantheon"}
+              / node_memory_MemTotal_bytes{job=~"node-exporter|prometheus-node-exporter",instance="pantheon"}) > 98
             )
           for: 15m
           labels:
@@ -322,7 +322,7 @@ spec:
             runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodehighnumberconntrackentriesused
             summary: Number of conntrack are getting close to the limit.
           expr: >-
-            (node_nf_conntrack_entries{job="node-exporter"} /
+            (node_nf_conntrack_entries{job=~"node-exporter|prometheus-node-exporter"} /
             node_nf_conntrack_entries_limit) > 0.75
           labels:
             severity: warning
@@ -335,12 +335,12 @@ spec:
             summary: Clock skew detected.
           expr: >-
             (
-              node_timex_offset_seconds{job="node-exporter"} > 0.05
-              and deriv(node_timex_offset_seconds{job="node-exporter"}[5m]) >= 0
+              node_timex_offset_seconds{job=~"node-exporter|prometheus-node-exporter"} > 0.05
+              and deriv(node_timex_offset_seconds{job=~"node-exporter|prometheus-node-exporter"}[5m]) >= 0
             )
             or (
-              node_timex_offset_seconds{job="node-exporter"} < -0.05
-              and deriv(node_timex_offset_seconds{job="node-exporter"}[5m]) <= 0
+              node_timex_offset_seconds{job=~"node-exporter|prometheus-node-exporter"} < -0.05
+              and deriv(node_timex_offset_seconds{job=~"node-exporter|prometheus-node-exporter"}[5m]) <= 0
             )
           for: 10m
           labels:
