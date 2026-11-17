@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/networking.k8s.io/networkpolicy_v1.json
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cliproxyapi
+spec:
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agentgateway
+      ports:
+        - port: 8317
+          protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/controller: cliproxyapi
+      app.kubernetes.io/name: cliproxyapi
+  policyTypes:
+    - Ingress

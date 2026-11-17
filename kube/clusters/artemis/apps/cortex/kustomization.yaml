@@ -13,6 +13,7 @@ resources:
   - ./namespace.yaml
   - ./agentgateway/ks.yaml
   - ./claude-code/ks.yaml
+  - ./cliproxyapi/ks.yaml
   - ./hermes/ks.yaml
   - ./limitrange.yaml
   - ./llmkube/ks.yaml

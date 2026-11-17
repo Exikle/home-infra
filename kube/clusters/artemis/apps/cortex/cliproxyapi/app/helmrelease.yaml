@@ -1,0 +1,121 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cliproxyapi
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: cliproxyapi
+  interval: 1h
+  values:
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+    controllers:
+      cliproxyapi:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: docker.io/eceasy/cli-proxy-api
+              tag: v8.0.76@sha256:d205abff33a6381001223588e32052f45070ee7a4f1dc0c47e16644a8c82b4fb
+            args:
+              - --config
+              - /etc/cliproxyapi/config.yaml
+              - --local-model
+            command:
+              - /CLIProxyAPI/CLIProxyAPI
+            env:
+              HOME: /data
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: &port 8317
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: *port
+                  periodSeconds: 10
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 1Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+    externalSecrets:
+      config:
+        dataFrom:
+          - extract:
+              key: cliproxyapi
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          template:
+            data:
+              config.yaml: |
+                config-version: 8
+                server:
+                  host: 0.0.0.0
+                  port: 8317
+                  discovery:
+                    enabled: false
+                management:
+                  allow-remote: false
+                  secret-key: ""
+                  disable-control-panel: true
+                access:
+                  api-keys:
+                    - "{{ .CLIPROXYAPI_API_KEY }}"
+                oauth:
+                  auth-dir: /data/.cli-proxy-api
+                routing:
+                  retry:
+                    request-retry: 2
+                models:
+                  catalog: ""
+                  codex-catalog: ""
+                  devin-catalog: ""
+    persistence:
+      config:
+        type: secret
+        name: cliproxyapi
+        globalMounts:
+          - path: /etc/cliproxyapi
+            readOnly: true
+      data:
+        existingClaim: cliproxyapi
+        globalMounts:
+          - path: /data
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          cliproxyapi:
+            app:
+              - path: /tmp
+                subPath: tmp
+    service:
+      app:
+        ports:
+          http:
+            port: *port
