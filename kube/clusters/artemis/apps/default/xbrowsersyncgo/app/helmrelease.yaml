@@ -73,6 +73,9 @@ spec:
               capabilities: { drop: ["ALL"] }
     route:
       app:
+        annotations:
+          gatus.home-operations.com/endpoint: |-
+            path: /healthz
         hostnames:
           - xbs.dcunha.io
         parentRefs:
