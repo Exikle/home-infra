@@ -2,87 +2,104 @@
 
 
 :root {
-  /* ayu light — palette from ayu-theme/ayu-colors themes/light.yaml */
-  --ayu-bg-base: #f8f9fa;
-  --ayu-bg-lift: #fcfcfc;
-  --ayu-bg-sunk: #ebeef0;
-  --ayu-fg: #5c6166;
-  --ayu-ui-fg: #828e9f;
-  --ayu-accent: #f29718;
-  --ayu-error: #e65050;
+  /* Solarized light — palette from ethanschoonover.com/solarized */
+  --sol-base03: #002b36;
+  --sol-base02: #073642;
+  --sol-base01: #586e75;
+  --sol-base00: #657b83;
+  --sol-base0: #839496;
+  --sol-base1: #93a1a1;
+  --sol-base2: #eee8d5;
+  --sol-base3: #fdf6e3;
+  --sol-yellow: #b58900;
+  --sol-orange: #cb4b16;
+  --sol-red: #dc322f;
+  --sol-magenta: #d33682;
+  --sol-violet: #6c71c4;
+  --sol-blue: #268bd2;
+  --sol-cyan: #2aa198;
+  --sol-green: #859900;
 
   /* The light base builds its surfaces from --zinc-*, not --steel-*. */
-  --zinc-50: var(--ayu-bg-lift);
-  --zinc-100: #f0f2f4;
-  --zinc-150: var(--ayu-bg-sunk);
-  --zinc-200: #e1e5e9;
-  --zinc-250: #d7dbe0;
-  --zinc-300: #cbd0d7;
-  --zinc-350: #b4bbc4;
-  --zinc-400: #9aa3ae;
-  --zinc-450: #8c95a1;
-  --zinc-500: var(--ayu-ui-fg);
-  --zinc-550: #737e8d;
-  --zinc-600: #656f7c;
-  --zinc-650: var(--ayu-fg);
-  --zinc-700: #4e5257;
-  --zinc-750: #414549;
-  --zinc-800: #34373a;
-  --zinc-850: #2a2c2f;
-  --zinc-900: #1f2124;
+  --zinc-50: #fdf6e3;
+  --zinc-100: #f6efdc;
+  --zinc-150: #eee8d5;
+  --zinc-200: #dcdacb;
+  --zinc-250: #cecfc3;
+  --zinc-300: #c0c4bb;
+  --zinc-350: #aab3ae;
+  --zinc-400: #93a1a1;
+  --zinc-450: #839496;
+  --zinc-500: #657b83;
+  --zinc-550: #5e747c;
+  --zinc-600: #586e75;
+  --zinc-650: #3d5c64;
+  --zinc-700: #234953;
+  --zinc-750: #073642;
+  --zinc-800: #04303c;
+  --zinc-850: #002b36;
+  --zinc-900: #001e26;
 
-  --color-body: var(--ayu-bg-base);
+  --color-body: var(--sol-base3);
 
-  /* ayu's accent (#f29718) is ~2.2:1 on white — unreadable as link text. The
-     primary ramp is a darkened ayu orange that clears WCAG AA; the true accent
-     is kept on --color-accent for non-text use. */
-  --color-primary: #a35f00;
+  /* Solarized blue (#268bd2) is 3.4:1 on base3 — under AA for link text. The
+     primary ramp is a darkened blue that clears AA on base2; the true blue
+     stays on --color-accent for non-text use. */
+  --color-primary: #1b6ea3;
   --color-primary-contrast: #ffffff;
-  --color-primary-dark-1: #8a5000;
-  --color-primary-dark-2: #714100;
-  --color-primary-dark-3: #5c3500;
-  --color-primary-dark-4: #472900;
-  --color-primary-dark-5: #331d00;
-  --color-primary-dark-6: #241400;
-  --color-primary-dark-7: #180d00;
-  --color-primary-light-1: #c07400;
-  --color-primary-light-2: #d98600;
-  --color-primary-light-3: var(--ayu-accent);
-  --color-primary-light-4: #f7b45c;
-  --color-primary-light-5: #fbcf95;
-  --color-primary-light-6: #fde5c4;
-  --color-primary-light-7: #fef4e6;
-  --color-primary-alpha-10: #a35f0019;
-  --color-primary-alpha-20: #a35f0033;
-  --color-primary-alpha-30: #a35f004b;
-  --color-primary-alpha-40: #a35f0066;
-  --color-primary-alpha-50: #a35f0080;
-  --color-primary-alpha-60: #a35f0099;
-  --color-primary-alpha-70: #a35f00b3;
-  --color-primary-alpha-80: #a35f00cc;
-  --color-primary-alpha-90: #a35f00e1;
+  --color-primary-dark-1: #175e8b;
+  --color-primary-dark-2: #134d72;
+  --color-primary-dark-3: #10405f;
+  --color-primary-dark-4: #0c334b;
+  --color-primary-dark-5: #092639;
+  --color-primary-dark-6: #071d2a;
+  --color-primary-dark-7: #05141d;
+  --color-primary-light-1: #207cba;
+  --color-primary-light-2: #268bd2;
+  --color-primary-light-3: #67aee0;
+  --color-primary-light-4: #92c5e8;
+  --color-primary-light-5: #bedcf2;
+  --color-primary-light-6: #deeef8;
+  --color-primary-light-7: #f0f7fc;
+  --color-primary-alpha-10: #1b6ea319;
+  --color-primary-alpha-20: #1b6ea333;
+  --color-primary-alpha-30: #1b6ea34b;
+  --color-primary-alpha-40: #1b6ea366;
+  --color-primary-alpha-50: #1b6ea380;
+  --color-primary-alpha-60: #1b6ea399;
+  --color-primary-alpha-70: #1b6ea3b3;
+  --color-primary-alpha-80: #1b6ea3cc;
+  --color-primary-alpha-90: #1b6ea3e1;
   --color-primary-hover: var(--color-primary-dark-1);
   --color-primary-active: var(--color-primary-dark-2);
 
-  --color-accent: var(--ayu-accent);
+  --color-accent: var(--sol-blue);
 
-  --color-red: #f07171;
-  --color-orange: #fa8532;
-  --color-yellow: #eba400;
-  --color-olive: #86b300;
-  --color-green: #86b300;
-  --color-teal: #4cbf99;
-  --color-blue: #22a4e6;
-  --color-violet: #a37acc;
-  --color-purple: #a37acc;
-  --color-pink: #f2a191;
+  --color-red: var(--sol-red);
+  --color-orange: var(--sol-orange);
+  --color-yellow: var(--sol-yellow);
+  --color-olive: var(--sol-green);
+  --color-green: var(--sol-green);
+  --color-teal: var(--sol-cyan);
+  --color-blue: var(--sol-blue);
+  --color-violet: var(--sol-violet);
+  --color-purple: var(--sol-violet);
+  --color-pink: var(--sol-magenta);
 
-  --color-selection-bg: var(--ayu-accent);
-  --color-selection-fg: #1f2124;
+  /* Solarized's light body tone (base00) is 4.1:1 on base3; base01 clears AA. */
+  --color-text: var(--sol-base02);
+  --color-text-light: var(--sol-base01);
+  --color-text-light-1: var(--sol-base01);
+  --color-text-light-2: var(--sol-base01);
+  --color-text-light-3: var(--sol-base00);
+  --color-input-text: var(--sol-base02);
+
+  --color-selection-bg: var(--sol-base2);
+  --color-selection-fg: var(--sol-base02);
 }
 
 ::selection {
-  background-color: color-mix(in srgb, var(--ayu-accent) 30%, transparent);
+  background-color: color-mix(in srgb, var(--sol-blue) 25%, transparent);
 }
 
 :root {

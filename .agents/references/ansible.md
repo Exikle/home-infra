@@ -123,14 +123,20 @@ The base is from Forgejo 16, so a Forgejo major can add variables that the base 
 for those. After a major upgrade, diff the variables that `index.css` references against what
 `index.css` plus each theme defines. Compare the result with the built-in `forgejo-dark`/`-light`.
 
-The team built `ayu` by swapping only that block for the official ayu palette
-(`ayu-theme/ayu-colors`, `themes/dark.yaml` and `themes/light.yaml`). No ayu theme for
-Forgejo or Gitea exists upstream. This is the adaptation, not a port.
+`solarized` is the default theme. The team built it by swapping only that block for the 16
+colours of Solarized (<https://ethanschoonover.com/solarized/>). The 16 colours sit in each file as
+`--sol-<name>` variables, and every ramp is mixed from them. It replaced the earlier `ayu` theme.
 
-There is one deliberate deviation. The light accent `#f29718` of ayu measures 2.22:1 on the light
-background, far under WCAG AA, so it is unusable as link text. `--color-primary` is a darkened
-ayu orange (`#a35f00`, 4.75:1), and the true accent stays on `--color-accent` for non-text
-use. The dark theme needs no such change: `#e6b450` on `#0d1017` is 9.98:1.
+Solarized measures under WCAG AA (4.5:1) in some places, so the theme has three deliberate deviations:
+
+- Links: Solarized blue `#268bd2` is 3.5:1 on the dark panels and 3.4:1 on the light background.
+  `--color-primary` is a lighter blue in dark (`#54a0d3`) and a darker blue in light
+  (`#1b6ea3`). Each clears 4.5:1 on both surfaces of its mode. The true blue stays on
+  `--color-accent` for non-text use.
+- Dark body text: Solarized uses `base0`, which is 4.1:1 on the `base02` panels. `--color-text` is
+  `base1` (4.9:1). `base0` stays for secondary text.
+- Light body text: Solarized uses `base00`, which is 4.1:1 on `base3`. `--color-text` is
+  `base02`, and secondary text is `base01` (5.0:1). `base00` stays only for the faintest text.
 
 ### The host updates itself — do not let the role fight it
 

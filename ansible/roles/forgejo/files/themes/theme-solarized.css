@@ -1,0 +1,2 @@
+@import "theme-solarized-dark.css";
+@import "theme-solarized-light.css" (prefers-color-scheme: light);

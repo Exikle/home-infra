@@ -44,16 +44,16 @@ forgejo_config_mode: "0640"
 # A theme is live when theme-<name>.css exists AND <name> is in the THEMES list,
 # so the list below is derived from the filenames rather than repeated by hand.
 #
-# anthracite is Erwan Leboucher's theme (eleboucher/homelab). ayu is derived from
-# it: same compiled Forgejo base, with the palette block at the end swapped for
-# the official ayu palette (ayu-theme/ayu-colors).
+# anthracite is Erwan Leboucher's theme (eleboucher/homelab). solarized is derived
+# from it: same compiled Forgejo base, with the palette block at the end swapped
+# for Ethan Schoonover's Solarized palette (ethanschoonover.com/solarized).
 forgejo_custom_themes:
   - theme-anthracite.css
   - theme-anthracite-dark.css
   - theme-anthracite-light.css
-  - theme-ayu.css
-  - theme-ayu-dark.css
-  - theme-ayu-light.css
+  - theme-solarized.css
+  - theme-solarized-dark.css
+  - theme-solarized-light.css
 
 forgejo_builtin_themes: forgejo-auto,forgejo-light,forgejo-dark
 
@@ -327,11 +327,11 @@ forgejo_settings:
     option: THEMES
     value: "{{ forgejo_theme_names }}"
   # Only applies to accounts with no stored preference of their own — an
-  # existing user who has picked a theme keeps it. `ayu` (not ayu-dark) so it
+  # existing user who has picked a theme keeps it. `solarized` (not solarized-dark) so it
   # follows the viewer's OS light/dark setting.
   - section: ui
     option: DEFAULT_THEME
-    value: ayu
+    value: solarized
 
   - section: cache
     option: ADAPTER
