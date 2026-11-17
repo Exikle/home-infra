@@ -21,60 +21,58 @@ ui:
       link: https://git.dcunha.io/Exikle/home-infra
   custom-css: |
     html:root {
-      --background: 210 16.7% 97.6%;
-      --foreground: 216 7.5% 13.1%;
-      --card: 0 0% 98.8%;
-      --card-foreground: 216 7.5% 13.1%;
-      --popover: 0 0% 98.8%;
-      --popover-foreground: 216 7.5% 13.1%;
-      --primary: 35 100% 32%;
+      --background: 43.8 86.7% 94.1%;
+      --foreground: 192.2 80.8% 14.3%;
+      --card: 43.8 86.7% 94.1%;
+      --card-foreground: 192.2 80.8% 14.3%;
+      --popover: 43.8 86.7% 94.1%;
+      --popover-foreground: 192.2 80.8% 14.3%;
+      --primary: 203.4 71.6% 37.3%;
       --primary-foreground: 0 0% 100%;
-      --secondary: 204 14.3% 93.1%;
-      --secondary-foreground: 210 5.2% 38%;
-      --muted: 204 14.3% 93.1%;
-      --muted-foreground: 215.2 13.1% 56.7%;
-      --accent: 204 14.3% 93.1%;
-      --accent-foreground: 216 7.5% 13.1%;
-      --destructive: 0 75% 60.8%;
+      --secondary: 45.6 42.4% 88.4%;
+      --secondary-foreground: 195 14% 39.2%;
+      --muted: 45.6 42.4% 88.4%;
+      --muted-foreground: 195 14% 39.2%;
+      --accent: 45.6 42.4% 88.4%;
+      --accent-foreground: 192.2 80.8% 14.3%;
+      --destructive: 1 71.2% 52.4%;
       --destructive-foreground: 0 0% 100%;
-      --border: 210 15.4% 89.8%;
-      --input: 215 13% 82%;
-      --ring: 35 89.3% 52.2%;
+      --border: 52.9 19.5% 82.9%;
+      --input: 86.7 7.1% 75.1%;
+      --ring: 204.8 69.4% 48.6%;
     }
     html:root.dark {
-      --background: 222 27.8% 7.1%;
-      --foreground: 45 13.8% 88.6%;
-      --card: 220 27.3% 8.6%;
-      --card-foreground: 46.7 6.6% 73.1%;
-      --popover: 221.5 24.5% 10.4%;
-      --popover-foreground: 46.7 6.6% 73.1%;
-      --primary: 40 75% 60.8%;
-      --primary-foreground: 222 27.8% 7.1%;
-      --secondary: 222.9 20.6% 13.3%;
-      --secondary-foreground: 46.7 6.6% 73.1%;
-      --muted: 222.9 20.6% 13.3%;
-      --muted-foreground: 218.6 11.1% 49.4%;
-      --accent: 222.4 19.5% 17.1%;
-      --accent-foreground: 45 13.8% 88.6%;
-      --destructive: 0 63.1% 59.6%;
-      --destructive-foreground: 222 27.8% 7.1%;
-      --border: 222.9 20.6% 13.3%;
-      --input: 222.4 19.5% 17.1%;
-      --ring: 40 75% 60.8%;
+      --background: 192.2 100% 10.6%;
+      --foreground: 180 6.9% 60.4%;
+      --card: 192.2 100% 10.6%;
+      --card-foreground: 180 6.9% 60.4%;
+      --popover: 192.2 80.8% 14.3%;
+      --popover-foreground: 180 6.9% 60.4%;
+      --primary: 204.1 59.1% 57.8%;
+      --primary-foreground: 192.2 100% 10.6%;
+      --secondary: 193.1 59.1% 18.2%;
+      --secondary-foreground: 180 7.2% 62%;
+      --muted: 193.1 59.1% 18.2%;
+      --muted-foreground: 186.3 8.3% 55.1%;
+      --accent: 192 44.6% 22%;
+      --accent-foreground: 180 6.9% 60.4%;
+      --destructive: 1 71.2% 52.4%;
+      --destructive-foreground: 0 0% 100%;
+      --border: 193.1 59.1% 18.2%;
+      --input: 192 44.6% 22%;
+      --ring: 204.8 69.4% 48.6%;
     }
-    .bg-green-400, .bg-green-500, .bg-green-600, .bg-green-700 { background-color: #86b300 !important; }
-    .bg-red-400, .bg-red-500, .bg-red-600, .bg-red-700 { background-color: #f07171 !important; }
-    .bg-yellow-400, .bg-yellow-500 { background-color: #eba400 !important; }
-    .text-green-500, .text-green-600, .text-green-700 { color: #86b300 !important; }
-    .text-red-500, .text-red-600, .text-red-700 { color: #e65050 !important; }
-    .text-yellow-500, .text-yellow-600, .text-yellow-700 { color: #eba400 !important; }
-    .dark .bg-green-400, .dark .bg-green-500, .dark .bg-green-600, .dark .bg-green-700 { background-color: #aad94c !important; }
-    .dark .bg-red-400, .dark .bg-red-500, .dark .bg-red-600, .dark .bg-red-700 { background-color: #f07178 !important; }
-    .dark .bg-yellow-400, .dark .bg-yellow-500 { background-color: #ffb454 !important; }
-    .dark .text-green-500, .dark .text-green-400 { color: #aad94c !important; }
-    .dark .text-red-500, .dark .text-red-400 { color: #f07178 !important; }
-    .dark .text-yellow-500, .dark .text-yellow-400 { color: #ffb454 !important; }
-    ::selection { background-color: rgb(230 180 80 / 30%); }
+    .bg-green-400, .bg-green-500, .bg-green-600, .bg-green-700 { background-color: #859900 !important; }
+    .bg-red-400, .bg-red-500, .bg-red-600, .bg-red-700 { background-color: #dc322f !important; }
+    .bg-yellow-400, .bg-yellow-500 { background-color: #b58900 !important; }
+    .text-green-500, .text-green-600, .text-green-700 { color: #687800 !important; }
+    .text-red-500, .text-red-600, .text-red-700 { color: #da2825 !important; }
+    .text-yellow-500, .text-yellow-600, .text-yellow-700 { color: #8f6c00 !important; }
+    .dark [class*="text-green-"] { color: #859900 !important; }
+    .dark [class*="text-red-"] { color: #e56663 !important; }
+    .dark [class*="text-yellow-"] { color: #b58900 !important; }
+    ::selection { background-color: rgb(38 139 210 / 25%); }
+    .dark ::selection { background-color: rgb(38 139 210 / 30%); }
   dashboard-heading: Service Status
   dashboard-subheading: Live health of every service on Artemis (home) and Frostlink (cloud)
   default-sort-by: group

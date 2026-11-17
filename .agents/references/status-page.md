@@ -97,6 +97,28 @@ Artemis scrapes `https://status.dcunha.io/metrics` (`victoria/agent/vmstaticscra
 `job=gatus`, `instance=frostlink`), and its kromgo renders the `core_*` badges from that. If the
 scrape stops, the badges keep showing the last value.
 
+## Theme
+
+The page uses Solarized (<https://ethanschoonover.com/solarized/>), the same palette as the Forgejo
+theme. `ui.custom-css` in `resources/config.yaml` sets it. Gatus colours its UI from shadcn
+variables (`--background`, `--primary` and the rest). Each variable holds an HSL triplet without
+`hsl()`. `html:root` sets the light mode, and `html:root.dark` sets the dark mode.
+
+The colour choices for text follow Forgejo (`ansible.md` § Themes are shipped by the role wins for the shared reasons):
+
+- Links use `#1b6ea3` in light and `#54a0d3` in dark, not Solarized blue `#268bd2`.
+- Body text is `base02` in light and `base1` in dark.
+
+Gatus also has its own deviations:
+
+- The status bars use the true Solarized green, red and yellow in both modes.
+- The status text in light mode uses darker colours (`#687800`, `#da2825`, `#8f6c00`). The
+  true colours measure under 4.5:1 on `base3`. In dark mode, only red changes (`#e56663`).
+- The dark-mode text rules match `.dark [class*="text-green-"]`. Gatus sets dark text with
+  classes such as `dark:text-green-400`, and a `.dark .text-green-400` selector does not match them.
+- Secondary text in dark mode is `base0`. It measures 4.75:1 on the page, but only 3.7:1 on the
+  `--muted` surface.
+
 ## Alert plumbing on Frostlink
 
 - `VMAlert.selectAllByDefault: true` evaluates every `VMRule`, including the ones vm-operator
