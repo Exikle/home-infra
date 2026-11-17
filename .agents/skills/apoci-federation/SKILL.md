@@ -102,12 +102,14 @@ You can also use the env vars `APOCI_REMOTE_URL` and `APOCI_ADMIN_TOKEN`.
 
 ## Garbage Collection & Retention
 
-`gc.retention` is in `app/resources/config.yaml`. Two facts about it are load-bearing.
+`gc.retention` is in `app/resources/config.yaml`. Both clusters use the same shape:
+`keepLastN: 3` for every repo, `latest` and `main` pinned, and one `perRepo` rule for the
+cluster's own Flux artifact. Only `endpoint`, `accountDomain`, `trustedProxies` and the
+`perRepo` repo name differ between the two files.
 
 `main` must stay in `pinnedGlobs`. The FluxInstance and the `flux-system`
 OCIRepository both track `oci://registry.dcunha.io/exikle/artemis:main`.
-That tag matches none of the other globs (`latest`, `v*`, `*.*.*`), so without an
-explicit pin it is an ordinary retention candidate. If retention deletes it, the
+Without an explicit pin, that tag is an ordinary retention candidate. If retention deletes it, the
 whole cluster stops reconciling. Frostlink has the identical arrangement on
 `registry.frostlink.dev/exikle/frostlink:main`.
 
@@ -122,9 +124,34 @@ artifact repo. Flux tags it once per commit and never reuses a tag, so it grows
 without bound. Reclaimed disk is
 negligible, because these are manifest artifacts, not image layers. This is tag hygiene.
 
+A `perRepo` key is the exact stored name, `<accountDomain>/<path>`, or the path relative to
+the local `accountDomain`. Globs do not work there. A peer mirror is stored under the peer's
+domain, for example `erwanleboucher.dev/eleboucher/piefed`.
+
+Peer mirrors fill the disk, not our own images. On 2026-11-16, about 90% of the blob bytes on
+both clusters belonged to repos mirrored from peers. Retention applies to peer mirrors too, so
+the global `keepLastN` is what keeps them small. Do not pin version globs such as `v*` or
+`*.*.*` globally. Most peer tags match them, and pinned tags are never deleted. With those
+pins, Artemis kept every peer version forever and sat above 80% full.
+
 `federation.excludedRepos` is outbound only. It stops this node from federating
 matching repos out. It does not block the arrival of the blobs of a peer. `diskUsageThreshold`
 only schedules an extra GC cycle. It does not widen what a cycle deletes.
+
+### Signatures and the untagged prune
+
+The untagged prune deletes manifests that have no tag after `gc.untaggedManifestAge`. If the
+key is unset, the age is 7 days, not off. Only a value of 0 or less turns the prune off, and
+then nothing that retention untags is ever freed. The prune keeps a manifest that has
+referrers, but it does not keep the referrers. A cosign signature is an untagged referrer, so
+apoci deletes each Flux artifact signature 7 days after the push. Upstream has no option to
+keep them (#3311).
+
+This is safe while each cluster pushes a new artifact at least once a week. Flux checks the
+signature again only after a new push, or after source-controller restarts with empty storage.
+The `apoci-signature-check` cronjob in each cluster's apoci app runs every hour. It looks up
+the signature of `:main` on the local registry and on the peer's federated copy. The
+`FluxArtifactSignatureMissing` alert fires when the cronjob has not succeeded for 2 hours.
 
 The upstream config reference is `configs/apoci.example.yaml` in `eleboucher/apoci`.
 

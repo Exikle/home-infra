@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: apoci
+spec:
+  groups:
+    - name: apoci.rules
+      rules:
+        - alert: FluxArtifactSignatureMissing
+          annotations:
+            summary: >-
+              The signature check for this cluster's Flux artifact has not passed
+              in over 2 hours. A source-controller restart or a rebuild from the
+              federated copy would fail cosign verify
+          expr: |-
+            time() - kube_cronjob_status_last_successful_time{namespace="fediverse", cronjob="apoci-signature-check"} > 7200
+            or absent(kube_cronjob_status_last_successful_time{namespace="fediverse", cronjob="apoci-signature-check"})
+          for: 1h
+          labels:
+            severity: warning

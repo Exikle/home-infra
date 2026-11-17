@@ -24,10 +24,8 @@ gc:
   diskUsageThreshold: 80
   diskUsageCheckInterval: 5m
   retention:
-    maxAge: 168h
+    keepLastN: 3
     pinnedGlobs:
-      - "v*"
-      - "*.*.*"
       - "latest"
       - "main"
     perRepo:
