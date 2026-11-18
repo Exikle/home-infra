@@ -62,13 +62,13 @@ ui:
       --input: 192 44.6% 22%;
       --ring: 204.8 69.4% 48.6%;
     }
-    .bg-green-400, .bg-green-500, .bg-green-600, .bg-green-700 { background-color: #859900 !important; }
+    .bg-green-400, .bg-green-500, .bg-green-600, .bg-green-700 { background-color: #4fa34a !important; }
     .bg-red-400, .bg-red-500, .bg-red-600, .bg-red-700 { background-color: #dc322f !important; }
     .bg-yellow-400, .bg-yellow-500 { background-color: #b58900 !important; }
-    .text-green-500, .text-green-600, .text-green-700 { color: #687800 !important; }
+    .text-green-500, .text-green-600, .text-green-700 { color: #3d7e39 !important; }
     .text-red-500, .text-red-600, .text-red-700 { color: #da2825 !important; }
     .text-yellow-500, .text-yellow-600, .text-yellow-700 { color: #8f6c00 !important; }
-    .dark [class*="text-green-"] { color: #859900 !important; }
+    .dark [class*="text-green-"] { color: #4fa34a !important; }
     .dark [class*="text-red-"] { color: #e56663 !important; }
     .dark [class*="text-yellow-"] { color: #b58900 !important; }
     ::selection { background-color: rgb(38 139 210 / 25%); }

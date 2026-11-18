@@ -111,9 +111,11 @@ The colour choices for text follow Forgejo (`ansible.md` § Themes are shipped b
 
 Gatus also has its own deviations:
 
-- The status bars use the true Solarized green, red and yellow in both modes.
-- The status text in light mode uses darker colours (`#687800`, `#da2825`, `#8f6c00`). The
-  true colours measure under 4.5:1 on `base3`. In dark mode, only red changes (`#e56663`).
+- The "up" colour is the green `#4fa34a`, not Solarized green. The owner rejected the olive
+  `#859900` and chose this green over Solarized cyan `#2aa198` and a brighter `#9ab800`.
+- The status bars use `#4fa34a` and the true Solarized red and yellow in both modes.
+- The status text in light mode uses darker colours (`#3d7e39`, `#da2825`, `#8f6c00`). The bar
+  colours measure under 4.5:1 on `base3`. In dark mode, only red changes (`#e56663`).
 - The dark-mode text rules match `.dark [class*="text-green-"]`. Gatus sets dark text with
   classes such as `dark:text-green-400`, and a `.dark .text-green-400` selector does not match them.
 - Secondary text in dark mode is `base0`. It measures 4.75:1 on the page, but only 3.7:1 on the
