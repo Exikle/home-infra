@@ -30,3 +30,4 @@ spec:
       KOPIUR_KEEP_DAILY: "7"
       KOPIUR_KEEP_WEEKLY: "0"
       KOPIUR_KEEP_MONTHLY: "0"
+  wait: false

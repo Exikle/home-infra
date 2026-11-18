@@ -21,3 +21,4 @@ spec:
     - name: flux-instance
     - name: external-secrets
       namespace: external-secrets
+  wait: false

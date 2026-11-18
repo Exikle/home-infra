@@ -21,3 +21,4 @@ spec:
       namespace: towonel
     - name: envoy-gateway
       namespace: network
+  wait: false

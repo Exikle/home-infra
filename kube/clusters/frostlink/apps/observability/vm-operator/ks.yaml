@@ -18,3 +18,4 @@ spec:
   interval: 1h
   retryInterval: 1m
   timeout: 10m
+  wait: false
