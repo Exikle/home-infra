@@ -44,9 +44,12 @@ Both clusters share the task names `apply-ks`, `delete-ks`, `suspend-ks`, `resum
 
 - `snapshot-pvc <ns> <claim>` takes one snapshot and waits. The Artemis task takes optional
   filters.
-- `restore-pvc <ns> <ks> <claim> [offset]` is DESTRUCTIVE. Before you run it, read
-  `openebs-zfs.md` § Restore. The task exists to catch a restore that "succeeds" onto an empty
-  volume.
+- `restore-pvc` takes different arguments on each cluster. On Frostlink it is
+  `restore-pvc <ns> <ks> <claim> [offset]`, and it is DESTRUCTIVE: it deletes the PVC. Before you
+  run it, read `openebs-zfs.md` § Restore. The Frostlink task exists to catch a restore that
+  "succeeds" onto an empty volume. On Artemis it is `restore-pvc <ns> <app> [offset]`, where
+  `<app>` names the app, its kopiur policy and its PVC. It restores in place and scales the app
+  to zero while it runs. Both ask first, so they need `--yes`.
 - There is no `check-postgres`, `apply-node`, `reboot-node` or `reset-node` for Frostlink.
   `talos:upgrade` is the only node verb, and it reboots the only node.
 - `render-ks` cannot render the root (`flux-system flux-system`) offline on either cluster. It
@@ -62,9 +65,11 @@ Confirm-gated tasks need `mise run --yes`. These tasks ask first:
 
 - Every `talos` write verb (`apply-node`, `reboot-node`, `reset-node`, `shutdown-node`,
   `upgrade-k8s`, `upgrade-node`).
-- `//terraform:apply` and `//ansible:apply`.
+- `//terraform:apply`, `//ansible:apply` and `//ansible:ucg-authkey`.
 - `//kube/clusters/artemis/bootstrap:cluster`.
-- `//kube/clusters/frostlink/talos:upgrade` and
+- `restore-pvc`, `release-snapshot` and `reset-hr` on both clusters.
+- `reclaim-pv` and `towonel-invite` on Frostlink.
+- `//kube/clusters/frostlink/talos:upgrade`, `//kube/clusters/frostlink/talos:patch-node` and
   `//kube/clusters/frostlink/bootstrap:phase1|phase2|tailnet`.
 
 From a non-interactive shell, these tasks stop with exit 1
@@ -122,8 +127,8 @@ tool part of the name. Within a server, tools are `<target>_<tool>` (for example
   folder (`kube/clusters/<cluster>/kubeconfig`, `kube/clusters/<cluster>/talosconfig`,
   gitignored). `kube/clusters/<cluster>/mise.toml` sets them, with `KUBE_CONTEXT`, for the tasks
   of that cluster. Outside a task, pass `--context` explicitly.
-- There are six MCP registration files across this machine. If you change a tier, edit all of
-  them. `.agents/references/memory-config.md` § Six registration files is canonical.
+- There are five MCP registration files across this machine. If you change a tier, edit all of
+  them. `.agents/references/memory-config.md` § Five registration files is canonical.
 
 ## Subagents
 

@@ -2,10 +2,14 @@
 
 Mark each item PASS, FAIL, or N/A.
 
-Frostlink differences (H30 to H32 are Artemis items): the only gateway is `external-gateway`, so a
-route has `parentRefs` on `external-gateway` with `namespace: network`. There is no internal gateway.
-The route is under `route.app:` in values, never a standalone HTTPRoute file. Field order follows
-`.agents/instructions/frostlink.md` plus `.agents/skills/modules/checklists/yaml-sorting.md`.
+H30 to H32 are Artemis items. On Frostlink, the only gateway is `external-gateway`. A route there
+has `parentRefs` on `external-gateway` with `namespace: network`. Frostlink has no internal
+gateway. On Frostlink, the field order follows `.agents/instructions/frostlink.md` and
+`.agents/skills/modules/checklists/yaml-sorting.md`.
+
+An app-template app defines its route inline, under `route.app:` in its values. Only an app with
+no app-template HelmRelease uses a standalone `httproute.yaml`. This applies to both clusters.
+`.agents/instructions/cluster-conventions.md` has the rule and wins.
 
 ## Structure & schema
 
@@ -26,7 +30,7 @@ The route is under `route.app:` in values, never a standalone HTTPRoute file. Fi
 
 ## defaultPodOptions
 
-> PUID/PGID exception: if the container has `PUID`/`PGID` env vars, the image is Linuxserver-style and starts as root to create its own user. Mark H8/H9/H10 as N/A. Do not set `runAsNonRoot`, `runAsUser`, or `runAsGroup`, because the entrypoint handles user switching. See advisory A19.
+> PUID/PGID exception: if the container has `PUID`/`PGID` env vars, the image is Linuxserver-style. It starts as root to create its own user. Mark H8/H9/H10 as N/A. Do not set `runAsNonRoot`, `runAsUser`, or `runAsGroup`, because the entrypoint handles user switching. See advisory A19.
 
 | #   | Check                                                                      | Result |
 | --- | -------------------------------------------------------------------------- | ------ |
@@ -63,7 +67,7 @@ The route is under `route.app:` in values, never a standalone HTTPRoute file. Fi
 
 | #    | Check                                                                                                          | Result |
 | ---- | -------------------------------------------------------------------------------------------------------------- | ------ |
-| H26  | If kopiur used: `existingClaim: <app>` (not inline PVC spec)                                                   |        |
+| H26  | If the app uses kopiur: `existingClaim: <app>` (not an inline PVC spec)                                        |        |
 | H27  | If `readOnlyRootFilesystem: true`: a `tmp` emptyDir mount exists                                               |        |
 | H27a | Every emptyDir uses `advancedMounts` (never `globalMounts`), with a `subPath` per path, even for a single path |        |
 | H28  | Persistence item field order: `type → annotations → labels → <alphabetical> → globalMounts → advancedMounts`   |        |
@@ -76,11 +80,11 @@ The route is under `route.app:` in values, never a standalone HTTPRoute file. Fi
 
 ## Route
 
-| #   | Check                                                                                                                                                                                                                                                                                                                                                                         | Result |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| H30 | If route present: `parentRefs` references `internal-gateway` (LAN-only) or `edge-gateway` (public), always with `namespace: network`. A new route on `external-gateway` is a FAIL (legacy, no upstream)                                                                                                                                                                       |        |
-| H31 | Route defined under `route.app:` in values and not in a standalone HTTPRoute file                                                                                                                                                                                                                                                                                             |        |
-| H32 | Hostname/listener match: `*.frostlink.dev` only on `edge-gateway` (`sectionName: https` or none); `*.dcunha.io` on `internal-gateway` or on `edge-gateway` with `sectionName: https-dcunha` or none; apex `dcunha.io` on `edge-gateway` with `https-dcunha-apex`. A `*.dcunha.io` route on `edge-gateway` pinned to `sectionName: https` is a FAIL, because it never attaches |        |
+| #   | Check                                                                                                                                                                                                                                                                                                                                                                                                 | Result |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| H30 | If route present: `parentRefs` references `internal-gateway` (LAN-only) or `edge-gateway` (public), always with `namespace: network`. A new route on `external-gateway` is a FAIL (legacy, no upstream)                                                                                                                                                                                               |        |
+| H31 | An app-template app defines its route under `route.app:` in values. A standalone `httproute.yaml` is a FAIL for an app-template app, and N/A for an app with no app-template HelmRelease                                                                                                                                                                                                              |        |
+| H32 | Hostname and listener match. `*.frostlink.dev` goes only on `edge-gateway` (`sectionName: https` or none). `*.dcunha.io` goes on `internal-gateway`, or on `edge-gateway` with `sectionName: https-dcunha` or none. The apex `dcunha.io` goes on `edge-gateway` with `https-dcunha-apex`. A `*.dcunha.io` route on `edge-gateway` pinned to `sectionName: https` is a FAIL, because it never attaches |        |
 
 Gateways, listeners and which hostname goes where: `templates/helmrelease.md` § Gateways, and
-`.agents/references/towonel-agent.md` § Which gateway to attach a route to (wins).
+`.agents/references/towonel-agent.md` § Which gateway a route uses (wins).

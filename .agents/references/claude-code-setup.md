@@ -1,7 +1,8 @@
 # Claude Code setup — home-infra
 
-These mechanics have no opencode equivalent, so they stay out of the shared `.agents/` contract.
-Read this file when you touch a hook, add a skill or subagent, or want to know why a guard did not
+These mechanics are specific to Claude Code, so they stay out of the shared `.agents/` contract.
+opencode has two counterparts: the generated guard `.opencode/plugins/guard-destructive.js` and
+the subagent symlinks in `.opencode/agents/`. Read this file when you touch a hook, add a skill or subagent, or want to know why a guard did not
 fire.
 
 - There is no `CLAUDE.md` at the repo root. Claude Code reads `AGENTS.md` when a project has no
@@ -37,7 +38,10 @@ fire.
 - Skill symlinks: `.claude/skills/<name>` → `.agents/skills/<name>`. A new skill needs the
   symlink. Without it, Claude Code cannot see the skill. opencode reads `.agents/skills/`
   directly.
-- Subagent symlinks: `.claude/agents/<name>.md` → `.agents/agents/<name>.md`.
+- Subagent symlinks: `.claude/agents/<name>.md` → `.agents/agents/<name>.md`. opencode has the
+  same link in its own folder: `.opencode/agents/<name>.md` → `.agents/agents/<name>.md`. A new
+  subagent needs both links. `lint-agents` checks only the `.claude/agents/` link, so it does not
+  catch a missing `.opencode/agents/` link.
 - Path-scoped rules: `.claude/rules/<name>.md` is a symlink to a file in `.agents/instructions/`
   that carries `paths:` frontmatter. Claude Code loads such a rule only when it touches a matching
   file. So `cluster-conventions.md`, `yaml-conventions.md` and `frostlink.md` stay out of the
@@ -49,7 +53,7 @@ fire.
 - `mise run //ai:lint-agents` (`scripts/check-agent-config.py`) audits all of the above. It finds
   these faults:
     - Invalid frontmatter YAML.
-    - Missing or dangling symlinks.
+    - Missing or dangling symlinks under `.claude/`.
     - Skills and subagents without `name:`/`description:`/`mode:`.
     - Dangling `@imports`.
     - An instruction file wired twice or not at all.

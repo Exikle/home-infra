@@ -5,16 +5,20 @@ description: Watch an in-flight deployment or Flux reconciliation until it settl
 
 # Skill: Watch Deploys
 
-This skill is a delta-aware cluster state watcher. Use it with `/loop 30s /watch-deploys` during active deployments.
+This skill watches the cluster state and reports only the changes. Use it with
+`/loop 30s /watch-deploys` while a deployment is in progress.
 
-Each tick shows only what **changed** since the last tick, not the full cluster state.
+Each tick shows only what changed since the last tick, not the full cluster state.
 
 On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command. The MCP k8s tools
-point at Artemis, so there is no MCP fallback there. Keep the cache in the session scratchpad.
+point at Artemis, so Frostlink has no MCP fallback.
 
 ## State Cache
 
-Store the previous snapshot at `/tmp/artemis-watch-deploys.json`. On the first run (no cache), show the full current state as the baseline and write the cache.
+Store the previous snapshot at `<scratchpad>/watch-deploys-<cluster>.json`. `<scratchpad>` is the
+scratchpad folder of the session. `<cluster>` is `artemis` or `frostlink`, so that a run on one
+cluster does not overwrite the cache of the other. On the first run (no cache), show the full
+current state as the baseline, and write the cache.
 
 ## What to Track
 
@@ -30,11 +34,13 @@ kubectl get pods -A -o json
 kubectl get nodes -o json
 ```
 
-If local kubectl is unavailable, use the `-ops` k8s MCP tools. List them and match on the server and tool portion (pods list, resources list), as `.agents/instructions/tooling.md` § MCP servers describes.
+On Artemis, if local kubectl is not available, use the `-ops` k8s MCP tools. List them, and match
+on the server and tool portion (pods list, resources list), as `.agents/instructions/tooling.md`
+§ MCP servers describes.
 
 ## Delta Logic
 
-Compare the current snapshot to the cached snapshot:
+Compare the current snapshot with the cached snapshot:
 
 | Change type                                 | What to show                               |
 | ------------------------------------------- | ------------------------------------------ |
@@ -58,10 +64,10 @@ RESTARTED:  memini-xxx-yyy (cortex) restarts: 0→1
 ✓ No new Flux suspensions
 ```
 
-If nothing changed, output: `✓ No changes since 20:14:02`
+If nothing changed, write: `✓ No changes since 20:14:02`
 
 ## Cadence
 
 - Active deploy: `/loop 30s /watch-deploys`
 - Idle monitoring: `/loop 2m /watch-deploys`
-- Stop when all resources are back to Ready
+- Stop when all resources are back to Ready.

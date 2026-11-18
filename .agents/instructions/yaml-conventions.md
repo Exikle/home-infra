@@ -8,26 +8,41 @@ paths:
 
 # YAML Conventions — home-infra
 
-How manifests in this repo are shaped, ordered, and kept clean. These rules apply to both
-clusters (`kube/clusters/artemis/` and `kube/clusters/frostlink/`). Frostlink uses
-the same field ordering and has no YAML rule of its own. Checked against the live tree
-and the home-operations reference repos (onedr0p/home-ops et al.) on 2026-07-11.
+This file says how manifests in this repo are shaped, ordered, and kept clean. The rules apply to
+both clusters (`kube/clusters/artemis/` and `kube/clusters/frostlink/`) and to the shared
+`kube/base/` and `kube/components/` folders. Frostlink uses the same field ordering and has no
+YAML rule of its own. The hooks do not check every folder. § What the tooling does for you says
+which folders each hook covers. The rules were checked against the live tree and the
+home-operations reference repos (onedr0p/home-ops and others) on 2026-07-11.
 
 ## What the tooling does for you
 
-| Fixes automatically at commit                                                                         | Does NOT fix                                              |
-| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| oxfmt: indentation, flow-list spacing, trailing whitespace, final newline                             | quoting, anchors                                          |
-| `hooks/k8s_yaml_schema.py`: the `# yaml-language-server: $schema=` modeline                           | non-k8s YAML, core-API (`v1`) kinds                       |
-| `scripts/normalize-yaml-order.py`: every order in § Semantic Orders by Kind, and the `resources` list | which fields exist. It reorders, it never adds or deletes |
+`hk.pkl` runs these steps at commit. Each step covers only the folders in its last column.
 
-oxfmt reformats YAML inside markdown fences to 4-space, which is its own style. Manifests use
-2-space. That is not drift, and you cannot fix it in the doc, because the hook rewrites it back.
-Copy structure out of a template, never indentation.
+| Step                                               | Fixes automatically at commit                                          | Does NOT fix                                              | Folders it covers                                        |
+| -------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
+| oxfmt                                              | indentation, flow-list spacing, trailing whitespace, final newline     | quoting, anchors                                          | every `*.yaml` file in the repo                          |
+| `hooks/k8s_yaml_schema.py` (`k8s-schema`)          | the `# yaml-language-server: $schema=` modeline                        | non-k8s YAML, core-API (`v1`) kinds                       | `kube/base/`, `kube/clusters/artemis/{apps,components}/` |
+| `scripts/normalize-yaml-order.py` (`yaml-order`)   | every order in § Semantic Orders by Kind, and the `resources` list     | which fields exist. It reorders, it never adds or deletes | `kube/base/`, `kube/clusters/artemis/{apps,components}/` |
+| `scripts/check-yaml-comments.py` (`yaml-comments`) | nothing. It fails the commit on a comment (§ No Comments in Manifests) | everything else                                           | `kube/clusters/frostlink/{apps,components}/` only        |
+
+The coverage has these gaps:
+
+- On Frostlink, no hook orders keys or writes the schema modeline. Follow the same order there by
+  hand. Some Frostlink files drift from it today. To list them, run
+  `hooks/python scripts/normalize-yaml-order.py --check $(find kube/clusters/frostlink -name '*.yaml')`.
+- No hook orders keys, writes the modeline, or checks comments in `kube/components/`.
+- The `yaml-comments` step also starts when a `kube/base/` file changes. hk passes it no file
+  list, so the script scans only the Frostlink folders. Nothing checks comments in `kube/base/` or
+  in Artemis.
+
+oxfmt reformats YAML inside markdown fences to 4-space indentation, which is its own style.
+Manifests use 2-space indentation. That is not drift. You cannot fix it in the doc, because the
+hook rewrites it back. Copy structure out of a template, never indentation.
 
 ## Document Shape
 
-Every Kubernetes manifest document:
+Every Kubernetes manifest document has this shape:
 
 ```yaml
 ---
@@ -38,18 +53,21 @@ metadata: name → namespace → annotations → labels
 spec: ...
 ```
 
-- Top-level key order is always `apiVersion → kind → metadata → spec`
-- `metadata` order is always `name → namespace → annotations → labels`
-- Always start each document with `---`, including the first in the file
-- Multi-document files (for example `ks.yaml` with several Kustomizations) separate documents with a bare `---`
+- Top-level key order is always `apiVersion → kind → metadata → spec`.
+- `metadata` order is always `name → namespace → annotations → labels`.
+- Always start each document with `---`, including the first document in the file.
+- In a multi-document file (for example `ks.yaml` with several Kustomizations), separate the
+  documents with a bare `---`.
 - The schema domain is `k8s-schemas.home-operations.com`. app-template HelmReleases get the
-  bjw-s schema URL. The hook resolves this from the sidecar `ocirepository.yaml`. Do not hand-edit it
+  bjw-s schema URL. The hook resolves this from the sidecar `ocirepository.yaml`. Do not hand-edit
+  it. The hook does not run on Frostlink, so some Frostlink files still carry a
+  `json.schemastore.org` or `kubernetes-schemas.pages.dev` URL.
 
 ## The One Rule
 
 Order keys alphabetically at every nesting level, except where a semantic order is defined below.
-Semantic orders exist where reading order matters more than lookup order (identity first,
-routing and configuration in the middle, mounts last).
+A semantic order exists where reading order matters more than lookup order: identity first,
+routing and configuration in the middle, mounts last.
 
 Two qualifiers apply to "every nesting level":
 
@@ -58,9 +76,9 @@ Two qualifiers apply to "every nesting level":
   entries (`persistence.config`, `persistence.media`, …) can appear in any order. Only the keys
   _inside_ each named entry follow the rules below. Do not reshuffle named entries to alphabetize
   them.
-- A YAML anchor must appear before any alias that references it. Where alphabetical order would
-  put `&name` after its first `*name`, the anchor wins and moves to the top of its section. Treat
-  it exactly like `enabled`. Define anchors at first natural use (`port: &port 8000`).
+- A YAML anchor must appear before any alias that references it. If alphabetical order puts
+  `&name` after its first `*name`, the anchor wins and moves to the top of its section. Treat it
+  exactly like `enabled`. Define anchors at first natural use (`port: &port 8000`).
 
 > The home-operations upstream repos alphabetize the `ks.yaml` spec too. This repo deliberately
 > keeps a semantic order there (identity → source → timing → wiring). Do not "fix" it to match
@@ -77,9 +95,11 @@ targetNamespace → commonMetadata → path → prune → sourceRef
 → wait → healthChecks
 ```
 
-`wait` goes last (before `healthChecks`), and every Kustomization document declares it. See
-§ No Restating Defaults for the reason that the redundant `wait: false` stays. The normalizer
-enforces the placement, so this list is canonical, not aspirational.
+`wait` goes last (before `healthChecks`). Every Kustomization document must declare it. Today
+every document under `kube/base/` and `kube/clusters/artemis/` does. On Frostlink, some documents
+do not. No hook checks that `wait` is present. § No Restating Defaults gives the reason that the
+redundant `wait: false` stays. In the folders that it covers, the normalizer enforces this order.
+So this list is canonical, not aspirational.
 
 ### HelmRelease — `spec`
 
@@ -89,15 +109,15 @@ chartRef → interval → dependsOn → install → upgrade → values → postR
 
 ### HelmRelease — `spec.values` (app-template)
 
-`defaultPodOptions` always first, then strictly alphabetical:
+`defaultPodOptions` is always first. The rest is strictly alphabetical:
 
 ```text
 defaultPodOptions → configMaps → controllers → persistence → podDisruptionBudget
 → route → service → serviceAccount → serviceMonitor
 ```
 
-(For non-app-template charts, follow the values structure of the chart. Never reorder a
-vendored or upstream values layout just to alphabetize it.)
+For a chart that is not app-template, follow the values structure of the chart. Never reorder a
+vendored or upstream values layout only to alphabetize it.
 
 ### Controller entries (`controllers.<name>`)
 
@@ -108,30 +128,30 @@ enabled → type → annotations → labels → <controller fields: replicas, st
 
 ### Container entries (`containers.<name>`)
 
-`image` always first, rest alphabetical:
+`image` is always first. The rest is alphabetical:
 
 ```text
 image → args → command → env → envFrom → probes → resources → securityContext
 ```
 
-- Resources: `requests` before `limits`
-- Define anchors at first use (`port: &port 8000`), reference later (`port: *port`)
+- Resources: `requests` before `limits`.
+- Define anchors at first use (`port: &port 8000`). Reference them later (`port: *port`).
 
 ### Init containers (`initContainers.<name>`)
 
-Same shape as `containers.<name>`: `image` first, rest alphabetical. `initContainers` is
-second-to-last in a controller entry, immediately before `containers`.
+These have the same shape as `containers.<name>`: `image` first, the rest alphabetical.
+`initContainers` is second-to-last in a controller entry, immediately before `containers`.
 
 ### Persistence entries (`persistence.<name>`)
 
-Identity first, mounts always last:
+Identity is first. Mounts are always last:
 
 ```text
 type | existingClaim → annotations → labels → <alphabetical: defaultMode, identifier, name, path, server, …>
 → globalMounts | advancedMounts
 ```
 
-`globalMounts` is second-to-last and `advancedMounts` last when both are present.
+If both are present, `globalMounts` is second-to-last and `advancedMounts` is last.
 
 ### Service entries (`service.<name>`)
 
@@ -145,7 +165,7 @@ Plain alphabetical: `annotations → hostnames → parentRefs → rules`
 
 ### OCIRepository / ExternalSecret — `spec`
 
-Plain alphabetical. Canonical shapes:
+Plain alphabetical. These are the canonical shapes:
 
 - OCIRepository: `interval → layerSelector → ref → url`
 - ExternalSecret: `dataFrom → refreshInterval → secretStoreRef → target`
@@ -156,22 +176,23 @@ Plain alphabetical. Canonical shapes:
 apiVersion → kind → namespace → components → resources → <alphabetical rest>
 ```
 
-- Sort the `resources` list alphabetically. In a namespace-level file, `./namespace.yaml` is first
-- New app: insert `- ./<app>/ks.yaml` in alphabetical position
+- Sort the `resources` list alphabetically. In a namespace-level file, `./namespace.yaml` is
+  first.
+- For a new app, insert `- ./<app>/ks.yaml` in alphabetical position.
 
 ## General Rules
 
-- `enabled: true/false` is always the first field in any section that has it
+- `enabled: true/false` is always the first field in any section that has it.
 - Never sort inside string values. Configuration file payloads in ConfigMaps and Secrets keep the
-  natural order of their application
-- Never reorder keys in vendored content (upstream chart values, dashboard JSON, alert rules)
+  natural order of their application.
+- Never reorder keys in vendored content (upstream chart values, dashboard JSON, alert rules).
 - Never sort YAML that is embedded inside a string value. A configuration file payload under
   `configMap.data.*` keeps the key order of its own application. Sort only the surrounding YAML
-  structure
-- Quote env values that YAML would otherwise coerce: `"true"`, `"1"`, `"60"`
-- One logical resource per file (helmrelease / ocirepository split). There are two exceptions:
-  `ks.yaml`, which holds all of the Flux Kustomizations of an app, and the inline
-  `externalSecrets` of app-template, which live in `helmrelease.yaml`
+  structure.
+- Quote env values that YAML otherwise coerces: `"true"`, `"1"`, `"60"`.
+- Put one logical resource in each file (the helmrelease / ocirepository split). There are two
+  exceptions. `ks.yaml` holds all of the Flux Kustomizations of an app. The inline
+  `externalSecrets` of app-template live in `helmrelease.yaml`.
 
 ## No Restating Defaults
 
@@ -181,33 +202,33 @@ like a decision. A cleanup removed these fields repo-wide on 2026-09-07 (59 fiel
 files).
 
 Prove the default before you delete it, and cite where. Cite the `values.yaml` of the chart, the
-`+kubebuilder:default` of the CRD, or the API reference, never memory. A survey from memory in that
-cleanup got `replicas` backwards, and the field was nearly deleted on a false premise.
+`+kubebuilder:default` of the CRD, or the API reference, never memory. In that cleanup, a survey
+from memory got `replicas` backwards, and the field was nearly deleted on a false premise.
 
 ### Deliberate exceptions — do not strip these
 
-| Field                          | Why it stays                                                                                                                                         |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `wait` on a Flux Kustomization | Gates `dependsOn` ordering, so a reader needs the answer without knowing Flux's default. Every Kustomization document declares it. Keep it that way. |
-| `enabled: true`                | Mandated as the first field of any section that has one. See § General Rules.                                                                        |
+| Field                          | Why it stays                                                                                                                                               |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wait` on a Flux Kustomization | It gates `dependsOn` ordering, so a reader needs the answer without knowing the default of Flux. Every Kustomization document must declare it (§ ks.yaml). |
+| `enabled: true`                | It is mandated as the first field of any section that has one. See § General Rules.                                                                        |
 
 ### Proven NOT default — leave them alone
 
-These look strippable, but they are not. Each was checked against source. The note is here so that
-no one re-derives it and gets it wrong a second time.
+These fields look strippable, but they are not. Each one was checked against source. The note is
+here so that no one re-derives it and gets it wrong a second time.
 
-| Field                                      | Actual default                                                                                                                                                                                                        |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prune` (Flux Kustomization)               | `+required` in the CRD. No default exists at all                                                                                                                                                                      |
-| `install`/`upgrade.remediation.retries: 3` | Flux's default is `0`                                                                                                                                                                                                 |
-| `upgrade.cleanupOnFail: true`              | Flux's default is `false`                                                                                                                                                                                             |
-| `strategy: RollingUpdate` (app-template)   | The chart default is **`Recreate`**, so `RollingUpdate` is the override and `Recreate` is the redundant one                                                                                                           |
-| `replicas: 1` (app-template)               | Chart default is `null`, not `1`. With `null` the field is omitted so an HPA can own it and Flux will not fight a manual scale. An explicit `1` makes Flux enforce `1`. Different behaviour, not a redundant default. |
-| `layerSelector` (OCIRepository)            | Unverified. A Helm OCI artifact may carry more than one layer, so "first layer found" is not provably equivalent. Do not delete without testing.                                                                      |
+| Field                                      | Actual default                                                                                                                                                                                                                      |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prune` (Flux Kustomization)               | `+required` in the CRD. No default exists at all                                                                                                                                                                                    |
+| `install`/`upgrade.remediation.retries: 3` | The default of Flux is `0`                                                                                                                                                                                                          |
+| `upgrade.cleanupOnFail: true`              | The default of Flux is `false`                                                                                                                                                                                                      |
+| `strategy: RollingUpdate` (app-template)   | The chart default is `Recreate`. So `RollingUpdate` is the override, and `Recreate` is the redundant one                                                                                                                            |
+| `replicas: 1` (app-template)               | The chart default is `null`, not `1`. With `null`, the field is omitted, so an HPA can own it and Flux does not fight a manual scale. An explicit `1` makes Flux enforce `1`. That is different behaviour, not a redundant default. |
+| `layerSelector` (OCIRepository)            | Unverified. A Helm OCI artifact can carry more than one layer, so "first layer found" is not provably equivalent. Do not delete it without a test.                                                                                  |
 
 A resource templated inside a Flux `ResourceSet` is invisible to any script that iterates over
-top-level documents. That is exactly why a script missed `components/postgres/tenants/resourceset.yaml`,
-and someone had to fix it by hand. Check ResourceSet bodies when you sweep for a field.
+top-level documents. For this reason, a script missed `components/postgres/tenants/resourceset.yaml`,
+and someone had to fix it by hand. Read ResourceSet bodies when you sweep for a field.
 
 ## Where the rules live
 
@@ -224,26 +245,34 @@ history, no "keep this ordered" warnings, and no commented-out alternatives. Rat
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.
 
+The rule covers both clusters, but the `yaml-comments` hook checks only
+`kube/clusters/frostlink/{apps,components}/`, and it skips `resources/` folders. Nothing checks
+Artemis, and some Artemis manifests carry comments today. To list them, run
+`python3 scripts/check-yaml-comments.py kube/clusters/artemis/apps kube/clusters/artemis/components`.
+
 There are three exceptions, all machine-oriented:
 
 | Allowed                                          | Why                                        |
 | ------------------------------------------------ | ------------------------------------------ |
 | `# yaml-language-server: $schema=…`              | injected and maintained by the schema hook |
-| YAML anchor markers where the anchor is subtle   | reading aid for `&name` / `*name` pairs    |
+| Anchor markers (`# &name`, `# *name …`)          | reading aid for `&name` / `*name` pairs    |
 | Renovate directives (`# renovate: datasource=…`) | consumed by Renovate                       |
+
+An anchor marker is a comment that starts with `&name` or `*name`. The Frostlink hook allows all
+three exceptions.
 
 ### Shell scripts embedded in a manifest are code, not manifest
 
 A `script:` or `command:` block scalar (init containers, CronJob scripts) is a program, and a
-program can carry code comments. The rule that applies there is one terse line, not a paragraph.
-Say what the next few lines do, and put the reasoning in the reference doc. A multi-line
-rationale essay inside an init script is the same violation as one in the manifest body. A
-cleanup removed such essays from `hermes`, `buildx-bake` and `bake-options` on 2026-09-07 and
-replaced them with one-liners that point at `hermes.md` and the CI reference (now `ci.md`).
+program can carry code comments. There, the rule is one terse line, not a paragraph. Say what the
+next few lines do, and put the reasoning in the reference doc. A multi-line rationale essay inside
+an init script is the same violation as one in the manifest body. On 2026-09-07, a cleanup removed
+such essays from `hermes`, `buildx-bake` and `bake-options`. It replaced them with one-liners that
+point at `hermes.md` and the CI reference (now `ci.md`).
 
-If a value is non-obvious enough that it seems to need a comment, write it up in the matching
-reference doc instead. Then, if the constraint is genuinely dangerous to violate, reviewers cite
-the doc. Example: the ordering of the CoreDNS `template` plugin is load-bearing, and its
-rationale runs about 40 lines. It lives in `.agents/references/networking.md` § CoreDNS (Artemis),
-and the manifest itself is bare. Another example: the kopiur R2 credential key warning lives in
-`.agents/references/openebs-zfs.md` (Frostlink), not in the ExternalSecret.
+If a value seems to need a comment, write it up in the matching reference doc instead. If the
+constraint is dangerous to violate, reviewers then cite the doc. For example, the ordering of the
+CoreDNS `template` plugin is load-bearing, and its rationale runs about 40 lines. It lives in
+`.agents/references/networking.md` § CoreDNS (Artemis), and the manifest itself is bare. Another
+example: the kopiur R2 credential key warning lives in `.agents/references/openebs-zfs.md`
+(Frostlink), not in the ExternalSecret.

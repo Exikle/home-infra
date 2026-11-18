@@ -67,11 +67,13 @@ Everything else is conditional. These rules are not.
    `apply-ks` task of the cluster.
 3. Secrets are 1Password ExternalSecrets (`ClusterSecretStore: onepassword-connect`). SOPS is
    fully removed. Never suggest age encryption or `sops --encrypt`.
-4. Pods are dual-stack, but in practice they talk IPv4. Pods get a ULA IPv6 address beside
-   IPv4. Services stay IPv4-only unless they opt in. CoreDNS answers every AAAA query with
+4. (Artemis) Pods are dual-stack, but in practice they talk IPv4. Pods get a ULA IPv6 address
+   beside IPv4. Services stay IPv4-only unless they opt in. CoreDNS answers every AAAA query with
    NODATA. So pods only ever dial IPv4 by name. An `ENETUNREACH` on IPv6 means that the address
    came from somewhere other than cluster DNS. `networking.md` § Dual-stack wins over this line.
-5. Cluster traffic uses `<app>.<namespace>.svc.cluster.local`, never an external hostname.
+   Frostlink pods are IPv4-only.
+5. Cluster traffic uses the in-cluster name, never an external hostname. Both
+   `<app>.<namespace>.svc.cluster.local` and the short form `<app>.<namespace>.svc` are fine.
 6. Parked or blocked work becomes a Forgejo issue, never only a journal bullet.
 7. Agents edit in a worktree, never in the main checkout. Before the first edit, run
    `mise run //:wt:new <type>/<slug>`. The `<type>` is a commit-subject type (`feat`, `fix`,
@@ -121,45 +123,46 @@ globs every instruction file unconditionally.
 
 When the subject of a file comes up, open that file. Do not read the whole directory.
 
-| Read this                    | When                                                                                |
-| ---------------------------- | ----------------------------------------------------------------------------------- |
-| `ansible.md`                 | You change host configuration outside Kubernetes: TrueNAS, pantheon, Forgejo        |
-| `app-structure.md`           | You choose a directory shape for a new app, or wonder why one looks odd             |
-| `bootstrap.md`               | You rebuild the cluster from nothing, or edit a `.j2` template                      |
-| `ci.md`                      | A Forgejo workflow, the runner, buildkit, or the `oci-push` Flux artifact           |
-| `claude-code-remote.md`      | The in-cluster Claude Code Remote Control pod: access, bootstrap, tools             |
-| `claude-code-setup.md`       | You touch a hook, a guard, or a skill/subagent symlink                              |
-| `cortex-mcp.md`              | An MCP server misbehaves, or you add one                                            |
-| `crowdsec.md`                | A ban, a bot challenge or an exemption on any public site (Frostlink, both domains) |
-| `database.md`                | Frostlink: shared Postgres onboarding, pgbouncer tuning, CNPG PKI, primary restarts |
-| `flux-patterns.md`           | A reconcile is stuck, or you wire `dependsOn` across namespaces                     |
-| `gpu.md`                     | You schedule anything onto the Arc A380 or ymir's iGPU                              |
-| `hardware.md`                | You size a workload, pin to a node, buy a part, or see an unexplained stall         |
-| `hermes.md`                  | You change hermes-agent's model, skills, or chaski wiring                           |
-| `identity-stack.md`          | You wire SSO: lldap, Pocket-ID, tinyauth                                            |
-| `issue-tracking.md`          | You file the Forgejo issue that parked work becomes                                 |
-| `kopiur.md`                  | Backups and restores                                                                |
-| `media-stack.md`             | The arr stack, cross-seed, download clients, zeroscaler                             |
-| `memory-config.md`           | You edit `.mcp.json` tiers or memini plugin usage                                   |
-| `networking.md`              | Gateways, VLANs, CoreDNS, BGP, Multus. Read it before any RA or DNS change          |
-| `observability.md`           | VictoriaMetrics, Grafana, ServiceMonitors, kromgo                                   |
-| `oci-networking.md`          | Frostlink: the OCI VCN, the front door, DNS records, Tailscale access               |
-| `oci-node.md`                | Frostlink: the node, its namespaces and its known quirks                            |
-| `oci-rebuild.md`             | You rebuild Frostlink from nothing: helmfile order and the network-first rule       |
-| `oci-talos.md`               | Frostlink: node configuration, the schematic, extensions, the single-node upgrade   |
-| `openebs-zfs.md`             | Frostlink: openebs-zfs, snapshot classes, the kopiur restore path                   |
-| `pantheon-networking.md`     | pantheon's vNIC/bridge: single-NIC blast radius, tap pps knee                       |
-| `pantheon-zfs.md`            | pantheon's ZFS pools, HBA bays, drive intake                                        |
-| `pod-security-exceptions.md` | An app must deviate from the default security context                               |
-| `postgres-dragonfly.md`      | You onboard an app onto shared Postgres or Dragonfly                                |
-| `renovate.md`                | You triage the PR queue, or a per-app update guard                                  |
-| `scheduling.md`              | Packing, descheduler thresholds, cordoning a node                                   |
-| `status-page.md`             | `status.dcunha.io`: generated checks from both clusters, heartbeats, badges         |
-| `storage.md`                 | StorageClasses, the NFS media mount, orphaned PVCs                                  |
-| `talos.md`                   | Node configuration, schematics, extensions, upgrades                                |
-| `terraform.md`               | OpenTofu: the ownership boundary and the import-first rule                          |
-| `towonel-agent.md`           | You publish any public service (either domain) on `edge-gateway` via towonel        |
-| `towonel.md`                 | Frostlink: the towonel hub and edge, ports, grey-cloud DNS, key material            |
+| Read this                    | When                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ansible.md`                 | You change host configuration outside Kubernetes: TrueNAS, pantheon, Forgejo                           |
+| `app-structure.md`           | You choose a directory shape for a new app, or wonder why one looks odd                                |
+| `bootstrap.md`               | You rebuild the cluster from nothing, or edit a `.j2` template                                         |
+| `ci.md`                      | A Forgejo workflow, the runner, buildkit, or the `oci-push` Flux artifact                              |
+| `claude-code-remote.md`      | The in-cluster Claude Code Remote Control pod: access, bootstrap, tools                                |
+| `claude-code-setup.md`       | You touch a hook, a guard, or a skill/subagent symlink                                                 |
+| `cliproxyapi.md`             | kritika's Claude reviews fail, the Claude login expired, or a new app needs Claude through cliproxyapi |
+| `cortex-mcp.md`              | An MCP server misbehaves, or you add one                                                               |
+| `crowdsec.md`                | A ban, a bot challenge or an exemption on any public site (Frostlink, both domains)                    |
+| `database.md`                | Frostlink: shared Postgres onboarding, pgbouncer tuning, CNPG PKI, primary restarts                    |
+| `flux-patterns.md`           | A reconcile is stuck, or you wire `dependsOn` across namespaces                                        |
+| `gpu.md`                     | You schedule anything onto the Arc A380 or ymir's iGPU                                                 |
+| `hardware.md`                | You size a workload, pin to a node, buy a part, or see an unexplained stall                            |
+| `hermes.md`                  | You change hermes-agent's model, skills, or chaski wiring                                              |
+| `identity-stack.md`          | You wire SSO: lldap, Pocket-ID, tinyauth                                                               |
+| `issue-tracking.md`          | You file the Forgejo issue that parked work becomes                                                    |
+| `kopiur.md`                  | Backups and restores                                                                                   |
+| `media-stack.md`             | The arr stack, cross-seed, download clients, zeroscaler                                                |
+| `memory-config.md`           | You edit `.mcp.json` tiers or memini plugin usage                                                      |
+| `networking.md`              | Gateways, VLANs, CoreDNS, BGP, Multus. Read it before any RA or DNS change                             |
+| `observability.md`           | VictoriaMetrics, Grafana, ServiceMonitors, kromgo                                                      |
+| `oci-networking.md`          | Frostlink: the OCI VCN, the front door, DNS records, Tailscale access                                  |
+| `oci-node.md`                | Frostlink: the node, its namespaces and its known quirks                                               |
+| `oci-rebuild.md`             | You rebuild Frostlink from nothing: helmfile order and the network-first rule                          |
+| `oci-talos.md`               | Frostlink: node configuration, the schematic, extensions, the single-node upgrade                      |
+| `openebs-zfs.md`             | Frostlink: openebs-zfs, snapshot classes, the kopiur restore path                                      |
+| `pantheon-networking.md`     | pantheon's vNIC/bridge: single-NIC blast radius, tap pps knee                                          |
+| `pantheon-zfs.md`            | pantheon's ZFS pools, HBA bays, drive intake                                                           |
+| `pod-security-exceptions.md` | An app must deviate from the default security context                                                  |
+| `postgres-dragonfly.md`      | You onboard an app onto shared Postgres or Dragonfly                                                   |
+| `renovate.md`                | You triage the PR queue, or a per-app update guard                                                     |
+| `scheduling.md`              | Packing, descheduler thresholds, cordoning a node                                                      |
+| `status-page.md`             | `status.dcunha.io`: generated checks from both clusters, heartbeats, badges                            |
+| `storage.md`                 | StorageClasses, the NFS media mount, orphaned PVCs                                                     |
+| `talos.md`                   | Node configuration, schematics, extensions, upgrades                                                   |
+| `terraform.md`               | OpenTofu: the ownership boundary and the import-first rule                                             |
+| `towonel-agent.md`           | You publish any public service (either domain) on `edge-gateway` via towonel                           |
+| `towonel.md`                 | Frostlink: the towonel hub and edge, ports, grey-cloud DNS, key material                               |
 
 ### Skills and subagents
 
@@ -236,11 +239,12 @@ reference doc. There it is searchable, and no one must re-read it on every manif
 
 `grep` cannot tell you that something is absent on purpose.
 
-- Rook-Ceph: removed in `b9008ac55`. There is no `ceph-block`, no CephFS, and no CephCluster CRD.
-  The only StorageClasses are `miroir` and `miroir-local`. `miroir` is the cluster default, with
-  2 replicas. Use this one. `miroir-local` has 1 replica, and it is for kopiur caches and staging
-  clones only. Both are RWO. Neither offers RWX. If you pick `miroir-local` for the data of an
-  app, the data is unreplicated.
+- (Artemis) Rook-Ceph: removed in `b9008ac55`. There is no `ceph-block`, no CephFS, and no
+  CephCluster CRD. The only StorageClasses are `miroir` and `miroir-local`. `miroir` is the
+  cluster default, with 2 replicas. Use this one. `miroir-local` has 1 replica, and it is for
+  kopiur caches and staging clones only. Both are RWO. Neither offers RWX. If you pick
+  `miroir-local` for the data of an app, the data is unreplicated. Frostlink has one
+  StorageClass, `openebs-zfs`, and it is the default.
 - SOPS: fully removed. Never suggest age encryption.
 - Dedicated per-app Postgres: immich was the last one. It moved into the shared cluster on
   2026-09-01. The silo-first policy was superseded on 2026-07-02.

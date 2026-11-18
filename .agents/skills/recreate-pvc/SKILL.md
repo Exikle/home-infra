@@ -6,26 +6,26 @@ compatibility: Destroys and reprovisions a live PVC. Requires a verified kopiur 
 
 # Skill: Recreate a PVC (and restore it from kopiur)
 
-Delete an app's PVC and let it be recreated, so the new volume picks up current
-StorageClass parameters. Data comes back through the kopiur volume populator.
+Delete the PVC of an app and let the cluster create it again. The new volume then gets the current
+StorageClass parameters. The data comes back through the kopiur volume populator.
 
 > Read `.agents/references/kopiur.md` and `.agents/references/storage.md` first.
 
-StorageClass parameters are set when the volume is provisioned. A change to the class does
-nothing to existing volumes. The only way they pick it up is to recreate the PVC.
+StorageClass parameters are set when the volume is provisioned. A change to the class does nothing
+to existing volumes. The only way that they get the change is a new PVC.
 
 ## Step 0: Establish the restore path FIRST
 
-When you delete a PVC, you destroy the volume. `miroir` has `reclaimPolicy: Delete`, so the old
-PV is gone when the PVC is gone. You cannot undo this.
+When you delete a PVC, you destroy the volume. `miroir` has `reclaimPolicy: Delete`, so the old PV
+is gone when the PVC is gone. You cannot undo this.
 
 ```bash
 kubectl get pvc -n <ns> <app> -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}'
 ```
 
-- `Restore/<app>`: the kopiur populator will restore it. Continue.
-- Empty: there is no restore path. If you delete the PVC, the data is lost permanently. Continue only for a
-  cache that rebuilds itself, or with the explicit acceptance of the user for the loss.
+- `Restore/<app>`: the kopiur populator restores the volume. Continue.
+- Empty: there is no restore path. If you delete the PVC, the data is lost for good. Continue only
+  for a cache that rebuilds itself, or when the user explicitly accepts the loss.
 
 Then make sure that a snapshot exists AND is recent:
 
@@ -33,26 +33,28 @@ Then make sure that a snapshot exists AND is recent:
 kopiur snapshots list -n <ns> | grep '^<app>-' | grep Succeeded | head -5
 ```
 
-`Succeeded` does NOT mean restorable. See Gotchas. Check the age too. The populator has
-`policy.onMissingSnapshot: Continue`, so a missing snapshot gives a silently EMPTY
+`Succeeded` does NOT mean that the snapshot can be restored. See Gotchas. Look at the age too. The
+populator has `policy.onMissingSnapshot: Continue`. So a missing snapshot gives a silently EMPTY
 volume, not an error.
 
 ## Step 1: Stop whatever will fight the scale-down
 
-Scaling to 0 does not stay by itself. Find what owns the replica count:
+A scale to 0 does not stay by itself. Find what owns the replica count:
 
 ```bash
 kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.metadata.ownerReferences}'
 ```
 
-| Owner                                                      | What to pause                             |
-| ---------------------------------------------------------- | ----------------------------------------- |
-| none (chart resource)                                      | `flux suspend helmrelease -n <ns> <app>`  |
-| an operator CR (`InferenceService`, `PocketIDInstance`, …) | scale the **operator** to 0, then the app |
+| Owner                                                      | What to pause                            |
+| ---------------------------------------------------------- | ---------------------------------------- |
+| none (chart resource)                                      | `flux suspend helmrelease -n <ns> <app>` |
+| an operator CR (`InferenceService`, `PocketIDInstance`, …) | Scale the operator to 0, then the app.   |
 
-`flux suspend kustomization` is NOT enough for a chart-rendered workload, because helm-controller
-restores replicas. Also, app-template's `replicas: null` means that Flux will _not_ put
-replicas back after a failure, so you must scale up by hand.
+`flux suspend kustomization` is NOT enough for a workload that a chart renders, because
+helm-controller restores the replicas. Also, `replicas: null` in app-template means that Flux does
+_not_ put the replicas back after a failure. You must scale up by hand.
+
+Write down the current replica count now. You need it in Step 4.
 
 ## Step 2: Scale down and confirm the volume is released
 
@@ -61,22 +63,22 @@ kubectl scale <deploy|sts> -n <ns> <app> --replicas=0
 kubectl get pods -n <ns> -o jsonpath="{range .items[?(@.spec.volumes[*].persistentVolumeClaim.claimName=='<pvc>')]}{.metadata.name}{'\n'}{end}"
 ```
 
-Wait for that command to return nothing. A pod stuck `Terminating` holds the volume forever.
-Force it: `kubectl delete pod -n <ns> <pod> --force --grace-period=0`.
+Wait until the second command returns nothing. A pod stuck in `Terminating` holds the volume
+forever. Force it: `kubectl delete pod -n <ns> <pod> --force --grace-period=0`.
 
 ## Step 3: Delete the PVC
 
-`guard-destructive.sh` blocks `kubectl delete ... pvc`. For a planned recreation with a
-verified snapshot, opt out of that one rule with the marker:
+`guard-destructive.sh` blocks `kubectl delete ... pvc`. For a planned recreation with a verified
+snapshot, turn off that one rule with the marker:
 
 ```bash
 kubectl delete pvc -n <ns> <pvc> --wait=false  # I_HAVE_A_KOPIUR_SNAPSHOT
 ```
 
-The marker disables ONLY `kubectl-delete-critical`. Every other rule still applies.
-Do not use the marker unless you did Step 0.
+The marker turns off ONLY `kubectl-delete-critical`. Every other rule still applies. Do not use the
+marker unless you did Step 0.
 
-Wait until the PVC is gone before you continue. See the Terminating gotcha below.
+Wait until the PVC is gone before you continue. See the `Terminating` gotcha below.
 
 ## Step 4: Recreate it
 
@@ -86,12 +88,12 @@ The controller that recreates the PVC depends on where the PVC is defined:
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `components/kopiur/backup` (has `dataSourceRef`)                  | `flux reconcile kustomization -n <ns> <ks>`                                        |
 | app-template `persistence.<name>` (Helm)                          | `flux resume helmrelease …` then `flux reconcile helmrelease -n <ns> <hr> --force` |
-| StatefulSet `volumeClaimTemplates` (name ends `-<sts>-<ordinal>`) | just scale the STS back up                                                         |
+| StatefulSet `volumeClaimTemplates` (name ends `-<sts>-<ordinal>`) | Scale the STS back up.                                                             |
 
-Helm does not recreate a resource that someone deleted behind its back on a no-op upgrade.
-The `--force` makes it reinstate the PVC.
+On an upgrade with no changes, Helm does not recreate a resource that someone deleted outside Helm.
+The `--force` makes Helm put the PVC back.
 
-Then scale back to the ORIGINAL replica count. Capture it before Step 2, and do not assume 1.
+Then scale back to the ORIGINAL replica count from Step 1. Do not assume 1.
 
 ## Step 5: Verify
 
@@ -101,7 +103,7 @@ kubectl get restore -n <ns> <app> -o jsonpath='{.status.phase}{"\n"}'   # Comple
 kubectl exec -n <ns> <pod> -- ls -la <mountPath>  # real files, not an empty dir
 ```
 
-Make sure that the new volume carries the current parameters:
+Make sure that the new volume has the current parameters:
 
 ```bash
 AGENT=$(kubectl get pods -n miroir-system -o json | jq -r '.items[] | select(.spec.nodeName=="talos-cp-01") | select(.metadata.name|startswith("miroir-agent")) | .metadata.name')
@@ -109,54 +111,59 @@ kubectl exec -n miroir-system "$AGENT" -c agent -- drbdsetup show <pv-name> | gr
 ```
 
 A volume on `freeze`, the current default, prints `on-no-quorum io-error`. A `last-man-standing`
-volume prints **no** `on-no-quorum` line.
+volume prints no `on-no-quorum` line.
 
 ## After the restore: check for state that did NOT roll back
 
-The PVC comes back at a point in time. Anything the app keeps outside the PVC does not roll back.
-An app whose metadata lives in the shared Postgres (`database` namespace) has a
-current database that points at a restored, and therefore older, volume. The gap between
-them is real drift.
+The PVC comes back at a point in time. Anything that the app keeps outside the PVC does not roll
+back. Some apps keep their metadata in the shared Postgres (`database` namespace). For such an app,
+the database is current, but the volume is restored and therefore older. The gap between them is
+real drift.
 
-`fediverse/apoci` is the visible case. Its blob store is the PVC, its manifests are rows
-in Postgres, and its GC reports the mismatch as
-`gc: drift reconcile: file missing, no peer holds it`. On 2026-09-09 a restore gap of about 30 minutes
-left 6 blobs that the database referenced and that were absent from disk.
+`fediverse/apoci` is the visible case. Its blob store is the PVC, and its manifests are rows in
+Postgres. Its GC reports the mismatch as `gc: drift reconcile: file missing, no peer holds it`. On
+2026-09-09, a restore gap of about 30 minutes left 6 blobs that the database referenced and that
+were absent from disk.
 
-Other apps split the same way and fail more quietly. After you restore one, ask what it
-stores elsewhere, and check that first. Do not wait for the fault to surface.
+Other apps split their data the same way and fail more quietly. After you restore one, find out
+what it stores in other places, and look at that first. Do not wait for the fault to show.
 
 If the dangling rows are for superseded artifacts, the apoci retention clears them
-(`gc.retention.perRepo`: `keepLastN: 7`, `maxAge: 24h` for the artemis repo).
-To clear them immediately, delete the affected `package_versions` and their `package_files`,
-`package_tags` and orphaned `blobs` rows in one transaction. First make sure that the live
-tag (`main`) is not among them and that `peer_blobs` holds no copy. Dump the rows to
-a file so that you can reverse the edit.
+(`gc.retention.perRepo`: `keepLastN: 7`, `maxAge: 24h` for the artemis repo). To clear them at once:
+
+1. Make sure that the live tag (`main`) is not among them.
+2. Make sure that `peer_blobs` holds no copy.
+3. Dump the rows to a file, so that you can reverse the edit.
+4. In one transaction, delete the affected `package_versions` and their `package_files`,
+   `package_tags` and orphaned `blobs` rows.
 
 ## Gotchas
 
-- `Succeeded` is not `restorable`. On 2026-09-09 several snapshots restored with
-  `content <id> not found: object not found` although they were marked Succeeded. If offset 0
-  fails, retry from an older one. Frigate needed offset 12, matter-server offset 14.
-- A `Failed` Restore is terminal and never retries. Patching it does nothing. Delete
-  the Restore CR and let Flux recreate it, or apply one with a different
-  `source.fromPolicy.offset` (suspend the Kustomization first, or Flux resets it to 0).
-- The populator pod can hang. If `<app>-populate-*` runs for many minutes with no log
-  progress, it is stuck, not slow. Delete the pod and the Job creates a replacement.
-- Do not treat `<app>-populate-*` as the app's own pod in readiness checks, because the name
-  prefix matches. Also require the PVC to be `Bound`.
-- A PVC stuck `Terminating` is the `pvc-protection` finalizer: some pod still references
-  it, including `Succeeded` pods. Delete that pod.
-- If you reconcile while the PVC is still `Terminating`, Flux sees it as present and
-  skips recreation. Wait for it to disappear, then reconcile.
-- If you delete a PVC whose workload is intentionally at 0 replicas, the delete only prunes the volume.
-  The PVC returns `Pending` (`WaitForFirstConsumer`) and restores when it is next
-  scheduled. This is the right way to retire a volume without losing its backup.
-- Do not remove `replicas: 0` in the same commit that prunes an app. Flux can apply the
-  HelmRelease change before it gets to the prune, so the app briefly scales up. On a
-  kopiur-backed PVC, this starts a full restore of data you were retiring. This happened with `arcade/eco`
-  on 2026-09-09: it was `Pending` on a 16Gi restore before the prune caught up. Either split
-  the two changes across commits, or run `flux reconcile kustomization -n flux-system flux-system`
-  straight after you push, to close the window.
-- A guard false positive: the rule matches the word `pvc` anywhere, so it also blocks the deletion of a
-  _MiroirVolume_ named `pvc-…`. The same marker applies.
+- `Succeeded` is not `restorable`. On 2026-09-09, several snapshots that were marked Succeeded
+  failed to restore with `content <id> not found: object not found`. If offset 0 fails, try an
+  older one. Frigate needed offset 12, and matter-server needed offset 14.
+- A `Failed` Restore is terminal and never retries. A patch to it does nothing. Delete the Restore
+  CR and let Flux create it again. Or apply one with a different `source.fromPolicy.offset`. Suspend
+  the Kustomization first, or Flux resets the offset to 0.
+- The populator pod can hang. If `<app>-populate-*` runs for many minutes with no new log lines, it
+  is stuck, not slow. Delete the pod, and the Job creates a replacement.
+- In readiness checks, do not treat `<app>-populate-*` as the pod of the app. The name prefix
+  matches. Also require the PVC to be `Bound`.
+- A PVC stuck in `Terminating` is held by the `pvc-protection` finalizer. Some pod still references
+  it, `Succeeded` pods included. Delete that pod.
+- If you reconcile while the PVC is still `Terminating`, Flux sees it as present and does not
+  recreate it. Wait for it to disappear, then reconcile.
+- If you delete a PVC whose workload is at 0 replicas on purpose, the delete only prunes the volume.
+  The PVC comes back `Pending` (`WaitForFirstConsumer`) and restores when it is next scheduled. This
+  is the right way to retire a volume and keep its backup.
+- Do not remove `replicas: 0` in the same commit that prunes an app. Flux can apply the HelmRelease
+  change before it gets to the prune, so the app scales up for a short time. On a kopiur-backed PVC,
+  this starts a full restore of data that you were retiring. This happened with `arcade/eco` on
+  2026-09-09. It was `Pending` on a 16Gi restore before the prune caught up. Split the two changes
+  across two commits. If you do not split them, shorten the window: wait for the
+  `Push OCI Artifact` run on your commit to go green, then run
+  `mise run //kube/clusters/artemis:sync-flux ocirepo flux-system`. Do not sync before the run is
+  green. The source then still holds the old revision and applies it again
+  (`.agents/instructions/commit-style.md` § The sequence, step 5).
+- The guard gives a false positive. The rule matches the word `pvc` anywhere, so it also blocks the
+  deletion of a _MiroirVolume_ named `pvc-…`. The same marker applies.

@@ -4,7 +4,8 @@
 
 The default storage class is `openebs-zfs`. Its provisioner is `zfs.csi.openebs.io`.
 
-- Pool: the `openebs` ZFS dataset on the block device of the boot volume
+- Pool: `openebs` (`poolname`), a ZFS pool on the separate block volume `sdb`, not on the boot
+  disk (`oci-node.md` § The node)
 - fstype: `zfs`
 - Access mode: `ReadWriteOnce`
 - Volume binding mode: `WaitForFirstConsumer`
@@ -388,8 +389,8 @@ because kopiur exposes no metric that carries the schedule or the expected inter
 
 The chart rule stays enabled and is not replaced, because it carries ten other alerts
 (`KopiurRepositoryNotReady`, `KopiurSnapshotFailed`, `KopiurRestoreFailed`, leader-election health,
-and others). A vendored copy made to edit one expression would fork all of them. That copy would
-then drift on every Renovate chart bump.
+and others). A vendored copy made to edit one expression forks all of them. That copy then
+drifts on every Renovate chart bump.
 
 ## Gotcha: stale CSINode topology keys block every new PVC
 

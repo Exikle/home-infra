@@ -8,30 +8,37 @@ paths:
 
 # Cluster Conventions — home-infra
 
-These rules cover both clusters. Items that hold for one cluster only carry a label. Frostlink's
-differences are in `frostlink.md` (it loads on `kube/clusters/frostlink/**`, and wins there).
-Sections without a label are shared.
+These rules cover both clusters. An item that holds for one cluster only carries a label. A
+section without a label is shared. The differences of Frostlink are in `frostlink.md`. That file
+loads on `kube/clusters/frostlink/{apps,components}/**`, and it wins there.
 
 ## App Directory Structure
 
-Every app is one directory under `kube/clusters/<cluster>/apps/<namespace>/`. The directory holds exactly one
-`ks.yaml`. That file can contain several Flux Kustomization documents, one per sub-directory.
-There is never more than one `ks.yaml` per app directory. There is never a grouping directory
-between a namespace and its apps. Add `- ./<app>/ks.yaml` to the namespace `kustomization.yaml`
-in alphabetical position.
+Every app is one directory under `kube/clusters/<cluster>/apps/<namespace>/`. The directory holds
+exactly one `ks.yaml`. That file can contain several Flux Kustomization documents, one per
+sub-directory. There is never more than one `ks.yaml` per app directory. There is never a
+grouping directory between a namespace and its apps. Add `- ./<app>/ks.yaml` to the namespace
+`kustomization.yaml` in alphabetical position.
+
+An app that both clusters run is the exception. It lives once, in `kube/base/<ns>/<app>/`, with
+its own `ks.yaml`. It has no directory under `kube/clusters/`. Each cluster that runs it lists the
+folder in its namespace menu as `- ../../../../base/<ns>/<app>`. `app-structure.md` § Shared apps
+(`kube/base/`) has the file shape, and it wins.
 
 Kustomization names are `<app>-<component>`. When the components are one product,
 `commonMetadata.labels.app.kubernetes.io/name` is the app, not the component. Label the component
-only where the components are genuinely separate deployables (`victoria-operator` vs
-`victoria-app`).
+only where the components are separate deployables. An example is `vm-operator` and `vm-single`
+in `observability/victoria`. Those names do not follow `<app>-<component>`.
 
 An operator that serves the whole cluster gets its own `*-system` namespace. An operator whose
 operand lives in the same namespace is a sub-directory of the app directory of the operand, never
 a sibling top-level app.
 
-Non-standard resource types: one resource per file, filename = lowercased kind, flat in the leaf
-directory, listed alphabetically. There is no `rbac/`, `monitoring/` or `network/` sub-directory.
-`HTTPRoute` is inline under `route.app:` in app-template values.
+Non-standard resource types: put one resource in each file. The filename is the lowercased kind.
+Keep the files flat in the leaf directory, and list them alphabetically. There is no `rbac/`,
+`monitoring/` or `network/` sub-directory. An app-template app defines its `HTTPRoute` inline,
+under `route.app:` in its values. An app with no app-template HelmRelease uses a standalone
+`httproute.yaml` (for example `flux-webhook` and `cortex/agentgateway`).
 
 The five canonical shapes are single, multi-component, operator/operand, CR collection, and fleet.
 Their directory trees and tradeoffs are in `.agents/references/app-structure.md`.
@@ -40,28 +47,33 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
 
 - Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` (note: `-labs`, not `-bjw-s`). Renovate
   bumps the tag fleet-wide. Recover it with the command in `AGENTS.md` § Make a version fact a
-  command (for Frostlink, use `kube/clusters/frostlink/` in its path)
-- Every app gets its own standalone `OCIRepository`. Never share or reuse one
-- `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`
-- OCIRepository API version: `source.toolkit.fluxcd.io/v1` (not `v1beta2`)
-- Reloader: `reloader.stakater.com/auto: "true"` annotation on controller
-- Default security context: `runAsNonRoot: true`, `runAsUser: 1000`, `runAsGroup: 1000`, `fsGroupChangePolicy: OnRootMismatch`
-- Container security: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities: {drop: ["ALL"]}`
-- Routes: defined inline under `route.app:` in helmrelease values, NOT as standalone HTTPRoute files
-- (Artemis) PVC: `existingClaim: <app>` when using the kopiur component
-- (Artemis) NFS media mount: server, path and mount point are in `.agents/references/storage.md`
+  command. For Frostlink, use `kube/clusters/frostlink/` in its path.
+- Every app gets its own standalone `OCIRepository`. Never share or reuse one.
+- `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`.
+- OCIRepository API version: `source.toolkit.fluxcd.io/v1` (not `v1beta2`).
+- Reloader: the `reloader.stakater.com/auto: "true"` annotation on the controller.
+- Default security context: `runAsNonRoot: true`, `runAsUser: 1000`, `runAsGroup: 1000`,
+  `fsGroupChangePolicy: OnRootMismatch`.
+- Container security: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`,
+  `capabilities: {drop: ["ALL"]}`.
+- Routes: an app-template app defines them inline under `route.app:` in its HelmRelease values,
+  not as a standalone HTTPRoute file.
+- (Artemis) PVC: `existingClaim: <app>` when the app uses the kopiur component.
+- (Artemis) NFS media mount: the server, path and mount point are in
+  `.agents/references/storage.md`.
 
 ## Secrets
 
-- All secrets: 1Password ExternalSecret with `ClusterSecretStore: onepassword-connect`
-  (`AGENTS.md` rule 3 wins on SOPS and the store name)
-- ExternalSecret API version: `external-secrets.io/v1`
+- All secrets: a 1Password ExternalSecret with `ClusterSecretStore: onepassword-connect`
+  (`AGENTS.md` rule 3 wins on SOPS and the store name).
+- ExternalSecret API version: `external-secrets.io/v1`.
 - app-template apps define their ExternalSecret inline, under `values.externalSecrets.<id>`
-  in `helmrelease.yaml`. A standalone `externalsecret.yaml` is only for a non-app-template chart,
-  or for a Secret that something reads before the HelmRelease exists (for example
-  `postBuild.substituteFrom`)
-- `dataFrom.extract.key: <1password-item-name>` pulls all fields from item
-- Template field names must exactly match 1Password field names. A mismatch gives an empty secret with no error
+  in `helmrelease.yaml`. A standalone `externalsecret.yaml` is only for a chart that is not
+  app-template, or for a Secret that something reads before the HelmRelease exists (for example
+  `postBuild.substituteFrom`).
+- `dataFrom.extract.key: <1password-item-name>` pulls all fields from the item.
+- Template field names must exactly match the 1Password field names. A mismatch gives an empty
+  secret with no error.
 
 ## Deployment Philosophy (Artemis)
 
@@ -70,11 +82,11 @@ Frostlink also uses a shared data layer, but its wiring differs. See `frostlink.
 Use the shared data layer first. The shared CNPG cluster and the shared Dragonfly in the
 `database` namespace are the default for new apps.
 
-| Need                  | Preferred approach                                                                            |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| Relational DB         | Shared CNPG cluster via `postgres-rw` (add `components/postgres/app` + an `APP` substitution) |
-| Redis / queue / cache | Shared Dragonfly at `dragonfly.database.svc.cluster.local:6379`, no auth, no persistence      |
-| Multi-component apps  | Split into separate kustomizations (e.g. Immich: app / microservices / machine-learning)      |
+| Need                  | Preferred approach                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| Relational DB         | Shared CNPG cluster via `postgres-rw` (add `components/postgres/app` + an `APP` substitution)   |
+| Redis / queue / cache | Shared Dragonfly at `dragonfly.database.svc.cluster.local:6379`, no auth, no persistence        |
+| Multi-component apps  | Split into separate kustomizations (for example Immich: app / microservices / machine-learning) |
 
 Onboarding steps, the three DSN keys, and the per-driver gotchas: `.agents/references/postgres-dragonfly.md`.
 
@@ -102,7 +114,7 @@ Rows marked (Artemis) do not hold on Frostlink. See `frostlink.md` § Common mis
 | Container image tag                | `v1.0.0@sha256:abc...`                                           | `latest`, bare `v1.0.0`                   |
 | OCIRepository chart tag            | bare version `2.5.0` (no SHA)                                    | SHA-pinned (not used for Helm charts)     |
 | Timezone                           | never set `TZ`, k8tz handles it                                  | `TZ: America/Toronto`                     |
-| HTTPRoute location                 | inline in helmrelease values                                     | standalone HTTPRoute file                 |
+| HTTPRoute location (app-template)  | inline in helmrelease values                                     | standalone HTTPRoute file                 |
 | Route gateway attachment (Artemis) | exactly one of internal/edge                                     | one route on two gateways                 |
 | OCIRepository scope                | one per app                                                      | shared across apps                        |
 | Storage class (Artemis)            | `miroir` (default) or `miroir-local`, nothing else exists        | `ceph-block`, `cephfs`, `ceph-filesystem` |
@@ -110,11 +122,13 @@ Rows marked (Artemis) do not hold on Frostlink. See `frostlink.md` § Common mis
 
 ## GPU Workloads (Artemis)
 
-There are two allocation mechanisms, split by card, never by app. DRA claims serve the Arc A380.
-`generic-device-plugin` serves the iGPU of ymir, for cross-namespace sharing (a `ResourceClaim`
-is namespace-scoped and cannot span namespaces). Affinity keys on
-`node.kubernetes.io/gpu-tier`, never `extensions.talos.dev/i915`. The details, the CEL selector
-rules and the `ResourceClaimTemplate` immutability trap are in `.agents/references/gpu.md`.
+There are two allocation mechanisms, split by card, never by app. DRA claims serve the Arc A380
+and the HD 530 iGPUs of the control-plane nodes. For example, Frigate gets an HD 530 through the
+`frigate-igpu` `ResourceClaimTemplate`. `generic-device-plugin` still runs on ymir and offers its
+iGPU for cross-namespace sharing (a `ResourceClaim` is namespace-scoped and cannot span
+namespaces). No pod uses that lane today. Affinity keys on `node.kubernetes.io/gpu-tier`, never
+`extensions.talos.dev/i915`. The details, the CEL selector rules and the `ResourceClaimTemplate`
+immutability trap are in `.agents/references/gpu.md`.
 
 ## Cluster Inspection
 

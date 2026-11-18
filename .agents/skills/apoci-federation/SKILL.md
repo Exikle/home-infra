@@ -151,7 +151,8 @@ This is safe while each cluster pushes a new artifact at least once a week. Flux
 signature again only after a new push, or after source-controller restarts with empty storage.
 The `apoci-signature-check` cronjob in each cluster's apoci app runs every hour. It looks up
 the signature of `:main` on the local registry and on the peer's federated copy. The
-`FluxArtifactSignatureMissing` alert fires when the cronjob has not succeeded for 2 hours.
+`FluxArtifactSignatureMissing` alert fires after about 3 hours with no success. The expression
+trips after 2 hours (`> 7200`), and `for: 1h` adds one more hour.
 
 The upstream config reference is `configs/apoci.example.yaml` in `eleboucher/apoci`.
 
@@ -159,10 +160,10 @@ The upstream config reference is `configs/apoci.example.yaml` in `eleboucher/apo
 
 webfinger 404 on bare domain: use the full actor URL (`https://registry.<domain>/ap/actor`) instead of the domain shorthand. The domain-only form does a webfinger lookup on the bare domain, which does not always resolve in-cluster.
 
-Do NOT add a `queryParams` filter to the webfinger HTTPRoute. A common homelab pattern uses `type: RegularExpression, value: ".*registry@.*"` to restrict the route. This passes manual `curl` tests because curl does not encode `@`, but Go's `net/http` (which apoci uses) percent-encodes it as `%40`. The regex never matches encoded requests, and that causes a 404 for all apoci-to-apoci federation. Match only the path. apoci handles unknown resources with its own 404.
+Do not add a `queryParams` filter to the webfinger HTTPRoute. A common homelab pattern uses `type: RegularExpression, value: ".*registry@.*"` to restrict the route. This passes manual `curl` tests because curl does not encode `@`, but Go's `net/http` (which apoci uses) percent-encodes it as `%40`. The regex never matches encoded requests, and that causes a 404 for all apoci-to-apoci federation. Match only the path. apoci handles unknown resources with its own 404.
 
 Follow stuck in `pending`: `autoAccept` is set to `mutual`, not `all`. The peer must accept explicitly unless they already follow you. Run `apoci follow pending` on the receiving instance and `apoci follow accept <domain>`.
 
 Follow rejected: check the `autoAccept` config on the remote. If it is `none`, the remote always requires manual acceptance.
 
-Asymmetric state after data loss (one side shows a follower, the other does not): do NOT use `follow remove` to fix this. `remove` (and `remove --force`) clears BOTH the outgoing follow AND the incoming follow on your side. It then sends an ActivityPub Unfollow to the remote, which removes you from the follower list of the remote. You end up in an endless remove/re-add loop. Instead, run `follow add <actor>` again on the side that is missing the follow. If the remote no longer has the follow recorded, it accepts the new Follow activity and updates its state.
+Asymmetric state after data loss (one side shows a follower, the other does not): do not use `follow remove` to fix this. `remove` (and `remove --force`) clears both the outgoing follow and the incoming follow on your side. It then sends an ActivityPub Unfollow to the remote, which removes you from the follower list of the remote. You end up in an endless remove/re-add loop. Instead, run `follow add <actor>` again on the side that is missing the follow. If the remote no longer has the follow recorded, it accepts the new Follow activity and updates its state.

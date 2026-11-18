@@ -86,18 +86,26 @@ came up empty, is enough.
 ### The Renovate rules of this repo
 
 `.renovaterc.json5` and the presets it extends (`exikle/renovate-config`, `default.json` and
-`cluster.json`) decide how Renovate treats the update:
+`cluster.json`) decide how Renovate treats the update. The presets are not in the checkout. Read
+them with `curl -s https://git.dcunha.io/exikle/renovate-config/raw/branch/main/<file>`.
 
-- Patch, minor and digest updates merge on their own once every required check is green. Your
-  `Kritika / Review` status is one of those checks. For these PRs, the review is the last look
-  before the merge.
-- A major never merges on its own.
-- Some packages are held by name and never merge on their own: Talos, the Kubernetes components,
-  Cilium, CNPG, external-dns, pocket-id, hermes-agent, Terraform providers and Ansible
-  collections. Their PR body carries a ⛔ or ⚠️ note that says why.
-- `groupName` rules make one PR move several packages. Cover each one.
+Do not assume whether an update merges on its own. Read `.renovaterc.json5` and its presets for
+the package and the folder at hand. The rules differ by package, by update type and by cluster:
 
-A label or title that disagrees with these rules is worth a note.
+- Many patch, minor and digest updates merge on their own when every required check is green.
+  Your `Kritika / Review` status is one of those checks. For these PRs, the review is the last
+  look before the merge.
+- A 0.x minor does not merge on its own.
+- Under `kube/clusters/frostlink/`, only trusted container digests (`/home-operations/`) merge on
+  their own, and Grafana dashboards do not merge on their own.
+- Most majors do not merge on their own. Grafana dashboard majors outside Frostlink do.
+- Some packages are held by name and never merge on their own. Examples are Talos, the Kubernetes
+  components, Cilium, CNPG, external-dns, pocket-id, hermes-agent, Terraform providers and
+  Ansible collections. Their PR body carries a ⛔ or ⚠️ note that says why. The full list is in the
+  presets.
+- `groupName` rules make one PR move several packages. Cover each package.
+
+If a label or a title does not agree with these rules, add a note.
 
 ## A change under `kube/`
 
@@ -137,10 +145,11 @@ it. Search `kube/` for:
   patches, and the custom resources that other apps create from the CRDs of the dependency.
 
 An app that you configure in its own UI keeps that configuration on its volume, not in git. A
-search of this repo proves nothing about it. Say that it could not be verified.
+search of this repo proves nothing about it. Say that you could not verify it.
 
-Before you suggest a rename or a new value, confirm it from the upstream PR or from the chart
-template at the new tag. If you cannot, make it a check to do after the merge, not an edit.
+Before you suggest a rename or a new value, make sure that it is right. Read it in the upstream PR
+or in the chart template at the new tag. If you cannot, make it a check to do after the merge, not
+an edit.
 
 Anchor a finding to the changed line in the diff. Name the dependent file and line in its text.
 
@@ -167,7 +176,7 @@ A failed validate is not always caused by the change. Before you report it as a 
 4. If only the pull request fails, report each new error as a finding on the line that causes it.
 
 A provider bump that moves a resource schema also changes what `tofu plan` does against the live
-system. You cannot run a plan, because it needs credentials. Say that the plan could not be checked.
+system. You cannot run a plan, because it needs credentials. Say that you could not check the plan.
 
 ## What a check proves
 

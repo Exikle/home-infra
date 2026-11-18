@@ -70,17 +70,21 @@ a one-time interactive answer to "enable Remote Control" and to workspace trust.
 `~/.remote-control-ready` exists, the pod installs everything and then sleeps.
 
 ```bash
-kubectl exec -it -n cortex deploy/claude-code -- bash
+kubectl exec -it -n cortex deploy/claude-code -c app --context artemis -- bash
 export PATH="$HOME/.local/bin:$PATH"
 claude auth login                                # claude.ai account, paste the code back
 cd ~/Artemis-Cluster && claude remote-control    # answer y and y, then Ctrl-C
 touch ~/.remote-control-ready
 exit
-kubectl rollout restart -n cortex deploy/claude-code
+kubectl rollout restart -n cortex deploy/claude-code --context artemis
 ```
 
-The server then shows as `artemis` in claude.ai/code. If the login expires, sessions stop making
-progress. In that case, exec into the pod and run `claude auth login` again.
+The `export PATH` line is required. Without it, the shell reports `claude: command not found`.
+`-c app` picks the app container. Without it, kubectl picks one and prints `Defaulted container`.
+
+The server then shows as `artemis` in claude.ai/code. If the login expires, the pod goes into a
+restart loop. Follow § Log in again after the login expires. A plain `exec` and `claude auth login`
+do not work then.
 
 Remote Control refuses to start if any of these variables is set:
 
@@ -93,3 +97,45 @@ So none of them belong in the env of the pod.
 
 Remote Control redraws its status once a second. Without a TTY, these redraws flood the log.
 `app/resources/log-filter.pl` strips the escape sequences and drops repeated lines.
+
+## Troubleshooting
+
+If the pod is in `Error` or `CrashLoopBackOff` and restarts every few minutes, find the cause
+in its log:
+
+1. Read the log of the current container:
+   `kubectl logs -n cortex deploy/claude-code --context artemis --tail=40`. The `--previous`
+   flag can fail with `unable to retrieve container logs`, so start without it.
+2. Read the last lines. `entrypoint.sh` runs the setup steps in order, and the last line names
+   the step that stopped.
+3. If the last line is `Error: You must be logged in to use Remote Control.`, the claude.ai login
+   on the PVC expired or is gone. `claude remote-control` exits, and the pod restarts. Follow
+   § Log in again after the login expires.
+4. If the log stops at the install of mise or claude, or at the clone of the repo, a download in
+   `entrypoint.sh` failed, and the script exits. The tool, hk and plugin steps print a `WARN`
+   line on failure and go on, so they do not stop the pod.
+5. If the log ends with `claude-code: not bootstrapped`, the pod is not broken. It waits for
+   § One-time bootstrap.
+
+## Log in again after the login expires
+
+You run these steps yourself, because they open a shell in the pod. In the restart loop each
+container lives only a few seconds, so `kubectl exec -it` cannot attach. A rollout restart does not
+help. Make the pod idle first, then log in.
+
+1. Remove the ready marker. Retry until one `exec` lands inside a container that is still up. It
+   took 14 tries on 2026-11-17:
+
+    ```bash
+    until kubectl exec -n cortex deploy/claude-code -c app --context artemis -- sh -c 'rm -f ~/.remote-control-ready'; do sleep 2; done
+    ```
+
+2. Wait for the next start. Without the marker, `entrypoint.sh` stops at `exec sleep infinity` and
+   the pod stays up. Make sure that the log ends with `claude-code: not bootstrapped`.
+3. Do the steps in § One-time bootstrap: open the shell, run the `export PATH` line, run
+   `claude auth login`, run `claude remote-control` and answer any prompt it shows, then
+   `touch ~/.remote-control-ready` and the rollout restart.
+4. Wait for the old pod to stop. The Deployment uses the `Recreate` strategy, so the new pod starts
+   only after the old one is gone. `sleep infinity` runs as PID 1 and ignores SIGTERM, so the old pod
+   takes the full 30-second grace period.
+5. Make sure that the new pod runs `remote-control --name artemis` with 0 restarts.

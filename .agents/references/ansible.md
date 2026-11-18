@@ -37,7 +37,8 @@ reasons and the traps.
 
 ## Collections
 
-`ansible/requirements.yml` pins the collections. `mise run //ansible:deps` installs them into the
+`ansible/requirements.yml` sets minimum versions (`>=`) for the collections, not exact pins. So
+`mise run //ansible:deps` installs the newest release of each. It installs them into the
 gitignored `collections` directory under `ansible`. In a fresh worktree, that directory does not
 exist until you run the command.
 
@@ -49,8 +50,6 @@ exist until you run the command.
 control node. It runs on the box over SSH and calls `midclt` in a shell, so `atlas` needs SSH
 access. It has no modules for replication tasks, cloud sync or Apps. It covers snapshot tasks but
 not replication.
-
-For the CRS309, use `community.routeros.api_modify` (idempotent), not `command`.
 
 ## The forgejo role — why `app.ini` is edited key-by-key
 
@@ -372,7 +371,7 @@ Under a service-account token, the `op://` URI form fails with
 `'vault' is required with 'service_account_token'`. Laptop runs use a service-account token, so
 they hit this failure.
 
-Use a service account for laptop runs and Connect for CI. Put `no_log: true` on tasks that use
+Use a service account for laptop runs. No CI job runs Ansible. Put `no_log: true` on tasks that use
 secrets. Do not use ansible-vault. `AGENTS.md` rule 3 (1Password only, no SOPS) wins.
 
 ## The netdata.conf chore, solved properly
@@ -417,8 +416,8 @@ Renovate bump can reboot the box that holds the ZFS pools.
 Always run `mise run //ansible:check <playbook>` first. Modules without check-mode support skip, or
 they report wrong results. So a clean check run is a strong sign, but it is not proof.
 
-CI runs `ansible-lint` and `--syntax-check`, and it resolves `requirements.yml`. A human applies
-from the laptop.
+Nothing runs Ansible in CI. Run the lint and the syntax check by hand, with
+`mise run //ansible:lint` and `mise run //ansible:syntax-check`. A human applies from the laptop.
 
 ## Traps
 

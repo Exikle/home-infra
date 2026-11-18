@@ -5,12 +5,12 @@ description: Validate and render cluster manifests locally before committing —
 
 # Skill: Flux Validate
 
-Validate and diff Flux manifests offline before you commit, with `flate` (already available through `mise`).
+Validate and diff Flux manifests offline before you commit. Use `flate`. `mise` already supplies it.
 
 Always validate before you commit. `main` reconciles directly to production.
 
-On Frostlink, use `mise run //kube/clusters/frostlink:render-ks` and `:diff-ks` the same
-way, and pass `--path kube/clusters/frostlink` to the `flate` commands.
+On Frostlink, use `mise run //kube/clusters/frostlink:render-ks` and `:diff-ks` the same way. Pass
+`--path kube/clusters/frostlink` to the `flate` commands.
 
 ## Quick Render (single kustomization)
 
@@ -18,11 +18,13 @@ way, and pass `--path kube/clusters/frostlink` to the `flate` commands.
 mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
-This runs `flate build ks --namespace <namespace> --output yaml <ks-name>` and prints the rendered manifests. It catches schema errors, missing references, and HelmRelease value mistakes.
+This task runs `flate build ks --namespace <namespace> --output yaml <ks-name>` and prints the
+rendered manifests. It catches schema errors, missing references, and mistakes in HelmRelease
+values.
 
 The root (`render-ks flux-system flux-system`) is the exception. flux-operator generates it, so
-flate cannot see it. The task runs `flux build kustomization` against the live root instead,
-which needs the cluster.
+flate cannot see it. The task runs `flux build kustomization` against the live root instead. That
+needs the cluster.
 
 The `<ks-name>` is `metadata.name` from the `ks.yaml` of the app, not the directory name.
 
@@ -32,9 +34,16 @@ The `<ks-name>` is `metadata.name` from the `ks.yaml` of the app, not the direct
 flate test all --path kube/clusters/artemis
 ```
 
-This prints a pytest-style `PASS`/`FAIL`/`SKIPPED` result per resource. The exit code is non-zero on any failure.
+This prints a pytest-style `PASS`/`FAIL`/`SKIPPED` result per resource. The exit code is non-zero
+on any failure.
 
-Add `--allow-missing-secrets` to skip ExternalSecret-backed secret refs (1Password secrets do not exist offline):
+Run it without `--allow-missing-secrets` first. flate already skips a missing Secret that an
+in-repo ExternalSecret declares with a static target name (see Notes).
+
+Use `--allow-missing-secrets` only as a fallback, when a failure names a Secret that exists only in
+the live cluster. The flag soft-skips ALL source auth Secrets and all HelmRelease `valuesFrom`
+Secret and ConfigMap refs. So it can hide a real error, such as a wrong `valuesFrom` name. If you
+use it, say so in your report:
 
 ```bash
 flate test all --path kube/clusters/artemis --allow-missing-secrets
@@ -46,18 +55,18 @@ flate test all --path kube/clusters/artemis --allow-missing-secrets
 mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
-This is read-only. It renders locally with `flate`, then runs `kubectl diff --server-side`, which is a server-side
-**dry-run apply**. The API server does its own defaulting before it compares. Defaulted fields
-never show up as drift. A hand-rolled render-vs-live comparison cannot avoid that. `dyff` renders the output,
-so a change appears as a field path rather than a line number.
+This task is read-only. It renders locally with `flate`, then runs `kubectl diff --server-side`.
+That is a server-side dry-run apply. The API server applies its own defaults before it compares, so
+defaulted fields never show up as drift. A hand-made comparison of render and live cannot avoid
+that. `dyff` renders the output, so a change shows as a field path, not a line number.
 
-Exit codes: **0** means no differences. **1** means differences found _or_ the render failed. You tell the two apart
-by the output, not by the code. Drift ends on `WARN Differences found`, and a bad ks name
-ends on `flate error:`.
+Exit codes: 0 means no differences. 1 means differences found _or_ a failed render. Read the output
+to tell the two apart. The code does not. Drift ends on `WARN Differences found`. A bad ks name ends
+on `flate error:`.
 
-Run this check _before_ `suspend-ks` + `apply-ks`, to see what a change would actually
-move. It is not the same as `flate diff` below. This one compares local against **the cluster**,
-and `flate diff` compares local against **main**.
+Run this check _before_ `suspend-ks` + `apply-ks`, to see what a change really moves. It is not the
+same as `flate diff` below. This check compares local against the cluster. `flate diff` compares
+local against `main`.
 
 ## Diff Against Main (changed-only)
 
@@ -67,7 +76,8 @@ flate diff ks --path kube/clusters/artemis --path-orig /tmp/artemis-baseline/kub
 git worktree remove /tmp/artemis-baseline
 ```
 
-Changed-only mode reconciles only the subtree that a change touches. It is fast even on large repos.
+Changed-only mode reconciles only the subtree that a change touches. It is fast, also on large
+repos.
 
 ## List All Kustomizations
 
@@ -83,16 +93,19 @@ flate build hr --namespace <namespace> --output yaml <helmrelease-name>
 
 ## Validate Workflow (pre-commit checklist)
 
-1. Run `mise run //kube/clusters/artemis:render-ks <ns> <ks>` to render the changed kustomization.
-2. Review the output for unexpected changes.
-3. Run `mise run //kube/clusters/artemis:diff-ks <ns> <ks>` to see what the change would actually move in the cluster.
-4. Run `flate test all --path kube/clusters/artemis --allow-missing-secrets` for the full suite.
+1. Render the changed kustomization: `mise run //kube/clusters/artemis:render-ks <ns> <ks>`.
+2. Read the output, and look for changes that you did not expect.
+3. See what the change really moves in the cluster: `mise run //kube/clusters/artemis:diff-ks <ns> <ks>`.
+4. Run the full suite: `flate test all --path kube/clusters/artemis`. If a failure names a Secret
+   that exists only in the live cluster, use the fallback in § Full Test Suite.
 5. If the tests pass, continue with `.agents/skills/modules/test-and-commit.md`. The sequence is in
-   `.agents/instructions/commit-style.md` § The sequence: suspend root and target, apply, wait for the
-   user, commit, wait for the artifact, resume.
+   `.agents/instructions/commit-style.md` § The sequence. That file wins.
 
 ## Notes
 
-- `flate` handles ExternalSecrets gracefully. If the Secret has a declared producer (ExternalSecret), flate marks it `Ready / "skipped"` instead of failing. You do not need `--allow-missing-secrets` in most cases.
-- This cluster does not use SOPS ciphertext (all secrets come from 1Password ExternalSecret), so you never need decryption offline.
-- OCI sources (app-template, and others) need network access to pull charts. Run with the network available.
+- flate handles ExternalSecrets. If an ExternalSecret declares the Secret, flate marks the Secret
+  `Ready / "skipped"` and does not fail. In most cases you do not need `--allow-missing-secrets`.
+- This cluster has no SOPS ciphertext. All secrets come from 1Password ExternalSecrets, so you never
+  need to decrypt offline.
+- OCI sources (app-template, and others) need network access to pull charts. Run with the network
+  available.

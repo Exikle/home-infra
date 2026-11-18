@@ -1,28 +1,30 @@
 # Frostlink rebuild from nothing
 
-Rebuilding Frostlink from nothing. (Artemis: `bootstrap.md`.) Nothing on this page is exercised in normal work: treat it as
-a disaster-recovery runbook, and re-read `kube/clusters/frostlink/bootstrap/mise.toml` (`mise tasks ls --all`) before
-running any of it rather than trusting the summaries here.
+This page rebuilds Frostlink from nothing. For Artemis, read `bootstrap.md`. Normal work never runs
+anything on this page. Treat it as a disaster-recovery runbook. Before you run any of it, read
+`kube/clusters/frostlink/bootstrap/mise.toml` again (`mise tasks ls --all`). Do not trust the
+summaries here.
 
 ## Two circles a rebuild has to break (frostlink#347)
 
-1. **The tailnet runs on Frostlink.** The node's tailscale logs into Headscale, which is a
-   Frostlink app. A rebuild therefore reaches the node **only over its public IP**: Talos API on
-   `40.233.88.33:50000` (open on OCI), and the Kubernetes API on 6443 — which is **closed** on OCI
-   and must be opened to your home /32 for the duration. The node joins Headscale last, with a
-   freshly minted key (`mise run //kube/clusters/frostlink/bootstrap:tailnet`).
-2. **The Flux source runs on Frostlink.** `registry.frostlink.dev` is apoci on Frostlink, and
-   every `*.dcunha.io` name (Forgejo, Artemis's apoci) is served through Frostlink's Envoy
-   and the towonel backhaul to Artemis. Nothing at home is reachable from a rebuilding node. So the **first**
-   artifact comes from your PC: `mise run //kube/clusters/frostlink/bootstrap:seed` pulls CI's copy from Forgejo
-   (`oci://git.dcunha.io/exikle/frostlink:main`) over the home network and pushes it into a
-   throwaway in-cluster registry (`kube/clusters/frostlink/bootstrap/seed-registry.yaml`). The bootstrap FluxInstance syncs
-   from that over plain HTTP (`helmfile.d/templates/flux-instance-seed.yaml.gotmpl`). Flux then
-   upgrades `flux-instance` to its real source — and the `flux-instance` Kustomization
-   `dependsOn` apoci and envoy-gateway, so that switch waits until `registry.frostlink.dev`
-   can actually answer.
+1. The tailnet runs on Frostlink. The tailscale of the node logs into Headscale, and Headscale is a
+   Frostlink app. So a rebuild reaches the node only over its public IP. The Talos API is on
+   `40.233.88.33:50000`, which is open on OCI. The Kubernetes API is on 6443, which is closed on
+   OCI. You must open 6443 to your home /32 for the length of the rebuild. The node joins Headscale
+   last, with a new key (`mise run //kube/clusters/frostlink/bootstrap:tailnet`).
+2. The Flux source runs on Frostlink. `registry.frostlink.dev` is apoci on Frostlink. Every
+   `*.dcunha.io` name (Forgejo, the apoci of Artemis) goes through the Envoy of Frostlink and the
+   towonel backhaul to Artemis. A rebuilding node cannot reach anything at home. So the first
+   artifact comes from your PC. `mise run //kube/clusters/frostlink/bootstrap:seed` pulls the CI
+   copy from Forgejo (`oci://git.dcunha.io/exikle/frostlink:main`) over the home network. It pushes
+   the copy into a temporary in-cluster registry (`kube/clusters/frostlink/bootstrap/seed-registry.yaml`).
+   The bootstrap FluxInstance syncs from that registry over plain HTTP
+   (`helmfile.d/templates/flux-instance-seed.yaml.gotmpl`). Flux then upgrades `flux-instance` to
+   its real source. The `flux-instance` Kustomization waits on `flux-instance-extras`, and
+   `flux-instance-extras` has `dependsOn` on apoci and envoy-gateway. So the switch waits until
+   `registry.frostlink.dev` can answer.
 
-The running node's tailscale key lives only in its machine config, never in git — see
+The tailscale key of the running node lives only in its machine configuration, never in git. See
 `oci-talos.md` § CRITICAL: never `apply-config` the patch file.
 
 ## Rebuild order
@@ -34,123 +36,154 @@ mise run //kube/clusters/frostlink/bootstrap:phase1        # gen config + apply 
 mise run //kube/clusters/frostlink/bootstrap:phase2        # k8s, kubeconfig, talosconfig, base, cni, seed, apps — all over the public IP
 ```
 
-Then, in order:
+Then do these steps in order:
 
-1. **Watch Flux reconcile from the seed.** `kubectl get ocirepository flux-system -n flux-system
-   --context frostlink` shows the `seed-registry` URL until `flux-instance` switches it to
-   `registry.frostlink.dev`.
-2. **Check every kopiur restore pulled a real snapshot** before trusting the apps —
-   `kubectl get restore -A --context frostlink`. The component uses `onMissingSnapshot: Continue`,
-   so a wrong R2 credential or repository yields an **empty volume, not an error**. For Headscale that means a
-   new noise key and an empty database: every device would have to re-register.
-3. **Check Headscale came back with its devices:** `kubectl exec deploy/headscale -n network -c app
-   --context frostlink -- headscale nodes list` shows the UCG and your devices; the UCG reconnects
-   on its own.
-4. `mise run //kube/clusters/frostlink/bootstrap:tailnet` — mints a one-hour, one-time `tag:frostlink` key, substitutes it into
-   `kube/clusters/frostlink/talos/patches/tailscale.yaml.j2` in a 600 temp file, and patches it onto the node over the
-   public Talos API (no reboot). The key is never written to 1Password; it is spent on first use.
-5. **Delete the old frostlink node** it prints (`headscale nodes delete -i <id>`), and confirm the
-   new one shows route `10.0.0.203/32` approved
-   (`headscale nodes list-routes`). The policy auto-approves it for `tag:frostlink`.
-6. **Switch to the site link:** `kubectl config set-cluster frostlink --server=https://10.0.0.203:6443`
-   and `talosctl config endpoint 10.0.0.203` (`kube/clusters/frostlink/talosconfig` was written with the
-   public IP by phase2). Verify both, then **remove the OCI 6443 rule**. Leave 50000 as the
-   break-glass. Then apply the host firewall over the site link (`oci-talos.md` § Host ingress
-   firewall) — never earlier, it blocks the public 6443 path this rebuild used.
-7. `kubectl delete -f kube/clusters/frostlink/bootstrap/seed-registry.yaml --context frostlink` — the seed registry is not Flux-managed.
+1. Watch Flux reconcile from the seed.
+   `kubectl get ocirepository flux-system -n flux-system --context frostlink` shows the
+   `seed-registry` URL until `flux-instance` switches it to `registry.frostlink.dev`.
+2. Before you trust the apps, make sure that every kopiur restore pulled a real snapshot. The
+   component uses `onMissingSnapshot: Continue`. So a wrong R2 credential or repository gives an
+   empty volume, not an error. `phase` reads `Completed` for an empty restore too, so read the
+   resolution:
 
-**Not yet proven by a real rebuild:** Headscale registering the new machine key and re-approving
-its routes; kopiur's restore waiting for the repository instead of racing to an empty volume; the
-towonel hub restore still accepting the agent invite (Headscale ingress rides on it). Check each
-as you go.
+    ```bash
+    kubectl get restore -A --context frostlink -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,RES:.status.resolved.resolution
+    ```
 
-Tasks: `phase1`, `phase2` and `tailnet` are the entry points; the rest are hidden steps
-(`config apply k8s kubeconfig talosconfig base cni seed apps tailnet-join`) —
-`mise tasks ls --all --hidden` and `kube/clusters/frostlink/bootstrap/mise.toml` say what each does.
+    Every row must read `Snapshot`. `NoSnapshot` means an empty volume. Stop, and read
+    `openebs-zfs.md` § Restore. For Headscale, an empty volume means a new noise key and an empty
+    database. Every device then has to register again.
 
-No certSAN step is needed for `10.0.0.203` or any tailnet IP: Talos adds the node's own addresses
-to the apiserver certificate automatically (checked against the served cert).
+3. Make sure that Headscale came back with its devices.
+   `kubectl exec deploy/headscale -n network -c app --context frostlink -- headscale nodes list`
+   shows the UCG and your devices. The UCG connects again on its own.
+4. Run `mise run //kube/clusters/frostlink/bootstrap:tailnet`. It makes a one-hour, one-time
+   `tag:frostlink` key. It puts the key into `kube/clusters/frostlink/talos/patches/tailscale.yaml.j2`
+   in a temporary file with mode 600. It patches the result onto the node over the public Talos
+   API, with no reboot. The key is never written to 1Password. The first use spends it.
+5. Delete the old frostlink node that the task prints (`headscale nodes delete -i <id>`). Make sure
+   that the new node shows the route `10.0.0.203/32` as approved (`headscale nodes list-routes`).
+   The policy approves it automatically for `tag:frostlink`.
+6. Switch to the site link. Run `kubectl config set-cluster frostlink --server=https://10.0.0.203:6443`
+   and `talosctl config endpoint 10.0.0.203`. phase2 wrote `kube/clusters/frostlink/talosconfig`
+   with the public IP. Make sure that both work.
+7. Remove the OCI 6443 rule. Leave 50000 open as the break-glass path.
+8. Apply the host firewall over the site link (`oci-talos.md` § Host ingress firewall). Do not
+   apply it earlier. It blocks the public 6443 path that this rebuild used.
+9. Run `kubectl delete -f kube/clusters/frostlink/bootstrap/seed-registry.yaml --context frostlink`.
+   Flux does not manage the seed registry.
+
+A real rebuild did not yet prove these three things. Make sure of each one as you go:
+
+- Headscale registers the new machine key and approves its routes again.
+- The kopiur restore waits for the repository, and does not race to an empty volume.
+- The towonel hub restore still accepts the agent invite. Headscale ingress depends on it.
+
+No step in this runbook creates or imports the `openebs` ZFS pool on the block volume `sdb`
+(`oci-node.md` § The node). The procedure for a rebuild that keeps or replaces `sdb` is not
+written down ([#3383](https://git.dcunha.io/Exikle/home-infra/issues/3383)).
+
+Tasks: `phase1`, `phase2` and `tailnet` are the entry points. The other tasks are hidden steps
+(`config apply k8s kubeconfig talosconfig base cni seed apps tailnet-join`).
+`mise tasks ls --all --hidden` and `kube/clusters/frostlink/bootstrap/mise.toml` say what each one
+does.
+
+You do not need a certSAN step for `10.0.0.203` or for any tailnet IP. Talos adds the addresses of
+the node to the apiserver certificate automatically. This was compared against the served
+certificate.
 
 ## 1Password Items Required
 
-`grep -rn 'op://' kube/clusters/frostlink/bootstrap` lists them. Two naming rules have no other home:
+`grep -rn 'op://' kube/clusters/frostlink/bootstrap` lists them. Two naming rules are written
+nowhere else:
 
-- `cloudflare-frostlink` keeps its suffix deliberately: **Artemis reads it** for frostlink's DNS and
-  certificates. Artemis's own `cloudflare` item would outrank a renamed one in its vault priority, so
-  the distinct name is the only way to express the cross-read.
-- Never create a frostlink item named `forgejo`: both clusters read `infrastructure/forgejo` by the
-  bare name, and a frostlink one would sit at priority 1 and shadow it.
+- `cloudflare-frostlink` keeps its suffix on purpose, because Artemis reads it for the DNS and the
+  certificates of frostlink. The own `cloudflare` item of Artemis has a higher vault priority than a
+  renamed item. So the separate name is the only way to express the cross-read.
+- Never create a frostlink item named `forgejo`. Both clusters read `infrastructure/forgejo` by the
+  bare name. A frostlink item gets priority 1 and hides it.
 
-The tailnet key is minted fresh by `mise run //kube/clusters/frostlink/bootstrap:tailnet`, and the Flux pull secret needs no item
-(apoci serves pulls anonymously and ignores the credentials, so `resources.yaml.j2` writes a fixed
-placeholder).
+`mise run //kube/clusters/frostlink/bootstrap:tailnet` makes the tailnet key new each time. The
+Flux pull secret needs no item. apoci serves pulls anonymously and ignores the credentials, so
+`resources.yaml.j2` writes a fixed placeholder.
 
 ## kube/clusters/frostlink/bootstrap/resources.yaml.j2
 
-Creates the following secrets before Flux and ExternalSecrets are running:
+This file creates the following secrets before Flux and ExternalSecrets run:
 
-- `external-secrets/onepassword-connect-credentials-secret` — 1Password Connect credentials JSON
-- `external-secrets/onepassword-connect-vault-secret` — 1Password Connect token
-- `flux-system/flux-system` — Forgejo HTTPS auth (username + password/token)
-- `network/cloudflare-tunnel-id-secret` — Cloudflare tunnel ID (the tunnel is retired; this secret
-  and the `kube/clusters/frostlink/bootstrap/` steps that create it need a rewrite)
+- `external-secrets/onepassword-connect-credentials-secret`: the 1Password Connect credentials JSON
+- `external-secrets/onepassword-connect-vault-secret`: the 1Password Connect token
+- `flux-system/flux-system`: Forgejo HTTPS auth (username and password or token)
+- `network/cloudflare-tunnel-id-secret`: the Cloudflare tunnel ID. The tunnel is retired. This
+  secret and the `kube/clusters/frostlink/bootstrap/` steps that create it need a rewrite.
 
-Applied by `mise run //kube/clusters/frostlink/bootstrap:base`, which also creates every namespace under `kube/clusters/frostlink/apps/`
-first and applies the CRDs from `kube/clusters/frostlink/bootstrap/helmfile.d/00-crds.yaml` afterwards. During a real
-bootstrap `kube/clusters/frostlink/kubeconfig` does not exist until `mise run //kube/clusters/frostlink/bootstrap:kubeconfig` has run.
+`mise run //kube/clusters/frostlink/bootstrap:base` applies it. That task first creates every
+namespace under `kube/clusters/frostlink/apps/`. After that, it applies the CRDs from
+`kube/clusters/frostlink/bootstrap/helmfile.d/00-crds.yaml`. During a real bootstrap,
+`kube/clusters/frostlink/kubeconfig` does not exist until
+`mise run //kube/clusters/frostlink/bootstrap:kubeconfig` runs.
 
 ## Cilium / CoreDNS / cert-manager — Install Directly
 
-These three are NOT in `kube/clusters/frostlink/bootstrap/helmfile.d/01-apps.yaml`. `mise run //kube/clusters/frostlink/bootstrap:cni` (wired into `phase2` between `base` and `apps`) installs all three directly via `helm upgrade --install`, one per iteration, reading `chart`/`version` from each app's `ocirepository.yaml` and `values` from its `helmrelease.yaml` — so the bootstrap-time install always matches whatever is currently checked in, with nothing hardcoded to go stale.
+These three are not in `kube/clusters/frostlink/bootstrap/helmfile.d/01-apps.yaml`.
+`mise run //kube/clusters/frostlink/bootstrap:cni` installs all three directly with
+`helm upgrade --install`, one per iteration. `phase2` runs it between `base` and `apps`. The task
+reads `chart` and `version` from the `ocirepository.yaml` of each app, and `values` from its
+`helmrelease.yaml`. So the install at bootstrap always matches what is checked in. Nothing is
+hard-coded, so nothing goes stale.
 
-**Why not helmfile**: Talos pre-installs Cilium and CoreDNS using field manager `helm-controller`, and
-Helmfile v4 uses the same one, so applying both gives SSA ownership conflicts (cert-manager's
-`startupapicheck` Job conflicts too). Direct `helm` CLI calls use the default field manager
-(`helm`) and avoid the collision. Never add `--cleanup-on-fail` to a helmfile release: on failure
-it deletes cluster-scoped resources and leaves orphaned SSA ownership that then conflicts on retry.
+The reason for not using helmfile: Talos pre-installs Cilium and CoreDNS with the field manager
+`helm-controller`. Helmfile v4 uses the same field manager. So if you apply both, you get SSA
+ownership conflicts. The `startupapicheck` Job of cert-manager conflicts too. Direct `helm` CLI
+calls use the default field manager (`helm`), so they do not collide. Never add
+`--cleanup-on-fail` to a helmfile release. On failure, it deletes cluster-scoped resources. It also
+leaves orphaned SSA ownership, which then conflicts on the next try.
 
-Talos itself never applies its own CNI, CoreDNS or kube-proxy manifests, because
-`kube/clusters/frostlink/talos/patches/controlplane.yaml` disables them with typed documents (`KubeFlannelCNIConfig`
-`$patch: delete`, `KubeCoreDNSConfig` and `KubeProxyConfig` `enabled: false`), so there is nothing
-to clean up before Cilium and CoreDNS take over.
+Talos never applies its own CNI, CoreDNS or kube-proxy manifests.
+`kube/clusters/frostlink/talos/patches/controlplane.yaml` disables them with typed documents
+(`KubeFlannelCNIConfig` `$patch: delete`, `KubeCoreDNSConfig` and `KubeProxyConfig`
+`enabled: false`). So there is nothing to clean up before Cilium and CoreDNS take over.
 
 ## OCI DNS — CoreDNS Forward Target
 
-`talosctl get resolvers --talosconfig kube/clusters/frostlink/talosconfig` on the node shows `["169.254.169.254"]`.
+`talosctl get resolvers --talosconfig kube/clusters/frostlink/talosconfig -n 10.0.0.203` shows
+`["169.254.169.254"]` on the node.
 
-`/etc/resolv.conf` on the node contains `nameserver 127.0.0.53` (systemd-resolved stub). This address is unreachable inside pods. CoreDNS must use `forward . 169.254.169.254` — not the default `/etc/resolv.conf`.
+`/etc/resolv.conf` on the node contains `nameserver 127.0.0.53` (the systemd-resolved stub). Pods
+cannot reach this address. So CoreDNS must use `forward . 169.254.169.254`, not the default
+`/etc/resolv.conf`.
 
 ## Flux flux-system Secret
 
-**Not a Git credential.** The Flux source is an **OCIRepository**, not a GitRepository —
-`FluxInstance/flux` syncs `oci://registry.frostlink.dev/exikle/frostlink` (apoci on Frostlink —
-CI pushes there and to Forgejo's registry) and names this same secret as its `sync.pullSecret`.
-There is no `GitRepository` object in the cluster; see `flux-patterns.md` § Frostlink.
+This secret is not a Git credential. The Flux source is an OCIRepository, not a GitRepository.
+`FluxInstance/flux` syncs `oci://registry.frostlink.dev/exikle/frostlink`, which is apoci on
+Frostlink. CI pushes there and to the registry of Forgejo. The FluxInstance names this same secret
+as its `sync.pullSecret`. There is no `GitRepository` object in the cluster. See
+`flux-patterns.md` § Frostlink.
 
-The secret `flux-system/flux-system` is `Opaque` with `username` + `password` keys.
-`mise run //kube/clusters/frostlink/bootstrap:base` creates it via `resources.yaml.j2` as a fixed placeholder; apoci ignores it.
-Flux itself never authenticates to Forgejo. Anything that does reach Forgejo uses HTTPS, because
-SSH is unreachable from OCI.
+The secret `flux-system/flux-system` is `Opaque`, with the keys `username` and `password`.
+`mise run //kube/clusters/frostlink/bootstrap:base` creates it from `resources.yaml.j2` as a fixed
+placeholder. apoci ignores it. Flux itself never authenticates to Forgejo. Anything that reaches
+Forgejo uses HTTPS, because SSH is not reachable from OCI.
 
 ## Post-Bootstrap App Deployment Order
 
-Deploy the `network` namespace **before any app that has an HTTPRoute**: the route is created, but
-traffic cannot flow until envoy-gateway is running. This order is **not**
-encoded in `dependsOn` (envoy-gateway depends only on cert-manager),
-so follow it by hand once Flux is reconciling. **This list needs a rewrite for the front door:**
-the tunnel step is gone, and Envoy now owns the node's public 80 and 443 (`oci-networking.md` §
-The front door).
+Deploy the `network` namespace before any app that has an HTTPRoute. The route gets created, but
+traffic cannot flow until envoy-gateway runs. `dependsOn` does not encode this order. envoy-gateway
+depends only on cert-manager and onepassword-connect. So when Flux reconciles, follow the order by
+hand. This list needs a rewrite for the front door. The tunnel step is gone, and Envoy now owns the
+public 80 and 443 of the node (`oci-networking.md` § The front door).
 
 1. `cert-manager/clusterissuer`
 2. `network/envoy-gateway` (Envoy Gateway, GatewayClass, external-gateway)
 3. `network/certificates` (wildcard `frostlink.dev` / `*.frostlink.dev`)
-4. All other apps with HTTPRoutes, any order
+4. All other apps with HTTPRoutes, in any order
 
-A cross-namespace `dependsOn` ref needs an explicit `namespace:` (`flux-patterns.md` § flate
-`dependsOn` Namespace).
+A cross-namespace `dependsOn` reference needs an explicit `namespace:` (`flux-patterns.md`
+§ Cross-Namespace Kustomization Gotchas).
 
 ## After Flux is up — do not sync early
 
-Syncing the `flux-system` OCIRepository before CI has built the artifact re-resolves the
-**pre-commit** digest and silently applies old state — during bootstrap as much as in normal work
-(`flux-patterns.md` § Frostlink).
+Do not sync the `flux-system` OCIRepository before CI builds the artifact. If you do, Flux resolves
+the pre-commit digest again and silently applies old state. This is true during bootstrap and in
+normal work (`flux-patterns.md` § Frostlink).

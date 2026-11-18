@@ -6,12 +6,12 @@ file covers only the sequence, and the reason for each step.
 
 ## Two-identity signing model
 
-| Identity               | How commits land on main            | Signed by                        |
-| ---------------------- | ----------------------------------- | -------------------------------- |
-| Exikle (Dixon D'Cunha) | Push directly to main after testing | Exikle's personal GPG key        |
-| Renovate / dusk-bot    | Squash-merged PR                    | git.dcunha.io Instance (SSH key) |
+| Identity               | How commits land on main            | Signed by                         |
+| ---------------------- | ----------------------------------- | --------------------------------- |
+| Exikle (Dixon D'Cunha) | Push directly to main after testing | Exikle's personal SSH signing key |
+| Renovate / dusk-bot    | Squash-merged PR                    | git.dcunha.io Instance (SSH key)  |
 
-A squash merge always creates a new server-side commit. Exikle's local key cannot sign that
+A squash merge always creates a new server-side commit. The local key of Exikle cannot sign that
 commit. So Exikle never uses a PR merge for their own work. PRs are for Renovate only.
 
 ## The sequence
@@ -36,23 +36,23 @@ objects do not.
 Nothing errors if you forget. The apply succeeds. Minutes later a controller reverts it, and it
 looks as if the change never landed.
 
-Step 1. Write the changes in your worktree (`AGENTS.md` rule 7). `mise run //:wt:new` branches from the
-local `main`. The local `main` falls behind as Renovate merges land, and `apply-ks` from a stale
-tree silently reverts those bumps live. Pull first. `<main>` below is the main checkout, the
-parent of `.worktrees/` (`dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`):
+Step 1. Write the changes in your worktree (`AGENTS.md` rule 7). `mise run //:wt:new` branches
+from the local `main`. The local `main` falls behind as Renovate merges land. An `apply-ks` from a
+stale tree silently reverts those bumps live. So pull first. `<main>` below is the main checkout,
+the parent of `.worktrees/` (`dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`):
 
 ```bash
 git -C <main> pull --ff-only
 mise run //:wt:new <type>/<slug>
 ```
 
-Step 2. Apply to the live cluster from the worktree: `mise run //kube/clusters/artemis:apply-ks <ns> <ks-name>`. Run it
-with the worktree as the working directory, so that mise picks up the task files of the
-worktree. If you run it from the main checkout, it builds the manifests of `main` and silently
-re-applies the old version.
+Step 2. Apply to the live cluster from the worktree:
+`mise run //kube/clusters/artemis:apply-ks <ns> <ks-name>`. Run it with the worktree as the
+working directory, so that mise picks up the task files of the worktree. If you run it from the
+main checkout, it builds the manifests of `main` and silently re-applies the old version.
 
-Step 3. Wait for explicit user confirmation that it works. A running pod is not confirmation.
-Only the word of the user is.
+Step 3. Wait until the user tells you that it works. A running pod is not confirmation. Only the
+word of the user is.
 
 Step 4. Commit in the worktree (global § Commit Hygiene). Then land the commit on `main` through
 the main checkout. The `agent-main-checkout` hk step blocks only agent _commits_ there, not
@@ -71,22 +71,23 @@ Run `mise run //:wt:rm <type>/<slug>` after step 5. It refuses unless the branch
 `main`.
 
 Step 5. Wait for the `Push OCI Artifact` run on your commit to go green. Then run
-`mise run //kube/clusters/artemis:sync-flux ocirepo flux-system` until the artifact carries your commit:
+`mise run //kube/clusters/artemis:sync-flux ocirepo flux-system` until the artifact carries your
+commit:
 
 ```bash
-kubectl get ocirepository -n flux-system flux-system \
+kubectl get ocirepository -n flux-system flux-system --context artemis \
   -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'
 # main@sha1:<git sha> — compare against `git rev-parse HEAD`
 ```
 
 Use that metadata field, not `.status.artifact.revision`. The latter is
-`main@sha256:<OCI digest>`. It is not the git sha, so it can never match your commit. Also,
-watching it merely _change_ is racy in both directions. If an earlier sync already pulled the new
+`main@sha256:<OCI digest>`. It is not the git sha, so it can never match your commit. Also, a
+watch for a _change_ in it is racy in both directions. If an earlier sync already pulled the new
 artifact, the digest never changes again, and the check waits forever on work that is already
 done.
 
-Name `flux-system` in the sync. The bare `mise run //kube/clusters/artemis:sync-flux ocirepo` force-annotates every
-OCIRepository in the cluster, but step 5 needs exactly one.
+Name `flux-system` in the sync. The bare `mise run //kube/clusters/artemis:sync-flux ocirepo`
+force-annotates every OCIRepository in the cluster, but step 5 needs exactly one.
 
 Then resume, root first and then the target, as two calls:
 
@@ -111,11 +112,12 @@ The sequence is the same, with the Frostlink tasks:
 
 - `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
   diffs the push. The job of a cluster runs when its `apps/`, `components/` or `settings/`
-  under `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/` changed. A job that
-  does not run shows as skipped. Wait for the job of each cluster that your change reaches.
-- A change under `kube/base/` or `kube/components/` reaches both clusters in one push. Test it live on both clusters
-  before you commit: suspend, `apply-ks` and confirm on each.
-- Check that the artifact carries your commit with the Frostlink context:
+  under `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/`
+  changed. A job that does not run shows as skipped. Wait for the job of each cluster that your
+  change reaches.
+- A change under `kube/base/` or `kube/components/` reaches both clusters in one push. Test it
+  live on both clusters before you commit: suspend, `apply-ks` and confirm on each.
+- Make sure that the artifact carries your commit. Use the Frostlink context:
   `kubectl get ocirepository -n flux-system flux-system --context frostlink -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.
   The artifact names are `exikle/artemis` and `exikle/frostlink`.
 - A commit that touches both clusters needs both runs green, and both clusters suspended and

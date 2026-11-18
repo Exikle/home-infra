@@ -1,45 +1,60 @@
-# Bootstrap — Order of Operations
+# Bootstrap — Artemis
 
-How to bring up a fresh cluster. This text moved out of `AGENTS.md` on 2026-09-02, because you
-need it only when you bootstrap, not on every session.
+This file tells you how to bring up a fresh Artemis cluster. The bootstrap task below is for
+Artemis only. To rebuild Frostlink, read `oci-rebuild.md`. This text moved out of `AGENTS.md` on
+2026-09-02, because you need it only when you bootstrap, not in every session.
 
 ---
 
 ## Order
 
-`mise run //kube/clusters/artemis/bootstrap:cluster` does the whole thing. It chains
-`nodes → k8s → kubeconfig → base → apps → kubeconfig`, and `base` waits on `api-ready` and
-`nodes-ready` first. `base` applies `kube/clusters/artemis/bootstrap/helmfile.d/00-crds.yaml`. Every release there is
-rendered and filtered down to `kind: CustomResourceDefinition`, and none is installed. See
-`observability.md` § Where the `monitoring.coreos.com` CRDs come from for the reason that this
-matters. `apps` syncs `kube/clusters/artemis/bootstrap/helmfile.d/01-apps.yaml`, in order: Cilium → CoreDNS → Spegel →
-cert-manager → external-secrets → onepassword-connect → flux-operator → flux-instance.
+`mise run //kube/clusters/artemis/bootstrap:cluster` does the full bootstrap. It chains
+`nodes → k8s → kubeconfig → base → apps → kubeconfig`. Before `base` starts, it waits on
+`api-ready` and `nodes-ready`.
+
+`base` applies `kube/clusters/artemis/bootstrap/helmfile.d/00-crds.yaml`. It renders every release
+in that file and keeps only the `kind: CustomResourceDefinition` objects. It installs no release.
+`observability.md` § Where the `monitoring.coreos.com` CRDs come from gives the reason that this
+is important.
+
+`apps` syncs `kube/clusters/artemis/bootstrap/helmfile.d/01-apps.yaml`, in this order: Cilium →
+CoreDNS → Spegel → cert-manager → external-secrets → onepassword-connect → flux-operator →
+flux-instance.
 
 Each release reads its chart, version and values from the app that Flux runs. The helmfile
 templates look in `kube/clusters/<cluster>/apps/<ns>/<app>/app/` first, then in
 `kube/base/<ns>/<app>/app/`. For a shared app they also merge
-`kube/clusters/<cluster>/apps/<ns>/<app>/extras/values.yaml`, with the base values winning, the
-same order as Flux. So a rebuild installs the versions and values that Flux runs. Frostlink's
-`cni` task does the same for Cilium, CoreDNS and cert-manager.
+`kube/clusters/<cluster>/apps/<ns>/<app>/extras/values.yaml`. The base values win, in the same
+order as Flux. So a rebuild installs the versions and values that Flux runs. The `cni` task of
+Frostlink does the same for Cilium, CoreDNS and cert-manager.
 
-You no longer need to apply node configs by hand first. That step was here because the `nodes`
-stage was broken. It took its list from `talosctl config info`, whose `.nodes` is one hand-set
-IP, and fed IPs to `mise run //kube/clusters/artemis/talos:apply-node`, which is keyed on hostname. The list now comes from
-`kube/clusters/artemis/talos/nodes/*.yaml.j2`, control planes first (fixed 2026-09-10).
+You do not have to apply the node configurations by hand first. That step was here because the
+`nodes` stage was broken. It took its list from `talosctl config info`, whose `.nodes` is one IP
+that a person set. It gave those IPs to `mise run //kube/clusters/artemis/talos:apply-node`, which
+takes a hostname. The list now comes from `kube/clusters/artemis/talos/nodes/*.yaml.j2`, control
+planes first (fixed 2026-09-10).
 
-The task is `mise run //kube/clusters/artemis/bootstrap:cluster`. A confirm prompt gates the task.
+The task is `mise run //kube/clusters/artemis/bootstrap:cluster`. It asks for confirmation before
+it starts.
 
-There are two lists, and they are not interchangeable. The fleet is `kube/clusters/artemis/talos/nodes/*.yaml.j2`
-(7 nodes, hostnames, `mise run //kube/clusters/artemis/bootstrap:node-list`). The control planes are `talosctl config info`
-`.endpoints` (3 IPs). `api-ready` polls `:6443/readyz` and must use the second list. Upstream
-onedr0p runs control planes only, so it iterates over every node there, and a straight copy of
-that loop waits forever on a worker.
+There are two node lists, and you cannot use one in place of the other:
 
-`kube/clusters/artemis/mise.toml` pins `KUBECONFIG` to the file of the cluster and every `kubectl` and `helmfile` call
-to `--context artemis` (override with `KUBE_CONTEXT`), including the hooks inside
-`helmfile.d/01-apps.yaml`. Without that, `mise run //kube/clusters/artemis/bootstrap:base` with `frostlink` selected applies
-Artemis namespaces, CRDs and 1Password secrets into frostlink with no prompt.
+- The fleet is `kube/clusters/artemis/talos/nodes/*.yaml.j2` (7 nodes, by hostname). Run
+  `mise run //kube/clusters/artemis/bootstrap:node-list` to print it.
+- The control planes are `.endpoints` in `talosctl config info` (3 IPs).
 
-Node configs are Jinja2 templates (`kube/clusters/artemis/talos/cluster.yaml.j2`, `kube/clusters/artemis/talos/controlplane.yaml.j2`,
-`kube/clusters/artemis/talos/worker.yaml.j2`, `kube/clusters/artemis/talos/nodes/<node>.yaml.j2`). `talosctl apply-config --file` cannot
-read a `.j2`. Always go through `mise run //kube/clusters/artemis/talos:render-config`. See `.agents/references/talos.md`.
+`api-ready` polls `:6443/readyz` and must use the second list. Upstream onedr0p runs control
+planes only, so its loop goes over every node. A direct copy of that loop waits forever on a
+worker.
+
+`kube/clusters/artemis/mise.toml` sets `KUBECONFIG` to the file of the cluster. It also pins every
+`kubectl` and `helmfile` call to `--context artemis`, including the hooks inside
+`helmfile.d/01-apps.yaml`. To override the context, set `KUBE_CONTEXT`. Without that pin,
+`mise run //kube/clusters/artemis/bootstrap:base` with `frostlink` selected applies the Artemis
+namespaces, CRDs and 1Password secrets into frostlink, with no prompt.
+
+The node configurations are Jinja2 templates: `kube/clusters/artemis/talos/cluster.yaml.j2`,
+`kube/clusters/artemis/talos/controlplane.yaml.j2`, `kube/clusters/artemis/talos/worker.yaml.j2`
+and `kube/clusters/artemis/talos/nodes/<node>.yaml.j2`. `talosctl apply-config --file` cannot
+read a `.j2`. Always use `mise run //kube/clusters/artemis/talos:render-config`. See
+`.agents/references/talos.md`.

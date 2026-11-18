@@ -33,10 +33,8 @@ extends: [
 
 These pins now live in the shared preset, not here:
 
-- The `renovate-presets` base pin.
-- The `labels.json5` and `groups.json5` pins from `home-operations/renovate-config`. They are
-  pinned by commit, because that repo publishes no tags.
-- The `cnpg` and `talosFactory` `apps/` presets.
+- The `renovate-presets` base pin, in `default.json`.
+- The `apps/` presets, in `cluster.json`.
 
 Bump them in the shared preset.
 
@@ -158,9 +156,8 @@ and minor rules. It then silently drifts away from the version that it renders c
 The pin
 exists to prevent exactly that drift.
 
-The rule comes after the Mise Tools Group. So its `groupName: "talos"` wins, and the CLI pin goes
-in the Talos PR and not in the mise PR. That order holds across files: `cluster.json` is extended
-after `default.json`, and the Mise Tools Group lives in `default.json`.
+No preset groups the mise tools. So the `groupName: "talos"` of this rule puts the CLI pin in the
+Talos PR, beside the installer image.
 
 ### pocket-id — the operator halts on an unsupported version
 
@@ -226,10 +223,10 @@ preset ships no guard. So the guard is on the shared minor-automerge rule in `de
 
 Without the guard, 0.x minors on core infrastructure automerge to production unattended.
 
-The labels follow the same split. They come from `labels.json5`, which the shared default pulls
-in. A 0.x minor gets `type/major`, not `type/minor`. So a PR that needs a human looks like one in
-the PR list. The `prHeader` here still says `🔵 minor`, because it picks its colour by
-`updateType`, and zer0ver does not change `updateType`.
+The labels do not follow that split. The `type/*` labels come from the `packageRules` of
+`default.json`, and each one matches on `updateType`. So a 0.x minor gets `type/minor`, although
+its title carries the breaking `!`. The `prHeader` here also says `🔵 minor`, because it picks its
+colour by `updateType`, and zer0ver does not change `updateType`.
 
 ### kube-prometheus-stack — a CRD source, not a deployment
 
@@ -265,7 +262,7 @@ Commit Signing — Model A above.
 The `lockFileMaintenance` block lives in `cluster.json`, not in this repo.
 
 This repo has no `mise.lock` any more (`lockfile = false` in `.mise/config.toml`). Every mise tool
-is an exact pin that the Mise Tools Group bumps, so a lock only added churn. Lock maintenance here
+is an exact pin that Renovate bumps, so a lock only added churn. Lock maintenance here
 now refreshes the OpenTofu `.terraform.lock.hcl` files under `terraform/stacks/`.
 
 Lock maintenance needs its own schedule (monthly, set in the preset). Without it, the top-level
@@ -284,13 +281,6 @@ reads the monthly PR.
 | `kubernetes`    | `siderolabs/kubelet`, kube-apiserver/-controller-manager/-scheduler, kube-proxy | 2                  | cluster preset |
 | `cilium`        | `cilium/charts/cilium`, `charts-mirror/cilium`                                  | 2                  | this repo      |
 | `envoy-gateway` | `envoyproxy/gateway-helm`                                                       | none               | this repo      |
-| `mise tools`    | every `mise` manager dep, held 3 days. `talos` is pulled out to its own group   | none               | shared default |
-
-The Mise Tools Group comes from `groups.json5` in `home-operations/renovate-config`, which the
-shared default extends. Upstream gives this reason for the 3-day hold. A fresh release often
-finishes the upload of its per-arch assets and attestations after the tag appears. An install
-that runs too early can find them missing. 0.x minors in this group still split onto the
-`major-mise-tools` branch, through the zer0ver prefix of the preset.
 
 ---
 
@@ -337,9 +327,8 @@ too. A new RenovateJob runs once when it is created, outside its schedule.
 release timestamp. The default (`timestamp-required`) holds such an update pending forever. That
 is why the Talos and Kubernetes PRs of Frostlink never opened (frostlink#345).
 
-Do not extend `home-operations/renovate-config` itself. It is the internal configuration of the
-org. It has no tags, so an extend of it floats on its default branch. The shared default extends only its
-`labels.json5` and `groups.json5`, pinned by commit.
+Do not extend `home-operations/renovate-config`. That repo was deleted around 2026-10-30. The
+`type/*` labels that it gave now live in `default.json` of `exikle/renovate-config`.
 
 `minimumGroupSize: 2` does not raise a lone update as its own PR. Renovate holds it on the
 Dependency Dashboard under _Group Size Not Met_ until someone ticks its checkbox. `envoy-gateway`
@@ -566,8 +555,8 @@ differences are easy to copy wrongly. The rules of Frostlink are scoped to
 |                            | Artemis                                                   | Frostlink                                                      |
 | -------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
 | Local `apps/` presets      | grafanaDashboards, searxng (cnpg and talosFactory shared) | phanpy (cnpg and talosFactory shared)                          |
-| Signing                    | shared `automergeType: "pr"`, no `platformCommit`         | `platformCommit: "enabled"`                                    |
-| `automergeType: "branch"`  | never used: it lands unsigned on main                     | local override for Forgejo Actions only                        |
+| Signing                    | shared `automergeType: "pr"`, no `platformCommit`         | the same: shared `automergeType: "pr"`, no `platformCommit`    |
+| `automergeType: "branch"`  | never used: it lands unsigned on main                     | never used, the same as Artemis                                |
 | Container-digest automerge | unscoped: every `docker` digest                           | scoped to `matchPackageNames: ["/home-operations/"]`           |
 | Talos automerge guard      | shared (`cluster.json`), datasource-agnostic              | same shared guard, plus a local 7-day `minimumReleaseAge` hold |
 | tuppr guard                | not needed (the Talos guard covers it)                    | `matchFileNames` + `minimumReleaseAge: "7 days"`               |
@@ -604,8 +593,8 @@ only the reasons. The two cluster presets and the guards above apply to both clu
   unattended.
 - Container digests. Only trusted digests (`/home-operations/`) automerge. Other digests wait for a
   human.
-- Signing. `platformCommit` is on, so the instance key signs both branch merges and squash merges.
-  Do not remove `platformCommit` or the Forgejo Actions branch override without the other.
+- Signing. Frostlink uses the same signing path as Artemis (§ Commit Signing — Model A). There is no
+  `platformCommit` and no branch automerge.
 - Update window. Frostlink updates at any time, not only in the Artemis window.
 - Groups. A group with one dependency never opens a PR ("Group Size Not Met"). So Cilium and Envoy
   Gateway are not grouped. Cilium has its own never-automerge rule, because it is the CNI of a
@@ -622,5 +611,3 @@ only the reasons. The two cluster presets and the guards above apply to both clu
   (`talosFactory` preset). If you drop the preset, the marker stops resolving.
 - Lock files. There are none. There is no `.mise/mise.lock`, on purpose, so lock-file maintenance
   does nothing here.
-- Upstream presets without tags. `home-operations/renovate-config` publishes no tags, so the
-  shared default pins it by commit.

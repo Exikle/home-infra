@@ -323,7 +323,7 @@ Never propose a number without the observation behind it.
 - The gateway must match the exposure: LAN-only on `internal-gateway`, public (either domain) on
   `edge-gateway`, all in namespace `network`. A route on `external-gateway` is a finding (legacy,
   no upstream). On `edge-gateway`, `*.dcunha.io` must not pin `sectionName: https`. See
-  `towonel-agent.md` § Which gateway to attach a route to.
+  `towonel-agent.md` § Which gateway a route uses.
 - The live HTTPRoute is authoritative. An app can have more than one, with different parents,
   different path prefixes and header filters. Check `kubectl get httproute`. Do not infer from
   `values.route`.

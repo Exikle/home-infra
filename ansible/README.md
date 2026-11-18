@@ -1,7 +1,7 @@
 # ansible/ — host configuration
 
 This directory holds every machine in the house that has an _operating system_ to configure: the
-Proxmox host `pantheon`, the TrueNAS box `atlas`, the Forgejo LXC and the Mikrotik CRS309.
+Proxmox host `pantheon`, the TrueNAS box `atlas` and the Forgejo LXC.
 
 Flux cannot see this directory. The root Kustomization is scoped to `./kube/clusters/<cluster>/apps`.
 Flux never reconciles anything here into the cluster.
@@ -25,7 +25,8 @@ These are the playbooks:
 - `grimoire` (the macOS workstation)
 - `ucg-max` (the Tailscale subnet router on the UniFi gateway)
 
-`crs309` is in the inventory, but it has no playbook yet.
+`crs309` is in the inventory, but it has no playbook. OpenTofu owns its configuration
+(`terraform/stacks/mikrotik`).
 
 ```bash
 mise run //ansible:deps               # install pinned Galaxy collections
@@ -77,12 +78,12 @@ Ansible pushes changes, and it is not transactional. A half-applied run against 
 in the house leaves it in an unknown state. No reconcile loop exists to repair it. Flux can apply
 all the time because Kubernetes repairs itself. Bare metal does not.
 
-CI runs the lint and the syntax check, and it resolves the collections. A human applies from the
+Nothing runs Ansible in CI. Run the lint and the syntax check by hand. A human applies from the
 laptop.
 
 ## Collections
 
-`requirements.yml` pins the collections. The `proxmox_*` modules were split out of
+`requirements.yml` sets minimum versions (`>=`) for the collections, not exact pins. The `proxmox_*` modules were split out of
 `community.general` into `community.proxmox`. The old paths are deprecated redirects. Write new
 code against `community.proxmox`.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail on any YAML comment under kube/clusters/frostlink/{apps,components}/ except schema modelines and Renovate directives.
+"""Fail on any YAML comment under kube/clusters/frostlink/{apps,components}/ except schema modelines, Renovate directives and anchor markers.
 
 `#` inside block scalars and quoted strings is data, not a comment.
 """
@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-ALLOWED = re.compile(r"#\s*(yaml-language-server:|renovate:)")
+ALLOWED = re.compile(r"#\s*(yaml-language-server:|renovate:|[&*][A-Za-z0-9_-]+\b)")
 BLOCK = re.compile(r"^(\s*(?:-\s+)*)(?:[^#]*?:\s+|)[|>][+-]?\d*\s*(#.*)?$")
 
 
@@ -43,7 +43,7 @@ def main():
             print(f"{path}:{n}: {text}")
             bad += 1
     if bad:
-        print(f"{bad} YAML comment(s): move rationale to .agents/references/ (frostlink-yaml-conventions.md)")
+        print(f"{bad} YAML comment(s): move rationale to .agents/references/ (.agents/instructions/yaml-conventions.md § No Comments in Manifests)")
         sys.exit(1)
 
 

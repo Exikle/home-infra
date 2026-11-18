@@ -755,9 +755,12 @@ bypass (`_match_user_deny_rule`, `tools/approval.py:3751`):
 | `approvals.smart_policy`        | guardian system prompt   | no. ESCALATE resolves to approve under `cron_mode: approve`. It still binds interactive and gateway sessions, and it documents intent. |
 | `mcp-k8s` ClusterRole           | the MCP k8s tools        | yes. This is RBAC, not approvals.                                                                                                      |
 
-The important split is this: deny globs limit the shell, and RBAC limits the cluster tools. A
-glob like `*kubectl*delete*` does not restrict `k8s_pods_delete`, and it never can. The
-ClusterRole controls that tool instead. Give a new deny glob a leading `*` and a trailing `*`.
+The important split is this: deny globs limit the shell, and the k8s server limits the cluster
+tools. A glob like `*kubectl*delete*` cannot restrict an MCP tool. The k8s server sets
+`disable_destructive = true` (`mcp/app/k8s/resources/config.toml`), so it hides every tool that
+changes a resource, and Hermes has no delete or scale tool at all. The ClusterRole still grants
+pod and job delete, but no tool uses those grants. The cluster-health skill is notify-only for this
+reason. Give a new deny glob a leading `*` and a trailing `*`.
 Matching ignores case and runs over deobfuscated variants of the command, so quoting tricks do
 not get around it.
 
@@ -943,12 +946,17 @@ without it:
 
 The last one is a real limit. If you bump the memini SHA in `install-memini`, the container
 clones from github.com and installs dependencies from PyPI. While the policy blocks that traffic,
-the init container fails and the pod stays in `Init`. To bump the SHA:
+the init container fails and the pod stays in `Init`. The `hermes` Kustomization reconciles every
+15m. If it is not suspended, it removes the temporary rule while the install runs. To bump the SHA:
 
-1. Add a temporary egress rule for `0.0.0.0/0` on 443. Apply it with
+1. Suspend the root: `mise run //kube/clusters/artemis:suspend-ks flux-system flux-system`.
+2. Suspend the target: `mise run //kube/clusters/artemis:suspend-ks cortex hermes`.
+3. Add a temporary egress rule for `0.0.0.0/0` on 443. Apply it with
    `mise run //kube/clusters/artemis:apply-ks cortex hermes`.
-2. Bump the SHA.
-3. Remove the temporary rule.
+4. Bump the SHA, and apply again. Wait until the init container finishes.
+5. Remove the temporary rule, and apply again.
+6. Commit, then resume the root first and the target second. `commit-style.md` § The sequence has
+   the full order, and it wins over this list.
 
 ---
 

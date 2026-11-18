@@ -2,8 +2,13 @@
 
 Every app gets its own standalone OCIRepository. Never share one between apps.
 
-Frostlink: `interval` is `1h`, and the tag comes from
-`grep -rh 'tag:' kube/clusters/frostlink/apps/*/*/app/ocirepository.yaml | sort | uniq -c`.
+Frostlink: the `interval` and the tag differ from Artemis. Recover both from the tree. Frostlink
+uses more than one `interval`, so follow the other apps in the target namespace:
+
+```bash
+grep -rh 'tag:' kube/clusters/frostlink/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
+grep -rh 'interval:' kube/clusters/frostlink/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn
+```
 
 ```yaml
 ---
@@ -27,13 +32,14 @@ spec:
 - `name` must match the app name, because `chartRef.name` in the HelmRelease references it.
 - `url` must use `bjw-s-labs` (not `bjw-s`). A wrong org path fails silently.
 - `apiVersion` must be `source.toolkit.fluxcd.io/v1`. `v1beta2` is removed.
-- `ref.tag` is the app-template chart version (bare, no SHA pinning for Helm charts), not the app image tag.
+- `ref.tag` is the app-template chart version, not the app image tag. It is bare. Helm charts get
+  no SHA pin.
 - Do not add `namespace:` to metadata. The `targetNamespace` of the Flux Kustomization injects it.
 
 ## Values that drift: recover them from the tree
 
-Renovate bumps `ref.tag` fleet-wide, so a number written here goes stale by design. These commands print the current
-tag and the usual `interval`:
+Renovate bumps `ref.tag` across the whole fleet, so a number written here goes stale by design.
+These commands print the current tag and the usual `interval`:
 
 ```bash
 grep -h 'tag:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1

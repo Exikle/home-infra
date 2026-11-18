@@ -7,35 +7,37 @@ description: Change an app that is already deployed — bump or repin an image, 
 
 Change one app that is already running, without breaking it.
 
-`deploy-app` scaffolds a new app and `review-app` lints the files. This skill is the middle case. The
+`deploy-app` scaffolds a new app. `review-app` lints the files. This skill is the middle case. The
 app exists and works, and you change it while it serves traffic.
 
 Before you edit, read these files:
 
-- `.agents/instructions/cluster-conventions.md` and `.agents/instructions/yaml-conventions.md`
-- `.agents/skills/modules/templates/helmrelease.md` and `templates/ks.md`, the same spec
-  that `deploy-app` writes against. Read them in full, because a partial read gives a partial spec.
-- Whichever of these files the change touches: `references/storage.md` and `references/kopiur.md`
-  (persistence), `references/networking.md` (routes), `references/postgres-dragonfly.md`
-  (database or cache), `references/gpu.md` (GPU), `references/media-stack.md` (media namespace)
+- `.agents/instructions/cluster-conventions.md` and `.agents/instructions/yaml-conventions.md`.
+- `.agents/skills/modules/templates/helmrelease.md` and `templates/ks.md`. They are the same spec
+  that `deploy-app` writes against. Read them in full. A partial read gives a partial spec.
+- The files for the part that the change touches: `references/storage.md` and
+  `references/kopiur.md` (persistence), `references/networking.md` (routes),
+  `references/postgres-dragonfly.md` (database or cache), `references/gpu.md` (GPU),
+  `references/media-stack.md` (media namespace).
 
-Goal: land one change and prove that it is the change you meant.
+Goal: land one change, and prove that it is the change you meant.
 
-Success means that `mise run //kube/clusters/artemis:diff-ks` shows only your intended difference, the app is applied
-live, and the user has confirmed that it still works.
+The skill succeeds when three things are true. `mise run //kube/clusters/artemis:diff-ks` shows
+only your intended difference. The app is applied live. The user confirmed that it still works.
 
-Stop when you applied the change and requested confirmation. Never commit before the user confirms.
-`main` reconciles straight to production and there is no staging cluster.
+Stop when you applied the change and asked for confirmation. Never commit before the user confirms.
+`main` reconciles straight to production, and there is no staging cluster.
 
-> This skill does not cover these cases: a Renovate image bump (use `triage-renovate`), a stuck reconcile
-> (`fix-flux`), a PVC that you must reprovision onto new StorageClass parameters
+> This skill does not cover these cases: a Renovate image bump (use `triage-renovate`), a stuck
+> reconcile (`fix-flux`), a PVC that you must reprovision onto new StorageClass parameters
 > (`recreate-pvc`), or data recovery (`kopiur-restore`).
 
 ---
 
 ## Step 1: Locate what you are changing
 
-The app directory is `kube/clusters/artemis/apps/<namespace>/<app>/`. Two things routinely waste time here:
+The app directory is `kube/clusters/artemis/apps/<namespace>/<app>/`. Two things often waste time
+here. The commands below find both:
 
 ```bash
 # The Kustomization name is metadata.name in ks.yaml — it is NOT always <app>,
@@ -46,42 +48,42 @@ grep -n "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
 find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
 ```
 
-Each kind of change lives in a specific file:
+Each kind of change lives in one file:
 
-| Changing            | File                                                                          |
-| ------------------- | ----------------------------------------------------------------------------- |
-| Image tag or digest | `app/helmrelease.yaml` → `controllers.<name>.containers.app.image`            |
-| Route / hostname    | `app/helmrelease.yaml` → inline under `route.app` — **never** a separate file |
-| Resources, probes   | `app/helmrelease.yaml`                                                        |
-| PVC size            | `ks.yaml` → `postBuild.substitute.KOPIUR_CAPACITY`, or the app's own PVC      |
-| Adding a component  | `ks.yaml` → `components:` **and** the matching `postBuild.substitute` keys    |
-| Secret fields       | `app/helmrelease.yaml` → `externalSecrets.<id>`                               |
-| Chart version       | `app/ocirepository.yaml` → `ref.tag` (bare version, no SHA)                   |
+| Changing            | File                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| Image tag or digest | `app/helmrelease.yaml` → `controllers.<name>.containers.app.image`       |
+| Route / hostname    | `app/helmrelease.yaml` → inline under `route.app`, never a separate file |
+| Resources, probes   | `app/helmrelease.yaml`                                                   |
+| PVC size            | `ks.yaml` → `postBuild.substitute.KOPIUR_CAPACITY`, or the app's own PVC |
+| Adding a component  | `ks.yaml` → `components:` and the matching `postBuild.substitute` keys   |
+| Secret fields       | `app/helmrelease.yaml` → `externalSecrets.<id>`                          |
+| Chart version       | `app/ocirepository.yaml` → `ref.tag` (bare version, no SHA)              |
 
 ## Step 2: Capture the live baseline first
 
-`deploy-app` does not have this step. It is the main reason that modifying is safer than
-creating: there is a running object to compare against.
+`deploy-app` does not have this step. It is the main reason why a change to an app is safer than a
+new app. A running object exists to compare against.
 
 ```bash
 mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
-Exit 0 means that the tree already matches the cluster. That is a clean starting point. Exit 1 means that the tree
-already differs before you touched anything, and you must understand why first. Someone
-applied uncommitted work, or a reconcile is in progress. Do not layer a change on top of an
-unexplained diff.
+Exit 0 means that the tree already matches the cluster. That is a clean start. Exit 1 means that
+the tree differs from the cluster before you touched anything. You must find the cause first.
+Someone applied uncommitted work, or a reconcile is in progress. Do not add a change on top of a
+diff that you cannot explain.
 
 ## Step 3: Make sure that the field is not immutable
 
-Some changes cannot be applied in place. If you edit them, you get a HelmRelease that never goes
-Ready, or a Kustomization that reports success while the live object keeps its old value.
+Some changes cannot be applied in place. If you edit one of these fields, the HelmRelease never
+goes Ready. Or the Kustomization reports success while the live object keeps its old value.
 
 | Field                                            | Reality                                                             |
 | ------------------------------------------------ | ------------------------------------------------------------------- |
 | PVC `storageClassName`                           | Immutable. Use `recreate-pvc`, never an in-place edit               |
-| PVC size **downward**                            | Not supported; growing is fine                                      |
-| `ResourceClaimTemplate` (GPU)                    | Immutable. You must replace it; see `references/gpu.md`             |
+| PVC size downward                                | Not supported. Growing is fine                                      |
+| `ResourceClaimTemplate` (GPU)                    | Immutable. You must replace it. See `references/gpu.md`             |
 | Service `clusterIP`                              | Immutable                                                           |
 | StatefulSet selectors and `volumeClaimTemplates` | Immutable. You must recreate the StatefulSet                        |
 | `existingClaim` pointed at a new name            | Silently orphans the old PVC and its data, and the app starts empty |
@@ -92,11 +94,12 @@ Ready, or a Kustomization that reports success while the live object keeps its o
 mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
-This needs no cluster. It is `flate build ks`, so it catches schema errors, missing substitution
-variables and malformed YAML before anything touches production. Fix every error here.
+This task needs no cluster. It runs `flate build ks`. It catches schema errors, missing
+substitution variables and malformed YAML before anything touches production. Fix every error
+here.
 
-If the change added a component, make sure that its substitutions are present too. A component pulled
-in without its `postBuild.substitute` keys renders with an empty value and does not fail.
+If the change added a component, make sure that its substitutions are present too. A component
+without its `postBuild.substitute` keys renders with an empty value, and the render does not fail.
 
 ## Step 5: Diff against live, and read it
 
@@ -104,14 +107,14 @@ in without its `postBuild.substitute` keys renders with an empty value and does 
 mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 ```
 
-Read every line of the output. The diff must contain your change and nothing else. Anything
-extra is either drift you did not know about or a side effect you did not intend. Resolve it
-before you apply. This is the whole point of the step: an unexplained line here is the cheapest
-bug you will ever catch.
+Read every line of the output. The diff must contain your change and nothing else. An extra line
+is drift that you did not know about, or a side effect that you did not intend. Resolve it before
+you apply. This is the purpose of the step. An unexplained line here is the cheapest bug that you
+will catch.
 
 ## Step 6: Test and commit
 
-Read `.agents/skills/modules/test-and-commit.md` and follow it. Edit in a worktree: run
+Read `.agents/skills/modules/test-and-commit.md` and follow it. Edit in a worktree. Run
 `mise run //:wt:new <type>/<slug>` before the first edit of Step 1 (`AGENTS.md` rule 7).
 
 If anything fails, read `.agents/skills/modules/common-issues.md`.
@@ -120,29 +123,36 @@ If anything fails, read `.agents/skills/modules/common-issues.md`.
 
 ## Gotchas
 
-- The ks name is not always the app name. `apply-ks` against the wrong name applies a
-  different app's manifests. Always grep `ks.yaml` first (Step 1).
-- Never add `spec.patches` to an app's `ks.yaml`. The root Kustomization sets `spec.patches`
-  wholesale, so it overwrites the own block of a child. `flate` still renders as though it worked
-  and every offline check passes. No validation catches this change. Per-app kustomize
-  overrides go in `app/kustomization.yaml` instead. See `references/flux-patterns.md` § The root
+- The ks name is not always the app name. If you run `apply-ks` against the wrong name, it applies
+  the manifests of a different app. Always grep `ks.yaml` first (Step 1).
+- Never add `spec.patches` to the `ks.yaml` of an app. The root Kustomization sets `spec.patches`
+  as a whole, so it overwrites the block of a child. `flate` still renders as though it worked,
+  and every offline check passes. No validation catches this change. Put per-app kustomize
+  overrides in `app/kustomization.yaml` instead. See `references/flux-patterns.md` § The root
   Kustomization overwrites every child's `spec.patches`.
-- ExternalSecret template keys must match the 1Password field names exactly. A mismatch
-  produces an empty secret with no error, and the app fails later with a confusing message.
-- Removing a component does not delete what it created. If you drop `components/kopiur/backup`, the `SnapshotPolicy`, `SnapshotSchedule` and PVC stay
-  behind unless `prune: true` collects them. Make sure that you know what
-  went away.
-- Changing the gateway of a route changes its visibility. Use exactly one of `internal-gateway`
-  (LAN-only) or `edge-gateway` (public). If you attach to both, you publish the app. `external-gateway`
-  is legacy and takes no new routes. If you move a `*.dcunha.io` route to `edge-gateway`, you must also
-  change any `sectionName: https` to `https-dcunha` (`towonel-agent.md` § Which gateway to
-  attach a route to).
+- The template keys of an ExternalSecret must match the 1Password field names exactly. A mismatch
+  gives an empty secret with no error. The app fails later with a confusing message.
+- Back up the data and get the user's go-ahead before you remove a component. When the ks has
+  `prune: true`, Flux deletes what the component created. Almost every ks has it. If you drop
+  `components/kopiur/backup`, Flux deletes the `SnapshotPolicy`, the `SnapshotSchedule` and the
+  PVC. Deleting the PVC deletes the data of the app.
+- A change to the gateway of a route changes who can reach the app. Use exactly one of
+  `internal-gateway` (LAN only) or `edge-gateway` (public). If you attach to both, you publish the
+  app. `external-gateway` is legacy and takes no new routes. If you move a `*.dcunha.io` route to
+  `edge-gateway`, you must also change any `sectionName: https` to `https-dcunha`
+  (`towonel-agent.md` § Which gateway a route uses).
 - `✔ applied revision` proves nothing about your field. Make sure that the live object carries the
-  value you set. A stale artifact or a reconcile in progress can report success on the old tree.
+  value that you set. A stale artifact or a reconcile in progress can report success on the old
+  tree.
 
 ## Not covered by this skill
 
-A clean pass here means that the change renders, diffs as intended, and applies. It does **not** mean
-that the app is correct. This skill does not check component preconditions against the real pod,
-database auth viability, whether your resource numbers match observed usage, or the blast radius
-of an auth gate on machine-to-machine callers. For that, spawn the `audit-app` subagent.
+A clean pass here means that the change renders, diffs as intended, and applies. It does not mean
+that the app is correct. This skill does not check these things:
+
+- The preconditions of a component against the real pod.
+- Whether the database auth can work.
+- Whether your resource numbers match the observed usage.
+- What an auth gate breaks for machine-to-machine callers.
+
+For those, spawn the `audit-app` subagent.
