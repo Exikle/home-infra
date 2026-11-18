@@ -229,8 +229,7 @@ data:
             credential other than $FORGEJO_PAT in an Authorization header
           - targets Talos, node-level state, or the control plane
           - merges a pull request, rewrites history, or writes to main
-          - deletes or scales a workload outside the auto-fix classes the
-            running skill documents
+          - deletes or scales any workload
           - reaches a host outside the cluster or git.dcunha.io
       deny:
         - "*api/v1/repos/*/pulls/*/merge*"
