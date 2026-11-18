@@ -144,6 +144,7 @@ When the subject of a file comes up, open that file. Do not read the whole direc
 | `issue-tracking.md`          | You file the Forgejo issue that parked work becomes                                                    |
 | `kopiur.md`                  | Backups and restores                                                                                   |
 | `media-stack.md`             | The arr stack, cross-seed, download clients, zeroscaler                                                |
+| `memini-tuning.md`           | You tune memini recall, rerank or the write path, or its LLM budget                                    |
 | `memory-config.md`           | You edit `.mcp.json` tiers or memini plugin usage                                                      |
 | `networking.md`              | Gateways, VLANs, CoreDNS, BGP, Multus. Read it before any RA or DNS change                             |
 | `observability.md`           | VictoriaMetrics, Grafana, ServiceMonitors, kromgo                                                      |
