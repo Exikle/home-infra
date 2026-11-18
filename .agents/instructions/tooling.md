@@ -38,8 +38,9 @@ mise run //:wt:ls                                                  # list worktr
 ```
 
 Both clusters share the task names `apply-ks`, `delete-ks`, `suspend-ks`, `resume-ks`, `diff-ks`,
-`render-ks`, `sync-flux`, `toggle-kopiur`, `browse-pvc`, `debug-node`, `prune-pods` and
-`view-secret`. These tasks differ on Frostlink:
+`render-ks`, `sync-flux`, `toggle-kopiur`, `browse-pvc`, `debug-node`, `prune-pods`,
+`release-snapshot`, `restore-pvc`, `unstick-hr`, `reset-hr` and `view-secret`. Frostlink also has
+`reclaim-pv` and `towonel-invite`. These tasks differ on Frostlink:
 
 - `snapshot-pvc <ns> <claim>` takes one snapshot and waits. The Artemis task takes optional
   filters.

@@ -53,11 +53,11 @@ kubectl get events -n <namespace> --sort-by='.lastTimestamp' | tail -20
 
 Fix:
 
-```bash
-flux suspend helmrelease <app> -n <namespace>
-kubectl delete secret -n <namespace> -l name=<app>,owner=helm
-flux resume helmrelease <app> -n <namespace>
-```
+1. Retry it: `mise run //kube/clusters/<cluster>:unstick-hr <namespace> <app>`. The task forces a
+   one-off install or upgrade and resets the failure count.
+2. If it is still stuck, ask the user. Then run
+   `mise run --yes //kube/clusters/<cluster>:reset-hr <namespace> <app>`. The task deletes the Helm
+   release history and reinstalls. Rollback to earlier revisions is lost.
 
 ### Kustomization Not Reconciling
 

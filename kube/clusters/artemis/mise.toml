@@ -310,6 +310,35 @@ kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" patch snapshot "$usage_snapshot
 mise run //:log warn "Finalizer removed; the kopia snapshot may stay in the repository until maintenance" ns "$usage_ns" snapshot "$usage_snapshot"
 '''
 
+[tasks.unstick-hr]
+description = "Retry a stuck HelmRelease: force a one-off install or upgrade and reset its failure count"
+usage = '''
+arg "<ns>" help="Namespace of the HelmRelease"
+arg "<hr>" help="Name of the HelmRelease"
+'''
+run = '''
+flux --context "$KUBE_CONTEXT" -n "$usage_ns" reconcile helmrelease "$usage_hr" --force --reset
+'''
+
+[tasks.reset-hr]
+description = "Last resort for a HelmRelease that unstick-hr cannot fix: delete its Helm release history and reinstall"
+usage = '''
+arg "<ns>" help="Namespace of the HelmRelease"
+arg "<hr>" help="Name of the HelmRelease"
+'''
+confirm = { message = "Delete the Helm release history of {{ usage.ns }}/{{ usage.hr }}? Rollback to earlier revisions is lost.", default = "no" }
+run = '''
+kc() { kubectl --context "$KUBE_CONTEXT" "$@"; }
+release="$(kc -n "$usage_ns" get helmrelease "$usage_hr" -o jsonpath='{.status.history[0].name}')"
+storage="$(kc -n "$usage_ns" get helmrelease "$usage_hr" -o jsonpath='{.status.storageNamespace}')"
+release="${release:-$usage_hr}"
+storage="${storage:-$usage_ns}"
+mise run //:log warn "Deleting Helm release history" release "$release" namespace "$storage"
+flux --context "$KUBE_CONTEXT" -n "$usage_ns" suspend helmrelease "$usage_hr"
+kc -n "$storage" delete secret -l "owner=helm,name=$release"
+flux --context "$KUBE_CONTEXT" -n "$usage_ns" resume helmrelease "$usage_hr"
+'''
+
 [tasks.view-secret]
 description = "View a secret with every value base64-decoded"
 usage = '''
