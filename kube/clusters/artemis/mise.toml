@@ -141,6 +141,25 @@ mise run //:log info "Pruning pods that are not Running"
 kubectl --context "$KUBE_CONTEXT" delete pods -A --field-selector='status.phase!=Running' --ignore-not-found=true
 '''
 
+[tasks.scale-workload]
+description = "Scale one Deployment or StatefulSet to a replica count (0 stops it, N brings it back)"
+usage = '''
+arg "<ns>" help="Namespace of the workload"
+arg "<workload>" help="deploy/<name> or sts/<name>"
+arg "<replicas>" help="Replica count, 0 or more"
+'''
+confirm = { message = "Scale {{ usage.ns }}/{{ usage.workload }} to {{ usage.replicas }} replicas?", default = "no" }
+run = '''
+case "$usage_workload" in
+    deploy/* | sts/*) ;;
+    *) mise run //:log fatal "Workload must be deploy/<name> or sts/<name>" workload "$usage_workload" ;;
+esac
+[[ "$usage_replicas" =~ ^[0-9]+$ ]] || mise run //:log fatal "Replicas must be a whole number" replicas "$usage_replicas"
+before="$(kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" get "$usage_workload" -o jsonpath='{.spec.replicas}')"
+mise run //:log info "Scaling" ns "$usage_ns" workload "$usage_workload" from "$before" to "$usage_replicas"
+kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" scale "$usage_workload" --replicas="$usage_replicas"
+'''
+
 [tasks.restore-pvc]
 description = "Restore a PVC in place from kopiur (offset 0 = latest, 1 = previous, ...)"
 usage = '''

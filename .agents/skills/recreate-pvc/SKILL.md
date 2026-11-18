@@ -64,11 +64,11 @@ kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.spec.replicas}' --context 
 
 ## Step 2: Scale down and confirm the volume is released
 
-The guard blocks `kubectl scale` (rule `kubectl-mutation`). Give the first command to the user to
-run:
+The guard blocks `kubectl scale` (rule `kubectl-mutation`). Use the `scale-workload` task. It asks
+for confirmation, so it needs `--yes`:
 
 ```bash
-kubectl scale <deploy|sts> -n <ns> <app> --replicas=0 --context artemis
+mise run --yes //kube/clusters/artemis:scale-workload <ns> <deploy|sts>/<app> 0
 kubectl get pods -n <ns> --context artemis -o jsonpath="{range .items[?(@.spec.volumes[*].persistentVolumeClaim.claimName=='<pvc>')]}{.metadata.name}{'\n'}{end}"
 ```
 
@@ -105,8 +105,8 @@ The controller that recreates the PVC depends on where the PVC is defined:
 On an upgrade with no changes, Helm does not recreate a resource that someone deleted outside Helm.
 The `--force` makes Helm put the PVC back.
 
-Then scale back to the ORIGINAL replica count from Step 1. Do not assume 1. The guard blocks
-`kubectl scale` here too, so the user runs it.
+Then scale back to the ORIGINAL replica count from Step 1. Do not assume 1. Use the same task:
+`mise run --yes //kube/clusters/artemis:scale-workload <ns> <deploy|sts>/<app> <replicas>`.
 
 ## Step 5: Verify
 

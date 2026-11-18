@@ -21,6 +21,7 @@ mise run //kube/clusters/artemis:sync-flux <res> [name]      # force-sync hr|ks|
 mise run //kube/clusters/artemis:test-ks <ns> <ks>...        # suspend root + each ks, then apply-ks each; refuses in the main checkout
 mise run --yes //:land <type>/<slug> <cluster>:<ns>/<ks>...  # after the user confirms: rebase, ff-merge, push, wait for artifact, resume, remove worktree
 mise run //kube/clusters/artemis:render-ks <ns> <ks>         # validate with flate (offline; hidden, runs by name); the root uses flux build against the live cluster
+mise run --yes //kube/clusters/artemis:scale-workload <ns> <deploy|sts>/<name> <n>  # scale one workload; the guard blocks bare kubectl scale
 mise run //kube/clusters/artemis:snapshot-pvc [ns] [policy]  # snapshot one policy, a namespace, or all if no args
 mise run //kube/clusters/artemis:browse-pvc <ns> <pvc>       # browse a PVC interactively
 mise run //kube/clusters/artemis:check-postgres <ns> <app>   # verify an app's Postgres DSN + TLS actually work
