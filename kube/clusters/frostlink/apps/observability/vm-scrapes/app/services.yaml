@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
 apiVersion: v1
 kind: Service
 metadata:
@@ -14,6 +15,7 @@ spec:
   selector:
     k8s-app: kube-dns
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
 apiVersion: v1
 kind: Service
 metadata:
@@ -29,6 +31,7 @@ spec:
   selector:
     component: kube-controller-manager
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
 apiVersion: v1
 kind: Service
 metadata:
@@ -44,6 +47,7 @@ spec:
   selector:
     component: kube-scheduler
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
 apiVersion: v1
 kind: Service
 metadata:

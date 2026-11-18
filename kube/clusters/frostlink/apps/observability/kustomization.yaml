@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: observability
@@ -9,15 +9,15 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ./alertmanager/ks.yaml
-  - ./vm-single/ks.yaml
-  - ./vm-operator/ks.yaml
-  - ./vm-alert/ks.yaml
-  - ./vm-scrapes/ks.yaml
-  - ./gatus-sidecar/ks.yaml
-  - ./chaski/ks.yaml
   - ../../../../base/observability/kube-state-metrics
-  - ./kube-state-metrics/extras/ks.yaml
   - ../../../../base/observability/node-exporter
-  - ./node-exporter/extras/ks.yaml
+  - ./alertmanager/ks.yaml
+  - ./chaski/ks.yaml
+  - ./gatus-sidecar/ks.yaml
   - ./kromgo/ks.yaml
+  - ./kube-state-metrics/extras/ks.yaml
+  - ./node-exporter/extras/ks.yaml
+  - ./vm-alert/ks.yaml
+  - ./vm-operator/ks.yaml
+  - ./vm-scrapes/ks.yaml
+  - ./vm-single/ks.yaml

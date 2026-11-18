@@ -12,16 +12,13 @@ spec:
   targets:
     staticConfig:
       static:
-        # --- Talos Control Plane ---
-        - 10.10.99.101 # talos-cp-01
-        - 10.10.99.102 # talos-cp-02
-        - 10.10.99.103 # talos-cp-03
-
-        # --- Talos Workers ---
-        - 10.10.99.201 # talos-w-01
-        - 10.10.99.202 # talos-w-02
-        - 10.10.99.203 # talos-gpu-01
-        - 10.10.99.204 # ymir
+        - 10.10.99.101
+        - 10.10.99.102
+        - 10.10.99.103
+        - 10.10.99.201
+        - 10.10.99.202
+        - 10.10.99.203
+        - 10.10.99.204
   metricRelabelings:
     - targetLabel: service
       replacement: blackbox-exporter
@@ -40,7 +37,7 @@ spec:
   targets:
     staticConfig:
       static:
-        - truenas.external-endpoints.svc.cluster.local:2049 # TrueNAS NFS
+        - truenas.external-endpoints.svc.cluster.local:2049
   metricRelabelings:
     - targetLabel: service
       replacement: blackbox-exporter

@@ -11,30 +11,21 @@ paths:
 This file says how manifests in this repo are shaped, ordered, and kept clean. The rules apply to
 both clusters (`kube/clusters/artemis/` and `kube/clusters/frostlink/`) and to the shared
 `kube/base/` and `kube/components/` folders. Frostlink uses the same field ordering and has no
-YAML rule of its own. The hooks do not check every folder. § What the tooling does for you says
-which folders each hook covers. The rules were checked against the live tree and the
+YAML rule of its own. § What the tooling does for you says which hook covers which folders. The rules were checked against the live tree and the
 home-operations reference repos (onedr0p/home-ops and others) on 2026-07-11.
 
 ## What the tooling does for you
 
-`hk.pkl` runs these steps at commit. Each step covers only the folders in its last column.
+`hk.pkl` runs these steps at commit. Each step covers the folders in its last column.
 
-| Step                                               | Fixes automatically at commit                                          | Does NOT fix                                              | Folders it covers                                        |
-| -------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
-| oxfmt                                              | indentation, flow-list spacing, trailing whitespace, final newline     | quoting, anchors                                          | every `*.yaml` file in the repo                          |
-| `hooks/k8s_yaml_schema.py` (`k8s-schema`)          | the `# yaml-language-server: $schema=` modeline                        | non-k8s YAML, core-API (`v1`) kinds                       | `kube/base/`, `kube/clusters/artemis/{apps,components}/` |
-| `scripts/normalize-yaml-order.py` (`yaml-order`)   | every order in § Semantic Orders by Kind, and the `resources` list     | which fields exist. It reorders, it never adds or deletes | `kube/base/`, `kube/clusters/artemis/{apps,components}/` |
-| `scripts/check-yaml-comments.py` (`yaml-comments`) | nothing. It fails the commit on a comment (§ No Comments in Manifests) | everything else                                           | `kube/clusters/frostlink/{apps,components}/` only        |
+| Step                                               | Fixes automatically at commit                                          | Does NOT fix                                              | Folders it covers                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| oxfmt                                              | indentation, flow-list spacing, trailing whitespace, final newline     | quoting, anchors                                          | every `*.yaml` file in the repo                                        |
+| `hooks/k8s_yaml_schema.py` (`k8s-schema`)          | the `# yaml-language-server: $schema=` modeline                        | non-k8s YAML, core-API (`v1`) kinds                       | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,components}/` |
+| `scripts/normalize-yaml-order.py` (`yaml-order`)   | every order in § Semantic Orders by Kind, and the `resources` list     | which fields exist. It reorders, it never adds or deletes | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,components}/` |
+| `scripts/check-yaml-comments.py` (`yaml-comments`) | nothing. It fails the commit on a comment (§ No Comments in Manifests) | everything else                                           | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,components}/` |
 
-The coverage has these gaps:
-
-- On Frostlink, no hook orders keys or writes the schema modeline. Follow the same order there by
-  hand. Some Frostlink files drift from it today. To list them, run
-  `hooks/python scripts/normalize-yaml-order.py --check $(find kube/clusters/frostlink -name '*.yaml')`.
-- No hook orders keys, writes the modeline, or checks comments in `kube/components/`.
-- The `yaml-comments` step also starts when a `kube/base/` file changes. hk passes it no file
-  list, so the script scans only the Frostlink folders. Nothing checks comments in `kube/base/` or
-  in Artemis.
+No hook checks that a Kustomization declares `wait`.
 
 oxfmt reformats YAML inside markdown fences to 4-space indentation, which is its own style.
 Manifests use 2-space indentation. That is not drift. You cannot fix it in the doc, because the
@@ -60,8 +51,7 @@ spec: ...
   documents with a bare `---`.
 - The schema domain is `k8s-schemas.home-operations.com`. app-template HelmReleases get the
   bjw-s schema URL. The hook resolves this from the sidecar `ocirepository.yaml`. Do not hand-edit
-  it. The hook does not run on Frostlink, so some Frostlink files still carry a
-  `json.schemastore.org` or `kubernetes-schemas.pages.dev` URL.
+  it.
 
 ## The One Rule
 
@@ -245,10 +235,9 @@ history, no "keep this ordered" warnings, and no commented-out alternatives. Rat
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.
 
-The rule covers both clusters, but the `yaml-comments` hook checks only
-`kube/clusters/frostlink/{apps,components}/`, and it skips `resources/` folders. Nothing checks
-Artemis, and some Artemis manifests carry comments today. To list them, run
-`python3 scripts/check-yaml-comments.py kube/clusters/artemis/apps kube/clusters/artemis/components`.
+The `yaml-comments` hook checks `kube/base/`, `kube/components/` and both clusters' `apps/` and
+`components/` folders. It skips `resources/` folders. To check by hand, run
+`python3 scripts/check-yaml-comments.py`.
 
 There are three exceptions, all machine-oriented:
 
@@ -258,8 +247,7 @@ There are three exceptions, all machine-oriented:
 | Anchor markers (`# &name`, `# *name …`)          | reading aid for `&name` / `*name` pairs    |
 | Renovate directives (`# renovate: datasource=…`) | consumed by Renovate                       |
 
-An anchor marker is a comment that starts with `&name` or `*name`. The Frostlink hook allows all
-three exceptions.
+An anchor marker is a comment that starts with `&name` or `*name`. The hook allows all three exceptions.
 
 ### Shell scripts embedded in a manifest are code, not manifest
 

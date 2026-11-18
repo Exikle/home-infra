@@ -463,6 +463,7 @@ commit. If you do, follow these rules:
 
 ## Gotchas
 
+- `xbrowsersyncgo` runs as `PG_APP: signet`. Its database, role and `signet-postgres` secret keep the old app name, Signet. If you rename them, the app starts on an empty database.
 - `DATABASE_EXTENSIONS` in the component does not work. The `Database` CR template has
   `extensions: ${DATABASE_EXTENSIONS:=[]}`, but you cannot pass a YAML list through the
   substitution chain from the parent ks to the nested ks. The envsubst of Flux works on text. The

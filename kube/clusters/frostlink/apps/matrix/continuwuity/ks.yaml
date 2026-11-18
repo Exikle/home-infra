@@ -16,11 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  healthChecks:
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: continuwuity
-      namespace: matrix
   components:
     - ../../../../components/kopiur
   postBuild:
@@ -28,3 +23,8 @@ spec:
       APP: continuwuity
       KOPIUR_APP: continuwuity
       KOPIUR_CAPACITY: 10Gi
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: continuwuity
+      namespace: matrix

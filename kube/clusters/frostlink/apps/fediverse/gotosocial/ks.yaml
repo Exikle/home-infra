@@ -16,11 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  healthChecks:
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: gotosocial
-      namespace: fediverse
   components:
     - ../../../../components/kopiur
     - ../../../../components/kopiur-deep-verify
@@ -31,3 +26,8 @@ spec:
       KOPIUR_APP: gotosocial
       KOPIUR_CAPACITY: 10Gi
       KOPIUR_DEEP_VERIFY_CAPACITY: 10Gi
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: gotosocial
+      namespace: fediverse

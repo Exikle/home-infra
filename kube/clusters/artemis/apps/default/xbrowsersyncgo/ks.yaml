@@ -21,7 +21,5 @@ spec:
   postBuild:
     substitute:
       APP: *app
-      # The database, its role and the signet-postgres secret keep the app's old name, Signet;
-      # renaming them would start an empty database.
       PG_APP: signet
   wait: false

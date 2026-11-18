@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.3.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -27,12 +27,12 @@ spec:
               # renovate: datasource=docker depName=dock.mau.dev/mautrix/whatsapp
               repository: dock.mau.dev/mautrix/whatsapp
               tag: v0.2611.0@sha256:0f44d561ea591072182ea99bebd463fa8acd0af8400eb3f9c88a90a8cc569805
-            command:
-              - /usr/bin/mautrix-whatsapp
             args:
               - -c=/data/config.yaml
               - -r=/data/registration.yaml
               - -n
+            command:
+              - /usr/bin/mautrix-whatsapp
             env:
               MAUTRIX_WHATSAPP_DATABASE__URI:
                 valueFrom:

@@ -1,12 +1,9 @@
 ---
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 components:
   - ../base/patch
-resources:
-  - ../base/configmap.yaml
-  - ../base/ks.yaml
 patches:
   - target:
       group: helm.toolkit.fluxcd.io
@@ -36,3 +33,6 @@ patches:
                     csi.cert-manager.io/key-encoding: PKCS8
               globalMounts:
                 - path: /var/run/secrets/postgresql
+resources:
+  - ../base/configmap.yaml
+  - ../base/ks.yaml

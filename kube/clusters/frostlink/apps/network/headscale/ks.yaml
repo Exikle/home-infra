@@ -16,11 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  healthChecks:
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: *app
-      namespace: network
   postBuild:
     substitute:
       APP: *app
@@ -28,3 +23,8 @@ spec:
       KOPIUR_CACHE_CAPACITY: 1Gi
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_DEEP_VERIFY_CAPACITY: 1Gi
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: *app
+      namespace: network

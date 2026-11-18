@@ -19,12 +19,12 @@ spec:
   dependsOn:
     - name: cnpg
       namespace: cnpg-system
+  postBuild:
+    substitute:
+      APP: ${APP}
+      OWNER: ${DATABASE_OWNER:=${APP}}
   healthChecks:
     - apiVersion: postgresql.cnpg.io/v1
       kind: Database
       name: postgres-${APP}
       namespace: *namespace
-  postBuild:
-    substitute:
-      APP: ${APP}
-      OWNER: ${DATABASE_OWNER:=${APP}}

@@ -17,7 +17,6 @@ spec:
     namespace: flux-system
   interval: 1h
   timeout: 10m
-  wait: true
   dependsOn:
     - name: cnpg
       namespace: cnpg-system
@@ -25,3 +24,4 @@ spec:
       namespace: cnpg-system
     - name: trust-manager-config
       namespace: cert-manager
+  wait: true

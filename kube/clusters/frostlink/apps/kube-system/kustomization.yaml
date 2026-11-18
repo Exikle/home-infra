@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: kube-system
@@ -9,11 +9,11 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ./cilium/ks.yaml
-  - ./coredns/ks.yaml
   - ../../../../base/kube-system/k8tz
-  - ./k8tz/extras/ks.yaml
   - ../../../../base/kube-system/ksgate
   - ../../../../base/kube-system/metrics-server
-  - ./metrics-server/extras/ks.yaml
   - ../../../../base/kube-system/reloader
+  - ./cilium/ks.yaml
+  - ./coredns/ks.yaml
+  - ./k8tz/extras/ks.yaml
+  - ./metrics-server/extras/ks.yaml

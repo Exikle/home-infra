@@ -215,6 +215,8 @@ So the HelmRelease sets CPU and memory requests (a guaranteed share). It sets no
 purpose, so the exporter can still burst through a probe sweep without throttling. Do not add a
 CPU limit back.
 
+The `icmp` Probe lists the Talos nodes by IP: `talos-cp-01` to `03` (`10.10.99.101` to `.103`), `talos-w-01`, `talos-w-02` and `talos-gpu-01` (`.201` to `.203`), and `ymir` (`.204`). The `tcp` Probe checks the TrueNAS NFS port.
+
 ## Other observability workloads worth knowing exist
 
 No other section of this file covers these apps, and it is easy to mistake them for something else:

@@ -16,11 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  healthChecks:
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: apoci
-      namespace: fediverse
   components:
     - ../../../../components/kopiur
     - ../../../../components/postgres/csi
@@ -30,3 +25,8 @@ spec:
       KOPIUR_APP: apoci-data
       KOPIUR_CAPACITY: 20Gi
       KOPIUR_SCHEDULE: H */6 * * *
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: apoci
+      namespace: fediverse

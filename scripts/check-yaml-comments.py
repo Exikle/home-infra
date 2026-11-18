@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail on any YAML comment under kube/clusters/frostlink/{apps,components}/ except schema modelines, Renovate directives and anchor markers.
+"""Fail on any YAML comment in the given files or folders (default: both clusters' apps and components, kube/base, kube/components) except schema modelines, Renovate directives and anchor markers.
 
 `#` inside block scalars and quoted strings is data, not a comment.
 """
@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ALLOWED = re.compile(r"#\s*(yaml-language-server:|renovate:|[&*][A-Za-z0-9_-]+\b)")
-BLOCK = re.compile(r"^(\s*(?:-\s+)*)(?:[^#]*?:\s+|)[|>][+-]?\d*\s*(#.*)?$")
+BLOCK = re.compile(r"^(\s*(?:-\s+)*)([^#]*?:\s+|)[|>][+-]?\d*\s*(#.*)?$")
 
 
 def comments(text):
@@ -32,13 +32,15 @@ def comments(text):
                 break
         m = BLOCK.match(line)
         if m:
-            block_indent = len(m.group(1).replace("-", " "))
+            bare_item = "-" in m.group(1) and not m.group(2)
+            block_indent = len(m.group(1).rstrip()) - 1 if bare_item else len(m.group(1).replace("-", " "))
 
 
 def main():
-    roots = [Path(a) for a in sys.argv[1:]] or [Path("kube/clusters/frostlink/apps"), Path("kube/clusters/frostlink/components")]
+    roots = [Path(a) for a in sys.argv[1:]] or [Path("kube/base"), Path("kube/components"), *Path("kube/clusters").glob("*/apps"), *Path("kube/clusters").glob("*/components")]
+    found = {p for root in roots for p in ([root] if root.is_file() else root.rglob("*.yaml")) if p.suffix == ".yaml" and "resources" not in p.parts}
     bad = 0
-    for path in sorted(p for root in roots for p in root.rglob("*.yaml") if "resources" not in p.parts):
+    for path in sorted(found):
         for n, _, text in comments(path.read_text()):
             print(f"{path}:{n}: {text}")
             bad += 1

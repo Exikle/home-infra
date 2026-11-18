@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: cert-manager
@@ -10,10 +10,10 @@ components:
 resources:
   - ./namespace.yaml
   - ../../../../base/cert-manager/cert-manager
+  - ../../../../base/cert-manager/trust-manager
   - ./cert-manager/extras/ks.yaml
   - ./clusterissuer/ks.yaml
-  - ./postgres-ca/ks.yaml
   - ./csi-driver/ks.yaml
-  - ../../../../base/cert-manager/trust-manager
+  - ./postgres-ca/ks.yaml
   - ./trust-manager/extras/ks.yaml
   - ./trust-manager/ks.yaml

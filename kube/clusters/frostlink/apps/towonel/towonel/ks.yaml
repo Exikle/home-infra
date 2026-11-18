@@ -16,11 +16,6 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  healthChecks:
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: *app
-      namespace: towonel
   postBuild:
     substitute:
       APP: *app
@@ -28,3 +23,8 @@ spec:
       KOPIUR_APP: *app
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_CACHE_CAPACITY: 1Gi
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: *app
+      namespace: towonel

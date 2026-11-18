@@ -88,7 +88,6 @@ spec:
               KOMF_KOMGA_PASSWORD: "{{ .password }}"
               KOMF_KOMGA_USER: "{{ .username }}"
     persistence:
-      # KomfGo keeps no state; /config only holds provider database downloads.
       config:
         type: emptyDir
         globalMounts:

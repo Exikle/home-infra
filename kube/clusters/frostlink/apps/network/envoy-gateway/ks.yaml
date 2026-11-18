@@ -16,9 +16,9 @@ spec:
     name: flux-system
     namespace: flux-system
   interval: 1h
-  wait: false
   dependsOn:
     - name: cert-manager
       namespace: cert-manager
     - name: onepassword-connect
       namespace: external-secrets
+  wait: false
