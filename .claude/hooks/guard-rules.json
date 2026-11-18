@@ -106,6 +106,14 @@
       "alternative": "Validate offline instead ('mise run //kube/clusters/<cluster>:render-ks <ns> <ks>'), or read live state with diff-ks. If the write is wanted, approve this prompt."
     },
     {
+      "id": "kubectl-write-subagent",
+      "repos": ["home-infra"],
+      "subagent_only": true,
+      "pattern": "^<<KUBECTL>>(?:rollout\\s+(?:restart|undo|pause|resume)|exec)\\b",
+      "reason": "A subagent is about to change a live cluster with kubectl rollout restart/undo/pause/resume, or with kubectl exec. exec cannot be split into read and write (a shell or psql can write anything), so every kubectl exec is blocked for subagents. rollout status and rollout history are read-only and stay allowed.",
+      "alternative": "Read state with kubectl get/describe/logs or the k8s MCP tools. Report the change you want and let the main thread run it, or change the manifest and apply it through the apply-ks task."
+    },
+    {
       "id": "git-write-subagent",
       "subagent_only": true,
       "decision": "ask",

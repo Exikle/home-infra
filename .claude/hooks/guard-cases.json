@@ -1,5 +1,5 @@
 {
-  "//": "Expected verdicts for the generated destructive-command guard, run by gen-guards.py --check. Each case is a Bash command as the model would type it (never executed, only fed to the guard as a payload), whether it comes from a subagent (the payload has agent_id), and the verdict: allow, block, or ask (a PreToolUse permissionDecision ask). The cases cover every bypass found in the 2026-11-17 review, every read-only command that used to be blocked, and ordinary safe commands. Add a case here whenever a rule changes.",
+  "//": "Expected verdicts for the generated destructive-command guard, run by gen-guards.py --check. Each case is a Bash command as the model would type it (never executed, only fed to the guard as a payload), whether it comes from a subagent (the payload has agent_id), and the verdict: allow, block, or ask (a PreToolUse permissionDecision ask). The cases cover every bypass found in the 2026-11-17 review, every read-only command that used to be blocked, and ordinary safe commands. A case with 'bash_only': true is skipped on the JS guard (a subagent_only rule that blocks, which opencode cannot see). Add a case here whenever a rule changes.",
   "repos": ["home-infra"],
   "cases": [
     { "command": "kubectl apply -f x.yaml", "subagent": false, "expect": "block" },
@@ -928,6 +928,62 @@
     { "command": "talosctl reboot -n x", "subagent": true, "expect": "block" },
     { "command": "rm -rf ~/x", "subagent": true, "expect": "block" },
     { "command": "tofu apply", "subagent": true, "expect": "block" },
-    { "command": "bash <<'EOF'\nkubectl delete ns foo\nEOF", "subagent": true, "expect": "block" }
+    { "command": "bash <<'EOF'\nkubectl delete ns foo\nEOF", "subagent": true, "expect": "block" },
+    {
+      "command": "kubectl rollout restart deploy/x -n y",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    {
+      "command": "kubectl --context frostlink rollout undo deploy/x -n y",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    {
+      "command": "kubectl rollout pause deploy/x",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    {
+      "command": "kubectl -n y rollout resume deploy/x",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    {
+      "command": "kubectl exec -n y pod -- rm -rf /data",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    {
+      "command": "kubectl --context frostlink exec -n y pod -- psql -c 'DROP TABLE t'",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    {
+      "command": "kubectl exec -it pod -- sh",
+      "subagent": true,
+      "expect": "block",
+      "bash_only": true
+    },
+    { "command": "kubectl rollout status deploy/x -n y", "subagent": true, "expect": "allow" },
+    { "command": "kubectl rollout history deploy/x -n y", "subagent": true, "expect": "allow" },
+    {
+      "command": "kubectl --context frostlink rollout status deploy/x",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "kubectl exec -n y pod -- rm -rf /data", "subagent": false, "expect": "allow" },
+    {
+      "command": "kubectl --context frostlink rollout undo deploy/x -n y",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "kubectl rollout restart deploy/x -n y", "subagent": false, "expect": "allow" }
   ]
 }

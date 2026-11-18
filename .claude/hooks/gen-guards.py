@@ -763,8 +763,9 @@ def run_cases(spec: dict, repo_key: str, cases_doc: dict) -> int:
             plugin.write_text(render_js(spec, repo_key))
             runner = Path(tmp) / "runner.mjs"
             runner.write_text(JS_RUNNER)
-            # opencode has no ask and no agent_id, so cases that expect an ask are skipped there.
-            js_cases = [c for c in cases if c["expect"] != "ask"]
+            # opencode has no ask and no agent_id, so cases that expect an ask are skipped there,
+            # and so are cases marked "bash_only" (a subagent_only rule that blocks).
+            js_cases = [c for c in cases if c["expect"] != "ask" and not c.get("bash_only")]
             cfile = Path(tmp) / "cases.json"
             cfile.write_text(json.dumps(js_cases))
             p = subprocess.run([node, str(runner), str(plugin), str(cfile)], capture_output=True, text=True)
