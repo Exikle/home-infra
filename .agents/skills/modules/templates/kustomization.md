@@ -1,7 +1,7 @@
 # Module: app/kustomization.yaml Template
 
-Frostlink: the schema line is `# yaml-language-server: $schema=https://json.schemastore.org/kustomization`.
-Some Frostlink apps also set `namespace:`. Follow the other apps in the target namespace.
+The template is the same on both clusters. A few apps on each cluster also set `namespace:`.
+Follow the other apps in the target namespace.
 
 ```yaml
 ---
@@ -41,14 +41,12 @@ generatorOptions:
 
 ## Notes
 
-- The YAML blocks in these templates render at a 4-space indent. Real manifests use 2 spaces. Copy
-  the structure, not the indentation (`yaml-conventions.md` § What the tooling does for you).
+- Copy the structure of these blocks, not the indentation (`yaml-conventions.md` § What the
+  tooling does for you).
 - `apiVersion` is always `kustomize.config.k8s.io/v1beta1`. `v1` does not exist for this kind.
-- On Artemis and under `kube/base/`, the schema URL is the `k8s-schemas.home-operations.com` one,
-  not `https://json.schemastore.org/kustomization`. The `k8s-schema` pre-commit hook
-  (`hk.pkl`, configured by `.k8s-schema-hook.yaml`) rewrites it to the home-operations URL. So if
-  you write the schemastore URL there, your first commit gives a diff.
-- On Frostlink, no schema hook runs. The schemastore URL stays as you write it.
+- The schema URL is the `k8s-schemas.home-operations.com` one on both clusters. The `k8s-schema`
+  pre-commit hook (`hk.pkl`, configured by `.k8s-schema-hook.yaml`) writes it. If you write
+  `https://json.schemastore.org/kustomization`, the hook rewrites it at your first commit.
 - `resources` is sorted alphabetically, as `yaml-conventions.md` says, not in deployment order.
 - A generated ConfigMap whose payload contains `${...}` must have
   `generatorOptions.annotations.kustomize.toolkit.fluxcd.io/substitute: disabled`. Without it, the

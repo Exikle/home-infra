@@ -4,13 +4,8 @@ Work that is parked, blocked, or deferred becomes a Forgejo issue. It does not l
 session journal.
 
 The journal records what happened in a session. The issue tracker records what is still owed.
-Those are different jobs, and the journal is the wrong place for the second one:
-
-- `.claude/session-journal.md` is gitignored and machine-local. It does not survive a fresh
-  clone, no other machine can see it, and no other agent or person can query it.
-- A PreCompact hook rewrites it, and that hook has destroyed entries unrecoverably. Parked
-  items recorded only as journal bullets were lost with it.
-- A bullet cannot express a dependency, carry labels, or be filtered.
+The journal is disposable and machine-local (`~/.agents/AGENTS.md` § Memory, which wins). A
+journal bullet also cannot express a dependency or carry labels, and nobody can filter it.
 
 ## When to file
 
@@ -45,8 +40,8 @@ These consequences matter:
 - Labels are the only machine-readable truth. Set them correctly even when the board looks right.
 - Adding an issue to a board and moving its card are manual actions that a human does in the web UI.
 
-Boards are per repo, not org-level. `frostlink` gets its own board when the Artemis pilot proves
-out ([#2759](https://git.dcunha.io/Exikle/home-infra/issues/2759)).
+Boards are per repo, not org-level. Both clusters share this repo, so they share its board. The
+`cluster/*` label tells them apart.
 
 ## Label taxonomy
 
@@ -84,22 +79,11 @@ Use the Forgejo tools of the `-ops` tier where they fit. Tool names carry a serv
 changes when the gateway is rewired. List the tools and match on the suffix. Do not hardcode a
 fully-qualified name.
 
-The REST API takes label IDs, not names, and those IDs differ per repo. Always resolve them
-and do not hardcode them:
+From the shell, use `fjo`. It takes label names, so you do not need to look up label IDs:
 
 ```bash
-TOKEN=$(op read 'op://infrastructure/forgejo/EXIKLE_CLI_TOKEN')
-API=https://git.dcunha.io/api/v1
-REPO=Exikle/home-infra
-
-# name -> id
-curl -s "$API/repos/$REPO/labels?limit=100" -H "Authorization: Bearer $TOKEN" \
-  | jq -r '.[] | "\(.id)\t\(.name)"' | sort -k2
-
-# add labels to an existing issue
-curl -s -X POST "$API/repos/$REPO/issues/<N>/labels" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"labels":[<id>,<id>]}'
+fjo issue create -R Exikle/home-infra --title "<title>" -F body.md -l status/parked -l area/<x>
+fjo issue edit <N> -R Exikle/home-infra --add-label status/blocked
 ```
 
 Write the body so that the next reader does not have to re-derive the investigation. State the
@@ -108,13 +92,8 @@ two corrections to its own first diagnosis, so that nobody repeats them.
 
 ## Journal and tracker together
 
-Use both, not either:
-
-- The journal is the narrative. It records what you did this session, what you applied live, what
-  the user confirmed, and what is left suspended. It is session-scoped and disposable.
-- The issue is the durable obligation. It survives the session, the machine, and the PreCompact
-  hook.
-- memini holds the non-obvious lesson, so that the next session does not re-derive it.
+Use both. `session.md` says what the journal records, and it wins. The issue is the durable
+obligation. memini holds the non-obvious lesson.
 
 When a session parks something, the journal entry says so and names the issue number. When you
 file an issue, put its number in the journal entry that created it. A journal bullet that

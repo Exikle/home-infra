@@ -18,9 +18,9 @@ On Frostlink, use `mise run //kube/clusters/frostlink:render-ks` and `:diff-ks` 
 mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
-This task runs `flate build ks --namespace <namespace> --output yaml <ks-name>` and prints the
-rendered manifests. It catches schema errors, missing references, and mistakes in HelmRelease
-values.
+This task builds the same Flux artifact that CI pushes, then runs `flate build ks` on it, with
+missing Secrets allowed. It prints the rendered manifests. It catches schema errors, missing
+references, and mistakes in HelmRelease values.
 
 The root (`render-ks flux-system flux-system`) is the exception. flux-operator generates it, so
 flate cannot see it. The task runs `flux build kustomization` against the live root instead. That
@@ -71,10 +71,11 @@ local against `main`.
 ## Diff Against Main (changed-only)
 
 ```bash
-git worktree add --detach /tmp/artemis-baseline main
-flate diff ks --path kube/clusters/artemis --path-orig /tmp/artemis-baseline/kube/clusters/artemis
-git worktree remove /tmp/artemis-baseline
+flate diff ks --path kube/clusters/artemis --base main
 ```
+
+`--base main` copies the tree of `main` to a temporary folder and compares against it. If you omit
+`--base`, flate uses the merge base with the upstream branch.
 
 Changed-only mode reconciles only the subtree that a change touches. It is fast, also on large
 repos.
@@ -88,7 +89,7 @@ flate get ks --path kube/clusters/artemis
 ## Build a Specific HelmRelease
 
 ```bash
-flate build hr --namespace <namespace> --output yaml <helmrelease-name>
+flate build hr --path kube/clusters/artemis --namespace <namespace> --output yaml <helmrelease-name>
 ```
 
 ## Validate Workflow (pre-commit checklist)

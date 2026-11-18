@@ -33,11 +33,11 @@ start unless these are true:
 - The worktree is clean.
 - The main checkout is on `main` and is clean.
 
-If `origin/main` moved, `land` rebases the branch. It stops with "main moved under your test, re-test"
-when the new commits touch `kube/base/`, `kube/components/` or the path of a tested Kustomization.
-`--force` skips that stop. It waits up to 15 minutes for the artifact of each cluster. If the
-OCIRepository goes `Ready=False`, or the `Push OCI Artifact` run fails, it stops and leaves the
-Kustomizations suspended. Then it resumes the root first and each target after it.
+If `origin/main` moved, `land` rebases the branch. It stops with
+"main moved under your test, re-test" when the new commits touch `kube/base/`,
+`kube/components/` or the path of a tested Kustomization. `--force` skips that stop. It waits up
+to 15 minutes for the artifact of each cluster. If the OCIRepository goes `Ready=False`, or the
+`Push OCI Artifact` run fails, it stops and leaves the Kustomizations suspended. Then it resumes the root first and each target after it.
 
 The manual steps below are the fallback. Use them when a task fails, or when `land` stops halfway.
 Each step is what the task does.
@@ -132,8 +132,8 @@ sequence with the Frostlink tasks (`suspend-ks`, `apply-ks`, `sync-flux`, `resum
 from the worktree.
 
 - `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
-  diffs the push. The job of a cluster runs when its `apps/`, `components/` or `settings/`
-  under `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/`
+  diffs the push. The job of a cluster runs when its `apps/` or `components/` under
+  `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/`
   changed. A job that does not run shows as skipped. Wait for the job of each cluster that your
   change reaches.
 - A change under `kube/base/` or `kube/components/` reaches both clusters in one push. Run

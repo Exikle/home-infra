@@ -1,14 +1,8 @@
 # Module: OCIRepository Template
 
-Every app gets its own standalone OCIRepository. Never share one between apps.
-
-Frostlink: the `interval` and the tag differ from Artemis. Recover both from the tree. Frostlink
-uses more than one `interval`, so follow the other apps in the target namespace:
-
-```bash
-grep -rh 'tag:' kube/clusters/frostlink/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
-grep -rh 'interval:' kube/clusters/frostlink/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn
-```
+The template is the same on both clusters. The rules for the chart (the `bjw-s-labs` URL, the `v1`
+API, a bare chart tag, one OCIRepository per app) are in `cluster-conventions.md` § Helm /
+app-template, which wins.
 
 ```yaml
 ---
@@ -30,18 +24,17 @@ spec:
 ## Notes
 
 - `name` must match the app name, because `chartRef.name` in the HelmRelease references it.
-- `url` must use `bjw-s-labs` (not `bjw-s`). A wrong org path fails silently.
-- `apiVersion` must be `source.toolkit.fluxcd.io/v1`. `v1beta2` is removed.
-- `ref.tag` is the app-template chart version, not the app image tag. It is bare. Helm charts get
-  no SHA pin.
+- `ref.tag` is the version of the app-template chart, not the tag of the app image.
 - Do not add `namespace:` to metadata. The `targetNamespace` of the Flux Kustomization injects it.
 
 ## Values that drift: recover them from the tree
 
 Renovate bumps `ref.tag` across the whole fleet, so a number written here goes stale by design.
-These commands print the current tag and the usual `interval`:
+This command prints the current app-template tag of one cluster. It reads only the
+OCIRepositories that point at app-template, because Frostlink also has many other charts:
 
 ```bash
-grep -h 'tag:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
-grep -h 'interval:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1
+grep -l 'bjw-s-labs/helm/app-template' kube/clusters/<cluster>/apps/*/*/app/ocirepository.yaml | xargs grep -h 'tag:' | sort | uniq -c | sort -rn | head -1
 ```
+
+The usual `interval` is `15m` on both clusters.

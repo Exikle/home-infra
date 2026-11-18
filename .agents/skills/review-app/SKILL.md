@@ -14,22 +14,22 @@ this correct".
 > auth gate break a machine caller. For those, spawn the `audit-app` subagent
 > (`.agents/agents/audit-app.md`).
 >
-> This skill reports PASS on an app whose kopiur mover runs as the wrong uid, whose memory limit is
-> twenty times its working set, and whose tinyauth gate has no ACL keys in the tinyauth
-> HelmRelease. Those faults belong to `audit-app` by design. Do not try to cover them here.
+> This skill reports PASS on an app whose kopiur mover uid matches the manifest but not the owner
+> of the files on disk, whose memory limit is twenty times its working set, and whose tinyauth gate
+> has no ACL keys in the tinyauth HelmRelease. Those faults belong to `audit-app` by design. Do not
+> try to cover them here.
 
-For a Frostlink app (`kube/clusters/frostlink/apps/<namespace>/<app>/`), do these things:
+`<cluster>` in every path and task below is `artemis` or `frostlink`. For a Frostlink app, do
+these things:
 
 1. Read `.agents/instructions/frostlink.md` together with `cluster-conventions.md` and
    `yaml-conventions.md` (listed below). The two shared files hold the shared rules, field order
    and secret rules included. Where they differ from `frostlink.md`, `frostlink.md` wins.
 2. Use `.agents/references/oci-networking.md` and `.agents/references/openebs-zfs.md` for the route
    and storage checks.
-3. In every path and task name in this skill, use `frostlink` in place of `artemis`.
 
 The checklists in `.agents/skills/modules/checklists/` apply to both clusters. Where a Frostlink
-convention differs, the checklist item says so. Field order also follows
-`.agents/skills/modules/checklists/yaml-sorting.md`.
+convention differs, the checklist item says so.
 
 Before you review, read these files:
 
@@ -44,8 +44,7 @@ Before you review, read these files:
 
 > Read these module files in full. `deploy-app` and `review-app` share them on purpose. One skill
 > writes the files, and the other checks them against the same spec. With a duplicate, the two
-> drift apart. `templates/ks.md` and `templates/helmrelease.md` are about 135 lines. A partial read
-> gives a partial spec.
+> drift apart. A partial read gives a partial spec.
 
 ## Step 1: Identify the App
 
@@ -55,19 +54,19 @@ Make sure that you have these before you continue:
 - Namespace (for example `media`)
 - Fix mode: report only, or apply fixes in place
 
-Derive the root path: `kube/clusters/artemis/apps/<namespace>/<app>/`
+Derive the root path: `kube/clusters/<cluster>/apps/<namespace>/<app>/`
 
 ---
 
 ## Step 2: Read All Manifests
 
 ```bash
-find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
-cat kube/clusters/artemis/apps/<namespace>/kustomization.yaml
-cat kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
-cat kube/clusters/artemis/apps/<namespace>/<app>/app/kustomization.yaml
-cat kube/clusters/artemis/apps/<namespace>/<app>/app/ocirepository.yaml
-cat kube/clusters/artemis/apps/<namespace>/<app>/app/helmrelease.yaml
+find kube/clusters/<cluster>/apps/<namespace>/<app> -type f | sort
+cat kube/clusters/<cluster>/apps/<namespace>/kustomization.yaml
+cat kube/clusters/<cluster>/apps/<namespace>/<app>/ks.yaml
+cat kube/clusters/<cluster>/apps/<namespace>/<app>/app/kustomization.yaml
+cat kube/clusters/<cluster>/apps/<namespace>/<app>/app/ocirepository.yaml
+cat kube/clusters/<cluster>/apps/<namespace>/<app>/app/helmrelease.yaml
 ```
 
 Read the files before you evaluate them. Do not guess their contents.
@@ -113,7 +112,7 @@ afford. Do them fully. Do not skim them:
 A lint that never builds can pass a file that kustomize rejects. Render before you report:
 
 ```bash
-mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
+mise run //kube/clusters/<cluster>:render-ks <namespace> <ks-name>
 ```
 
 `<ks-name>` is `metadata.name` from `ks.yaml`, not the directory name. A non-zero exit is a FAIL.
@@ -121,6 +120,15 @@ Quote the build error. The usual cause is a component path with three `../` inst
 Another cause is a substitution that the component needs and that `postBuild` does not supply.
 
 This is a local build, not a cluster call. It touches nothing.
+
+Then check the field order with the same script that the `yaml-order` hook runs. It only reads:
+
+```bash
+hooks/python scripts/normalize-yaml-order.py --check kube/clusters/<cluster>/apps/<namespace>/<app>
+```
+
+A non-zero exit is a FAIL against the yaml-sorting checklist. The script names each file that is
+out of order. Read that file to find which Y item it breaks.
 
 ---
 
@@ -162,7 +170,7 @@ check IDs, and code-format the values:
 - OCIRepository is standalone and correctly named.
 - Security context is complete.
 - All sorting checks pass.
-- `mise run //kube/clusters/artemis:render-ks` builds clean.
+- `mise run //kube/clusters/<cluster>:render-ks` builds clean.
 
 ---
 

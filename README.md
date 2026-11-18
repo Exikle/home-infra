@@ -34,16 +34,16 @@ _... where YAML is law, Renovate never sleeps, and 2am <br>is just debugging hou
 ## 📖 Overview
 
 This repo holds my whole home infrastructure, managed through Git. Each Kubernetes cluster has
-its own folder under `clusters/`. The host configuration (Ansible) and the OpenTofu stacks sit
-beside them.
+its own folder under `kube/clusters/`. The host configuration (Ansible) and the OpenTofu stacks
+sit beside them.
 
 Artemis is the homelab cluster. It runs [Talos Linux](https://www.talos.dev/) on three
-bare-metal control planes and four workers (one with a GPU). [Flux CD](https://fluxcd.io/)
+bare-metal control planes and four workers (one with a discrete GPU). [Flux CD](https://fluxcd.io/)
 reconciles it. When you push to main, the change appears in the cluster.
 
 Frostlink is one Talos node on Oracle Cloud (Ampere A1, 4 OCPU, 24 GB, ca-toronto-1). It is the
-public front door for [frostlink.dev](https://frostlink.dev) and the always-on host, reconciled
-by Flux the same way. Its rebuild runbook is `.agents/references/oci-rebuild.md`.
+public front door for [frostlink.dev](https://frostlink.dev) and the always-on host. Flux
+reconciles it the same way. Its rebuild runbook is `.agents/references/oci-rebuild.md`.
 
 ---
 
@@ -51,23 +51,25 @@ by Flux the same way. Its rebuild runbook is `.agents/references/oci-rebuild.md`
 
 ```sh
 📁 kube                    # Everything Flux deploys
+├── 📁 base                # Apps both clusters run, one copy each
+├── 📁 components          # Kustomize components both clusters use
 └── 📁 clusters
     ├── 📁 artemis
     │   ├── 📁 apps        # Flux-managed applications, one directory per namespace
-    │   ├── 📁 components  # Kustomize components only Artemis uses (kopiur, zeroscaler, postgres, tinyauth)
+    │   ├── 📁 components  # Kustomize components only Artemis uses
     │   ├── 📁 talos
     │   │   ├── 📁 nodes       # Per-node machine config as Jinja2 templates
     │   │   └── 📁 schematics  # Image schematics: extensions and kernel args per node type
     │   └── 📁 bootstrap   # Rebuild the cluster from nothing (helmfile and seed resources)
     └── 📁 frostlink       # Same folders: apps, components, talos (one node), bootstrap
 
-📁 ansible                 # Host config for what is not in Kubernetes: atlas, pantheon, the Forgejo LXC
-📁 terraform               # OpenTofu: proxmox and unifi stacks
+📁 ansible                 # Host config for what is not in Kubernetes (see ansible/README.md)
+📁 terraform               # OpenTofu stacks (see terraform/README.md)
 ```
 
-CI builds one Flux artifact per cluster from the repo root, so Flux on a cluster sees only
-`kube/base/`, `kube/components/` and the `apps/` and `components/` of its own cluster. You run `talos/`,
-`ansible/` and `terraform/` by hand through mise tasks.
+CI builds one Flux artifact per cluster from the repo root. So Flux on a cluster sees only
+`kube/base/`, `kube/components/` and the `apps/` and `components/` of its own cluster. You run
+`talos/`, `ansible/` and `terraform/` by hand through mise tasks.
 
 ---
 
@@ -82,7 +84,8 @@ CI builds one Flux artifact per cluster from the repo root, so Flux on a cluster
 | 1× HPE ML150 G9 (`pantheon`)                  | T-FORCE 1TB SSD                                                                                        | 192GB      | Proxmox virtualization host                             |
 | 1× Supermicro (`atlas`)                       | 3× RAIDZ2 6-wide (~41TB usable)                                                                        | 94.3GB ECC | TrueNAS SCALE, NAS and media storage                    |
 
-Every Kubernetes node runs Talos Linux.
+Every Kubernetes node runs Talos Linux. The details are in `.agents/references/hardware.md`,
+which wins over this table.
 
 ---
 
@@ -99,12 +102,12 @@ Every Kubernetes node runs Talos Linux.
 
 ## 🙏 Acknowledgments
 
-Thanks to the following for their work and shared knowledge:
+Thanks to these people and projects for their work and shared knowledge:
 
 - [onedr0p/home-ops](https://github.com/onedr0p/home-ops)
 - [bjw-s-labs/home-ops](https://github.com/bjw-s-labs/home-ops)
 - [joryirving/home-ops](https://github.com/joryirving/home-ops)
-- [hbjydev/ops](https://github.com/hbjydev/ops), the reference for the multi-cluster `clusters/` layout
+- [hbjydev/ops](https://github.com/hbjydev/ops), the reference for the multi-cluster `kube/clusters/` layout
 - [Christian Lempa](https://www.youtube.com/@christianlempa)
 - [TechnoTim](https://www.youtube.com/@TechnoTim)
 - [Home Operations](https://discord.gg/home-operations) Discord community

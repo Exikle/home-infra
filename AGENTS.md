@@ -28,14 +28,14 @@ Code reads `AGENTS.md` only when no `CLAUDE.md` exists.
 `ls` at the repo root is the map. `kube/` holds everything that Flux deploys.
 `kube/clusters/<cluster>/` holds one cluster: its `apps/`, `components/`, `talos/`, `bootstrap/`
 and `mise.toml`. `kube/base/<ns>/<app>/` holds one copy of an app that both clusters run. Each
-cluster turns it on with one line in its namespace menu, `kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`.
-`kube/components/` holds kustomize components that both clusters use the same way. Today it holds
-only `alerts`.
+cluster turns it on with one line in its namespace menu,
+`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`.
+`kube/components/` holds kustomize components that both clusters use the same way.
 
 Components that one cluster uses, or that each cluster builds differently, stay in
 `kube/clusters/<cluster>/components/`. A change under `kube/base/` or `kube/components/` reaches
-both clusters in one push. The layout, its rules and the remaining steps are in #3333.
-`app-structure.md` § Shared apps has the file shape.
+both clusters in one push. The layout decision is in #3333 (closed). `app-structure.md`
+§ Shared apps has the file shape.
 
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
 the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
@@ -55,7 +55,8 @@ task by its short name. Never use a bare `kubectl`. For Frostlink, use
 
 Everything else is conditional. These rules are not.
 
-1. `main` is production. There is no staging cluster. Every push reconciles immediately.
+1. `main` is production. There is no staging cluster. Every push to `main` reaches the cluster
+   as soon as CI publishes its artifact.
    Before you commit, suspend the root Kustomization and the target Kustomization of that
    cluster. Suspend twice, not once. Then run the `apply-ks` of that cluster
    (`mise run //kube/clusters/<cluster>:apply-ks`). Then wait until the user tells you that
@@ -127,7 +128,7 @@ When the subject of a file comes up, open that file. Do not read the whole direc
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `ansible.md`                 | You change host configuration outside Kubernetes: TrueNAS, pantheon, Forgejo                           |
 | `app-structure.md`           | You choose a directory shape for a new app, or wonder why one looks odd                                |
-| `bootstrap.md`               | You rebuild the cluster from nothing, or edit a `.j2` template                                         |
+| `bootstrap.md`               | Artemis: you rebuild the cluster from nothing, or edit a `.j2` template                                |
 | `ci.md`                      | A Forgejo workflow, the runner, buildkit, or the `oci-push` Flux artifact                              |
 | `claude-code-remote.md`      | The in-cluster Claude Code Remote Control pod: access, bootstrap, tools                                |
 | `claude-code-setup.md`       | You touch a hook, a guard, or a skill/subagent symlink                                                 |
@@ -136,8 +137,8 @@ When the subject of a file comes up, open that file. Do not read the whole direc
 | `crowdsec.md`                | A ban, a bot challenge or an exemption on any public site (Frostlink, both domains)                    |
 | `database.md`                | Frostlink: shared Postgres onboarding, pgbouncer tuning, CNPG PKI, primary restarts                    |
 | `flux-patterns.md`           | A reconcile is stuck, or you wire `dependsOn` across namespaces                                        |
-| `gpu.md`                     | You schedule anything onto the Arc A380 or ymir's iGPU                                                 |
-| `hardware.md`                | You size a workload, pin to a node, buy a part, or see an unexplained stall                            |
+| `gpu.md`                     | Artemis: you schedule anything onto the Arc A380 or ymir's iGPU                                        |
+| `hardware.md`                | Artemis: you size a workload, pin to a node, buy a part, or see an unexplained stall                   |
 | `hermes.md`                  | You change hermes-agent's model, skills, or chaski wiring                                              |
 | `identity-stack.md`          | You wire SSO: lldap, Pocket-ID, tinyauth                                                               |
 | `issue-tracking.md`          | You file the Forgejo issue that parked work becomes                                                    |
@@ -154,12 +155,12 @@ When the subject of a file comes up, open that file. Do not read the whole direc
 | `pantheon-networking.md`     | pantheon's vNIC/bridge: single-NIC blast radius, tap pps knee                                          |
 | `pantheon-zfs.md`            | pantheon's ZFS pools, HBA bays, drive intake                                                           |
 | `pod-security-exceptions.md` | An app must deviate from the default security context                                                  |
-| `postgres-dragonfly.md`      | You onboard an app onto shared Postgres or Dragonfly                                                   |
+| `postgres-dragonfly.md`      | Artemis: you onboard an app onto shared Postgres or Dragonfly                                          |
 | `renovate.md`                | You triage the PR queue, or a per-app update guard                                                     |
-| `scheduling.md`              | Packing, descheduler thresholds, cordoning a node                                                      |
+| `scheduling.md`              | Artemis: packing, descheduler thresholds, cordoning a node                                             |
 | `status-page.md`             | `status.dcunha.io`: generated checks from both clusters, heartbeats, badges                            |
-| `storage.md`                 | StorageClasses, the NFS media mount, orphaned PVCs                                                     |
-| `talos.md`                   | Node configuration, schematics, extensions, upgrades                                                   |
+| `storage.md`                 | Artemis: StorageClasses, the NFS media mount, orphaned PVCs                                            |
+| `talos.md`                   | Artemis: node configuration, schematics, extensions, upgrades                                          |
 | `terraform.md`               | OpenTofu: the ownership boundary and the import-first rule                                             |
 | `towonel-agent.md`           | You publish any public service (either domain) on `edge-gateway` via towonel                           |
 | `towonel.md`                 | Frostlink: the towonel hub and edge, ports, grey-cloud DNS, key material                               |
@@ -167,15 +168,14 @@ When the subject of a file comes up, open that file. Do not read the whole direc
 ### Skills and subagents
 
 `ls .agents/skills/` and `ls .agents/agents/` are the catalogues. Both clients inject the `name:`
-and `description:` of each one themselves. A table here is a third copy, and that copy drifts. A
-table drifted twice before this note replaced it.
+and `description:` of each one themselves. A table here is a third copy, and that copy drifts.
 
 Auto-invocation cannot see a skill without frontmatter. Claude Code cannot see a skill without a
 `.claude/skills/<name>` symlink. It also cannot see a subagent without a
 `.claude/agents/<name>.md` symlink. `mise run //ai:lint-agents` checks all of this.
 
-Cluster-agnostic skills live in `~/.claude/skills/` and work everywhere: `forgejo`,
-`triage-renovate`, `build-container`, `playwright`, `add-agent-content`, `simple-english`.
+Cluster-agnostic skills live in `~/.claude/skills/` and work everywhere. Run
+`ls ~/.claude/skills` for the list.
 
 ---
 
@@ -217,21 +217,19 @@ links to it. This rule exists to stop one failure: a strikethrough TODO in a ref
 
 ### Never restate a rule that lives in another file
 
-Link to the rule, and say which file wins. The duplicate is what drifts. This risk is real. A
-sibling repo logged a wrong `Approve` on a PostgreSQL major-version upgrade. The cause was a
-copied rule that drifted from its original.
+Link to the rule, and say which file wins. The duplicate is what drifts.
 
 ### Make a version fact a command, not a number
 
 Renovate bumps `app-template` across the whole fleet. A doc that prints a tag goes stale the week
 after you write it. Print the command that recovers the tag instead:
-`grep -h 'tag:' kube/clusters/artemis/apps/*/*/app/ocirepository.yaml | sort | uniq -c | sort -rn | head -1`.
+`grep -rl app-template --include=ocirepository.yaml kube | xargs grep -h 'tag:' | sort | uniq -c | sort -rn | head -1`.
 
 ### Manifests carry configuration, not prose
 
-Do not put comments in files under `kube/base/` or `kube/clusters/*/`. Put the rationale in a
-reference doc. There it is searchable, and no one must re-read it on every manifest edit.
-`yaml-conventions.md` lists the three machine-oriented exceptions.
+Do not put comments in manifests. Put the rationale in a reference doc. There it is searchable,
+and no one must re-read it on every manifest edit. `yaml-conventions.md` § No Comments in
+Manifests has the scope and the three machine-oriented exceptions, and it wins.
 
 ---
 
@@ -245,14 +243,10 @@ reference doc. There it is searchable, and no one must re-read it on every manif
   kopiur caches and staging clones only. Both are RWO. Neither offers RWX. If you pick
   `miroir-local` for the data of an app, the data is unreplicated. Frostlink has one
   StorageClass, `openebs-zfs`, and it is the default.
-- SOPS: fully removed. Never suggest age encryption.
 - Dedicated per-app Postgres: immich was the last one. It moved into the shared cluster on
   2026-09-01. The silo-first policy was superseded on 2026-07-02.
 - VolSync: replaced by kopiur. The `ReplicationSource` and `ReplicationDestination` CRDs no longer
   exist.
-- Retired skills (2026-08-21): `cnpg-database` (merged into `deploy-app` and
-  `postgres-dragonfly.md`), `migrate-namespace` (built on CRDs that are gone), and
-  `kopiur-pvc-migrate` (a completed one-shot migration).
 - Frostlink items that were decided against or removed. `grep` cannot tell you that these are on
   purpose:
     - `flux bootstrap`. The rebuild goes through helmfile, because the Forgejo repo must hold

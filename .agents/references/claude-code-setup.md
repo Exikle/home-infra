@@ -2,8 +2,8 @@
 
 These mechanics are specific to Claude Code, so they stay out of the shared `.agents/` contract.
 opencode has two counterparts: the generated guard `.opencode/plugins/guard-destructive.js` and
-the subagent symlinks in `.opencode/agents/`. Read this file when you touch a hook, add a skill or subagent, or want to know why a guard did not
-fire.
+the subagent symlinks in `.opencode/agents/`. Read this file when you touch a hook, add a skill
+or subagent, or want to know why a guard did not fire.
 
 - There is no `CLAUDE.md` at the repo root. Claude Code reads `AGENTS.md` when a project has no
   `CLAUDE.md`. If someone adds a `CLAUDE.md`, Claude Code stops reading `AGENTS.md`, and
@@ -36,8 +36,7 @@ fire.
   marker is not a general-purpose override. Without a verified snapshot, it means nothing. The
   rule matches the bare word `pvc`. So it also fires on unrelated objects _named_ `pvc-…`, for
   example a MiroirVolume.
-- The hooks are shared with the standalone `~/frostlink` checkout until that checkout is retired.
-  `session-context.sh`, `validate-manifest.sh`, `guard-rules.json` and `gen-guards.py` are
+- `session-context.sh`, `validate-manifest.sh`, `guard-rules.json` and `gen-guards.py` are
   vendored copies (copies kept in this repo) of `~/dotfiles/home/claude/agent-hooks/`. To push
   changes out, run the `sync-hooks.sh` of that directory. Repo-specific rules carry a per-rule
   `"repos": [...]` field in `guard-rules.json`. `.claude/hooks/guard-repo` names the set that
@@ -57,8 +56,8 @@ fire.
   always-loaded set. Each file's `paths:` frontmatter lists the folders that load it. A rule in
   `.claude/rules/` without `paths:` loads every session. That costs the same as an `@import`. So
   wire an instruction file exactly one way, never both. opencode has no equivalent.
-  `opencode.json` globs `.agents/instructions/*.md` and loads all six unconditionally,
-  frontmatter and all.
+  `opencode.json` globs `.agents/instructions/*.md` and loads every one of them
+  unconditionally, frontmatter and all.
 - `mise run //ai:lint-agents` (`scripts/check-agent-config.py`) audits all of the above. It finds
   these faults:
     - Invalid frontmatter YAML.

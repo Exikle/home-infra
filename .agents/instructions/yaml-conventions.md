@@ -11,8 +11,7 @@ paths:
 This file says how manifests in this repo are shaped, ordered, and kept clean. The rules apply to
 both clusters (`kube/clusters/artemis/` and `kube/clusters/frostlink/`) and to the shared
 `kube/base/` and `kube/components/` folders. Frostlink uses the same field ordering and has no
-YAML rule of its own. § What the tooling does for you says which hook covers which folders. The rules were checked against the live tree and the
-home-operations reference repos (onedr0p/home-ops and others) on 2026-07-11.
+YAML rule of its own. § What the tooling does for you says which hook covers which folders.
 
 ## What the tooling does for you
 
@@ -124,8 +123,7 @@ enabled → type → annotations → labels → <controller fields: replicas, st
 image → args → command → env → envFrom → probes → resources → securityContext
 ```
 
-- Resources: `requests` before `limits`.
-- Define anchors at first use (`port: &port 8000`). Reference them later (`port: *port`).
+Resources: `requests` before `limits`.
 
 ### Init containers (`initContainers.<name>`)
 
@@ -166,8 +164,8 @@ Plain alphabetical. These are the canonical shapes:
 apiVersion → kind → namespace → components → resources → <alphabetical rest>
 ```
 
-- Sort the `resources` list alphabetically. In a namespace-level file, `./namespace.yaml` is
-  first.
+- Sort the `resources` list. The normalizer puts `./namespace.yaml` first, then sorts the rest
+  in plain ASCII order. So `../` entries come before the other `./` entries.
 - For a new app, insert `- ./<app>/ks.yaml` in alphabetical position.
 
 ## General Rules
@@ -176,9 +174,6 @@ apiVersion → kind → namespace → components → resources → <alphabetical
 - Never sort inside string values. Configuration file payloads in ConfigMaps and Secrets keep the
   natural order of their application.
 - Never reorder keys in vendored content (upstream chart values, dashboard JSON, alert rules).
-- Never sort YAML that is embedded inside a string value. A configuration file payload under
-  `configMap.data.*` keeps the key order of its own application. Sort only the surrounding YAML
-  structure.
 - Quote env values that YAML otherwise coerces: `"true"`, `"1"`, `"60"`.
 - Put one logical resource in each file (the helmrelease / ocirepository split). There are two
   exceptions. `ks.yaml` holds all of the Flux Kustomizations of an app. The inline
@@ -188,12 +183,11 @@ apiVersion → kind → namespace → components → resources → <alphabetical
 
 A manifest states what it changes. If the value of a field is already the default of the chart,
 the Kubernetes API, or the CRD, the field does not belong in the manifest. It is noise that reads
-like a decision. A cleanup removed these fields repo-wide on 2026-09-07 (59 fields across 54
-files).
+like a decision.
 
 Prove the default before you delete it, and cite where. Cite the `values.yaml` of the chart, the
-`+kubebuilder:default` of the CRD, or the API reference, never memory. In that cleanup, a survey
-from memory got `replicas` backwards, and the field was nearly deleted on a false premise.
+`+kubebuilder:default` of the CRD, or the API reference, never memory. A survey from memory once
+got `replicas` backwards, and the field was nearly deleted on a false premise.
 
 ### Deliberate exceptions — do not strip these
 
@@ -217,20 +211,20 @@ here so that no one re-derives it and gets it wrong a second time.
 | `layerSelector` (OCIRepository)            | Unverified. A Helm OCI artifact can carry more than one layer, so "first layer found" is not provably equivalent. Do not delete it without a test.                                                                                  |
 
 A resource templated inside a Flux `ResourceSet` is invisible to any script that iterates over
-top-level documents. For this reason, a script missed `components/postgres/tenants/resourceset.yaml`,
-and someone had to fix it by hand. Read ResourceSet bodies when you sweep for a field.
+top-level documents. For this reason, a script missed
+`components/postgres/tenants/resourceset.yaml`, and someone had to fix it by hand. Read
+ResourceSet bodies when you sweep for a field.
 
 ## Where the rules live
 
-This file is the single authority for ordering. A second copy under `.agents/skills/modules/`
-(since deleted) drifted, and it was merged back here on 2026-08-21. Cite this file. Do not
-restate it. `.agents/skills/modules/checklists/yaml-sorting.md` is the review-time checklist
-form. It checks the rules. It does not define them.
+This file is the single authority for ordering. Cite this file. Do not restate it.
+`.agents/skills/modules/checklists/yaml-sorting.md` is the review-time checklist form. It checks
+the rules. It does not define them.
 
 ## No Comments in Manifests
 
 Manifests carry configuration, not prose. Do not add explanatory comments to anything under
-`kube/clusters/*/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
+`kube/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
 history, no "keep this ordered" warnings, and no commented-out alternatives. Rationale belongs in
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.
@@ -247,16 +241,15 @@ There are three exceptions, all machine-oriented:
 | Anchor markers (`# &name`, `# *name …`)          | reading aid for `&name` / `*name` pairs    |
 | Renovate directives (`# renovate: datasource=…`) | consumed by Renovate                       |
 
-An anchor marker is a comment that starts with `&name` or `*name`. The hook allows all three exceptions.
+An anchor marker is a comment that starts with `&name` or `*name`. The hook allows all three
+exceptions.
 
 ### Shell scripts embedded in a manifest are code, not manifest
 
 A `script:` or `command:` block scalar (init containers, CronJob scripts) is a program, and a
 program can carry code comments. There, the rule is one terse line, not a paragraph. Say what the
 next few lines do, and put the reasoning in the reference doc. A multi-line rationale essay inside
-an init script is the same violation as one in the manifest body. On 2026-09-07, a cleanup removed
-such essays from `hermes`, `buildx-bake` and `bake-options`. It replaced them with one-liners that
-point at `hermes.md` and the CI reference (now `ci.md`).
+an init script is the same violation as one in the manifest body.
 
 If a value seems to need a comment, write it up in the matching reference doc instead. If the
 constraint is dangerous to violate, reviewers then cite the doc. For example, the ordering of the

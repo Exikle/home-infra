@@ -1,16 +1,15 @@
 # Module: HelmRelease Template
 
-The schema line is the one the hook writes for app-template. A non-app-template chart uses
+The schema line below is the one that the `k8s-schema` hook writes for app-template, on both
+clusters. A chart that is not app-template uses
 `https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json`.
 
-Frostlink: the schema URL pins the app-template tag
-(`.../helm-charts/app-template-<app-template-tag>/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json`),
-with the tag from the app's `ocirepository.yaml`. The route uses `external-gateway` in
-`namespace: network` (the only gateway), so ignore the Artemis gateway table below. The field order
-is `.agents/instructions/frostlink.md`.
+Field order is in `.agents/instructions/yaml-conventions.md`, on both clusters. `postRenderers`
+is last, and it is easy to forget. Only a couple of apps use it
+(`.agents/references/observability.md`).
 
-Field ordering is defined in `.agents/instructions/yaml-conventions.md`. `postRenderers` is last
-and easy to forget. Only a couple of apps use it (`.agents/references/observability.md`).
+Frostlink: the route uses `external-gateway` in `namespace: network`, the only gateway there. The
+gateway table below is for Artemis.
 
 ## Minimal template
 
@@ -48,8 +47,6 @@ spec:
                                 enabled: true
                             readiness:
                                 enabled: true
-                            startup:
-                                enabled: false
                         resources:
                             requests:
                                 cpu: 10m
@@ -90,11 +87,13 @@ spec:
 
 ## Gateways: pick by hostname suffix
 
+These are the Artemis gateways:
+
 | Gateway            | Hostnames                        | Exposure                                      |
 | ------------------ | -------------------------------- | --------------------------------------------- |
 | `internal-gateway` | `*.dcunha.io`                    | LAN only                                      |
 | `edge-gateway`     | `*.frostlink.dev`, `*.dcunha.io` | Public via towonel (and LAN); `:80` redirects |
-| `external-gateway` | —                                | Legacy, no routes. Do not use                 |
+| `external-gateway` | —                                | Legacy, no routes. Do not use on Artemis      |
 
 All three live in `namespace: network`. Every public app goes on `edge-gateway`, whichever
 domain. A `*.dcunha.io` route there must not pin `sectionName: https`, because that is the
@@ -122,15 +121,15 @@ Details, the listener table and the towonel origin mapping: `.agents/references/
 
 ## Notes
 
+The shared rules for app-template apps (no `TZ`, the reloader annotation, routes inline, no
+comments in manifests, field order) are in `cluster-conventions.md` and `yaml-conventions.md`.
+Those files win. These notes are only about this template:
+
 - Do not add `namespace:` to metadata. The `targetNamespace` of the Flux Kustomization injects it.
 - `fsGroup: 1000` is needed only when the app uses a PVC.
-- `readOnlyRootFilesystem: true` requires a `tmp` emptyDir entry. Use `advancedMounts` with `subPath`, even for a single path.
+- `readOnlyRootFilesystem: true` requires a `tmp` emptyDir entry. Use `advancedMounts` with
+  `subPath`, even for a single path.
 - Remove the `persistence` block entirely if the app has no PVC and no writable paths.
 - Remove the `route` block if no ingress is needed.
-- Never set the `TZ` env var. k8tz injects the timezone cluster-wide.
-- `reloader.stakater.com/auto: "true"` must be on the controller annotation and not on the pod.
-- `startup` probe: include it with `enabled: false` to be explicit, or omit it.
-- `ports` is the last key in a `service.<name>` entry, not alphabetical.
-- `enabled` is the first key in any `controllers.<name>` entry that has it.
-- Add no inline comments to the manifest that you produce from this template. The prose of the template belongs in
-  `.agents/references/`, per `yaml-conventions.md` § No Comments in Manifests.
+- Omit the `startup` probe unless the app is slow to start. app-template turns every probe off
+  unless you set `enabled: true`.

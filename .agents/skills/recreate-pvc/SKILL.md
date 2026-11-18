@@ -14,13 +14,15 @@ StorageClass parameters. The data comes back through the kopiur volume populator
 StorageClass parameters are set when the volume is provisioned. A change to the class does nothing
 to existing volumes. The only way that they get the change is a new PVC.
 
+Pass `--context artemis` to every `kubectl` and `flux` command below.
+
 ## Step 0: Establish the restore path FIRST
 
 When you delete a PVC, you destroy the volume. `miroir` has `reclaimPolicy: Delete`, so the old PV
 is gone when the PVC is gone. You cannot undo this.
 
 ```bash
-kubectl get pvc -n <ns> <app> -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}'
+kubectl get pvc -n <ns> <app> -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}' --context artemis
 ```
 
 - `Restore/<app>`: the kopiur populator restores the volume. Continue.
@@ -30,7 +32,7 @@ kubectl get pvc -n <ns> <app> -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dat
 Then make sure that a snapshot exists AND is recent:
 
 ```bash
-kopiur snapshots list -n <ns> | grep '^<app>-' | grep Succeeded | head -5
+kopiur snapshots list -n <ns> --context artemis | grep '^<app>-' | grep Succeeded | head -5
 ```
 
 `Succeeded` does NOT mean that the snapshot can be restored. See Gotchas. Look at the age too. The
@@ -42,38 +44,45 @@ volume, not an error.
 A scale to 0 does not stay by itself. Find what owns the replica count:
 
 ```bash
-kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.metadata.ownerReferences}'
+kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.metadata.ownerReferences}' --context artemis
 ```
 
-| Owner                                                      | What to pause                            |
-| ---------------------------------------------------------- | ---------------------------------------- |
-| none (chart resource)                                      | `flux suspend helmrelease -n <ns> <app>` |
-| an operator CR (`InferenceService`, `PocketIDInstance`, …) | Scale the operator to 0, then the app.   |
+| Owner                                                      | What to pause                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------- |
+| none (chart resource)                                      | `flux suspend helmrelease -n <ns> <app> --context artemis` |
+| an operator CR (`InferenceService`, `PocketIDInstance`, …) | Scale the operator to 0, then the app.                     |
 
 `flux suspend kustomization` is NOT enough for a workload that a chart renders, because
 helm-controller restores the replicas. Also, `replicas: null` in app-template means that Flux does
 _not_ put the replicas back after a failure. You must scale up by hand.
 
-Write down the current replica count now. You need it in Step 4.
+Record the current replica count now. You need it in Step 4:
+
+```bash
+kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.spec.replicas}' --context artemis
+```
 
 ## Step 2: Scale down and confirm the volume is released
 
+The guard blocks `kubectl scale` (rule `kubectl-mutation`). Give the first command to the user to
+run:
+
 ```bash
-kubectl scale <deploy|sts> -n <ns> <app> --replicas=0
-kubectl get pods -n <ns> -o jsonpath="{range .items[?(@.spec.volumes[*].persistentVolumeClaim.claimName=='<pvc>')]}{.metadata.name}{'\n'}{end}"
+kubectl scale <deploy|sts> -n <ns> <app> --replicas=0 --context artemis
+kubectl get pods -n <ns> --context artemis -o jsonpath="{range .items[?(@.spec.volumes[*].persistentVolumeClaim.claimName=='<pvc>')]}{.metadata.name}{'\n'}{end}"
 ```
 
 Wait until the second command returns nothing. A pod stuck in `Terminating` holds the volume
-forever. Force it: `kubectl delete pod -n <ns> <pod> --force --grace-period=0`.
+forever. Force it: `kubectl delete pod -n <ns> <pod> --force --grace-period=0 --context artemis`.
 
 ## Step 3: Delete the PVC
 
 `guard-destructive.sh` blocks `kubectl delete ... pvc`. For a planned recreation with a verified
 snapshot, turn off that one rule with the marker. The marker must start the command, as an
-environment assignment. A trailing comment no longer works:
+environment assignment. A trailing comment does not work:
 
 ```bash
-I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl delete pvc -n <ns> <pvc> --wait=false
+I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl delete pvc -n <ns> <pvc> --wait=false --context artemis
 ```
 
 A command that starts with `VAR=` matches no allow-list entry, so the user approves it.
@@ -96,25 +105,28 @@ The controller that recreates the PVC depends on where the PVC is defined:
 On an upgrade with no changes, Helm does not recreate a resource that someone deleted outside Helm.
 The `--force` makes Helm put the PVC back.
 
-Then scale back to the ORIGINAL replica count from Step 1. Do not assume 1.
+Then scale back to the ORIGINAL replica count from Step 1. Do not assume 1. The guard blocks
+`kubectl scale` here too, so the user runs it.
 
 ## Step 5: Verify
 
 ```bash
-kubectl get pvc -n <ns> <pvc>                     # Bound, and a NEW volume name
-kubectl get restore -n <ns> <app> -o jsonpath='{.status.phase}{"\n"}'   # Completed
-kubectl exec -n <ns> <pod> -- ls -la <mountPath>  # real files, not an empty dir
+kubectl get pvc -n <ns> <pvc> --context artemis                     # Bound, and a NEW volume name
+kubectl get restore -n <ns> <app> -o jsonpath='{.status.phase}{"\n"}' --context artemis   # Completed
+kubectl exec -n <ns> <pod> --context artemis -- ls -la <mountPath>  # real files, not an empty dir
 ```
 
-Make sure that the new volume has the current parameters:
+Make sure that the new volume has the current parameters. The DRBD command and how to read it are
+in `.agents/references/storage.md` § miroir `quorum: freeze` means DRBD `on-no-quorum io-error`.
+Do not recreate a volume only to change its quorum mode.
+
+Run that command in a miroir agent on a node that holds a replica of the volume. The volume has
+2 replicas across the control-plane nodes. On a node with no replica, `drbdsetup show` prints
+nothing, and that proves nothing. Find the replica nodes (`diskState: UpToDate`) with:
 
 ```bash
-AGENT=$(kubectl get pods -n miroir-system -o json | jq -r '.items[] | select(.spec.nodeName=="talos-cp-01") | select(.metadata.name|startswith("miroir-agent")) | .metadata.name')
-kubectl exec -n miroir-system "$AGENT" -c agent -- drbdsetup show <pv-name> | grep -E 'quorum|on-no-quorum'
+kubectl get miroirvolume <pv-name> -o jsonpath='{.status.perNode}' --context artemis
 ```
-
-A volume on `freeze`, the current default, prints `on-no-quorum io-error`. A `last-man-standing`
-volume prints no `on-no-quorum` line.
 
 ## After the restore: check for state that did NOT roll back
 
@@ -131,8 +143,9 @@ were absent from disk.
 Other apps split their data the same way and fail more quietly. After you restore one, find out
 what it stores in other places, and look at that first. Do not wait for the fault to show.
 
-If the dangling rows are for superseded artifacts, the apoci retention clears them
-(`gc.retention.perRepo`: `keepLastN: 7`, `maxAge: 24h` for the artemis repo). To clear them at once:
+If the dangling rows are for superseded artifacts, apoci retention clears them. The retention
+values are in the `apoci-federation` skill, § Garbage Collection & Retention. To clear them at
+once:
 
 1. Make sure that the live tag (`main`) is not among them.
 2. Make sure that `peer_blobs` holds no copy.
@@ -168,5 +181,3 @@ If the dangling rows are for superseded artifacts, the apoci retention clears th
   `mise run //kube/clusters/artemis:sync-flux ocirepo flux-system`. Do not sync before the run is
   green. The source then still holds the old revision and applies it again
   (`.agents/instructions/commit-style.md` § The sequence, step 5).
-- The guard gives a false positive. The rule matches the word `pvc` anywhere, so it also blocks the
-  deletion of a _MiroirVolume_ named `pvc-…`. The same marker applies.

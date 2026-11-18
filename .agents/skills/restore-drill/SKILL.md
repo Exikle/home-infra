@@ -12,23 +12,24 @@ recovery path is viable. It does not run a restore.
 Both clusters back up Postgres with the barman-cloud plugin to R2. The plugin keeps its backup
 status on the `ObjectStore/r2-store` in `database`, not on the `Cluster`. On Frostlink, read
 `frostlink.md` in this folder first. Frostlink has no separate WAL volume, and it adds a
-deep-verify check. The steps below are for Artemis.
+deep-verify check. The steps below are for Artemis. Every `kubectl` command pins
+`--context artemis`.
 
 ## Step 1: Confirm Backups Exist
 
 ```bash
-kubectl get backups.postgresql.cnpg.io -n <namespace>
-kubectl get scheduledbackup -n <namespace>
+kubectl get backups.postgresql.cnpg.io -n database --sort-by=.metadata.creationTimestamp --context artemis
+kubectl get scheduledbackup -n database --context artemis
 ```
 
-A healthy backup list shows recent `completed` entries. If the list is empty, or all entries are
+A healthy backup list ends in recent `completed` entries. If the list is empty, or all entries are
 `failed`, escalate. There is no recovery path.
 
 ## Step 2: Check Cluster Status
 
 ```bash
-kubectl describe cluster postgres -n database   # the only CNPG cluster since 2026-09-01
-kubectl -n database get objectstore r2-store -o jsonpath='{.status.serverRecoveryWindow.postgres}'
+kubectl describe cluster postgres -n database --context artemis   # the only CNPG cluster since 2026-09-01
+kubectl -n database get objectstore r2-store -o jsonpath='{.status.serverRecoveryWindow.postgres}' --context artemis
 ```
 
 In the `describe` output, look for these items:
@@ -43,8 +44,12 @@ and `firstRecoverabilityPoint` fields on the `Cluster` stay empty with the plugi
 
 ## Step 3: Verify WAL Archiving
 
+Select the primary by label. The primary can move to another instance, and a replica errors on
+`pg_current_wal_lsn()`:
+
 ```bash
-kubectl exec -n database postgres-1 -- \
+kubectl -n database get pods -l cnpg.io/cluster=postgres,cnpg.io/instanceRole=primary --context artemis
+kubectl exec -n database <primary-pod> --context artemis -- \
   psql -U postgres -c "SELECT pg_walfile_name(pg_current_wal_lsn());"
 ```
 
@@ -52,30 +57,34 @@ The direct signal is the count of ready segments. If the count is above zero, th
 and WAL piles up:
 
 ```bash
-kubectl exec -n database postgres-1 -- \
+kubectl exec -n database <primary-pod> --context artemis -- \
   psql -U postgres -tAc "SELECT count(*) FROM pg_ls_archive_statusdir() WHERE name LIKE '%.ready';"
-kubectl exec -n database postgres-1 -- df -h /var/lib/postgresql/wal
+kubectl exec -n database <primary-pod> --context artemis -- df -h /var/lib/postgresql/wal
 ```
 
-Since 2026-09-01, WAL has its own 8Gi volume. A stall fills that volume, not the data volume.
-`CNPGWalArchiveBacklog` / `CNPGDataVolumeFillingUp` page before it matters. Do not alert on
-`seconds_since_last_archival`. An idle database skips the WAL switch that `archive_timeout`
-forces. So that metric climbs past the timeout although nothing is wrong.
+WAL has its own volume (`spec.walStorage.size` on the `Cluster`). A stall fills that volume, not
+the data volume. `CNPGWalArchiveBacklog` / `CNPGDataVolumeFillingUp` page before it matters. Do
+not alert on `seconds_since_last_archival`. An idle database skips the WAL switch that
+`archive_timeout` forces. So that metric climbs past the timeout although nothing is wrong.
+
+Then make sure that the barman object store is reachable:
+
+```bash
+kubectl -n database get objectstore r2-store -o yaml --context artemis | grep -A5 status
+kubectl -n cnpg-system logs deploy/plugin-barman-cloud --tail=50 --context artemis
+```
+
+A credential problem shows here long before it shows as a missing backup.
 
 ## Step 4: Verify PVC Snapshots (kopiur)
 
-If kopiur is configured for the CNPG PVC, run these commands:
+kopiur backs up app PVCs. barman covers the CNPG data.
 
 ```bash
-kubectl get snapshot,snapshotpolicy,snapshotschedule -n <namespace>
-kubectl describe snapshotpolicy <app> -n <namespace>
+kubectl get snapshotpolicy -A --context artemis
+kubectl get snapshot -n <namespace> --sort-by=.metadata.creationTimestamp --context artemis
+kubectl describe snapshotpolicy <app> -n <namespace> --context artemis
 ```
-
-The VolSync `ReplicationSource`/`ReplicationDestination` objects are gone. The repo removed
-VolSync on 2026-08-01, and those CRDs do not exist in this cluster. The kopiur equivalents are
-`Snapshot` (one backup run), `SnapshotPolicy` (what and how, per app), `SnapshotSchedule` (when)
-and `Restore`. The `components/kopiur/backup` component makes the policy, the schedule, the PVC
-and the `Restore` from `${APP}`.
 
 Read the `SnapshotPolicy` status for a recent successful snapshot. Make sure that the newest
 `Snapshot` for the app completed. A policy with no recent Snapshot is the failure to catch.
@@ -85,13 +94,11 @@ Read the `SnapshotPolicy` status for a recent successful snapshot. Make sure tha
 PITR (point-in-time recovery) restores the database to any moment inside the recovery window.
 
 ```bash
-kubectl -n database get objectstore r2-store -o jsonpath='retention={.spec.retentionPolicy}{"\n"}{.status.serverRecoveryWindow.postgres}{"\n"}'
-kubectl get backups.postgresql.cnpg.io -n database -o json | \
-  python3 -c "import sys,json; bs=[b for b in json.load(sys.stdin)['items'] if b['status'].get('phase')=='completed']; print(f'{len(bs)} completed backups; oldest: {min(b[\"status\"][\"startedAt\"] for b in bs)}') if bs else print('NO COMPLETED BACKUPS')"
+kubectl -n database get objectstore r2-store -o jsonpath='retention={.spec.retentionPolicy}{"\n"}{.status.serverRecoveryWindow.postgres}{"\n"}' --context artemis
 ```
 
 The PITR window runs from `firstRecoverabilityPoint` to now. The `retentionPolicy` of the
-`ObjectStore` limits it, however many base backups the second command counts.
+`ObjectStore` limits it.
 
 ## Output
 
@@ -110,7 +117,7 @@ Recovery path: VIABLE. RPO is at most <archive_timeout> (WAL switch interval).
 ```
 
 RPO (recovery point objective) is the most data that a restore can lose. Read `<archive_timeout>`
-with `kubectl -n database get cluster postgres -o jsonpath='{.spec.postgresql.parameters.archive_timeout}'`.
+with `kubectl -n database get cluster postgres -o jsonpath='{.spec.postgresql.parameters.archive_timeout}' --context artemis`.
 
 If you find issues, report them like this:
 

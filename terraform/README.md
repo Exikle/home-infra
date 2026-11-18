@@ -4,9 +4,8 @@ This directory holds everything in the house that has an API and creates objects
 LXCs, UniFi networks, the bridge, VLANs and routes of the MikroTik switch, and TrueNAS datasets
 and shares. Run `ls terraform/stacks` for the list of stacks.
 
-Flux cannot see this directory. The root Kustomization is scoped to
-`./kube/clusters/<cluster>/apps`.
-Flux never reconciles anything here into the cluster.
+Flux cannot see this directory. CI builds the artifact of each cluster from `kube/` only
+(`.forgejo/workflows/oci-push.yaml`). So Flux never reconciles anything here into the cluster.
 
 ## The ownership rule
 
@@ -14,8 +13,7 @@ Flux never reconciles anything here into the cluster.
 > Flux owns everything inside the cluster.
 > Ansible owns the mutable Linux boxes that are not Talos.
 
-Never let two tools own the same object. Every failure that people reported with this layout
-comes from that.
+Never let two tools own the same object.
 
 ## Layout
 
@@ -68,7 +66,7 @@ The full reasons, including why the team rejected an NFS share on `atlas`, are i
 2. Declare `backend "local" {}`. The state goes beside the stack, and you commit it.
 3. Import the existing objects. Do not create them. Success is a `tofu plan` that reports no
    changes.
-4. If the stack adds a provider, write down why in `.agents/references/terraform.md`
+4. If the stack adds a provider, write down the reason in `.agents/references/terraform.md`
    § Provider choices, and why.
 
 ## Warning: UniFi

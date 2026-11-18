@@ -62,8 +62,7 @@ Each kind of change lives in one file:
 
 ## Step 2: Capture the live baseline first
 
-`deploy-app` does not have this step. It is the main reason why a change to an app is safer than a
-new app. A running object exists to compare against.
+Compare the tree with the running object before you edit:
 
 ```bash
 mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
@@ -115,7 +114,8 @@ will catch.
 ## Step 6: Test and commit
 
 Read `.agents/skills/modules/test-and-commit.md` and follow it. Edit in a worktree. Run
-`mise run //:wt:new <type>/<slug>` before the first edit of Step 1 (`AGENTS.md` rule 7).
+`mise run //:wt:new <type>/<slug>` before Step 1, so that every edit lands in the worktree
+(`AGENTS.md` rule 7).
 
 If anything fails, read `.agents/skills/modules/common-issues.md`.
 
@@ -130,8 +130,6 @@ If anything fails, read `.agents/skills/modules/common-issues.md`.
   and every offline check passes. No validation catches this change. Put per-app kustomize
   overrides in `app/kustomization.yaml` instead. See `references/flux-patterns.md` § The root
   Kustomization overwrites every child's `spec.patches`.
-- The template keys of an ExternalSecret must match the 1Password field names exactly. A mismatch
-  gives an empty secret with no error. The app fails later with a confusing message.
 - Back up the data and get the user's go-ahead before you remove a component. When the ks has
   `prune: true`, Flux deletes what the component created. Almost every ks has it. If you drop
   `components/kopiur/backup`, Flux deletes the `SnapshotPolicy`, the `SnapshotSchedule` and the

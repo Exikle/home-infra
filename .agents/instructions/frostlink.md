@@ -6,26 +6,26 @@ paths:
 
 # Frostlink — differences from Artemis
 
-Frostlink is a single-node Talos cluster under `kube/clusters/frostlink/`. `cluster-conventions.md`
-and `yaml-conventions.md` also load here and hold the shared rules. The rules in this file win
-over any rule that those files label (Artemis). Tasks are `mise run //kube/clusters/frostlink:<task>`.
+Frostlink is a single-node Talos cluster under `kube/clusters/frostlink/`.
+`cluster-conventions.md` and `yaml-conventions.md` also load here and hold the shared rules. The
+rules in this file win over any rule that those files label (Artemis). Tasks are
+`mise run //kube/clusters/frostlink:<task>`.
 
 ## Apps
 
 - Every app is `ks.yaml` plus `app/`. The `app/` folder holds `kustomization.yaml`,
   `ocirepository.yaml` and `helmrelease.yaml`. Routes and ExternalSecrets are inline in the
   HelmRelease values.
-- A directory with no HelmRelease also keeps a standalone `externalsecret.yaml` (`clusterissuer`,
-  `postgres`, `kopiur`, `certificates`). Set `target.name` explicitly. With one entry, the object
-  gets the name of the release. Use `forceRename` only to keep an old name.
-- Never set `TZ`. k8tz sets it.
+- A directory with no HelmRelease also keeps a standalone `externalsecret.yaml`. To list every
+  standalone one, run `find kube/clusters/frostlink -name externalsecret.yaml`. Set `target.name`
+  explicitly. With one entry, the object gets the name of the release. Use `forceRename` only to
+  keep an old name.
 
 ## Single node
 
 - Workloads schedule on the control plane (`taints: $patch: delete` in
   `kube/clusters/frostlink/talos/patches/controlplane.yaml`). No `nodeSelector` is needed.
-- There is no Rook-Ceph. Node work: `.agents/references/oci-talos.md`. Rebuild:
-  `.agents/references/oci-rebuild.md`.
+- Node work: `.agents/references/oci-talos.md`. Rebuild: `.agents/references/oci-rebuild.md`.
 
 ## Storage
 
@@ -57,9 +57,10 @@ Frostlink has one shared CNPG `Cluster/postgres` with `Pooler/pooler-rw`, and on
 ## Ingress
 
 - There is one gateway: `external-gateway` in the `network` namespace. There is no
-  `internal-gateway` and no `edge-gateway`. Publishing a service: `.agents/references/towonel.md`.
-  Network detail: `.agents/references/oci-networking.md`.
-- There is no Cloudflare tunnel.
+  `internal-gateway` and no `edge-gateway`. To publish a service, attach its route to
+  `external-gateway`. external-dns then makes its DNS record (`oci-networking.md` § Gateway and
+  § DNS).
+- Network detail: `.agents/references/oci-networking.md`.
 
 ## Common mistakes
 

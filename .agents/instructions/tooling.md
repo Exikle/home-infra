@@ -10,9 +10,7 @@ file does not restate them. A duplicate drifts.
 ## mise tasks
 
 Tasks run with `mise run //<folder>:<task>`. The folder is the task's own path from the repo
-root. Each cluster folder sets its own `KUBECONFIG`, `TALOSCONFIG` and `KUBE_CONTEXT` in
-`kube/clusters/<cluster>/mise.toml`. The repo root sets none of them, so a cluster task never
-uses the wrong cluster.
+root. `AGENTS.md` says which folder sets the cluster context, and it wins.
 
 ```bash
 mise run //kube/clusters/artemis:suspend-ks <ns> <ks>        # suspend ONE ks; run it for the root too, it does not bundle
@@ -58,10 +56,9 @@ Both clusters share the task names `apply-ks`, `delete-ks`, `suspend-ks`, `resum
   runs `flux build kustomization` against the live root instead.
 
 For the full task list, run `mise tasks --all`. A plain `mise tasks` at the repo root lists only
-the root tasks. Each folder keeps its tasks in its own `mise.toml`: `kube/clusters/<cluster>/`,
-`kube/clusters/<cluster>/talos/`, `kube/clusters/<cluster>/bootstrap/`, `terraform/`, `ansible/`
-and `ai/`. `[monorepo] config_roots` in `.mise/config.toml` lists these folders. The root holds
-the hidden `log` and `template` tasks and the `wt:` tasks.
+the root tasks. Each folder in `[monorepo] config_roots` (`.mise/config.toml`) keeps its tasks in
+its own `mise.toml`. The root holds the hidden `log` and `template` tasks, the `wt:` tasks and
+`land`.
 
 Confirm-gated tasks need `mise run --yes`. These tasks ask first:
 
@@ -111,36 +108,31 @@ hardcode a full tool name from this file. List the tools, and match on the serve
 tool part of the name. Within a server, tools are `<target>_<tool>` (for example
 `victoria-logs_query`).
 
-| Server       | Capability                                                                                                                                                                               |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-ops`     | k8s (pods, logs, exec, resources, events, scale), Flux (read-only), Forgejo, GitHub, Home Assistant                                                                                      |
-| `ai-general` | Grafana, SearXNG web search + URL fetch, VictoriaLogs (LogsQL), Context7 docs, SparkyFitness, Sonarr / Radarr / Prowlarr, seerr (formerly Jellyseerr). The app and its tools are `seerr` |
-| `memini`     | Cross-session semantic memory                                                                                                                                                            |
+`ai-ops` is the privileged tier: k8s, Flux, Forgejo, GitHub and Home Assistant.
+`ai-general` holds read and lookup tools (Grafana, SearXNG, VictoriaLogs, Context7, the media
+apps). `memini` is cross-session memory. To see which target is in which tier, run
+`grep -n -B1 'name:' kube/clusters/artemis/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml`.
 
 - For read-only inspection of Artemis, use the k8s MCP tools, not `kubectl`. They are
   pre-authenticated and structured, and they have no shell quoting to get wrong.
-- The MCP k8s tools point at Artemis only. For Frostlink, use `kubectl get ... --context frostlink`.
-  Put the flag after the verb, so that `Bash(kubectl get:*)` still matches. For Talos on
+- For Frostlink (`AGENTS.md` rule 2), put `--context frostlink` after the verb:
+  `kubectl get ... --context frostlink`. Then `Bash(kubectl get:*)` still matches. For Talos on
   Frostlink, use `talosctl ... --talosconfig kube/clusters/frostlink/talosconfig`. The tool calls
   of an agent do not get the cluster kubeconfig of a mise shell. `~/.zshenv` merges both
   clusters, with `artemis` as the current context. So a bare `kubectl` hits Artemis with no
   warning.
 - For web lookups, use the SearXNG tools. Never use a built-in web-search tool.
-- There is no repo-wide `KUBECONFIG` or `TALOSCONFIG`. The files of each cluster live in its own
-  folder (`kube/clusters/<cluster>/kubeconfig`, `kube/clusters/<cluster>/talosconfig`,
-  gitignored). `kube/clusters/<cluster>/mise.toml` sets them, with `KUBE_CONTEXT`, for the tasks
-  of that cluster. Outside a task, pass `--context` explicitly.
+- The `kubeconfig` and `talosconfig` of each cluster are in its own folder
+  (`kube/clusters/<cluster>/`, gitignored). Outside a task, pass `--context` explicitly.
 - There are five MCP registration files across this machine. If you change a tier, edit all of
   them. `.agents/references/memory-config.md` § Five registration files is canonical.
 
 ## Subagents
 
 How and when to delegate is in `~/.agents/AGENTS.md` § Delegation and context. The Bash-call
-rules are in `~/.agents/rules/bash-calls.md`. These rules are specific to the clusters:
+rules are in `~/.agents/rules/bash-calls.md`. One rule is specific to the clusters.
 
-- Name the forbidden verbs in the brief. "Follow the repo conventions" is not enough. Write
-  "do not commit, do not push, do not run `mise run //kube/clusters/artemis:apply-ks`" in those
-  words. For Frostlink, also write "use `kubectl --context frostlink`, not the MCP tools".
-  Otherwise the agent reports the state of Artemis as the state of Frostlink.
-- `mise run //kube/clusters/artemis:apply-ks` applies the tree of the worktree that you run it
-  from (`AGENTS.md` rule 7).
+Name the forbidden verbs in the brief. "Follow the repo conventions" is not enough. Write "do not
+commit, do not push, do not run `mise run //kube/clusters/artemis:apply-ks`" in those words. For
+Frostlink, also write "use `kubectl --context frostlink`, not the MCP tools". Otherwise the agent
+reports the state of Artemis as the state of Frostlink.

@@ -71,11 +71,11 @@ kubectl get snapshot -A --sort-by=.metadata.creationTimestamp --context frostlin
 kubectl -n kopiur-system get clusterrepository r2 -o yaml --context frostlink | grep -A10 status
 ```
 
-The cadence differs per app on purpose. Most are hourly, `vm-single` is daily (`H 3 * * *`) and
-`apoci` is six-hourly. Judge staleness against the `KOPIUR_SCHEDULE` in the `ks.yaml` of the app,
-not against one global expectation. `KopiurPolicyBackupStale` in
-`kube/clusters/frostlink/apps/observability/vm-alert/app/vmrule.yaml` encodes the same
-thresholds per policy.
+The cadence differs per app on purpose. Most apps are hourly.
+`grep -rn KOPIUR_SCHEDULE kube/clusters/frostlink/apps` lists the overrides. Judge staleness
+against the schedule of the app, not against one global expectation. `KopiurPolicyBackupStale` in
+`kube/clusters/frostlink/apps/observability/vm-alert/app/vmrule.yaml` encodes the same thresholds
+per policy.
 
 ## Step 5: The only check that proves the data comes back
 
@@ -88,10 +88,9 @@ kubectl get snapshotpolicy -A -o custom-columns=NS:.metadata.namespace,NAME:.met
 kubectl -n <ns> get snapshotpolicy <name> -o jsonpath='{.status}' --context frostlink
 ```
 
-Deep verify (`components/kopiur-deep-verify`) runs monthly (`H 5 1 * *`) on `gotosocial` and
-`headscale`. Read each policy that has a `DEEP` schedule. If its last deep verification is older
-than about 5 weeks, or failed, say so plainly. Until it passes, the rest of the Kopiur report
-rests only on what Kopiur says about itself.
+Deep verify (`components/kopiur-deep-verify`) runs monthly. Read each policy that has a `DEEP`
+schedule. If its last deep verification is older than about 5 weeks, or failed, say so plainly.
+Until it passes, the rest of the Kopiur report rests only on what Kopiur says about itself.
 
 ## Step 6: Confirm a PITR window
 
@@ -99,22 +98,22 @@ PITR (point-in-time recovery) restores the database to any moment inside the rec
 
 ```bash
 kubectl -n database get objectstore r2-store -o jsonpath='retention={.spec.retentionPolicy}{"\n"}{.status.serverRecoveryWindow.postgres}{"\n"}' --context frostlink
-kubectl -n database get backups.postgresql.cnpg.io -o json --context frostlink | python3 -c "import sys,json; bs=[b for b in json.load(sys.stdin)['items'] if b['status'].get('phase')=='completed']; print(f'{len(bs)} completed backups; oldest {min(b[\"status\"][\"startedAt\"] for b in bs)}') if bs else print('NO COMPLETED BACKUPS')"
 ```
 
-The PITR window runs from `firstRecoverabilityPoint` to now. The `ObjectStore` retention is
-`14d`, so the window cannot exceed that, however many base backups the second command counts.
-Use the report format of SKILL.md, and add a `Deep verify` line. End with "Single node: recovery
-is a restore, never a failover."
+The PITR window runs from `firstRecoverabilityPoint` to now. The `retentionPolicy` of the
+`ObjectStore` limits it. Use the report format of SKILL.md, and add a `Deep verify` line. End with
+"Single node: recovery is a restore, never a failover."
 
 ## Notes
 
 - Do not run a test restore unless the user asks for one. CNPG recovery overwrites the cluster,
   and `mise run //kube/clusters/frostlink:restore-pvc` deletes the PVC. For a real restore, use
   `kopiur-restore`.
-- If `Snapshot` objects are missing entirely, make sure that the `Restore` CR was not made before
-  the first snapshot of the app. `.agents/references/openebs-zfs.md` § Restore covers the silent
-  empty-restore failure that this drill must catch early.
+- If `Snapshot` objects are missing, read the status of the `SnapshotSchedule` and of
+  `ClusterRepository/r2`, and the credentials. A Restore pinned to `NoSnapshot` is a separate
+  fault. It does not stop snapshots. It gives a silent empty restore. To audit Restores for it, use
+  `.agents/references/openebs-zfs.md` § The Restore CR pins its snapshot resolution at creation —
+  permanently.
 - If you repoint a failing R2 credential at the wrong 1Password item, the credential is
   unrecoverable. Read `.agents/references/openebs-zfs.md`
   § "The R2 credential key is unrecoverable if repointed" before you touch anything in

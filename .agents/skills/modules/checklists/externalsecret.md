@@ -1,11 +1,13 @@
 # Checklist: ExternalSecret
 
-Run this checklist if `helmrelease.yaml` has `values.externalSecrets`, or if a standalone `externalsecret.yaml`
-is present (only allowed for the exceptions in `cluster-conventions.md` § Secrets).
+Run this checklist if `helmrelease.yaml` has `values.externalSecrets`, or if a standalone
+`externalsecret.yaml` is present. A standalone file is allowed only for the exceptions in
+`cluster-conventions.md` § Secrets.
 
 Mark each item PASS, FAIL, or N/A.
 
-Frostlink adds one check: `target.name` is set explicitly.
+Frostlink adds one house-style check: `target.name` is set explicitly
+(`templates/externalsecret.md`).
 
 | #   | Check                                                                               | Result |
 | --- | ----------------------------------------------------------------------------------- | ------ |

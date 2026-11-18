@@ -3,8 +3,10 @@
 Add this only if the app needs secrets from 1Password. For app-template apps, put it inline in
 `helmrelease.yaml`, not in a separate file.
 
-Frostlink: use the key `app:` (not `env:`) and set `target.name: <app>`. Reference the Secret from a
-container with `envFrom: [{secretRef: {name: <app>}}]` or by name in `secretKeyRef`.
+Frostlink house style: name the entry `app` (not `env`), and set `target.name` and `forceRename`
+to the Secret name. With one entry, the chart already uses the name of the release, so this
+changes no behaviour. Reference the Secret from a container with
+`envFrom: [{secretRef: {name: <app>}}]`, or by name in `secretKeyRef`.
 
 ```yaml
 spec:
@@ -27,12 +29,13 @@ Reference it from a container with `envFrom: [{externalSecretRef: {identifier: e
 
 ## Notes
 
-- `secretStoreRef.name` must be `onepassword-connect` (not `onepassword`, not `1password-connect`).
+The store name, the API version and the field-name rule are in `cluster-conventions.md`
+§ Secrets, which wins. These notes are only about this template:
+
 - `dataFrom.extract.key` is the exact name of the 1Password item.
-- Template field names must match 1Password field names exactly. A mismatch returns an empty secret with no error.
 - Naming: with one entry, the ExternalSecret and its Secret take the name of the release. With
-  several entries, they are named `<release>-<id>`. `target.name` overrides the Secret name, `forceRename` the
-  ExternalSecret name.
+  several entries, they are named `<release>-<id>`. `target.name` overrides the Secret name.
+  `forceRename` overrides the ExternalSecret name.
 - The chart sets `target.deletionPolicy: Delete` by default.
 - Add `onepassword-connect` to `dependsOn` in `ks.yaml` whenever an ExternalSecret is present.
 - A standalone `externalsecret.yaml` (`apiVersion: external-secrets.io/v1`, no `namespace:`,

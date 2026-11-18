@@ -31,20 +31,10 @@ Frostlink differences:
 
 | #   | Check                                                                                                                                                                                                                               |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A5  | `resources.requests` or `resources.limits` is missing. The pod can starve its neighbours, or be OOM-killed with no warning.                                                                                                         |
-| A6  | Liveness or readiness probes, or both, are not configured (`enabled: false` or absent). Kubernetes cannot detect hangs or failed startups.                                                                                          |
 | A6a | The probe paths are weak. The probes hit `/`, not a dedicated `/ping`, `/health`, or `/healthz` endpoint. This is noisy and can hide real failures.                                                                                 |
 | A7  | Do not flag a `ks.yaml` that has no `retryInterval`. The root Kustomization injects `retryInterval: 1m` on both clusters. Flag a `ks.yaml` that overrides it with a long value (`.agents/references/flux-patterns.md` § Key Rules). |
 | A8  | The `dependsOn` chain looks incomplete. Make sure that the real dependencies of the app (storage, secrets, CNPG) are listed.                                                                                                        |
 | A14 | The app uses static `replicas`, but it is a stateless web-facing workload. Consider an HPA (`minReplicas`/`maxReplicas`) for traffic-driven scaling instead of a hardcoded count.                                                   |
-
----
-
-## Image Hygiene
-
-| #   | Check                                                                                                                                      |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| A9  | The container image uses a mutable tag (`latest`, or bare semver with no SHA digest). It is not reproducible. Recommend `vX.Y.Z@sha256:…`. |
 
 ---
 
@@ -54,7 +44,6 @@ Frostlink differences:
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A10 | The app is on `edge-gateway` (public), but it has no SecurityPolicy OIDC or equal auth. Make sure that this is intentional, or recommend a gate: `components/tinyauth` (standard) or `components/envoy-oidc`. |
 | A11 | Secrets go in as environment variables, but the app supports secrets mounted as files. `kubectl describe pod` shows env vars. If the app supports it, recommend secretMount.                                  |
-| A17 | No AppArmor or Seccomp profile is configured. Consider `seccompProfile.type: RuntimeDefault` in `defaultPodOptions.securityContext` as a low-cost hardening baseline.                                         |
 
 ---
 
@@ -80,6 +69,4 @@ Frostlink differences:
 | #   | Check                                                                                                                                                                                          |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A12 | The app has several logical components (for example app + database + worker) in one HelmRelease. Consider separate kustomizations for them, so that each reconciles and rolls back on its own. |
-| A13 | The app runs a dedicated Postgres or Redis instead of the shared `database` cluster. Flag it, unless a documented reason says that it cannot share.                                            |
-| A15 | No `nodeSelector` or `affinity` rules. If the cluster has mixed nodes (for example high-memory, GPU, or spot), consider a pin to cheaper nodes, or a preference for them.                      |
 | A16 | The app uses a `Deployment` controller, but it mounts a PVC and needs a stable pod identity. If restart order matters, consider a `StatefulSet` (`type: statefulset` in app-template).         |

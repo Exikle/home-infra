@@ -5,8 +5,8 @@ description: Take a fast read on overall cluster health (failing pods, unready F
 
 # Skill: Cluster Status
 
-This skill is a quick, read-only health digest of home-infra. It produces a 🟢/🟡/🔴 summary for
-each layer.
+This skill is a quick, read-only health digest of home-infra. It gives a 🟢/🟡/🔴 summary for
+each layer. The commands below run against Artemis. § Frostlink says how to point them at Frostlink.
 
 ## Run
 
@@ -60,7 +60,7 @@ noise.
 | 🟢     | Flux        | All kustomizations + helmreleases ready       |
 | 🟡     | Pods        | 1 pending: foo-bar-xxx in media               |
 | 🔴     | Nodes       | talos-w-02 NotReady (15m)                     |
-| 🟢     | Events      | No warnings in last 15 min                    |
+| 🟢     | Events      | No new warnings in the last 20 events         |
 ```
 
 ## Layers (check in order)
@@ -69,7 +69,8 @@ noise.
 2. Nodes: NotReady nodes. `kubectl get nodes` lists every node (ymir included).
 3. Pods: pods that are not Running, and Running pods with a container that is not ready. Skip
    Completed (Succeeded) job pods.
-4. Events: Warning events in the last 15 minutes.
+4. Events: the 20 most recent Warning events. The command sorts by time. It does not filter by
+   time, so read the age of each event.
 
 ## Status Key
 

@@ -33,8 +33,9 @@ components:
     - ../../../../components/tinyauth
 ```
 
-Also remove any existing `oidcclient.yaml` for that app, and its `pocket-id-operator` dependency.
-tinyauth is now the OIDC client, not the app.
+If the app has no in-app login, remove its `oidcclient.yaml` and its `pocket-id-operator`
+dependency. tinyauth is then the only OIDC client. If the app uses Pocket-ID for its own user
+model, keep both.
 
 Do not add a `dependsOn` on tinyauth. The repo removed availability-gating edges on purpose. The
 `SecurityPolicy` applies whether tinyauth is healthy or not, and Envoy programs it when the backend
@@ -49,13 +50,13 @@ grant.
 
 1. Read the `spec.inputs` of that `ResourceSet`.
 2. If the namespace is already in the list (`media` is), skip the rest of this step.
-3. If it is not, add one line:
+3. If it is not, add one line for the new namespace, in alphabetical position:
 
 ```yaml
 spec:
     inputs:
         - namespace: media
-        - namespace: <new-namespace> # add this
+        - namespace: <new-namespace>
 ```
 
 Do not create a per-app or per-namespace file. The repo tried that and reverted it twice. Also,
@@ -124,16 +125,16 @@ the mechanics.
 Follow `.agents/skills/modules/test-and-commit.md`. Edit in a worktree:
 `mise run //:wt:new feat/<slug>`.
 
-1. Suspend the root and each target.
-2. Apply both `security tinyauth` and the app.
-3. Request the app and read the headers:
+1. Run `test-ks` twice: once for `security tinyauth`, and once for the namespace and
+   Kustomization of the app. `test-ks` takes one namespace for each call.
+2. Request the app and read the headers. Expect `HTTP/2 401`, and an `x-tinyauth-location` header
+   that points at the login of tinyauth:
 
 ```bash
-curl -sI https://<app-hostname>/ 2>&1 | head -5
-# expect: HTTP/2 401, x-tinyauth-location pointing at tinyauth's login
+curl -sI https://<app-hostname>/
 ```
 
-4. Dump the parsed configuration, to make sure that the ACL landed. `tinyauth config` is the
+3. Dump the parsed configuration, to make sure that the ACL landed. `tinyauth config` is the
    fastest way to see what tinyauth actually uses:
 
 ```bash
@@ -143,7 +144,7 @@ kubectl exec -n security <tinyauth-pod> -c app -- /tinyauth/tinyauth config
 > Filter the dump before you paste it anywhere: `| grep -vi 'password\|secret'`. The dump is not
 > redacted. It prints `ldap.bindPassword` and the OIDC `clientSecret` in plaintext.
 
-5. Do a negative test against your own account. This is the only reliable way to make sure that
+4. Do a negative test against your own account. This is the only reliable way to make sure that
    the group ACL works:
     1. Temporarily set the group requirement to a group that does not exist.
     2. Make sure that tinyauth denies your own authenticated session.

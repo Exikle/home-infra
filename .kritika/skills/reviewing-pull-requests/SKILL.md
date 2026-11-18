@@ -9,16 +9,15 @@ Flux reconciles `kube/` from `main`. A merge rolls out within minutes, and there
 cluster. Secrets are ExternalSecrets from 1Password. Judge key names and mappings from the
 manifests.
 
-The repo runs two clusters:
+`AGENTS.md`, which you get as context, describes the two clusters and the folder layout. Three
+facts matter most for a review:
 
-- Artemis: many nodes, at home. Its apps are under `kube/clusters/artemis/apps/<namespace>/<app>/`.
-- Frostlink: one node on Oracle Cloud, the public front door for both domains. Its apps are under
-  `kube/clusters/frostlink/apps/<namespace>/<app>/`. A restart of a core pod there (Cilium,
-  CoreDNS, the Envoy gateway, CNPG) is an outage of every public site.
-- `kube/base/<namespace>/<app>/` holds one copy of an app that both clusters run. A change there
-  reaches both clusters in one merge. Say so in the summary, and judge it against each cluster.
-- `kube/components/` and `kube/clusters/<cluster>/components/` hold kustomize components that many
-  apps include. A change there reaches every app that lists the component.
+- Frostlink is one node. A restart of a core pod there (Cilium, CoreDNS, the Envoy gateway, CNPG)
+  is an outage of every public site.
+- A change under `kube/base/` reaches both clusters in one merge. Say so in the summary, and judge
+  it against each cluster.
+- A change under `kube/components/` or `kube/clusters/<cluster>/components/` reaches every app
+  that lists the component.
 
 Use the sections that fit the pull request: a Renovate update (a `renovate/` branch), a change
 under `kube/`, a change under `terraform/`, and what a check proves, for every review.
@@ -89,20 +88,14 @@ came up empty, is enough.
 `cluster.json`) decide how Renovate treats the update. The presets are not in the checkout. Read
 them with `curl -s https://git.dcunha.io/exikle/renovate-config/raw/branch/main/<file>`.
 
-Do not assume whether an update merges on its own. Read `.renovaterc.json5` and its presets for
-the package and the folder at hand. The rules differ by package, by update type and by cluster:
+Do not assume whether an update merges on its own. The rules differ by package, by update type
+and by cluster. Read `.renovaterc.json5` and its presets for the package and the folder at hand.
+They win over anything in this skill.
 
-- Many patch, minor and digest updates merge on their own when every required check is green.
-  Your `Kritika / Review` status is one of those checks. For these PRs, the review is the last
-  look before the merge.
-- A 0.x minor does not merge on its own.
-- Under `kube/clusters/frostlink/`, only trusted container digests (`/home-operations/`) merge on
-  their own, and Grafana dashboards do not merge on their own.
-- Most majors do not merge on their own. Grafana dashboard majors outside Frostlink do.
-- Some packages are held by name and never merge on their own. Examples are Talos, the Kubernetes
-  components, Cilium, CNPG, external-dns, pocket-id, hermes-agent, Terraform providers and
-  Ansible collections. Their PR body carries a ⛔ or ⚠️ note that says why. The full list is in the
-  presets.
+- An update that merges on its own waits until every required check is green. Your
+  `Kritika / Review` status is one of those checks. For these PRs, the review is the last look
+  before the merge.
+- A package that is held back carries a ⛔ or ⚠️ note in its PR body that says why.
 - `groupName` rules make one PR move several packages. Cover each package.
 
 If a label or a title does not agree with these rules, add a note.
@@ -124,9 +117,13 @@ flate build hr <name> -n <namespace> --path . --krmignore .kritika/frostlink.krm
 
 For a change under `kube/base/` or `kube/components/`, render it on both clusters.
 
+The two `.kritika/*.krmignore` files copy `FLUX_ARTIFACT_IGNORE` from
+`kube/clusters/<cluster>/mise.toml`. If a pull request changes that value, it must update the
+matching krmignore file too. A mismatch is a finding.
+
 - A failure that the change causes is a finding on the changed line: a value that the chart schema
   rejects, or a template that errors on the values of this repo.
-- A failed input that the change does not touch, or a source that flate could not fetch, says
+- A failed input that the change does not touch, or a source that flate failed to fetch, says
   nothing about the change.
 - A render is an offline estimate. It leaves out CRDs and Secrets, and its templates see the
   Kubernetes version bundled with flate, not the version of the cluster.
@@ -145,7 +142,7 @@ it. Search `kube/` for:
   patches, and the custom resources that other apps create from the CRDs of the dependency.
 
 An app that you configure in its own UI keeps that configuration on its volume, not in git. A
-search of this repo proves nothing about it. Say that you could not verify it.
+search of this repo proves nothing about it. Say that you did not verify it.
 
 Before you suggest a rename or a new value, make sure that it is right. Read it in the upstream PR
 or in the chart template at the new tag. If you cannot, make it a check to do after the merge, not
@@ -176,7 +173,7 @@ A failed validate is not always caused by the change. Before you report it as a 
 4. If only the pull request fails, report each new error as a finding on the line that causes it.
 
 A provider bump that moves a resource schema also changes what `tofu plan` does against the live
-system. You cannot run a plan, because it needs credentials. Say that you could not check the plan.
+system. You cannot run a plan, because it needs credentials. Say that you did not check the plan.
 
 ## What a check proves
 
@@ -186,7 +183,7 @@ system. You cannot run a plan, because it needs credentials. Say that you could 
   that every node runs it. Say that the line rests on the pin.
 - Put the evidence in the claim: the value you found and the file it came from, or the source that
   says so.
-- What the repo cannot show is not a check. Say what you could not verify, and what to look at
+- What the repo cannot show is not a check. Say what you did not verify, and what to look at
   after the merge.
 
 ## The confidence score

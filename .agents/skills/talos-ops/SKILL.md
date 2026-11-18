@@ -6,7 +6,8 @@ compatibility: Requires `talosctl` (mise pins it to the cluster's running Talos 
 
 # Skill: Talos Operations
 
-Node operations for home-infra (Talos Linux with render-config / Jinja2 templates).
+This skill covers node operations on Talos Linux. Node configuration comes from Jinja2 templates,
+which `render-config` renders.
 
 > Also read `.agents/references/talos.md` for node IPs and configuration background.
 
@@ -17,16 +18,19 @@ Goal: apply one Talos change to the named node or nodes. Then make sure that the
 healthy.
 
 Success means three things. The node reports the intended configuration. The node is `Ready`. Its
-static pods run (`talosctl get staticpods`). This repo has hit a Ready node with missing
-control-plane static pods before. That failure shows only on the next reboot.
+static pods run (`talosctl get staticpods`). This repo once had a Ready node with missing
+control-plane static pods. That failure shows only on the next reboot.
 
-Stop when the change is applied and verified on the nodes that the user named. Do NOT roll on to
-other nodes. Do NOT start a version upgrade that the user did not ask for. Do NOT reboot a second
+Stop when the change is applied and verified on the nodes that the user named. Do not roll on to
+other nodes. Do not start a version upgrade that the user did not ask for. Do not reboot a second
 node until the first is back and healthy.
 
 Edit in a worktree (`mise run //:wt:new <type>/<slug>`, `AGENTS.md` rule 7). Every write verb below
-asks for confirmation. So from a non-interactive shell, put `--yes` before the module:
+asks for confirmation. So from a non-interactive shell, put `--yes` before the task path:
 `mise run --yes //kube/clusters/artemis/talos:apply-node <node>` (`.agents/instructions/tooling.md`).
+
+Outside a mise task, `talosctl` has no configuration. `~/.talos/config` holds no contexts. So pass
+`--talosconfig kube/clusters/artemis/talosconfig` to every direct `talosctl` command.
 
 ## Config Changes (no reboot)
 
@@ -42,12 +46,13 @@ mise run //kube/clusters/artemis/talos:render-config <node>
 mise run --yes //kube/clusters/artemis/talos:apply-node <node> --mode=reboot
 ```
 
-If the node runs stateful workloads, drain it first:
+If the node runs stateful workloads, drain it first. The guard blocks `kubectl drain` for agents
+(rule `kubectl-mutation`). Give the drain command to the user to run.
 
 ```bash
-kubectl drain <node> --ignore-daemonsets --delete-emptydir-data
+kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --context artemis
 # apply + reboot
-kubectl uncordon <node>
+kubectl uncordon <node> --context artemis
 ```
 
 If you mean to empty the node, use `drain`. Do not use a bare `cordon`
@@ -57,8 +62,8 @@ If you mean to empty the node, use `drain`. Do not use a bare `cordon`
 
 Schematics are per node type, not per node. To list them, run
 `ls kube/clusters/artemis/talos/schematics`. `mise run //kube/clusters/artemis/talos:schematic-type <node>`
-maps a node name to its type. It is hidden, and it is in `kube/clusters/artemis/talos/mise.toml`.
-Extensions need a new schematic ID and a reboot:
+maps a node name to its type. That task is hidden, and it is in
+`kube/clusters/artemis/talos/mise.toml`. An extension needs a new schematic ID and a reinstall:
 
 1. Edit `kube/clusters/artemis/talos/schematics/<type>.yaml`.
 2. Run `mise run //kube/clusters/artemis/talos:schematic-id <type>`. It registers the schematic with
@@ -75,7 +80,7 @@ Extensions need a new schematic ID and a reboot:
 ## Never change a node by hand
 
 Every Artemis node change goes through its `.yaml.j2` template and `apply-node`. Do not use
-`talosctl patch machineconfig` or `talosctl apply-config` directly:
+`talosctl patch machineconfig` or `talosctl apply-config` directly. There are two reasons:
 
 - `apply-config` replaces the whole machine configuration. So a partial file strands the node.
 - A full configuration passed to `patch` duplicates array fields such as `machine.files`. The next
@@ -86,27 +91,38 @@ The guard blocks `talosctl patch machineconfig` in this repo.
 ## Node Health
 
 ```bash
-talosctl health -n <node-ip>
-talosctl dmesg -n <node-ip> | tail -30
-talosctl version -n <node-ip>
-talosctl get machineconfig -n <node-ip> -o yaml
+talosctl --talosconfig kube/clusters/artemis/talosconfig health
+talosctl --talosconfig kube/clusters/artemis/talosconfig dmesg -n <node-ip> | tail -30
+talosctl --talosconfig kube/clusters/artemis/talosconfig version -n <node-ip>
+talosctl --talosconfig kube/clusters/artemis/talosconfig get machineconfig -n <node-ip> -o yaml
 ```
+
+`talosctl health` checks the whole cluster. Run it once, not once per node.
 
 ## Automated Upgrades (tuppr)
 
-Before you upgrade by hand, look at tuppr. It manages Talos and Kubernetes upgrades through
-cluster-scoped CRDs:
+tuppr owns Talos and Kubernetes upgrades through cluster-scoped CRDs. Look at it before you upgrade
+anything by hand:
 
 ```bash
-kubectl get talosupgrades,kubernetesupgrades
+kubectl get talosupgrades,kubernetesupgrades --context artemis
 ```
+
+To upgrade, edit the version in the tuppr CR and merge (`talos.md` § Automated Upgrades — owned by
+tuppr, which wins).
 
 ## Manual Talos Upgrade (single node)
 
+Use this only when tuppr is not available. tuppr starts an upgrade whenever the node version differs
+from the CR. So if git still holds the old version, tuppr downgrades the node again. Commit the
+version bump first, or suspend `tuppr-upgrades` with the root (`test-ks` does both, see
+`commit-style.md` § The sequence). The user runs the `kubectl drain` line, because the guard
+blocks it for agents.
+
 ```bash
-kubectl drain <node> --ignore-daemonsets --delete-emptydir-data
+kubectl drain <node> --ignore-daemonsets --delete-emptydir-data --context artemis
 mise run --yes //kube/clusters/artemis/talos:upgrade-node <node>
-kubectl uncordon <node>
+kubectl uncordon <node> --context artemis
 ```
 
 The task resolves the installer image (schematic plus version) from the rendered configuration. For
@@ -114,5 +130,5 @@ Kubernetes, run `mise run --yes //kube/clusters/artemis/talos:upgrade-k8s <versi
 
 ## Nodes
 
-`ls kube/clusters/artemis/talos/nodes` lists the nodes. `kubectl get nodes -o wide` gives their
-roles and IPs.
+`ls kube/clusters/artemis/talos/nodes` lists the nodes. `kubectl get nodes -o wide --context artemis`
+gives their roles and IPs.

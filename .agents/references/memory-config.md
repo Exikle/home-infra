@@ -27,8 +27,8 @@ The tier argument is required. `~/.claude/scripts/ai-headers.mjs` (dotfiles) req
 authenticate as something broader. When you add a registration, pass the tier.
 
 opencode reads its keys from the gitignored `.env` file. To make it again, run
-`mise run //ai:env`. The task pulls the keys from 1Password. It writes `MCP_OPS_KEY`,
-`MCP_GENERAL_KEY` and `AGENTGATEWAY_API_KEY`. `AGENTGATEWAY_API_KEY` is the model key.
+`mise run //ai:env`. The task pulls the keys from 1Password. `ai/mise.toml` lists the keys that
+it writes. `AGENTGATEWAY_API_KEY` is the model key.
 `scripts/eval-instructions.py` uses it against `https://ai.dcunha.io/v1`. Claude Code never reads
 `.env`. Its helper script gets the key itself. If a tier works in one client and returns 401 in
 the other, `.env` is almost always out of date.
@@ -78,7 +78,8 @@ clients only. Never expose it to a general-purpose chat frontend. `cortex-mcp.md
 rules. It also says why the key must be an `x-api-key` header and never `Authorization`.
 
 `context7` is the only remote server (`https://mcp.context7.com/mcp`). The other servers run as
-Deployments in `cortex` (`cortex-mcp.md` § Layout).
+Deployments in `cortex` (`cortex-mcp.md` § Layout). The exception is sparkyfitness. Its target
+is the server of the app itself, in `default`.
 
 A healthy pod proves that the workload started. It does not prove that the gateway can speak MCP
 to it. The gateway skips a target that is down and gives no message (`failureMode: FailOpen`).
@@ -114,15 +115,13 @@ error. So a header that is out of date silently splits reads and writes across t
   project.
 - Save: after a non-obvious discovery, call `memory_remember`. Examples are a quirk, a failure
   mode, or a workaround that takes real effort to work out again.
-- Do not use memini for conventions, architecture, or project context that `.agents/` already
-  documents. That content goes in an instruction, reference or skill file. There it is under
-  version control and other people can review it.
+- What goes to memini and what goes to `.agents/`: `session.md` (always loaded) wins.
 
 The `memini` app (embeddings and storage) runs in the cluster at
 `kube/clusters/artemis/apps/cortex/memini/`. The plugin talks to this service. The app is
 separate from the plugin and client side above. It embeds with `qwen3-embedding` and reranks with
 `jina-reranker`. Both are `llmkube` models in `cortex`. `MEMINI_BACKEND` is `postgres` (shared
-CNPG). `MEMINI_SQLITE_PATH` is also set, but memini does not use it.
+CNPG).
 
 Update this doc when the scoping model of the memini plugin changes, or when the in-cluster
 deployment moves to another namespace.
@@ -177,15 +176,13 @@ drop to, and no fallback in another provider. `minimax-m3` is already the low-co
 
 ### Known-remaining items
 
-- `memini reembed` is no longer owed. On 2026-09-06 the team made sure that every stored memory
-  has a vector. So there is nothing for it to repair. `reembed` rewrites the whole store when you
-  change the embedding model. It does not fill gaps. If you run it, it re-embeds every row on a
-  CPU-only 0.6B embedder for no gain.
+- `memini reembed` rewrites the whole store when you change the embedding model. It does not fill
+  gaps. Run it only after a change of the embedding model.
 - `MEMINI_RERANK_MIN_SCORE` is still `0` (off). It is the only setting that can cut the tail of
   confident noise. A nonsense probe query returned 13 hits over 0.93. The correct value is
   specific to the model, and you must sweep for it. Never copy it from a doc. The 500s are gone.
   But the sweep means little while a deep pool is still near the rerank timeout (see the
-  `jina-reranker` item below). You cannot sweep it per request, and recall responses never
+  `MAX_DOC_CHARS` item below). You cannot sweep it per request, and recall responses never
   return the rerank score. So sweep offline. Score (query, candidate) pairs against `/v1/rerank`
   directly, or use `go run ./cmd/bench -rerank-gate` from the memini repo.
   [#2753](https://git.dcunha.io/Exikle/home-infra/issues/2753)
@@ -196,16 +193,10 @@ drop to, and no fallback in another provider. `minimax-m3` is already the low-co
   the ranking. Salience controls short-term cap eviction, briefing order, and which memory
   survives dedup. The docs say to benchmark it first, so the team did not change it.
   [#2754](https://git.dcunha.io/Exikle/home-infra/issues/2754)
-- `jina-reranker` runs `uBatchSize: 2048` and a CPU request of 1 core (2026-10-13,
-  [#2755](https://git.dcunha.io/Exikle/home-infra/issues/2755)). The value 2048 removed the HTTP
-  500s. A 4000-char pair now gets a score. `MAX_DOC_CHARS` still stays at 1800, because CPU is now
-  the limit, not batch size. Measured on ymir: a 25-doc pool took 54s at 4000 chars and 22s at
-  1800, against a 20s `MEMINI_RERANK_TIMEOUT`. At 4000, every recall timed out and fell back to
-  composite order. ymir has 4 cores. It shares them with `qwen3-embedding` (about 1.5–1.9 cores
-  busy at all times) and with frigate. At the old 100m request, the reranker lost that
-  contention. Even one 200-char doc took 3.7s. Do not raise `MAX_DOC_CHARS` or `RERANK_POOL`
-  until the reranker has free CPU. Before that, time a pool by hand: POST 25 docs to
-  `/v1/rerank` through a port-forward.
+- `MAX_DOC_CHARS` stays at 1800 because the CPU of the reranker is the limit, not batch size. On
+  ymir, a 25-doc pool took 54s at 4000 chars, against a 20s `MEMINI_RERANK_TIMEOUT`. Do not raise
+  `MAX_DOC_CHARS` or `RERANK_POOL` until the reranker has free CPU. Before that, time a pool by
+  hand: POST 25 docs to `/v1/rerank` through a port-forward.
 
 ### The client side is the bigger lever on "memory feels unused"
 
@@ -237,7 +228,7 @@ Namespaces are hierarchical. The layout is:
 
 ```text
 homelab/                    shared across the infrastructure repos
-├── homelab/home-infra this repo, both clusters (Frostlink moved in on 2026-11-16)
+├── homelab/home-infra      this repo, both clusters (Frostlink moved in on 2026-11-16)
 ├── homelab/hermes          the hermes agent (set by MEMINI_NAMESPACE, not a pin)
 └── homelab/<repo>          any other repo that runs servers or the network, pinned by hand
 personal/exikle             follows the user everywhere (MEMINI_HOME)
@@ -261,8 +252,8 @@ or a probe that sees only a path:
 On 2026-11-14 the repo was renamed from `Artemis-Cluster` to `home-infra`. Its memories moved
 from `homelab/Artemis-Cluster` to `homelab/home-infra`. The old remote key stays, so a checkout
 with the old remote still resolves. On 2026-11-15 the checkout folder moved to `~/home-infra`.
-There is no `path:` key for the new folder, because the remote key covers it. The old `path:` key
-stays for a checkout that did not move yet. Remote keys are lowercase. memini matches them
+There is no `path:` key for the new folder, because the remote key covers it. The `path:` keys
+are for old checkout folders. Remote keys are lowercase. memini matches them
 against a normalized remote.
 
 `dotfiles/home/claude/settings.json` (symlinked to `~/.claude/settings.json`) sets no
@@ -306,7 +297,7 @@ only when the fact is true of both clusters, and you otherwise have to learn it 
 | `miroir` replica settings, `apply-ks` suspend behaviour             | `homelab/home-infra` |
 | openebs-zfs restore mechanics, the towonel edge                     | `homelab/home-infra` |
 | Canonical Forgejo remote is `Exikle` with a capital E               | `homelab`            |
-| "No Comments in Manifests" applies in both repos                    | `homelab`            |
+| "No Comments in Manifests" applies on both clusters                 | `homelab`            |
 | The clusters differ. Artemis uses `miroir`, Frostlink `openebs-zfs` | `homelab`            |
 | "prefers to confirm before merging to main"                         | `personal/exikle`    |
 
@@ -316,30 +307,20 @@ goes to `homelab`.
 
 ### Known-open
 
-- MCP connects used to send no namespace. The fix is in the wrapper, not in the plugin. The team
-  captured the fault live on 2026-10-13 (Claude Code 2.1.296, plugin 0.7.35). Claude Code runs
-  the MCP `headersHelper` as `/bin/sh -c ~/.claude/scripts/memini-headers.sh`. It sets the cwd to
-  the plugin root and sets no `CLAUDE_PROJECT_DIR`. The `resolveHarnessCwd()` function of the
-  plugin tries three things in order. First `CLAUDE_PROJECT_DIR`. Then the cwd of the parent,
-  which it rejects as the plugin root. Then a session file keyed to the wrong pid. All three
-  fail, so it sends only the auth headers. Every MCP call then goes to the server default
-  `homelab` (`MEMINI_DEFAULT_NAMESPACE`). The hooks always worked, because they get `cwd` on
-  stdin. The `claude` process one level up runs in the project folder. So dotfiles
-  `home/claude/scripts/memini-headers.sh` now walks the ancestors to the first cwd outside the
-  plugin cache and exports it as `CLAUDE_PROJECT_DIR`
-  ([#2756](https://git.dcunha.io/Exikle/home-infra/issues/2756)). The fix takes effect on the
-  next MCP connect (`/mcp`, then reconnect). `/reload-plugins` does not reconnect.
+- MCP connects can send no namespace. Claude Code runs the MCP `headersHelper` with the cwd set
+  to the plugin root, so the plugin cannot find the project. Every MCP call then goes to the
+  server default `homelab` (`MEMINI_DEFAULT_NAMESPACE`). The dotfiles wrapper
+  `home/claude/scripts/memini-headers.sh` corrects this: it walks the ancestors to the first cwd
+  outside the plugin cache and exports it as `CLAUDE_PROJECT_DIR`
+  ([#2756](https://git.dcunha.io/Exikle/home-infra/issues/2756), closed).
 
     Make sure of the scope. Do not assume it. A recall hit with `namespace` `homelab` and no
     `from` field means that the MCP side resolved to `homelab` itself. The fallthrough is then
     back. The connect log `~/.cache/claude-cli-nodejs/<project>/mcp-logs-plugin-memini-memini/*.jsonl`
     must say "retrieved 3 headers". If it says 2, the client sent no namespace.
 
-- On 2026-10-13 the team removed the junk namespaces from the old fallthrough. `containers`,
-  `dotfiles`, `memory` and `Rensaio` held 269 memories. The team moved 42 to their correct
-  namespace and forgot the rest
-  ([#2757](https://git.dcunha.io/Exikle/home-infra/issues/2757)). A namespace with the name of a
-  folder basename is still the sign of a cwd probe that resolved to the wrong place. Before you
+- A namespace with the name of a folder basename is the sign of a cwd probe that resolved to the
+  wrong place ([#2757](https://git.dcunha.io/Exikle/home-infra/issues/2757), closed). Before you
   assume that the memories of a project are gone, read `GET /v1/namespaces`.
 
 - The deployment sets `homelab/hermes`, not a pin. The hermes HelmRelease sets

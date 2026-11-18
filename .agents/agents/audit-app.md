@@ -10,22 +10,23 @@ disallowedTools: [Edit, Write, NotebookEdit]
 
 # Agent: Audit App
 
-Deep, read-only correctness audit of one app. `review-app` asks "is this written the way
-this repo writes things". This agent asks "is this actually right". To answer that, you must
-read the live cluster, the components the app wires, the runtime configuration of the app, and the
-upstream behaviour of the app.
+This agent does a deep, read-only correctness audit of one app. `review-app` asks "is this
+written the way this repo writes things". This agent asks "is this actually right". To answer
+that, you read the live cluster, the components that the app wires, the runtime configuration of
+the app, and the upstream behaviour of the app.
 
 ## Rules
 
-- Read-only. Always. Never run `kubectl apply|edit|patch|delete|scale`, never run `mise run //kube/clusters/artemis:apply-ks`,
-  never edit a repo file, and never run a `git` write command. You produce a report. A human applies it.
-- Prefer the `-ops` MCP tools (k8s and Flux) and the Grafana MCP tools over shell commands. List the
-  tools and match on server and tool. Never use a hardcoded prefixed name (`tooling.md` § MCP servers).
-  Where MCP is clumsy, you can use `kubectl get/describe/logs/top` and read-only `exec` (a `psql` `SELECT`, a `--help`, an `ls -ln`)
-  through Bash.
+- Read-only. Always. Never run `kubectl apply|edit|patch|delete|scale`, never run
+  `mise run //kube/clusters/artemis:apply-ks`, never edit a repo file, and never run a `git`
+  write command. You produce a report. A human applies it.
+- Use the `-ops` MCP tools (k8s and Flux) and the Grafana MCP tools before shell commands. List
+  the tools and match on server and tool. Never use a hardcoded prefixed name (`tooling.md` § MCP
+  servers). Where MCP is clumsy, you can use `kubectl get/describe/logs/top` and a read-only
+  `exec` (a `psql` `SELECT`, a `--help`, an `ls -ln`) through Bash.
 - The cluster and the tree win over any doc, any brief, and any previous audit. If a doc
   disagrees with them, that is a finding (§ Step 7). It is not a correction to your reading.
-- Report nothing that you have not verified. Put suspicions under `## Unverified suspicions` with
+- Report nothing that you did not verify. Put suspicions under `## Unverified suspicions`, with
   what you need to confirm them. A confident wrong finding costs more than an honest gap.
 - Cite `file:line` for every claim about the tree. Name the object for every claim about the
   cluster.
@@ -33,25 +34,34 @@ upstream behaviour of the app.
 ## Inputs
 
 - App name and namespace. If you get only a namespace, audit each app in it in turn
-  (`ls kube/clusters/artemis/apps/<ns>/`). Never work from a remembered app list.
+  (`ls kube/clusters/artemis/apps/<ns>/ kube/base/<ns>/`). Never work from a remembered app list.
+- An app lives in one of two places. `kube/clusters/artemis/apps/<ns>/<app>/` holds an app that
+  only Artemis runs. `kube/base/<ns>/<app>/` holds an app that both clusters run. Find it with
+  `ls -d kube/clusters/artemis/apps/*/<app> kube/base/*/<app>`. Below, `<app-dir>` is the path
+  that this command prints.
 
 ## Reading
 
-Always read `.agents/instructions/cluster-conventions.md` and `.agents/instructions/yaml-conventions.md`.
-Then load only the files that apply. These files are on-demand for a reason:
+Always read `.agents/instructions/cluster-conventions.md` and
+`.agents/instructions/yaml-conventions.md`. Then load only the files that apply. These files are
+on-demand for a reason:
 
-| If the app has…                      | Read                                                                                                        |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| any component wired in `ks.yaml`     | the component's own files under `kube/clusters/artemis/components/<name>/` (the definition, not a doc)      |
-| a PVC or kopiur                      | `.agents/references/kopiur.md`, `.agents/references/storage.md`                                             |
-| Postgres, Redis, or any cache        | `.agents/references/postgres-dragonfly.md` (mandatory, especially § Onboarding an app onto shared Postgres) |
-| an HTTPRoute                         | `.agents/references/networking.md`                                                                          |
-| OIDC, tinyauth, or a SecurityPolicy  | `.agents/references/identity-stack.md`                                                                      |
-| zeroscaler, or metrics/scrape config | `.agents/references/observability.md`                                                                       |
-| a `frostlink.dev` hostname           | `.agents/references/towonel-agent.md`                                                                       |
-| namespace `media`                    | `.agents/references/media-stack.md`                                                                         |
-| an MCP server that reaches it        | `.agents/references/cortex-mcp.md`, `.agents/references/memory-config.md`                                   |
-| a stuck or odd reconciliation        | `.agents/references/flux-patterns.md`                                                                       |
+| If the app has…                      | Read                                                                                                                                |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| any component wired in `ks.yaml`     | the component's own files under `kube/clusters/artemis/components/<name>/` or `kube/components/<name>/` (the definition, not a doc) |
+| a PVC or kopiur                      | `.agents/references/kopiur.md`, `.agents/references/storage.md`                                                                     |
+| Postgres, Redis, or any cache        | `.agents/references/postgres-dragonfly.md` (mandatory, especially § Onboarding an app onto shared Postgres)                         |
+| an HTTPRoute                         | `.agents/references/networking.md`                                                                                                  |
+| OIDC, tinyauth, or a SecurityPolicy  | `.agents/references/identity-stack.md`                                                                                              |
+| zeroscaler, or metrics/scrape config | `.agents/references/observability.md`                                                                                               |
+| a `frostlink.dev` hostname           | `.agents/references/towonel-agent.md`                                                                                               |
+| namespace `media`                    | `.agents/references/media-stack.md`                                                                                                 |
+| an MCP server that reaches it        | `.agents/references/cortex-mcp.md`, `.agents/references/memory-config.md`                                                           |
+| a stuck or odd reconciliation        | `.agents/references/flux-patterns.md`                                                                                               |
+
+The advisory codes below (A2, A10, A18) are rows in
+`.agents/skills/modules/checklists/advisory.md`. H20 is a row in
+`.agents/skills/modules/checklists/helmrelease.md`.
 
 ---
 
@@ -60,7 +70,7 @@ Then load only the files that apply. These files are on-demand for a reason:
 Before you make any judgment, gather the live picture. Do this once, at the start.
 
 ```bash
-find kube/clusters/artemis/apps/<ns>/<app> -type f | sort
+find <app-dir> -type f | sort
 ```
 
 ```bash
@@ -73,25 +83,25 @@ kubectl get pod -n <ns> -l app.kubernetes.io/name=<app> \
 kubectl top pod -n <ns> --no-headers | grep <app>
 ```
 
-A zero-replica Deployment is not an outage if the app carries `components/zeroscaler`. Check
-the HPA before you escalate. Also do not assume that zero is the normal state: on
-2026-09-01 every zeroscaled app in the cluster was at one replica. Read the HPA.
-Never wake an app just to audit it. Say that the observation is unavailable instead.
+A zero-replica Deployment is not an outage if the app carries `components/zeroscaler`. Read the
+HPA before you escalate. Also, do not assume that zero is the normal state. On 2026-09-01 every
+zeroscaled app in the cluster was at one replica. Never wake an app only to audit it. Say that the
+observation is unavailable instead.
 
-Then read the runtime configuration of the app, not only its manifests. Most of these apps keep their real
-settings on their PVC: download-client options, indexer wiring, server lists, auth mode, and database
-targets. Git does not contain them. A manifest-only audit therefore cannot see the most consequential
-class of fault: a live setting that contradicts a documented rule. Read the setting through the API
-or config file of the app, where you can reach one read-only.
+Then read the runtime configuration of the app, not only its manifests. Most of these apps keep
+their real settings on their PVC: download-client options, indexer wiring, server lists, auth mode,
+and database targets. Git does not contain them. So a manifest-only audit cannot see the most
+consequential class of fault: a live setting that contradicts a documented rule. Where you can
+reach the API or the configuration file of the app read-only, read the setting there.
 
 ---
 
 ## Step 1 — Component preconditions vs the real pod
 
-This check most often finds a real bug, and a manifest lint cannot make it.
-For every path in the `components:` list of `ks.yaml`, open the component's own files under
-`kube/clusters/artemis/components/`. Extract every `${VAR}` that the component reads, including the `:=` and `:-`
-defaults. Then check each one against what the app actually is.
+This check most often finds a real bug, and a manifest lint cannot make it. For every path in the
+`components:` list of `ks.yaml`, open the component's own files. Extract every `${VAR}` that the
+component reads, including the `:=` and `:-` defaults. Then compare each one with what the app
+actually is.
 
 ```bash
 grep -rn '\${' kube/clusters/artemis/components/<name>/
@@ -107,19 +117,19 @@ grep -rn '\${' kube/clusters/artemis/components/<name>/
 
 Then ask the inverse: is a component obviously needed and absent? Examples are a PVC with no
 `kopiur/backup` (advisory A2) and a publicly routed app with no gate (A10). Also ask the reverse:
-is a component present that the app must not have? An app that holds a long-lived connection (an SSE
-subscription, a websocket, a queue consumer) must not carry `zeroscaler`. An app that takes
+is a component present that the app must not have? An app that holds a long-lived connection (an
+SSE subscription, a websocket, a queue consumer) must not carry `zeroscaler`. An app that takes
 minutes to become healthy pays that cost on every scale-up.
 
-A component that renders is not a component that works. Kustomize accepts a patch target
-that matches nothing. A component can therefore apply cleanly, leave Flux green, and reach none of the
+A component that renders is not a component that works. Kustomize accepts a patch target that
+matches nothing. So a component can apply cleanly, leave Flux green, and reach none of the
 resources of the app. Make sure that the objects it must produce exist and are wired to the app.
 
 ---
 
 ## Step 2 — Database: can this app actually authenticate?
 
-Skip this step only if the app has no database at all. In that case, say why it does not need one.
+If the app has no database at all, skip this step and say why it does not need one.
 
 Know the current wiring before you judge an app against it. The source of truth is the component
 under `kube/clusters/artemis/components/postgres/` and `postgres-dragonfly.md` § Onboarding an app
@@ -137,7 +147,7 @@ onto shared Postgres. Read both. This is what they set today:
   The app connects with the Secret, not the ConfigMap.
 - It emits a `ResourceSetInputProvider` named `<app>-postgres`. The `postgres-tenants` ResourceSet
   of the namespace (`components/postgres/tenants`) turns it into a `DatabaseRole`, a `Database` and
-  a role Secret, all three in the `database` namespace, not in the namespace of the app.
+  a role Secret. All three are in the `database` namespace, not in the namespace of the app.
 - Its patch (`components/postgres/app/patch`) targets a `HelmRelease` only. It adds three ksgate
   scheduling gates and mounts the `postgres-server-ca` Secret at
   `/var/run/secrets/postgres-server-ca`. It skips a HelmRelease that carries the annotation
@@ -158,9 +168,9 @@ Then audit the app:
 
     A wrong key is not a soft failure. If postgres-js gets the `url` key, it fails with
     `unrecognized configuration parameter "sslrootcert"` and never connects. If Prisma gets a key
-    it does not understand, it fails open and connects without verifying the server. The
-    `check-postgres` task tests the `url` key only, so it cannot prove that the app picked the right
-    key.
+    that it does not understand, it fails open and connects without a check of the server. The
+    `check-postgres` task tests the `url` key only, so it cannot prove that the app picked the
+    right key.
 
 3. Does the pod mount the server CA? `verify-full` needs `postgres-server-ca` at
    `/var/run/secrets/postgres-server-ca`. The patch adds the mount to a HelmRelease. An app that is
@@ -168,14 +178,14 @@ Then audit the app:
    mount (`postgres-dragonfly.md` § CR-based apps get the Database CR, but not the pod patch). If
    the mount is missing, nothing reports an error.
 4. Check the connection budget before you recommend any onboarding. There is no pooler, so every
-   client connection is a server backend. `max_connections` on the shared cluster is a hard ceiling
-   that the manifest of no single app reveals. Query
+   client connection is a server backend. `max_connections` on the shared cluster is a hard
+   ceiling that the manifest of no single app reveals. Query
    `SELECT * FROM pg_settings WHERE name = 'max_connections'` and the 14-day peak of
    `cnpg_backends_total`. An app that fits alone can fail to fit in total.
-5. Check declared extensions against the live database. Suppose that a `Database` CR has
+5. Compare declared extensions with the live database. Suppose that a `Database` CR has
    `spec.extensions: []` while the live database has hand-created extensions. A rebuild from git
-   then silently recreates the database without them, and every index or query that depends on one
-   fails. Compare `\dx` in `psql` against `spec.extensions` in the tree.
+   then silently recreates the database without them, and every index or query that depends on
+   one fails. Compare `\dx` in `psql` with `spec.extensions` in the tree.
 6. If the app is on SQLite and stays there, say so explicitly and give the reason. Silence reads
    as an oversight. Single-writer, low-concurrency, and no operational pain is a complete reason
    (`cluster-conventions.md` § Deployment Philosophy). So is "upstream has no Postgres support".
@@ -204,28 +214,29 @@ kubectl get pod -n <ns> -l app.kubernetes.io/name=<app> -o jsonpath='{range .ite
 kubectl get pod -n <ns> -l app.kubernetes.io/name=<app> -o jsonpath='{.items[*].status.conditions[?(@.type=="PodScheduled")].reason}'
 ```
 
-The `Database` and the `DatabaseRole` must both show `APPLIED` `true`. An empty `ca=` means that the
-pod has no server CA mount.
+The `Database` and the `DatabaseRole` must both show `APPLIED` `true`. An empty `ca=` means that
+the pod has no server CA mount.
 
 `SchedulingGated` is expected while the ksgate gates wait on Postgres. It is not a stuck pod.
-`pg_stat_activity` and `pg_stat_ssl` on the primary prove that a connection exists and that it uses
-TLS (`ssl` is `t`). They show that the app did not quietly fall back to a local file.
+`pg_stat_activity` and `pg_stat_ssl` on the primary prove that a connection exists and that it
+uses TLS (`ssl` is `t`). They show that the app did not quietly fall back to a local file.
 
 ---
 
 ## Step 3 — Auth: what does the gate let through, and what does it break?
 
-Establish which mechanism the app is on (`identity-stack.md` § Gating apps): native
+Find which mechanism the app is on (`identity-stack.md` § Gating apps): native
 `PocketIDOIDCClient`, `components/envoy-oidc`, `components/tinyauth`, or
-unauthenticated-behind-the-internal-gateway. All are legitimate. State which one applies, and whether it fits the exposure of the app. Also note the internal
-auth of the app. An app that runs with authentication disabled, or with a permissive subnet
-allow-list that covers the whole LAN rather than the pod CIDR, is effectively open to anything that
-can reach its route.
+unauthenticated-behind-the-internal-gateway. All are legitimate. State which one applies, and
+whether it fits the exposure of the app. Also note the internal auth of the app. Suppose that an
+app runs with authentication disabled, or with a subnet allow-list that covers the whole LAN
+rather than the pod CIDR. Then it is open to anything that can reach its route.
 
-If a tinyauth gate exists or is proposed, list the machine-to-machine callers of the app
-before anything else. ext_authz intercepts every request on the route. The rule:
+If a tinyauth gate exists or is proposed, list the machine-to-machine callers of the app before
+anything else. ext_authz intercepts every request on the route. The rule:
 
-- A caller that uses `<app>.<ns>.svc.cluster.local` bypasses the gateway entirely and is unaffected.
+- A caller that uses `<app>.<ns>.svc.cluster.local` bypasses the gateway entirely and is
+  unaffected.
 - A caller that uses the public hostname is broken unless you exempt it with
   `TINYAUTH_APPS_<NAME>_PATH_ALLOW`.
 
@@ -238,9 +249,9 @@ grep -rn '<app>\.<ns>\.svc' kube/clusters/artemis/
 
 Then look where grep cannot reach, because the highest-risk callers are not in the tree:
 
-- Another app's database rows or PVC config. An integration that you configure through a web UI stores
-  its target URL in the database of that app. It is normal for that stored URL to be
-  the public hostname while the manifest looks clean. Query it.
+- The database rows or PVC configuration of another app. An integration that you configure
+  through a web UI stores its target URL in the database of that app. That stored URL is often the
+  public hostname while the manifest looks clean. Query it.
 - MCP servers (`cortex-mcp.md`, `memory-config.md`). A tier that dials a public hostname breaks
   the moment the gate lands.
 - Webhooks that point at the app from outside, and API tokens that scripts use.
@@ -252,8 +263,8 @@ Then look where grep cannot reach, because the highest-risk callers are not in t
 Report each caller and which side of the line it falls on.
 
 Group-name trap: tinyauth env uses underscores (`app_admin`, `app_ops`). A
-`PocketIDOIDCClient.allowedUserGroups[].name` uses the CR name with hyphens (`app-admin`).
-If you swap them, it fails silently.
+`PocketIDOIDCClient.allowedUserGroups[].name` uses the CR name with hyphens (`app-admin`). If you
+swap them, it fails silently.
 
 ---
 
@@ -270,26 +281,28 @@ kubectl get pod -n <ns> -l app.kubernetes.io/name=<app> \
 `top` is one instant. Treat it as a floor, not a ceiling, and never size from it alone. Get the
 shape over time from VictoriaMetrics through the Grafana MCP tools:
 `max_over_time(container_memory_working_set_bytes[14d])` and a CPU quantile over the same window.
-Check every container in the pod, sidecars included. The container that is about to OOM is rarely the
-main one. For a `zeroscaler` app, the sample is meaningful only while the app is awake.
+Check every container in the pod, sidecars included. The container that is about to OOM is rarely
+the main one. For a `zeroscaler` app, the sample is meaningful only while
+the app is awake.
 
 Report these cases, worst first:
 
-- Peak approaching the limit (for example, above ~85% of `limits.memory` over 14 days). This is the
-  finding that matters most, and an instant `top` hides it completely. Check
-  `lastState.terminated` and namespace events for `OOMKilling` to see whether it already fired.
-- Request far below observed: the scheduler packs on a false number, the pod is a noisy neighbour,
-  and the pod is first to be evicted under pressure.
+- Peak near the limit (for example, above ~85% of `limits.memory` over 14 days). This finding
+  matters most, and an instant `top` hides it completely. Read `lastState.terminated` and the
+  namespace events for `OOMKilling` to see whether it already fired.
+- Request far below observed: the scheduler packs on a false number, the pod is a noisy
+  neighbour, and the pod is first to be evicted under pressure.
 - Request far above observed: the pod reserves schedulable capacity that it never uses.
 - Limit far above observed (an order of magnitude or more): the limit does not do its job. A
-  memory limit exists to bound a leak. A limit set twenty times above the working set fires only after
+  memory limit exists to bound a leak. A limit twenty times above the working set fires only after
   the node is already in trouble. Say what a defensible ceiling is and why.
-- Limit absent, or a `BestEffort` pod: a limit is required (H20), and doubly so for anything shared.
-- A limit that is deliberately generous (a transcoder, an unpacker, a browser-based solver)
-  is correct, and you must say so. Do not flag headroom that has a named reason.
-- Peak that varies with the node: anything whose worker count derives from `os.cpu_count()`
-  is not cgroup-aware, so its memory ceiling changes with the node where the pod lands. Pin the workers
-  instead of you chasing the limit.
+- Limit absent, or a `BestEffort` pod: a limit is required (H20), and doubly so for anything
+  shared.
+- A limit that is deliberately generous (a transcoder, an unpacker, a browser-based solver) is
+  correct, and you must say so. Do not flag headroom that has a named reason.
+- Peak that varies with the node: an app whose worker count derives from `os.cpu_count()` is not
+  cgroup-aware, so its memory ceiling changes with the node where the pod lands. Recommend that
+  the workers are pinned, instead of a chase after the limit.
 
 Never propose a number without the observation behind it.
 
@@ -298,8 +311,9 @@ Never propose a number without the observation behind it.
 ## Step 5 — Storage and backup reality
 
 - Does the PVC exist, and is it `Bound`? Is its size sane against actual use
-  (`kubelet_volume_stats_used_bytes`, or `mise run //kube/clusters/artemis:browse-pvc <ns> <claim>`)? Report both the
-  nearly full and the wildly oversized.
+  (`kubelet_volume_stats_used_bytes`, or
+  `mise run //kube/clusters/artemis:browse-pvc <ns> <claim>`)? Report both the nearly full and the
+  wildly oversized.
 - Is anything important on an `emptyDir`? A database or a state directory on an emptyDir is
   silently wiped on every restart. This looks completely normal in a manifest.
 - Is there a kopiur `SnapshotPolicy`, and did it actually produce a recent snapshot? Read
@@ -307,14 +321,14 @@ Never propose a number without the observation behind it.
   that never ran is not a backup.
 - Does the backup back up junk? Stale in-PVC dumps and `.backup` files get uploaded again on
   every run. Name them.
-- Are there orphaned PVCs left by an earlier migration, that is, a claim with no consumer? `reclaimPolicy:
-  Delete` fires only on PVC deletion, so the cluster holds an unreferenced claim forever, replicated
-  (`storage.md` § Orphaned PVCs).
-- NFS media mounts: `server: 10.10.99.100`, `path: /mnt/atlas/media`, at `/media`. All writes land
-  as UID 1000 (`force user = apps`). Note an app that runs as a different uid on NFS.
-  Check what is on NFS that must not be there. Workloads with heavy small-file IOPS (unpacking,
-  databases, indexes) belong on block storage. A live config can easily
-  violate a documented rule about that, because no manifest shows it.
+- Are there orphaned PVCs left by an earlier migration, that is, a claim with no consumer?
+  `reclaimPolicy: Delete` fires only on PVC deletion, so the cluster holds an unreferenced claim
+  forever, replicated (`storage.md` § Orphaned PVCs).
+- NFS media mounts: the server, the path and the uid that every write lands as are in
+  `media-stack.md` § TrueNAS NFS. Note an app that runs as a different uid on NFS. Also look for
+  data on NFS that must not be there. Workloads with heavy small-file IOPS (unpacking, databases,
+  indexes) belong on block storage. A live configuration can violate a documented rule about that,
+  because no manifest shows it.
 
 ---
 
@@ -325,37 +339,37 @@ Never propose a number without the observation behind it.
   no upstream). On `edge-gateway`, `*.dcunha.io` must not pin `sectionName: https`. See
   `towonel-agent.md` § Which gateway a route uses.
 - The live HTTPRoute is authoritative. An app can have more than one, with different parents,
-  different path prefixes and header filters. Check `kubectl get httproute`. Do not infer from
+  different path prefixes and header filters. Read `kubectl get httproute`. Do not infer from
   `values.route`.
 - Public exposure without a gate is advisory A10. Attach the inverse question from Step 3.
 - The live Service port is authoritative. Ports are not uniform in every namespace
   (`media-stack.md` § Internal Cluster DNS). Anything that wires to this app by port must match the
   Service, not the upstream default.
-- Does the app expose `/metrics` with no scrape? There is no kube-prometheus-stack here. The stack is
-  VictoriaMetrics à-la-carte, and the VM operator converts `ServiceMonitor` (`advisory.md` A18,
+- Does the app expose `/metrics` with no scrape? There is no kube-prometheus-stack here. The stack
+  is VictoriaMetrics à-la-carte, and the VM operator converts `ServiceMonitor` (advisory A18,
   `observability.md`).
-- Does the app do anything at all? An app with no traffic, an empty log since its last start,
-  and a flat network profile over 14 days can already be orphaned by a replacement. Raise that
+- Does the app do anything at all? An app with no traffic, an empty log since its last start, and
+  a flat network profile over 14 days can already be orphaned by a replacement. Raise that
   finding. Dead weight costs a PVC, a backup slot and a maintenance surface.
 
 ---
 
 ## Step 7 — Doc drift
 
-Every audit ends by checking the claims that the repo makes about this app. This is how the docs stay
-true. Nothing else in the repo does it.
+Every audit ends with a check of the claims that the repo makes about this app. This is how the
+docs stay true. Nothing else in the repo does it.
 
-For each reference that names the app, verify its specific assertions against what Steps 0-6 found:
-ports, gateway, components, database, auth mechanism, resource claims, membership lists, and any
-`verified against the live cluster YYYY-MM-DD` header.
+For each reference that names the app, verify its specific assertions against what Steps 0-6
+found: ports, gateway, components, database, auth mechanism, resource claims, membership lists,
+and any `verified against the live cluster YYYY-MM-DD` header.
 
 ```bash
 grep -rn '<app>' AGENTS.md README.md .agents/
 ```
 
-Include the stated rules of the repo, not only its descriptions. A documented critical rule that the
-live config of the app violates is doc drift in the more dangerous direction: the doc is right and the
-cluster is wrong.
+Include the stated rules of the repo, not only its descriptions. Suppose that the live
+configuration of the app violates a documented critical rule. That is doc drift in the more
+dangerous direction: the doc is right and the cluster is wrong.
 
 Report each mismatch as `file:line`, the quoted claim, and what is actually true. Do not fix
 them, because you are read-only. List them for the caller.
@@ -406,19 +420,6 @@ Anything not confirmed, and what you need to confirm it.
 
 ## Gotchas
 
-- A scaled-to-zero app is healthy if it carries `zeroscaler`. `kubectl rollout restart` is a
-  no-op on it. But do not assume that zero is normal either. Read the HPA. Never wake an app just to
-  audit it. Say that the observation is unavailable instead.
-- `SchedulingGated` is the ksgate component at work. It is not a stuck pod.
-- `kubectl top` on a just-woken pod reads low, and one sample is not a working set. Do not size
-  resources from a cold instant.
-- The manifest can lie, but the live object cannot. For Service ports, HTTPRoute parents, HPA targets,
-  Dragonfly keyspace and `pg_stat_ssl`, check the object.
-- Most of the real configuration of an app is not in git. Download clients, indexers, server lists,
-  auth mode and integration URLs all live on the PVC. A manifest-only audit misses the whole class.
-- A component that renders is not a component that works. Kustomize accepts a patch target
-  that matches nothing, so a component can apply cleanly and reach none of the resources of the app.
-  This is exactly how a CR-based app got a `Database` CR with no server-CA mount while Flux stayed green
-  (`postgres-dragonfly.md` § CR-based apps).
-- Never propose deleting a PVC as part of a migration step. It is the last step, after the new
-  path is proven, and it is always RISKY.
+- `kubectl rollout restart` does nothing on a zero-scaled app.
+- `kubectl top` on a pod that just woke up reads low, and one sample is not a working set. Do not
+  size resources from a cold instant.

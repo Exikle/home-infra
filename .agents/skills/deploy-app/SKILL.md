@@ -7,19 +7,20 @@ description: Deploy a new app into the Flux cluster end to end — scaffold the 
 
 This skill deploys a new application to home-infra with the canonical GitOps workflow.
 
-For Frostlink, the paths and tasks use `kube/clusters/frostlink/apps/<namespace>/<app>/` and
-`mise run //kube/clusters/frostlink:<task>`. Read `.agents/instructions/frostlink.md` in place of
-the two Artemis convention files. Read `.agents/references/oci-networking.md` and
+`<cluster>` in every path and task below is `artemis` or `frostlink`. For Frostlink, read
+`.agents/instructions/frostlink.md` as well as the two convention files below. `frostlink.md` wins
+where they differ. Read `.agents/references/oci-networking.md` and
 `.agents/references/openebs-zfs.md` in place of `networking.md` and `storage.md`. The differences:
 
-- The only route is `external-gateway`, with a hostname like `myapp.frostlink.dev`. An HTTPRoute
-  on it gets its DNS record automatically. A manual `DNSEndpoint` does not.
+- The only gateway is `external-gateway`, with a hostname like `myapp.frostlink.dev`. An HTTPRoute
+  on it gets its DNS record automatically, so you do not need a `DNSEndpoint`.
 - Persistence uses the `openebs-zfs` StorageClass.
 - A new namespace gets `components/alerts` in its `kustomization.yaml`.
   `kube/clusters/frostlink/apps/network/` is a good model. Add no PodSecurity labels, because the
   namespace inherits `baseline`. A privileged namespace needs the justification in
   `.agents/references/towonel.md` § Why its own namespace.
-- Adapt kubesearch results with `.agents/instructions/frostlink.md`, not the Artemis conventions.
+- Adapt kubesearch results with `.agents/instructions/frostlink.md` as well as the shared
+  conventions.
 
 Before you write any files, read these files:
 
@@ -30,29 +31,23 @@ Before you write any files, read these files:
 - `.agents/references/storage.md` (if the app needs persistence) and `.agents/references/kopiur.md`
   (if it needs backups)
 - `.agents/references/postgres-dragonfly.md`. You must read it if the app needs Postgres, Redis,
-  or any cache. The shared CNPG cluster is the default. The app reaches it through `postgres-rw`
-  with password auth, the `../../../../components/postgres/app` component and an `APP`
-  substitution. The shared Dragonfly in `database` is also the default. Do not create a per-app
-  CNPG `Cluster` or a sidecar Redis/Valkey. The repo superseded that policy on 2026-07-02. Immich
-  moved into the shared cluster on 2026-09-01, so no dedicated clusters are left. The reference
-  covers onboarding, which of the three DSN keys your driver needs, and why the pgbouncer sidecars
-  are gone.
+  or any cache. The policy is in `cluster-conventions.md` § Deployment Philosophy (Artemis), which
+  wins.
 - `.agents/references/media-stack.md` (if you deploy into the `media` namespace)
 
 ---
 
 > Read these module files in full. `deploy-app` and `review-app` share them deliberately. One
-> skill writes the files, and the other checks them against the same spec. A duplicate would let
-> the two drift apart. `templates/ks.md` and `templates/helmrelease.md` are about 135 lines. A
-> partial read gives a partial spec.
+> skill writes the files, and the other checks them against the same spec. A duplicate lets
+> the two drift apart. A partial read gives a partial spec.
 
 Goal: scaffold one new app and prove that it renders. Then hand it to the user to confirm live.
 
 Success has three parts:
 
-1. `mise run //kube/clusters/artemis:render-ks <ns> <app>` succeeds.
-2. The root and the target are suspended, and `mise run //kube/clusters/artemis:apply-ks` applies
-   cleanly.
+1. `mise run //kube/clusters/<cluster>:render-ks <ns> <ks-name>` succeeds.
+2. `mise run //kube/clusters/<cluster>:test-ks <ns> <ks-name>` suspends the root and the target
+   and applies cleanly.
 3. The user confirmed that the app works.
 
 Edit in a worktree. Run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7).
@@ -67,10 +62,11 @@ Make sure that you have these before you continue:
 
 - App name (for example `myapp`)
 - Namespace. It must exist, or the user confirms that you create it.
-- Chart. The default is app-template v5. If it is different, ask.
+- Chart. The default is app-template (the current tag: `templates/ocirepository.md` § Values that
+  drift). If it is different, ask.
 - Route: LAN-only (`internal-gateway`), public (`edge-gateway`, `*.dcunha.io` or
-  `*.frostlink.dev` through towonel), or none. Do not use `external-gateway`. It is legacy and
-  takes no routes. An app can carry a second route for a second hostname.
+  `*.frostlink.dev` through towonel), or none. On Artemis, do not use `external-gateway`. It is
+  legacy and takes no routes. An app can carry a second route for a second hostname.
 - Hostname (for example `myapp.dcunha.io`)
 - Persistence. Does the app need a PVC? If yes, get the size (for example `5Gi`), and ask whether
   to use kopiur backup.
@@ -81,9 +77,9 @@ Before you write anything, read one or two existing apps in the same namespace t
 patterns:
 
 ```bash
-ls kube/clusters/artemis/apps/<namespace>/
-cat kube/clusters/artemis/apps/<namespace>/<existing-app>/ks.yaml
-cat kube/clusters/artemis/apps/<namespace>/<existing-app>/app/helmrelease.yaml
+ls kube/clusters/<cluster>/apps/<namespace>/
+cat kube/clusters/<cluster>/apps/<namespace>/<existing-app>/ks.yaml
+cat kube/clusters/<cluster>/apps/<namespace>/<existing-app>/app/helmrelease.yaml
 ```
 
 ---
@@ -128,15 +124,16 @@ Read `.agents/skills/modules/templates/directory.md` and create the layout.
 If the namespace does not exist yet, create it first:
 
 ```
-kube/clusters/artemis/apps/<namespace>/
+kube/clusters/<cluster>/apps/<namespace>/
 ├── namespace.yaml
 └── kustomization.yaml
 ```
 
-For `namespace.yaml`, use `name: _`. Kustomize rewrites it from the `namespace:` field:
+For `namespace.yaml` on Artemis, use `name: _`. Kustomize rewrites it from the `namespace:` field:
 
 ```yaml
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/namespace_v1.json
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -153,6 +150,7 @@ metadata:
 
 ```yaml
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: <namespace>
@@ -164,6 +162,11 @@ resources:
     - ./namespace.yaml
     - ./<app>/ks.yaml
 ```
+
+On Artemis, add two more entries under `components` when an app in the namespace needs them:
+
+- `- ../../components/kopiur/secret` when an app uses `kopiur/backup`.
+- `- ../../components/postgres/tenants` when an app uses `postgres/app`.
 
 Flux discovers the new namespace directory automatically. No other wiring is necessary.
 
@@ -188,7 +191,7 @@ All YAML must follow `.agents/instructions/yaml-conventions.md`.
 ## Step 6: Add to Namespace Kustomization
 
 Add `- ./<app>/ks.yaml` to the resources in
-`kube/clusters/artemis/apps/<namespace>/kustomization.yaml`.
+`kube/clusters/<cluster>/apps/<namespace>/kustomization.yaml`, in alphabetical position.
 
 ---
 
@@ -197,13 +200,13 @@ Add `- ./<app>/ks.yaml` to the resources in
 1. Make sure that all expected files are present:
 
     ```bash
-    find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
+    find kube/clusters/<cluster>/apps/<namespace>/<app> -type f | sort
     ```
 
 2. Before you apply, make sure that the kustomization renders cleanly with flate:
 
     ```bash
-    mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
+    mise run //kube/clusters/<cluster>:render-ks <namespace> <ks-name>
     ```
 
 This runs `flate build ks`. It finds schema errors, missing substitution variables and malformed

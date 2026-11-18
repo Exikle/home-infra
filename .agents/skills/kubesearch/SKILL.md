@@ -9,13 +9,14 @@ compatibility: Requires outbound network access. It curls the static JSON of kub
 This skill searches [kubesearch.dev](https://kubesearch.dev) for real HelmRelease examples from
 other home-ops clusters. Then it adapts the best example to the home-infra conventions.
 
-For Frostlink, adapt to `.agents/instructions/frostlink.md` instead of the Artemis conventions
-below. Frostlink uses an inline HTTPRoute on `external-gateway`, the `openebs-zfs` StorageClass,
-and `.agents/instructions/cluster-conventions.md` § Deployment Philosophy (Artemis) and `.agents/instructions/frostlink.md` § Database and cache for database dependencies.
+For Frostlink, adapt to `.agents/instructions/frostlink.md` as well as the shared conventions.
+`frostlink.md` wins where they differ. Frostlink uses an inline HTTPRoute on `external-gateway`
+and the `openebs-zfs` StorageClass. Its database rules are in `frostlink.md` § Database and
+cache.
 
 The search runs over other people's repos, so the search paths in this skill use their layout
-(`<their-repo>/kubernetes/apps`), on both clusters. Our own path (`kube/clusters/<cluster>/apps`) does not exist
-in their repos.
+(`<their-repo>/kubernetes/apps`), on both clusters. Our own path (`kube/clusters/<cluster>/apps`)
+does not exist in their repos.
 
 kubesearch.dev indexes repos on GitHub and GitLab that carry the tag `k8s-at-home` or
 `kubesearch`. Its search field is client-side JavaScript that loads static JSON files. This skill
@@ -32,7 +33,7 @@ Download all data chunks in parallel, and filter them by app name (substring mat
 
 ```bash
 APP="<app-name>"
-# The index grows; discover the last chunk instead of hardcoding it (was 84, now 100).
+# The index grows; discover the last chunk instead of hardcoding it.
 LAST=$(n=0; while curl -sfo /dev/null "https://kubesearch.dev/hr/data-$n.json"; do n=$((n+1)); done; echo $((n-1)))
 seq 0 "$LAST" | xargs -P8 -I{} sh -c "
   curl -sL 'https://kubesearch.dev/hr/data-{}.json' | \
@@ -53,8 +54,8 @@ for v in data.values():
 
 Read this coverage limit before you trust a result of 0. The `/hr/` dataset only reliably covers
 charts that come through a `HelmRepository`. It indexes HelmReleases that use
-`chartRef: OCIRepository` only partly. As of 2026-09-04, `miroir` returns zero hits here, although
-about 31 repos run it on GitHub. For an infrastructure or storage chart, skip this step and go
+`chartRef: OCIRepository` only partly. An infrastructure chart can return zero hits here while
+dozens of repos run it on GitHub. For an infrastructure or storage chart, skip this step and go
 straight to GitHub code search.
 
 If there are 0 results, kubesearch does not index the app. The app is less common, or it does not
@@ -111,8 +112,8 @@ structure. Change only the image and the secrets pattern.
 
 - `.yaml.j2` results are Jinja templates (gavinmcfall uses them). Their values are still useful.
   Ignore the outer template syntax.
-- You can copy pinned digest tags (`image@sha256:...`). Tell the user, because the user sometimes
-  prefers a mutable tag.
+- You can copy pinned digest tags (`image@sha256:...`). Keep the digest. This repo pins every
+  image (`.agents/skills/modules/image-pinning.md`).
 - Multiple instances (for example Sonarr ×3): the search returns all variants. Read the name field
   (for example `sonarr-anime`, `sonarr-4k`).
 - App not in kubesearch: kubesearch often does not index less common apps (for example Pelican

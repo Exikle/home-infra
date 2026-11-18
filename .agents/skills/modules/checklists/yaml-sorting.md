@@ -1,6 +1,11 @@
 # Checklist: YAML Sorting
 
-Apply rules from `.agents/instructions/yaml-conventions.md`. Mark each item PASS, FAIL, or N/A.
+The rules are in `.agents/instructions/yaml-conventions.md`, which wins. Mark each item PASS, FAIL,
+or N/A.
+
+The `yaml-order` hook enforces these orders at commit on both clusters. To check before a commit,
+run `hooks/python scripts/normalize-yaml-order.py --check <app dir>`. It exits 1 and names each
+file that is out of order.
 
 ## All files
 
@@ -15,11 +20,11 @@ Apply rules from `.agents/instructions/yaml-conventions.md`. Mark each item PASS
 
 ## HelmRelease `spec`
 
-| #   | Check                                                                                                                             | Result |
-| --- | --------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Y7  | `spec` order: `chartRef → interval → dependsOn → install → upgrade → values → postRenderers`                                      |        |
-| Y8  | `spec.values` order: `defaultPodOptions` first (if present), then alphabetical                                                    |        |
-| Y9  | Siblings within `persistence`, `service`, `route`, `configMaps` are not required to be sorted. Only the keys within each item are |        |
+| #   | Check                                                                                                                        | Result |
+| --- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Y7  | `spec` order: `chartRef → interval → dependsOn → install → upgrade → values → postRenderers`                                 |        |
+| Y8  | `spec.values` order: `defaultPodOptions` first (if present), then alphabetical                                               |        |
+| Y9  | Siblings within `persistence`, `service`, `route`, `configMaps` do not have to be sorted. Only the keys within each item are |        |
 
 ## Controllers
 

@@ -10,8 +10,8 @@ This skill watches the cluster state and reports only the changes. Use it with
 
 Each tick shows only what changed since the last tick, not the full cluster state.
 
-On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command. The MCP k8s tools
-point at Artemis, so Frostlink has no MCP fallback.
+The commands below name `--context artemis`. On Frostlink, use `--context frostlink` instead. The
+MCP k8s tools point at Artemis, so Frostlink has no MCP fallback.
 
 ## State Cache
 
@@ -22,16 +22,19 @@ current state as the baseline, and write the cache.
 
 ## What to Track
 
+Read only the fields that the delta logic compares. A full `-o json` of every pod on every tick
+floods the context.
+
 ```bash
 # Flux snapshot
-flux get kustomizations -A
-flux get helmreleases -A
+flux get kustomizations -A --context artemis
+flux get helmreleases -A --context artemis
 
 # Pod snapshot
-kubectl get pods -A -o json
+kubectl get pods -A --context artemis -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount
 
 # Node snapshot
-kubectl get nodes -o json
+kubectl get nodes --context artemis
 ```
 
 On Artemis, if local kubectl is not available, use the `-ops` k8s MCP tools. List them, and match
@@ -56,7 +59,7 @@ Compare the current snapshot with the cached snapshot:
 ```
 Tick [20:14:32 ET] — Δ since 20:14:02
 
-RECOVERED:  immich (default) HelmRelease → Ready
+RECOVERED:  immich (media) HelmRelease → Ready
 BROKE:      komf (media) HelmRelease → Failed: "container image not found"
 RESTARTED:  memini-xxx-yyy (cortex) restarts: 0→1
 
@@ -68,6 +71,6 @@ If nothing changed, write: `✓ No changes since 20:14:02`
 
 ## Cadence
 
-- Active deploy: `/loop 30s /watch-deploys`
-- Idle monitoring: `/loop 2m /watch-deploys`
+- Active deploy: `/loop 30s /watch-deploys`.
+- Idle monitoring: `/loop 2m /watch-deploys`.
 - Stop when all resources are back to Ready.

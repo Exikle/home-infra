@@ -1,7 +1,7 @@
 ---
 name: add-oidc-app
-description: Wire an app into Pocket-ID for single sign-on — create the OIDC client, store the secret in 1Password, and configure the app's OIDC settings and redirect URIs. Use for "add SSO to X", "wire X into Pocket-ID", "set up OIDC for X", or "single sign-on for X". Scoped to the Artemis cluster.
-compatibility: Requires Pocket-ID reachable at `https://id.dcunha.io` with `pocket-id-operator` running, and the `op` CLI signed in to write the client secret into 1Password.
+description: Wire an app into Pocket-ID for single sign-on — create the PocketIDOIDCClient (the operator writes the client Secret), and configure the app's OIDC settings and redirect URIs. Use for "add SSO to X", "wire X into Pocket-ID", "set up OIDC for X", or "single sign-on for X". Scoped to the Artemis cluster.
+compatibility: Requires Pocket-ID reachable at `https://id.dcunha.io` with `pocket-id-operator` running. The operator creates the client and its Secret.
 ---
 
 # Skill: Add OIDC App (Pocket-ID)
@@ -47,18 +47,25 @@ metadata:
     name: <app>
 spec:
     allowedUserGroups:
-        - name: app-admin # or app-ops / app-users — the CR name, hyphenated
+        - name: app-admin
           namespace: security
     callbackUrls:
-        - "https://<app-hostname>/<oidc-callback-path>" # check app docs for exact path
+        - "https://<app-hostname>/<oidc-callback-path>"
     clientID: <app>
     launchUrl: "https://<app-hostname>/"
     logo:
         autoGenerate: false
-    pkceEnabled: true # false only if the app cannot send a code_challenge (see Gotchas)
+    pkceEnabled: true
     secret:
         storeClientSecret: true
 ```
+
+Fill in the CR with these values. Do not copy comments into the manifest
+(`yaml-conventions.md` § No Comments in Manifests):
+
+- `allowedUserGroups[].name` is the hyphenated CR name: `app-admin`, `app-ops` or `app-users`.
+- The callback path differs per app. Read the docs of the app for the exact path.
+- Set `pkceEnabled: false` only if the app cannot send a `code_challenge` (see Gotchas).
 
 The operator creates a Secret for you. You do not copy anything into 1Password by hand. The app
 must use the key names of the operator, or you change the key names to match what the app expects:
@@ -70,27 +77,33 @@ secret:
         clientSecret: <ENV_VAR_NAME_FOR_CLIENT_SECRET>
 ```
 
-Then reference the Secret from the container of the app with `envFrom: [{ secretRef: { name:
-<app>-oidc-credentials } }]`. The Secret name defaults to `<client-name>-oidc-credentials`. This
-fully replaces the old manual-secret workflow.
+Then reference the Secret from the container of the app with
+`envFrom: [{ secretRef: { name: <app>-oidc-credentials } }]`. The Secret name defaults to
+`<client-name>-oidc-credentials`.
 
 > All YAML that this skill writes or changes must follow the field ordering rules in
 > `.agents/instructions/yaml-conventions.md`.
 
 ## Step 2: Configure the App
 
-### Native OIDC (env vars): bookboss pattern
+### Native OIDC (env vars): qui pattern
+
+The app reads the issuer, the client ID and the client secret from env vars. It reads the secret
+from key `client_secret` of the `<app>-oidc-credentials` Secret that the operator creates:
 
 ```yaml
 env:
-    BOOKBOSS__OIDC__ISSUER: "https://id.dcunha.io"
-    BOOKBOSS__OIDC__CLIENT_ID: "<app>"
-    BOOKBOSS__OIDC__CLIENT_SECRET:
+    QUI__OIDC_CLIENT_ID: qui
+    QUI__OIDC_CLIENT_SECRET:
         valueFrom:
             secretKeyRef:
-                name: <app>
-                key: BOOKBOSS__OIDC__CLIENT_SECRET
+                key: client_secret
+                name: qui-oidc-credentials
+    QUI__OIDC_ENABLED: true
+    QUI__OIDC_ISSUER: https://id.dcunha.io
 ```
+
+Copy `kube/clusters/artemis/apps/media/qui/app/helmrelease.yaml` and its `oidcclient.yaml`.
 
 ### Servarr native OIDC: sonarr / radarr pattern
 
@@ -103,7 +116,7 @@ This pattern supports one user.
    as `http://`.
 
 Copy `kube/clusters/artemis/apps/media/sonarr/` or `radarr/`. The traps are in
-`identity-stack.md` § Sonarr v5 and Radarr v7.
+`identity-stack.md` § Sonarr v5 and Radarr v7: native OIDC, one user.
 
 ### Generic OAuth: Grafana pattern
 
@@ -116,11 +129,11 @@ env:
     GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://id.dcunha.io/api/oidc/token"
     GF_AUTH_GENERIC_OAUTH_API_URL: "https://id.dcunha.io/api/oidc/userinfo"
     GF_AUTH_GENERIC_OAUTH_SCOPES: "openid email profile groups"
-    # Role mapping via JMESPath (groups claim):
     GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'app_admin') && 'Admin' || contains(groups[*], 'app_ops') && 'Editor' || 'Viewer'"
 ```
 
-The role mapping uses the Pocket-ID group names (`app_admin`, `app_ops`). If a name does not
+`ROLE_ATTRIBUTE_PATH` is a JMESPath expression over the `groups` claim. The role mapping uses the
+Pocket-ID group names (`app_admin`, `app_ops`). If a name does not
 match, every user gets `Viewer`. This cluster's own Grafana does not use env vars. It sets the same
 keys in the `config:` block of its `Grafana` CR:
 `kube/clusters/artemis/apps/observability/grafana/instance/grafana.yaml`.
@@ -173,14 +186,16 @@ of the operator, and Envoy needs the key to be exactly `client-secret`.
 
 ## Step 3: Test
 
-Apply and commit as `.agents/skills/modules/test-and-commit.md` describes. Then:
+1. Apply the change as `.agents/skills/modules/test-and-commit.md` describes, up to the user's
+   confirmation. Reloader restarts the pod when the Secret lands.
+2. Read the logs of the app:
 
-```bash
-kubectl rollout restart deployment <app> -n <namespace>
-kubectl logs -n <namespace> deployment/<app> --tail=30
-```
+    ```bash
+    kubectl logs -n <namespace> deployment/<app> --tail=30
+    ```
 
-Go to `https://<app-hostname>`. It must redirect to the Pocket-ID login.
+3. Go to `https://<app-hostname>`. It must redirect to the Pocket-ID login.
+4. Commit only after the user confirms that the login works.
 
 ## Gotchas
 

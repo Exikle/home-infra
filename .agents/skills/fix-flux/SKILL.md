@@ -5,12 +5,12 @@ description: Diagnose and repair a stalled Flux reconciliation — a HelmRelease
 
 # Skill: Fix Flux
 
-Diagnose and fix Flux reconciliation faults in home-infra.
+This skill diagnoses and fixes Flux reconciliation faults in home-infra.
 
 On Frostlink, add `--context frostlink` to every `kubectl` and `flux` command. Bare commands hit
-Artemis, and the MCP k8s tools do too. Use `mise run //kube/clusters/frostlink:<task>` for
-`render-ks` and `sync-flux`. The source is an `OCIRepository` on Frostlink too. The Kustomizations
-of Flux itself (`flux-instance`, `flux-operator`, `flux-webhook`) are in `flux-system`.
+Artemis, and the MCP k8s tools do too. In every task path below, `<cluster>` is `artemis` or
+`frostlink`. The source is an `OCIRepository` on Frostlink too. The Kustomizations of Flux itself
+are in `flux-system` (`kubectl get ks -n flux-system --context <cluster>`).
 
 > Read `.agents/references/flux-patterns.md` before you diagnose. It covers fixes for a stuck
 > HelmRelease, cross-namespace traps, and the CRD timing race.
@@ -24,8 +24,9 @@ Stop when that resource is Ready. These are forbidden:
 
 - Do not `flux delete`.
 - Do not delete PVCs or namespaces to clear a stuck state.
-- Do not force-reconcile the flux-system OCIRepository directly after a push. It can apply a stale
-  tree while the build runs.
+- Do not force-reconcile the flux-system OCIRepository directly after a push. CI builds the
+  artifact, so a reconcile before the build finishes applies the old tree. This includes
+  `flux reconcile ... --with-source` on a Kustomization, which reconciles that same source.
 
 If you need one of these, escalate to the user instead.
 
@@ -62,25 +63,27 @@ Fix:
 ### Kustomization Not Reconciling
 
 First, look up the exact Kustomization name. It is the `metadata.name` in `ks.yaml`. It is not
-always `<namespace>-<app>`:
+always `<namespace>-<app>`. A shared app keeps its `ks.yaml` under `kube/base/`, so search both
+places:
 
 ```bash
-grep "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
+grep -n "^  name:" kube/clusters/<cluster>/apps/<namespace>/<app>/ks.yaml kube/base/<namespace>/<app>/ks.yaml 2>/dev/null
 flux describe kustomization <ks-name> -n <namespace>
 ```
 
 Common causes:
 
 - A `dependsOn` target is not Ready. Read the dependency chain.
-- A schema validation error. Run `mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>`
+- A schema validation error. Run `mise run //kube/clusters/<cluster>:render-ks <namespace> <ks-name>`
   to catch it locally.
-- The source is not synced. Run `flux reconcile source oci flux-system -n flux-system`.
+- The source is behind. First make sure that the `Push OCI Artifact` run for the commit is green.
+  Then run `mise run //kube/clusters/<cluster>:sync-flux ocirepo flux-system`.
 
 ### ExternalSecret Not Syncing / Empty Secret
 
 ```bash
 kubectl describe externalsecret <app> -n <namespace>
-mise run //kube/clusters/artemis:sync-flux es <app>
+mise run //kube/clusters/<cluster>:sync-flux es <app>
 kubectl get secret <app> -n <namespace> -o go-template='{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}'
 ```
 
@@ -137,15 +140,19 @@ read the imagePullSecret.
 
 ### HelmRelease Values Not Applying After Git Change
 
-```bash
-flux reconcile helmrelease <app> -n <namespace> --with-source
-```
+The values reach the HelmRelease through its Kustomization, which reads the `flux-system` artifact.
+
+1. Make sure that the `Push OCI Artifact` run for the commit is green.
+2. Run `mise run //kube/clusters/<cluster>:sync-flux ocirepo flux-system`.
+3. Reconcile the Kustomization of the app without `--with-source` (Step 3).
 
 ## Step 3: Force Reconciliation
 
+Use the Kustomization name from § Kustomization Not Reconciling. Do not add `--with-source` (see the
+forbidden list above).
+
 ```bash
-grep "^  name:" kube/clusters/artemis/apps/<namespace>/<app>/ks.yaml
-flux reconcile kustomization <ks-name> -n <namespace> --with-source
+flux reconcile kustomization <ks-name> -n <namespace>
 flux reconcile helmrelease <app> -n <namespace>
 ```
 

@@ -1,6 +1,6 @@
 # Module: Directory Structure Template
 
-Every app uses this canonical layout. `<cluster>` is `artemis` or `frostlink`:
+Every app uses this layout. `<cluster>` is `artemis` or `frostlink`:
 
 ```
 kube/clusters/<cluster>/apps/<namespace>/<app>/
@@ -12,10 +12,7 @@ kube/clusters/<cluster>/apps/<namespace>/<app>/
 ```
 
 Frostlink uses the same layout. Its differences are in `.agents/instructions/frostlink.md` § Apps,
-which wins there.
-
-After you create the directory, add `- ./<app>/ks.yaml` to the resources in
-`kube/clusters/<cluster>/apps/<namespace>/kustomization.yaml`.
+and that file wins there.
 
 ## Verify structure
 
@@ -23,7 +20,7 @@ After you create the directory, add `- ./<app>/ks.yaml` to the resources in
 find kube/clusters/<cluster>/apps/<namespace>/<app> -type f | sort
 ```
 
-Expected output (no ExternalSecret):
+Expected output:
 
 ```
 kube/clusters/<cluster>/apps/<namespace>/<app>/app/helmrelease.yaml

@@ -21,9 +21,10 @@ grouping directory between a namespace and its apps. Add `- ./<app>/ks.yaml` to 
 `kustomization.yaml` in alphabetical position.
 
 An app that both clusters run is the exception. It lives once, in `kube/base/<ns>/<app>/`, with
-its own `ks.yaml`. It has no directory under `kube/clusters/`. Each cluster that runs it lists the
-folder in its namespace menu as `- ../../../../base/<ns>/<app>`. `app-structure.md` § Shared apps
-(`kube/base/`) has the file shape, and it wins.
+its own `ks.yaml`. Each cluster that runs it lists the folder in its namespace menu as
+`- ../../../../base/<ns>/<app>`. If a cluster needs its own additions, they go in
+`kube/clusters/<cluster>/apps/<ns>/<app>/extras/ks.yaml`, and the menu lists that file too.
+`app-structure.md` § Shared apps (`kube/base/`) has the file shape, and it wins.
 
 Kustomization names are `<app>-<component>`. When the components are one product,
 `commonMetadata.labels.app.kubernetes.io/name` is the app, not the component. Label the component
@@ -43,11 +44,11 @@ under `route.app:` in its values. An app with no app-template HelmRelease uses a
 The five canonical shapes are single, multi-component, operator/operand, CR collection, and fleet.
 Their directory trees and tradeoffs are in `.agents/references/app-structure.md`.
 
-## Helm / app-template (v5 on Artemis)
+## Helm / app-template
 
 - Chart: `oci://ghcr.io/bjw-s-labs/helm/app-template` (note: `-labs`, not `-bjw-s`). Renovate
   bumps the tag fleet-wide. Recover it with the command in `AGENTS.md` § Make a version fact a
-  command. For Frostlink, use `kube/clusters/frostlink/` in its path.
+  command.
 - Every app gets its own standalone `OCIRepository`. Never share or reuse one.
 - `chartRef` in HelmRelease: `kind: OCIRepository, name: <app>`.
 - OCIRepository API version: `source.toolkit.fluxcd.io/v1` (not `v1beta2`).
@@ -56,8 +57,6 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
   `fsGroupChangePolicy: OnRootMismatch`.
 - Container security: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`,
   `capabilities: {drop: ["ALL"]}`.
-- Routes: an app-template app defines them inline under `route.app:` in its HelmRelease values,
-  not as a standalone HTTPRoute file.
 - (Artemis) PVC: `existingClaim: <app>` when the app uses the kopiur component.
 - (Artemis) NFS media mount: the server, path and mount point are in
   `.agents/references/storage.md`.
@@ -77,7 +76,8 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
 
 ## Deployment Philosophy (Artemis)
 
-Frostlink also uses a shared data layer, but its wiring differs. See `frostlink.md` § Database and cache.
+Frostlink also uses a shared data layer, but its wiring differs. See `frostlink.md` § Database
+and cache.
 
 Use the shared data layer first. The shared CNPG cluster and the shared Dragonfly in the
 `database` namespace are the default for new apps.
@@ -88,37 +88,38 @@ Use the shared data layer first. The shared CNPG cluster and the shared Dragonfl
 | Redis / queue / cache | Shared Dragonfly at `dragonfly.database.svc.cluster.local:6379`, no auth, no persistence        |
 | Multi-component apps  | Split into separate kustomizations (for example Immich: app / microservices / machine-learning) |
 
-Onboarding steps, the three DSN keys, and the per-driver gotchas: `.agents/references/postgres-dragonfly.md`.
+Onboarding steps, the three DSN keys, and the per-driver gotchas:
+`.agents/references/postgres-dragonfly.md`.
 
 No dedicated instances are left (`AGENTS.md` § What was deliberately removed). Before you assume
 that an app needs its own, check what the shared cluster already offers:
 `SELECT name, default_version FROM pg_available_extensions`. Do not stand up a per-app CNPG
 cluster or a sidecar Redis without a specific reason, and say the reason in the commit.
 
-An app that supports SQLite can still use it, because that avoids a dependency entirely. The
-change from the old policy applies when an app needs a real database: share it, do not silo it.
+An app that supports SQLite can still use it, because that avoids a dependency entirely. If an
+app needs a real database, share it. Do not silo it.
 
 ## Common Mistakes — Quick Reference
 
 Rows marked (Artemis) do not hold on Frostlink. See `frostlink.md` § Common mistakes.
 
-| Pattern                            | Correct                                                          | Wrong                                     |
-| ---------------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
-| Secret store name                  | `onepassword-connect`                                            | `onepassword`, `1password-connect`        |
-| Gateway, internal (Artemis)        | `internal-gateway`                                               | `internal`, `envoy-internal`              |
-| Gateway, public (Artemis)          | `edge-gateway`                                                   | `external-gateway`, `edge`, `towonel`     |
-| Gateway namespace                  | `network`                                                        | `default`, `networking`                   |
-| OCIRepository API                  | `source.toolkit.fluxcd.io/v1`                                    | `v1beta2`                                 |
-| ExternalSecret API                 | `external-secrets.io/v1`                                         | `v1beta1`                                 |
-| Flux Kustomization API             | `kustomize.toolkit.fluxcd.io/v1`                                 | `v1beta2`                                 |
-| Container image tag                | `v1.0.0@sha256:abc...`                                           | `latest`, bare `v1.0.0`                   |
-| OCIRepository chart tag            | bare version `2.5.0` (no SHA)                                    | SHA-pinned (not used for Helm charts)     |
-| Timezone                           | never set `TZ`, k8tz handles it                                  | `TZ: America/Toronto`                     |
-| HTTPRoute location (app-template)  | inline in helmrelease values                                     | standalone HTTPRoute file                 |
-| Route gateway attachment (Artemis) | exactly one of internal/edge                                     | one route on two gateways                 |
-| OCIRepository scope                | one per app                                                      | shared across apps                        |
-| Storage class (Artemis)            | `miroir` (default) or `miroir-local`, nothing else exists        | `ceph-block`, `cephfs`, `ceph-filesystem` |
-| Sonarr/Radarr/Prowlarr probe path  | `/ping` (each has its own path, check the app before you assume) | `/`, `/health`                            |
+| Pattern                            | Correct                                                   | Wrong                                                               |
+| ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------- |
+| Secret store name                  | `onepassword-connect`                                     | `onepassword`, `1password-connect`                                  |
+| Gateway, internal (Artemis)        | `internal-gateway`                                        | `internal`, `envoy-internal`                                        |
+| Gateway, public (Artemis)          | `edge-gateway`                                            | `external-gateway` (exists, takes no new routes), `edge`, `towonel` |
+| Gateway namespace                  | `network`                                                 | `default`, `networking`                                             |
+| OCIRepository API                  | `source.toolkit.fluxcd.io/v1`                             | `v1beta2`                                                           |
+| ExternalSecret API                 | `external-secrets.io/v1`                                  | `v1beta1`                                                           |
+| Flux Kustomization API             | `kustomize.toolkit.fluxcd.io/v1`                          | `v1beta2`                                                           |
+| Container image tag                | `v1.0.0@sha256:abc...`                                    | `latest`, bare `v1.0.0`                                             |
+| OCIRepository chart tag            | bare version `2.5.0` (no SHA)                             | SHA-pinned (not used for Helm charts)                               |
+| Timezone                           | never set `TZ`, k8tz handles it                           | `TZ: America/Toronto`                                               |
+| HTTPRoute location (app-template)  | inline in helmrelease values                              | standalone HTTPRoute file                                           |
+| Route gateway attachment (Artemis) | exactly one of internal/edge                              | one route on two gateways                                           |
+| OCIRepository scope                | one per app                                               | shared across apps                                                  |
+| Storage class (Artemis)            | `miroir` (default) or `miroir-local`, nothing else exists | `ceph-block`, `cephfs`, `ceph-filesystem`                           |
+| Sonarr/Radarr/Prowlarr probe path  | `/ping`. Other apps have their own path, so check it      | `/`, `/health`                                                      |
 
 ## GPU Workloads (Artemis)
 
@@ -129,14 +130,3 @@ iGPU for cross-namespace sharing (a `ResourceClaim` is namespace-scoped and cann
 namespaces). No pod uses that lane today. Affinity keys on `node.kubernetes.io/gpu-tier`, never
 `extensions.talos.dev/i915`. The details, the CEL selector rules and the `ResourceClaimTemplate`
 immutability trap are in `.agents/references/gpu.md`.
-
-## Cluster Inspection
-
-For read-only inspection, use the `-ops` MCP k8s tools, not `kubectl`. They are pre-authenticated
-and structured, and they have no shell quoting to get wrong. Writes never go through MCP
-(`AGENTS.md` rule 2). Tool names change per client, so list the tools and do not hardcode one.
-
-## Topic References
-
-For deeper patterns, read from `.agents/references/`. The catalog is in `AGENTS.md`
-§ Where everything else is. This file does not duplicate it.
