@@ -76,6 +76,106 @@ git -C "$main" worktree remove "$main/.worktrees/${usage_branch//\//-}"
 git -C "$main" branch -d "$usage_branch"
 '''
 
+[tasks.land]
+description = "Land a tested branch: rebase if needed, ff-merge and push, wait for the Flux artifact, resume, remove the worktree"
+usage = '''
+arg "<branch>" help="Branch name, <type>/<slug>"
+arg "<target>" var=#true help="Tested Kustomization, <cluster>:<ns>/<ks>"
+flag "--force" help="Land even if main moved under the tested Kustomizations"
+'''
+confirm = { message = "Land {{ usage.branch }} on main and push it? Run this only after the live deployment was confirmed.", default = "no" }
+run = '''
+main="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+dir="$main/.worktrees/${usage_branch//\//-}"
+eval "targets=(${usage_target:-})"
+git_main() { git -C "$main" "$@"; }
+kc() { local c="$1"; shift; KUBECONFIG="$main/kube/clusters/$c/kubeconfig" kubectl --context "$c" "$@"; }
+clusters="$(printf '%s\n' "${targets[@]}" | cut -d: -f1 | sort -u)"
+
+for t in "${targets[@]}"; do
+    [[ "$t" =~ ^[a-z0-9-]+:[^/:]+/[^/:]+$ && -d "$main/kube/clusters/${t%%:*}" ]] \
+        || mise run //:log fatal "Target must be <cluster>:<ns>/<ks>" target "$t"
+done
+
+# Checks before anything moves
+git_main rev-parse --verify -q "refs/heads/$usage_branch" >/dev/null || mise run //:log fatal "No such branch" branch "$usage_branch"
+[[ -d "$dir" ]] || mise run //:log fatal "No worktree for the branch" dir "$dir"
+[[ -n "$(git_main log --oneline "main..$usage_branch")" ]] || mise run //:log fatal "Branch has no commits ahead of main" branch "$usage_branch"
+[[ -z "$(git -C "$dir" status --porcelain)" ]] || mise run //:log fatal "Worktree is not clean" dir "$dir"
+[[ "$(git_main branch --show-current)" == "main" ]] || mise run //:log fatal "Main checkout is not on main" dir "$main"
+[[ -z "$(git_main status --porcelain)" ]] || mise run //:log fatal "Main checkout is not clean" dir "$main"
+
+git_main fetch origin
+base="$(git_main merge-base "$usage_branch" origin/main)"
+if [[ "$base" != "$(git_main rev-parse origin/main)" ]]; then
+    changed="$(git_main diff --name-only "$base" origin/main)"
+    patterns=(kube/base/ kube/components/)
+    for t in "${targets[@]}"; do
+        c="${t%%:*}"; nsks="${t#*:}"
+        kpath="$(find "$dir/kube/clusters/$c/apps/${nsks%/*}" "$dir/kube/base/${nsks%/*}" -name ks.yaml 2>/dev/null \
+            | xargs -r yq -r "select(.kind == \"Kustomization\" and .metadata.name == \"${nsks#*/}\") | .spec.path" \
+            | grep -v -e '^$' -e '^null$' | head -1 || true)"
+        [[ -n "$kpath" ]] || mise run //:log fatal "Cannot find the path of the Kustomization" target "$t"
+        patterns+=("${kpath#./}/")
+    done
+    overlap="$(printf '%s\n' "$changed" | while read -r f; do for p in "${patterns[@]}"; do [[ "$f" == "$p"* ]] && echo "$f"; done; done || true)"
+    if [[ -n "$overlap" && "${usage_force:-}" != "true" ]]; then
+        printf '%s\n' "$overlap"
+        mise run //:log fatal "main moved under your test, re-test (or use --force)" branch "$usage_branch"
+    fi
+    mise run //:log info "Rebasing onto origin/main" branch "$usage_branch"
+    git -C "$dir" rebase origin/main || { git -C "$dir" rebase --abort; mise run //:log fatal "Rebase failed, resolve it by hand" branch "$usage_branch"; }
+fi
+
+git_main pull --ff-only
+git_main merge --ff-only "$usage_branch"
+git_main push origin main
+sha="$(git_main rev-parse HEAD)"
+mise run //:log info "Pushed" sha "$sha"
+
+resume_hint() { for c in $clusters; do echo "  mise run //kube/clusters/$c:resume-ks flux-system flux-system, then each target"; done; }
+for c in $clusters; do
+    mise run //:log info "Waiting for the artifact" cluster "$c" sha "$sha"
+    for i in $(seq 0 59); do
+        rev="$(kc "$c" get ocirepository -n flux-system flux-system -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}' 2>/dev/null || true)"
+        [[ "$rev" == *"$sha"* ]] && break
+        ready="$(kc "$c" get ocirepository -n flux-system flux-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)"
+        if [[ "$ready" == "False" ]]; then
+            resume_hint
+            mise run //:log fatal "OCIRepository went Ready=False, left suspended" cluster "$c"
+        fi
+        ci="$(fjo run list --commit "$sha" --workflow oci-push.yaml -R Exikle/home-infra --json status -q '.[0].status' 2>/dev/null || true)"
+        if [[ "$ci" == "failure" || "$ci" == "cancelled" ]]; then
+            resume_hint
+            mise run //:log fatal "Push OCI Artifact run did not succeed, left suspended" status "$ci" sha "$sha"
+        fi
+        (( i % 6 == 0 )) && mise run "//kube/clusters/$c:sync-flux" ocirepo flux-system
+        sleep 15
+    done
+    if [[ "$rev" != *"$sha"* ]]; then
+        resume_hint
+        mise run //:log fatal "Timed out after 15 minutes, left suspended" cluster "$c" sha "$sha"
+    fi
+    mise run //:log info "Artifact carries the commit" cluster "$c"
+done
+
+for c in $clusters; do
+    mise run "//kube/clusters/$c:resume-ks" flux-system flux-system
+    for t in "${targets[@]}"; do
+        [[ "${t%%:*}" == "$c" ]] || continue
+        nsks="${t#*:}"
+        mise run "//kube/clusters/$c:resume-ks" "${nsks%/*}" "${nsks#*/}"
+    done
+done
+
+cd "$main"
+mise run //:wt:rm "$usage_branch"
+if git_main ls-remote --exit-code --heads origin "$usage_branch" >/dev/null 2>&1; then
+    git_main push origin --delete "$usage_branch"
+fi
+mise run //:log info "Landed" branch "$usage_branch" sha "$sha"
+'''
+
 [tasks."wt:ls"]
 description = "List worktrees"
 run = "git worktree list"

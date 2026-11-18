@@ -20,6 +20,8 @@ mise run //kube/clusters/artemis:apply-ks <ns> <ks>          # render and apply 
 mise run //kube/clusters/artemis:diff-ks <ns> <ks>           # read-only diff of a local render vs live; exit 1 = differs
 mise run //kube/clusters/artemis:resume-ks <ns> <ks>         # resume ONE ks; root FIRST, then the target
 mise run //kube/clusters/artemis:sync-flux <res> [name]      # force-sync hr|ks|gitrepo|ocirepo|es; NAME it, or it hits all
+mise run //kube/clusters/artemis:test-ks <ns> <ks>...        # suspend root + each ks, then apply-ks each; refuses in the main checkout
+mise run --yes //:land <type>/<slug> <cluster>:<ns>/<ks>...  # after the user confirms: rebase, ff-merge, push, wait for artifact, resume, remove worktree
 mise run //kube/clusters/artemis:render-ks <ns> <ks>         # validate with flate (offline; hidden, runs by name); the root uses flux build against the live cluster
 mise run //kube/clusters/artemis:snapshot-pvc [ns] [policy]  # snapshot one policy, a namespace, or all if no args
 mise run //kube/clusters/artemis:browse-pvc <ns> <pvc>       # browse a PVC interactively
@@ -38,7 +40,7 @@ mise run //:wt:ls                                                  # list worktr
 ```
 
 Both clusters share the task names `apply-ks`, `delete-ks`, `suspend-ks`, `resume-ks`, `diff-ks`,
-`render-ks`, `sync-flux`, `toggle-kopiur`, `browse-pvc`, `debug-node`, `prune-pods`,
+`render-ks`, `test-ks`, `sync-flux`, `toggle-kopiur`, `browse-pvc`, `debug-node`, `prune-pods`,
 `release-snapshot`, `restore-pvc`, `unstick-hr`, `reset-hr` and `view-secret`. Frostlink also has
 `reclaim-pv` and `towonel-invite`. These tasks differ on Frostlink:
 
@@ -63,6 +65,7 @@ the hidden `log` and `template` tasks and the `wt:` tasks.
 
 Confirm-gated tasks need `mise run --yes`. These tasks ask first:
 
+- `//:land`. It merges to `main` and pushes.
 - Every `talos` write verb (`apply-node`, `reboot-node`, `reset-node`, `shutdown-node`,
   `upgrade-k8s`, `upgrade-node`).
 - `//terraform:apply`, `//ansible:apply` and `//ansible:ucg-authkey`.

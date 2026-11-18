@@ -16,8 +16,33 @@ commit. So Exikle never uses a PR merge for their own work. PRs are for Renovate
 
 ## The sequence
 
-Step 0. Suspend first, in two calls, root and target (`AGENTS.md` rule 1 wins). `apply-ks` does
-not suspend for you.
+The default path is three commands. Run `test-ks` from your worktree.
+
+1. `mise run //kube/clusters/<cluster>:test-ks <ns> <ks>...` suspends the root, suspends each
+   Kustomization that you name, and applies each one from the worktree. It refuses to run in the
+   main checkout. It prints what is still suspended.
+2. Wait until the user tells you that the live deployment works (`AGENTS.md` rule 1 wins).
+3. Commit in the worktree (global § Commit Hygiene). Then run
+   `mise run --yes //:land <type>/<slug> <cluster>:<ns>/<ks>...`. Name every cluster and
+   Kustomization that you tested. `land` asks first, so it needs `--yes`.
+
+`land` does steps 4 and 5 below, then removes the worktree and the remote branch. It refuses to
+start unless these are true:
+
+- The branch has commits that `main` does not have.
+- The worktree is clean.
+- The main checkout is on `main` and is clean.
+
+If `origin/main` moved, `land` rebases the branch. It stops with "main moved under your test, re-test"
+when the new commits touch `kube/base/`, `kube/components/` or the path of a tested Kustomization.
+`--force` skips that stop. It waits up to 15 minutes for the artifact of each cluster. If the
+OCIRepository goes `Ready=False`, or the `Push OCI Artifact` run fails, it stops and leaves the
+Kustomizations suspended. Then it resumes the root first and each target after it.
+
+The manual steps below are the fallback. Use them when a task fails, or when `land` stops halfway.
+Each step is what the task does.
+
+Step 0. Suspend first, in two calls, root and target. `apply-ks` does not suspend for you.
 
 ```bash
 mise run //kube/clusters/artemis:suspend-ks flux-system flux-system
@@ -26,15 +51,10 @@ mise run //kube/clusters/artemis:suspend-ks <ns> <ks-name>
 
 Order does not matter going in, and both are idempotent.
 
-The root matters for this reason: `apply-ks` writes uncommitted local edits with
-`field-manager=kustomize-controller`. Children reconcile on their own interval. If one reconciles
-in the middle of a session, it silently reverts those edits to what is in git. Across a
-dependency chain, a child on a stale fetch can re-apply an old revision and cascade into deleted
-CRs and PVCs. The data survives, because CNPG `Database` and kopiur defaults retain it, but the
-objects do not.
-
-Nothing errors if you forget. The apply succeeds. Minutes later a controller reverts it, and it
-looks as if the change never landed.
+The root matters for this reason: `apply-ks` writes your uncommitted edits. Children reconcile on
+their own interval, and a child that reconciles in the middle of a session silently reverts those
+edits. Across a dependency chain, a stale child can cascade into deleted CRs and PVCs. The data
+survives, but the objects do not. Nothing errors if you forget.
 
 Step 1. Write the changes in your worktree (`AGENTS.md` rule 7). `mise run //:wt:new` branches
 from the local `main`. The local `main` falls behind as Renovate merges land. An `apply-ks` from a
@@ -106,22 +126,23 @@ your field.
 
 ## Frostlink
 
-The sequence is the same, with the Frostlink tasks:
-`mise run //kube/clusters/frostlink:suspend-ks flux-system flux-system`, then the same for
-`<ns> <ks-name>`, then `apply-ks`, `sync-flux` and `resume-ks`. Run each from the worktree.
+The sequence is the same. Use `mise run //kube/clusters/frostlink:test-ks <ns> <ks>...`, then
+name the Kustomization as `frostlink:<ns>/<ks>` in `land`. The manual fallback is the same
+sequence with the Frostlink tasks (`suspend-ks`, `apply-ks`, `sync-flux`, `resume-ks`). Run each
+from the worktree.
 
 - `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
   diffs the push. The job of a cluster runs when its `apps/`, `components/` or `settings/`
   under `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/`
   changed. A job that does not run shows as skipped. Wait for the job of each cluster that your
   change reaches.
-- A change under `kube/base/` or `kube/components/` reaches both clusters in one push. Test it
-  live on both clusters before you commit: suspend, `apply-ks` and confirm on each.
+- A change under `kube/base/` or `kube/components/` reaches both clusters in one push. Run
+  `test-ks` on both clusters and confirm on each. Then give `land` a target for each cluster.
 - Make sure that the artifact carries your commit. Use the Frostlink context:
   `kubectl get ocirepository -n flux-system flux-system --context frostlink -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.
   The artifact names are `exikle/artemis` and `exikle/frostlink`.
-- A commit that touches both clusters needs both runs green, and both clusters suspended and
-  resumed. Name each cluster in its own task path.
+- A commit that touches both clusters needs both clusters suspended and resumed. `land` waits for
+  the artifact of each cluster that you name.
 - It is one node. A change that restarts a core pod (Cilium, CoreDNS, the Envoy front door) is an
   outage of every public site. Say so in the commit, and test it with the user watching.
 

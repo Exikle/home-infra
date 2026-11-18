@@ -349,6 +349,30 @@ run = '''
 kubectl --context "$KUBE_CONTEXT" get secret -n "$usage_ns" "$usage_secret" -o yaml | yq '.data | map_values(@base64d)'
 '''
 
+[tasks.test-ks]
+description = "Suspend the root and the named Kustomizations, then apply each from this worktree — then wait for the user and run land"
+usage = '''
+arg "<ns>" help="Namespace of the Flux Kustomizations"
+arg "<ks>" var=#true help="Names of the Flux Kustomizations to test"
+'''
+run = '''
+self="//${MISE_CONFIG_ROOT#"$MISE_MONOREPO_ROOT"/}"
+[[ "$(git rev-parse --absolute-git-dir)" != "$(git rev-parse --path-format=absolute --git-common-dir)" ]] \
+    || mise run //:log fatal "Run this from a worktree, apply-ks renders the tree of the working directory" next "mise run //:wt:new <type>/<slug>"
+eval "targets=(${usage_ks:-})"
+
+mise run "$self:suspend-ks" flux-system flux-system
+for ks in "${targets[@]}"; do
+    mise run "$self:suspend-ks" "$usage_ns" "$ks"
+done
+for ks in "${targets[@]}"; do
+    mise run "$self:apply-ks" "$usage_ns" "$ks"
+done
+
+mise run //:log info "Suspended" root flux-system/flux-system targets "${targets[*]/#/$usage_ns/}"
+mise run //:log info "Now wait for the user to confirm the live deployment, then run land"
+'''
+
 [tasks.render-ks]
 hide = true
 usage = '''
