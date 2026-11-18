@@ -98,10 +98,11 @@ apoci identity show
 
 ## Remote targeting (without exec)
 
-All follow commands take `--remote` and `--token`, to target an instance from outside the pod. The
-help text calls `--token` the "registry token for remote auth". The secret holds both
-`APOCI_ADMIN_TOKEN` and `APOCI_REGISTRY_TOKEN`. Which of the two `--remote` accepts is not verified.
-The same is true for the `APOCI_REMOTE_URL` and `APOCI_ADMIN_TOKEN` environment variables.
+All follow commands take `--remote` and `--token`, to target an instance from outside the pod. With
+`--remote`, `--token` is the admin token (`APOCI_ADMIN_TOKEN`). The CLI sends it as a Bearer token
+to `/api/admin/*`. The help text calls it the "registry token for remote auth", and that text is
+misleading. The CLI falls back to the environment variables `APOCI_ADMIN_TOKEN` and
+`APOCI_REMOTE_URL` when you omit the flags. This is verified against apoci v0.0.57.
 
 ```bash
 ARTEMIS_TOKEN=$(kubectl -n fediverse get secret apoci -o jsonpath='{.data.APOCI_ADMIN_TOKEN}' | base64 -d)
