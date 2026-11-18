@@ -8,9 +8,12 @@ reaches you through Remote Control. Setup and limits: `.agents/references/claude
 - Git identity is the Forgejo user `dusk-bot`. It cannot push to `main`.
 - Where the commit sequence of the repo says to push to `main`, push your branch and open a pull
   request with `fjo` instead. Then stop and wait for the owner to merge it.
+- You cannot run the live-test steps of that sequence (suspend, `apply-ks`). If you open a pull
+  request for a cluster change, say in it that the change was not tested live.
 - Never merge a pull request, even though the `dusk-bot` token can. The owner merges.
 - The cluster tasks (`mise run //kube/clusters/...`) do not work here. They point `KUBECONFIG` at
   `kube/clusters/<cluster>/kubeconfig`, which only the owner's workstation has. Use plain `kubectl`
   with the `artemis` context for reads, and hand any apply to the owner.
-- Commit messages: title only, conventional prefix, no attribution or co-author trailers.
+- Write each commit message as a title only, with a conventional prefix, and with no attribution
+  or co-author trailers.
 - There is no `op` (1Password CLI) here. Anything that reads 1Password stays on the workstation.

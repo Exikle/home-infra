@@ -11,7 +11,6 @@ resources:
 configMapGenerator:
   - name: hermes-cluster-health-seed
     files:
-      - seed/cluster-health/apoci-pvc-triage.md
       - seed/cluster-health/etcd-triage.md
       - seed/cluster-health/miroir-triage.md
       - seed/cluster-health/pocket-id-operator-triage.md
@@ -37,9 +36,9 @@ configMapGenerator:
       disableNameSuffixHash: true
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
-  - name: hermes-skill-adhd-friendly-communication
+  - name: hermes-skill-reply-format
     files:
-      - skills/adhd-friendly-communication/SKILL.md
+      - skills/reply-format/SKILL.md
     options:
       disableNameSuffixHash: true
       annotations:

@@ -287,16 +287,16 @@ spec:
             init:
               - path: /run/config
                 readOnly: true
-      skill-adhd-friendly-communication:
+      skill-reply-format:
         type: configMap
-        name: hermes-skill-adhd-friendly-communication
+        name: hermes-skill-reply-format
         advancedMounts:
           hermes:
             app:
-              - path: /etc/hermes-skills/adhd-friendly-communication
+              - path: /etc/hermes-skills/reply-format
                 readOnly: true
             init:
-              - path: /etc/hermes-skills/adhd-friendly-communication
+              - path: /etc/hermes-skills/reply-format
                 readOnly: true
       skill-artemis-cluster-ops:
         type: configMap

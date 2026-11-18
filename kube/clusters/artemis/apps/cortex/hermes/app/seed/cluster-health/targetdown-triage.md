@@ -1,28 +1,51 @@
 # TargetDown triage
 
-## Key insight: label grouping
-
-Do not trust "100% of the targets are down". The rule groups by `(job, namespace, service)`. A static scrape target has no `namespace`/`service` labels, so it forms its own one-target group (1/1 down = 100%) while the rest of the job scrapes fine. An empty namespace in the description shows this.
+TargetDown fires once for each down series (`up == 0`). Its description names the job and the
+instance.
 
 ## Diagnosis recipe
 
-1. Check the workload first. If the DaemonSet/Deployment is fully ready (for smartctl-exporter, 7/7), it is not a pod problem. Pod labels follow the chart (`app.kubernetes.io/name=prometheus-smartctl-exporter`), so a guessed `app=<job>` selector returns nothing.
-2. Run `bash /etc/hermes-skills/cluster-health/scripts/targetdown-check.sh <job>`. It prints `up{job=...}` per instance and each vmagent target's `scrapeUrl`, `health` and `lastError`. `up=1` series carry `container`/`endpoint`/`namespace`/`service` (service-discovered). `up=0` series without them are static targets, the usual culprit. `lastError` names the real cause (HTTP 500 body, connection refused, DNS, size limit).
-3. To parse without jq, note that `/api/v1/targets` is multi-MB because each target embeds `discoveredLabels` (8.5 MB at 116 targets). Never `grep -o` a pattern that can span a `discoveredLabels` block. One such grep hung for 900 s. Narrow the result server-side with `&scrapePool=<url-encoded pool>` (e.g. `staticScrape%2Fobservability%2Fsmartctl-exporter-pantheon%2F0`), or grep short atomic fields only (`"scrapeUrl":"[^"]*"`, `"health":"[^"]*"`, `"job":"[^"]*"`). VM query values look like `"value":[<ts>,"1"]`; the literal `"up":1` never appears.
+1. Look at the workload first. If the DaemonSet or Deployment is fully ready (7/7 for
+   smartctl-exporter), the cause is not a pod. The pod labels follow the chart
+   (`app.kubernetes.io/name=prometheus-smartctl-exporter`), so a guessed `app=<job>` selector
+   returns nothing.
+2. Run `bash /etc/hermes-skills/cluster-health/scripts/targetdown-check.sh <job>`. It prints
+   `up{job=...}` per instance, and the `scrapeUrl`, `health` and `lastError` of each vmagent
+   target. Service-discovered `up=1` series carry the `container`, `endpoint`, `namespace` and
+   `service` labels. A static target has none of them. An `up=0` series without them is a static
+   target, which is the usual cause. `lastError` names the real cause (HTTP 500 body, connection
+   refused, DNS, size limit).
+3. You parse without jq. `/api/v1/targets` is several MB, because each target embeds
+   `discoveredLabels`. Never `grep -o` a pattern that can span a `discoveredLabels` block. One such
+   grep hung for 900 s. Narrow the result on the server with `&scrapePool=<url-encoded pool>`, for
+   example `staticScrape%2Fobservability%2Fsmartctl-exporter-pantheon%2F0`. Or grep short, atomic
+   fields only (`"scrapeUrl":"[^"]*"`, `"health":"[^"]*"`, `"job":"[^"]*"`). A VM query value
+   looks like `"value":[<ts>,"1"]`. The literal `"up":1` never appears.
 
 ## Classification
 
-A healthy workload plus a down static target is not auto-fixable. The fix is a Flux scrape-config edit (observability) or a host-side repair. Send a `warning` under "needs human attention". Never delete pods or scale anything for a TargetDown unless a pod-level class (CrashLoopBackOff, Evicted, stuck terminating) is independently confirmed.
+A healthy workload with a down static target is not auto-fixable. The fix is a Flux scrape-config
+edit (observability) or a repair on the host. Report it as `attention` on the `warning` route
+("needs human attention"). Do not blame a TargetDown on a pod unless you independently confirm a
+pod-level class (CrashLoopBackOff, Evicted, stuck terminating).
 
 ## Cases
 
 ### smartctl-exporter, static `instance=pantheon` (RESOLVED 2026-08-15)
 
-Static target `http://10.10.99.104:9633/metrics` (the Proxmox host `pantheon`, not a Kubernetes node) returned HTTP 500 with "44 error(s)" while smartctl could not read devices on the host. The 7 service-discovered DaemonSet targets were up the whole time. The case was open ~52 h, with 11 logged recurrences. It was fixed on the host and scrape side. Healthy state: `up{job="smartctl-exporter"}` 8/8 = 1.
+The static target `http://10.10.99.104:9633/metrics` is the Proxmox host `pantheon`, not a
+Kubernetes node. It returned HTTP 500 with "44 error(s)" while smartctl was not able to read the devices
+on the host. The 7 service-discovered DaemonSet targets stayed up the whole time. The case was
+open about 52 h, with 11 logged recurrences. The fix was on the host and in the scrape
+configuration. Healthy state: `up{job="smartctl-exporter"}` 8/8 = 1.
 
 ### kube-apiserver, instance talos-cp-02 (RESOLVED 2026-09-23 08:02Z)
 
-The scrape discovers all 3 control-plane endpoints. `https://10.10.99.102:6443/healthz` was 200, but vmagent `lastError` said the `/metrics` response exceeded `-promscrape.maxScrapeSize` (16777216 bytes) for that node only, so `up{job="kube-apiserver"}` was 2/3. This case is not auto-fixable. The fix is to raise `max_scrape_size` on the Flux-managed kube-apiserver scrape config (or the vmagent flag). The case was open ~76 h, with 6 logged observations. Healthy state: 3/3 = 1.
+The scrape discovers all 3 control-plane endpoints. `https://10.10.99.102:6443/healthz` returned 200. But the vmagent `lastError` said that the `/metrics` response of that node was larger than
+`-promscrape.maxScrapeSize` (16777216 bytes). So `up{job="kube-apiserver"}` was 2/3. This case is
+not auto-fixable. The fix is to raise `max_scrape_size` on the Flux-managed kube-apiserver scrape
+configuration, or the vmagent flag. The case was open about 76 h, with 6 logged observations.
+Healthy state: 3/3 = 1.
 
 ## Recurrence log (open cases only)
 

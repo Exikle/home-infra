@@ -85,16 +85,17 @@ events, logs). Drop findings that already corrected themselves. Never trust an a
   `restartCount` stopped going up for a full evaluation window, and the last restart is older
   than 5 minutes.
 - TargetDown or scrape target down: run
-  `bash /etc/hermes-skills/cluster-health/scripts/targetdown-check.sh <job>`. The alert groups by
-  (job, namespace, service). A static scrape target has no namespace/service labels. So "100%
-  down" can mean one stale target while the rest of the job is healthy. A healthy workload with a
-  down static target is not auto-fixable. The fix is a Flux scrape-config edit or a host repair.
-  Detail: `/opt/data/workspace/cluster-health/targetdown-triage.md`.
+  `bash /etc/hermes-skills/cluster-health/scripts/targetdown-check.sh <job>`. TargetDown fires once
+  for each down series (`up == 0`) and names the job and the instance. A static scrape target has
+  no namespace/service labels. One down static target can fire while the rest of the job is
+  healthy. A healthy workload with a down static target is not auto-fixable. The fix is a Flux
+  scrape-config edit or a host repair. Detail:
+  `/opt/data/workspace/cluster-health/targetdown-triage.md`.
 - Pending pod: the script already ignores pods younger than 10 minutes. Find the waiting reason
   (ImagePullBackOff, Unschedulable, a PVC that will not bind).
 - Node finding: read `k8s_nodes_top`. Describe the CPU and memory readings with
-  `/etc/hermes-skills/cluster-health/references/node-baselines.md`. Expect 7 nodes, and count
-  them from the live result.
+  `/etc/hermes-skills/cluster-health/references/node-baselines.md`. That file gives the expected
+  node count.
 
 ### Documented cases
 

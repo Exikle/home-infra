@@ -27,5 +27,5 @@ For writes, send the header `Authorization: token $FORGEJO_PAT` (this is dusk-bo
 
 - Tree answers are paged. If `"truncated":true`, request `page=2, 3...` until you have `total_count` entries.
 - `web_extract` refuses this host (private-address filter). Do not retry it. Use curl.
-- You cannot merge PRs or push `main` (denied). Open a PR from a branch instead. The branch, contents PUT and PR steps are in skill `skill-change-pr`.
+- You must not merge PRs or push `main`. The terminal deny list blocks both, and the owner merges. Open a PR from a branch instead. The branch, contents PUT and PR steps are in skill `skill-change-pr`.
 - URL-encode special characters in paths.

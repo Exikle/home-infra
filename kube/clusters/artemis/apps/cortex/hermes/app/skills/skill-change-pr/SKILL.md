@@ -5,7 +5,7 @@ description: "How to get one of your skills changed. Skills are read-only (git i
 
 # Change a skill with a PR
 
-Skills under `/etc/hermes-skills/` are read-only mounts of `kube/clusters/artemis/apps/cortex/hermes/app/skills/<name>/` in `exikle/home-infra`. Do not edit them or patch them with skill tools, because the write fails or is staged and never lands. Open a PR. Never merge it. The merge is denied and a human decides.
+Skills under `/etc/hermes-skills/` are read-only mounts of `kube/clusters/artemis/apps/cortex/hermes/app/skills/<name>/` in `exikle/home-infra`. Do not edit them or patch them with skill tools, because the write fails or is staged and never lands. Open a PR. Never merge it. The terminal deny list blocks the merge, and the owner decides.
 
 Use scanner-safe shapes only: `curl -o <file>` then `read_file`. Do not pipe into interpreters, do not use heredocs, and do not use `jq`. `write_file` refuses `/tmp`, so author files under `/opt/data/workspace/skill-pr/`. Auth is `Authorization: token $FORGEJO_PAT` (dusk-bot). `B=https://git.dcunha.io/api/v1/repos/exikle/home-infra`.
 
@@ -34,7 +34,7 @@ grep -o '"sha":"[^"]*"' /tmp/cur.json
 curl -s --max-time 60 -X PUT -H "Authorization: token $FORGEJO_PAT" -H 'Content-Type: application/json' --data @/opt/data/workspace/skill-pr/put.json -o /tmp/put.json -w '%{http_code}\n' "$B/contents/kube/clusters/artemis/apps/cortex/hermes/app/skills/<name>/SKILL.md"
 ```
 
-The code 200 means committed. For a second file in the same PR, repeat steps 1-3 with `"branch": "<the new branch>"` and no `new_branch`. For a brand-new file, use `-X POST` and no `sha`. A new file also needs an entry in `kustomization.yaml` and `helmrelease.yaml` of that app, so change those in the same PR.
+The code 200 means committed. For a second file in the same PR, repeat steps 1-3 with `"branch": "<the new branch>"` and no `new_branch`. For a brand-new file, use `-X POST` and no `sha`. A new file also needs an entry in `kustomization.yaml` and in `helmrelease.yaml` of that app: a new `persistence` entry for a new skill, or an `items` line for a file in a subdirectory. Change those in the same PR.
 
 4. `write_file` `/opt/data/workspace/skill-pr/pr.json`, then open the PR:
 

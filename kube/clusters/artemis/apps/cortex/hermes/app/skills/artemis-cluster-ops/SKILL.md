@@ -34,6 +34,8 @@ The facts are in the repo. This skill holds only rules and pointers.
 - The tools are read-only. The k8s server runs with `disable_destructive = true`, so it shows no
   write tools. Its RBAC still grants pod delete and job delete, but no tool uses those grants.
 - The pod has no `kubectl` and no cluster credentials. The MCP tools are the only way in.
+- Every tool targets Artemis. Frostlink, the second cluster in `AGENTS.md`, is out of reach. If a
+  question is about Frostlink, say so. Do not guess its state from Artemis.
 - Answer by calling tools. Do not give the user shell commands to run.
 - `forbidden ... mcp-k8s-sa` is an RBAC limit, not an outage. Read the answer from logs instead.
 - `MCP unreachable after N failures` is a cooldown. Wait about 50s, then try again.
@@ -60,4 +62,4 @@ The facts are in the repo. This skill holds only rules and pointers.
 
 ## Replies
 
-Follow skill `adhd-friendly-communication`.
+Follow skill `reply-format`.
