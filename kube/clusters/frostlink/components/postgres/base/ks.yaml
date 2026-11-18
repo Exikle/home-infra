@@ -23,6 +23,7 @@ spec:
     substitute:
       APP: ${APP}
       OWNER: ${DATABASE_OWNER:=${APP}}
+  wait: false
   healthChecks:
     - apiVersion: postgresql.cnpg.io/v1
       kind: Database
