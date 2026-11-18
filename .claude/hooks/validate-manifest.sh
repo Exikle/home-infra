@@ -2,15 +2,16 @@
 # VENDORED FILE — canonical copy: dotfiles/home/claude/agent-hooks/validate-manifest.sh
 # Edit there and run sync-hooks.sh; pre-commit fails if this drifts.
 #
-# PostToolUse:Edit|Write|MultiEdit — YAML lint on kubernetes manifests after edits.
-# Exit 1 is non-blocking: it warns the model without reverting the edit.
+# PostToolUse:Edit|Write|MultiEdit — format check on YAML under kube/ after edits.
+# Exit 2 is how the model sees the warning: PostToolUse feeds stderr back to Claude on
+# exit 2 and cannot revert the edit. Any other non-zero exit is shown to the user only.
 set -euo pipefail
 
 INPUT=$(cat)
 
-# Fast path: only YAML under kubernetes/ is ever linted, so skip the interpreter
+# Fast path: only YAML under kube/ is ever checked, so skip the interpreter
 # entirely unless the payload could name such a file.
-[[ "$INPUT" == *kubernetes* ]] || exit 0
+[[ "$INPUT" == */kube/* ]] || exit 0
 [[ "$INPUT" == *.yaml* || "$INPUT" == *.yml* ]] || exit 0
 
 FILE=$(printf '%s' "$INPUT" | python3 -c \
@@ -29,13 +30,6 @@ resolve() {
 
 ERRORS=()
 
-YAMLLINT=$(resolve yamllint)
-if [[ -n "$YAMLLINT" ]]; then
-    if ! YAMLLINT_OUT=$("$YAMLLINT" -d relaxed "$FILE" 2>&1); then
-        ERRORS+=("yamllint: $YAMLLINT_OUT")
-    fi
-fi
-
 # `--check`, not `check`: oxfmt takes paths positionally, so the bare word was parsed
 # as a filename and the check silently never ran.
 OXFMT=$(resolve oxfmt)
@@ -46,11 +40,11 @@ if [[ -n "$OXFMT" ]]; then
 fi
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
-    echo "Validation warnings for $FILE:"
+    echo "Validation warnings for $FILE:" >&2
     for err in "${ERRORS[@]}"; do
-        echo "  $err"
+        echo "  $err" >&2
     done
-    exit 1
+    exit 2
 fi
 
 exit 0

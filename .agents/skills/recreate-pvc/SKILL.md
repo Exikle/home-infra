@@ -69,11 +69,14 @@ forever. Force it: `kubectl delete pod -n <ns> <pod> --force --grace-period=0`.
 ## Step 3: Delete the PVC
 
 `guard-destructive.sh` blocks `kubectl delete ... pvc`. For a planned recreation with a verified
-snapshot, turn off that one rule with the marker:
+snapshot, turn off that one rule with the marker. The marker must start the command, as an
+environment assignment. A trailing comment no longer works:
 
 ```bash
-kubectl delete pvc -n <ns> <pvc> --wait=false  # I_HAVE_A_KOPIUR_SNAPSHOT
+I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl delete pvc -n <ns> <pvc> --wait=false
 ```
+
+A command that starts with `VAR=` matches no allow-list entry, so the user approves it.
 
 The marker turns off ONLY `kubectl-delete-critical`. Every other rule still applies. Do not use the
 marker unless you did Step 0.

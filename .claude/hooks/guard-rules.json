@@ -1,123 +1,117 @@
 {
-  "//": "Canonical destructive-command rule table for both cluster repos. This file is the single source of truth: .claude/hooks/guard-destructive.sh and .opencode/plugins/guard-destructive.js are GENERATED from it by gen-guards.py, so the bash and JS guards cannot drift apart. Patterns are written in the intersection of POSIX ERE (grep -E) and JavaScript RegExp so one string serves both.",
-  "fast_path_keywords": ["kubectl", "helm", "flux", "talosctl", "just", "mise"],
+  "//": "Canonical destructive-command rule table for the cluster repos. This file is the single source of truth: .claude/hooks/guard-destructive.sh and .opencode/plugins/guard-destructive.js are GENERATED from it by gen-guards.py, so the bash and JS guards cannot drift apart. gen-guards.py splits a command into simple commands (quote contents blanked, heredocs and continuations handled, wrappers like sudo/env/xargs and leading VAR=val stripped), then matches each rule's pattern against the start of each one, so a guarded word only counts in command position. Patterns are written in the intersection of Python re and JavaScript RegExp. <<NAME>> expands a macro from 'macros'. A rule has: id, pattern (against the command with quote contents blanked; 'on': 'plain' matches the command with quote marks removed instead), optional exempt (regex on the plain form) or exempt_env (a leading VAR=1 assignment that opts out), optional subagent_only (needs agent_id in the payload; never emitted for opencode), optional decision ('block' by default, or 'ask' for a PreToolUse permissionDecision ask), reason, alternative, optional repos.",
+  "fast_path_keywords": [
+    "kubectl",
+    "kubecolor",
+    "helm",
+    "flux",
+    "talosctl",
+    "mise",
+    "tofu",
+    "terraform"
+  ],
   "fast_path_words": ["rm", "mv", "git"],
+  "macros": {
+    "KUBECTL": "(?:kubectl|kubecolor)(?:\\s+-[\\w-]+(?:=\\S*)?(?:\\s+[^-\\s]\\S*)?)*\\s+",
+    "KTYPES": "ns|namespaces?|pvcs?|pvs?|persistentvolumes?|persistentvolumeclaims?|nodes?|no|deploy|deployments?|ds|daemonsets?|sts|statefulsets?|secrets?|crds?|customresourcedefinitions?|clusters?|helmreleases?|hr|kustomizations?|ks|ocirepositor(?:y|ies)|gitrepositor(?:y|ies)|gateways?|httproutes?|clusterroles?|all",
+    "GITOPTS": "(?:\\s+-[cC]\\s+\\S+|\\s+--(?:git-dir|work-tree|namespace)(?:=\\S+|\\s+\\S+)|\\s+-\\S+)*",
+    "TASKS": "apply-ks|delete-ks|suspend-ks|resume-ks|sync-flux|restore-pvc|release-snapshot|reclaim-pv|reset-hr|unstick-hr|snapshot-pvc|toggle-kopiur|prune-pods|test-ks|land|apply-node|reboot-node|reset-node|shutdown-node|upgrade-node|upgrade-k8s|upgrade|patch-node|phase1|phase2|tailnet|towonel-invite|ucg-authkey"
+  },
   "always_allow": {
-    "pattern": "--dry-run",
-    "//": "Read-only validation is never blocked, whatever else the command matches."
+    "pattern": "^(?:kubectl|kubecolor|helm|helmfile|flux|talosctl|tofu|terraform|git)\\b(?=.*\\s--dry-run(?:=(?:client|server))?(?:\\s|$))",
+    "//": "A read-only dry run is never blocked. It applies to one simple command only, so a dry run in one command never excuses the next, and --dry-run=none does not count."
   },
   "rules": [
     {
-      "id": "just-cluster-mutation-subagent",
-      "subagent_only": true,
-      "repos": ["artemis"],
-      "pattern": "\\bjust\\b.*\\b(kube\\s+(apply|delete|suspend|resume)-ks|talos\\s+apply-node)\\b|\\bmise\\b.*:((apply|delete|suspend|resume)-ks|apply-node)\\b",
-      "reason": "A subagent may not mutate the live cluster — these commands are the human's to run. The safety of 'mise run //kube/clusters/artemis:apply-ks' is not in the task, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.",
-      "alternative": "Write the manifests and validate them offline ('mise run //kube/clusters/artemis:render-ks <ns> <ks>' needs no cluster), or read live state with 'mise run //kube/clusters/artemis:diff-ks <ns> <ks>'. Report the change and let the human apply it."
-    },
-    {
-      "id": "just-cluster-mutation-subagent-frostlink",
-      "subagent_only": true,
-      "repos": ["frostlink"],
-      "pattern": "\\bjust\\b.*\\b(kube\\s+(apply|delete|suspend|resume)-ks|talos\\s+apply-node)\\b",
-      "reason": "A subagent may not mutate the live cluster — these commands are the human's to run. The safety of 'just kube apply-ks' is not in the recipe, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.",
-      "alternative": "Write the manifests and validate them offline ('just kube render-local-ks <ns> <ks>' needs no cluster), or read live state with 'kubectl get <kind> -n <ns> <name> --context frostlink'. Report the change and let the human apply it."
-    },
-    {
-      "id": "mise-cluster-mutation-subagent",
-      "subagent_only": true,
-      "repos": ["home-infra"],
-      "pattern": "\\bmise\\b.*:((apply|delete|suspend|resume)-ks|apply-node)\\b",
-      "reason": "A subagent may not mutate a live cluster — these tasks are the human's to run. The safety of 'mise run //kube/clusters/<cluster>:apply-ks' is not in the task, it is in the procedure around it: suspend root + target first, watch the result, wait for confirmation, resume in order after CI is green. A subagent skips all four.",
-      "alternative": "Write the manifests and validate them offline ('mise run //kube/clusters/<cluster>:render-ks <ns> <ks>' needs no cluster), or read live state with 'mise run //kube/clusters/<cluster>:diff-ks <ns> <ks>'. On Frostlink read with 'kubectl get <kind> -n <ns> <name> --context frostlink'. Report the change and let the human apply it."
-    },
-    {
-      "id": "git-write-subagent",
-      "subagent_only": true,
-      "pattern": "\\bgit\\b(\\s+-\\S+|\\s+-C\\s+\\S+)*\\s+(add|commit|push|rebase|merge)\\b",
-      "reason": "A subagent may not write to git history — staging, committing, pushing, rebasing and merging are the human's. Agent definitions that promise 'never writes' are frontmatter, which is cached at session start and cannot be relied on; this rule is a PreToolUse hook, so it holds under every permission mode including --dangerously-skip-permissions.",
-      "alternative": "Leave the working tree dirty and report what you changed. The human stages by name, runs 'git diff --staged', and commits. Read-only git (status, log, diff, show, worktree) is unaffected."
-    },
-    {
-      "id": "kubectl-apply",
-      "pattern": "\\bkubectl\\b.*\\bapply\\b",
-      "reason": "Direct kubectl apply bypasses GitOps",
-      "alternative": "Apply through the apply-ks task of the cluster: 'mise run //kube/clusters/<cluster>:apply-ks <ns> <ks>' (standalone frostlink repo: 'just kube apply-ks <ns> <ks>')"
+      "id": "kubectl-mutation",
+      "pattern": "^<<KUBECTL>>(?:apply|patch|replace|create|edit|scale|drain|set|label|annotate)\\b",
+      "reason": "Direct kubectl writes bypass GitOps",
+      "alternative": "Apply through the apply-ks task of the cluster: 'mise run //kube/clusters/<cluster>:apply-ks <ns> <ks>'. cordon, uncordon and rollout are not blocked."
     },
     {
       "id": "kubectl-delete-critical",
-      "pattern": "\\bkubectl\\b.*\\bdelete\\b.*\\b(namespace|pvc|pv|persistentvolumeclaim|node|deployment|secret|helmrelease|kustomization|gateway|httproute|clusterrole)\\b",
-      "exempt": "I_HAVE_A_KOPIUR_SNAPSHOT",
-      "exempt_reason": "PVC recreation (miroir StorageClass migrations, restore drills) is routine and always paired with a verified kopiur snapshot. The marker opts a single command out of THIS rule only -- every other rule, including talosctl reset/wipe, still applies. Runbook: .agents/skills/recreate-pvc (Artemis). Frostlink restores go through 'mise run //kube/clusters/frostlink:restore-pvc' (kopiur-restore skill) and need no marker.",
+      "pattern": "^<<KUBECTL>>delete\\b(?=.*(?:\\s-[fkR]\\b|\\s--(?:all|filename|kustomize|recursive)(?=[\\s=]|$)|\\s(?:<<KTYPES>>)(?=[\\s,/]|$)))",
+      "exempt_env": "I_HAVE_A_KOPIUR_SNAPSHOT",
+      "exempt_reason": "PVC recreation (miroir StorageClass migrations, restore drills) is routine and always paired with a verified kopiur snapshot. The marker opts a single command out of THIS rule only, and only as a leading env assignment (I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl delete pvc ...); a comment or an echo does not count. Every other rule, including talosctl reset/wipe, still applies. Runbook: .agents/skills/recreate-pvc. Frostlink restores go through 'mise run //kube/clusters/frostlink:restore-pvc' (kopiur-restore skill) and need no marker.",
       "reason": "Deleting a critical Kubernetes resource",
-      "alternative": "Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, append the marker documented in .agents/skills/recreate-pvc (Artemis); on Frostlink use 'mise run //kube/clusters/frostlink:restore-pvc' instead"
+      "alternative": "Confirm with the user before deleting cluster resources. If this is a planned PVC recreation with a verified snapshot, prefix the command with I_HAVE_A_KOPIUR_SNAPSHOT=1 (see .agents/skills/recreate-pvc); on Frostlink use 'mise run //kube/clusters/frostlink:restore-pvc' instead"
     },
     {
       "id": "helm-mutation",
-      "pattern": "\\bhelm\\b.*\\b(install|upgrade|uninstall|delete|rollback)\\b",
+      "pattern": "^helm(?:\\s+-[\\w-]+(?:=\\S*)?(?:\\s+[^-\\s]\\S*)?)*\\s+(?:install|upgrade|uninstall|delete|rollback)\\b",
       "reason": "Direct helm mutations are not allowed — config lives in HelmRelease manifests",
       "alternative": "Edit the HelmRelease values and apply via Flux"
     },
     {
+      "id": "helmfile-mutation",
+      "pattern": "^helmfile\\b.*\\s(?:sync|apply|destroy|delete)(?=\\s|$)",
+      "reason": "helmfile sync/apply/destroy/delete changes a live cluster outside GitOps",
+      "alternative": "Use the bootstrap tasks ('mise run //kube/clusters/frostlink/bootstrap:phase1' and the rebuild order in oci-rebuild.md), with the user watching"
+    },
+    {
       "id": "flux-destructive",
-      "pattern": "\\bflux\\b.*\\b(delete|uninstall)\\b",
+      "pattern": "^flux(?:\\s+-[\\w-]+(?:=\\S*)?(?:\\s+[^-\\s]\\S*)?)*\\s+(?:delete|uninstall)\\b",
       "reason": "Destructive flux operation",
       "alternative": "Confirm with the user before deleting Flux resources"
     },
     {
-      "id": "talosctl-patch-machineconfig",
-      "repos": ["artemis"],
-      "pattern": "\\btalosctl\\b.*patch\\s+machineconfig\\b",
-      "reason": "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
-      "alternative": "Use 'mise run //kube/clusters/artemis/talos:apply-node <node>' or talosctl apply-config --file for full config replacement"
-    },
-    {
-      "id": "talosctl-patch-machineconfig",
-      "repos": ["frostlink"],
-      "pattern": "\\btalosctl\\b.*patch\\s+machineconfig\\b",
-      "reason": "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
-      "alternative": "Use a minimal DELTA patch file, or 'talosctl apply-config --file' for a full replacement — never pass talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node"
+      "id": "tofu-mutation",
+      "pattern": "^(?:tofu|terraform)(?:\\s+-\\S+)*\\s+(?:apply|destroy|import|state)\\b",
+      "reason": "A bare tofu/terraform write skips the repo's task wrapper, which sets the workspace, credentials and the import-first check",
+      "alternative": "Use the mise tasks: 'mise run //terraform:plan', and with the user's go-ahead 'mise run --yes //terraform:apply'"
     },
     {
       "id": "talosctl-patch-machineconfig",
       "repos": ["home-infra"],
-      "pattern": "\\btalosctl\\b.*patch\\s+machineconfig\\b",
+      "pattern": "^talosctl\\b.*\\spatch\\s+(?:machineconfig|mc)\\b",
       "reason": "talosctl patch machineconfig duplicates array fields (machine.files etc.) and can brick the node",
       "alternative": "Artemis: 'mise run //kube/clusters/artemis/talos:apply-node <node>' or talosctl apply-config --file for full config replacement. Frostlink: a minimal DELTA patch file, or 'talosctl apply-config --file' — never pass kube/clusters/frostlink/talos/patches/controlplane.yaml, it is a gen-time patch and will strand the node"
     },
     {
       "id": "talosctl-reset",
-      "pattern": "\\btalosctl\\b.*\\b(reset|wipe)\\b",
+      "pattern": "^talosctl\\b.*\\s(?:reset|wipe)\\b",
       "reason": "talosctl reset/wipe is destructive and irreversible",
       "alternative": "Confirm explicitly with the user before proceeding"
     },
     {
       "id": "talosctl-single-node-outage",
-      "repos": ["frostlink"],
-      "pattern": "\\btalosctl\\b.*\\b(upgrade|upgrade-k8s|reboot|shutdown)\\b",
-      "reason": "Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to",
-      "alternative": "Use 'just talos upgrade <version>' (it resolves the schematic first), and only with the user watching"
-    },
-    {
-      "id": "talosctl-single-node-outage-home-infra",
       "repos": ["home-infra"],
-      "pattern": "\\btalosctl\\b.*\\b(upgrade|upgrade-k8s|reboot|shutdown)\\b",
-      "exempt": "artemis",
-      "exempt_reason": "A bare talosctl call cannot say which cluster it targets, so it is treated as Frostlink unless the command names Artemis (a talosconfig path or context containing 'artemis'). The mise tasks run talosctl inside the task, so this rule never sees them.",
-      "reason": "Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to. This command does not name Artemis, so it may target Frostlink",
-      "alternative": "Frostlink: 'mise run //kube/clusters/frostlink/talos:upgrade <version>' (it resolves the schematic first), and only with the user watching. Artemis: 'mise run //kube/clusters/artemis/talos:upgrade-node <node>', or name Artemis in the command (--context artemis or its talosconfig)"
+      "pattern": "^talosctl\\b.*\\s(?:upgrade|upgrade-k8s|reboot|shutdown)\\b",
+      "exempt": "(?:--context[ =]artemis(?:\\s|$)|kube/clusters/artemis/talosconfig)",
+      "exempt_reason": "A bare talosctl call cannot say which cluster it targets, so it is treated as Frostlink unless the command selects Artemis: '--context artemis' or the artemis talosconfig path. The word 'artemis' elsewhere in the command does not count. The mise tasks run talosctl inside the task, so this rule never sees them.",
+      "reason": "Frostlink is a single node — talosctl upgrade/reboot/shutdown is a FULL cluster outage with nothing to fail over to. This command does not select Artemis, so it may target Frostlink",
+      "alternative": "Frostlink: 'mise run //kube/clusters/frostlink/talos:upgrade <version>' (it resolves the schematic first), and only with the user watching. Artemis: 'mise run //kube/clusters/artemis/talos:upgrade-node <node>', or select Artemis in the command (--context artemis or its talosconfig path)"
     },
     {
       "id": "rm-sensitive-path",
-      "pattern": "rm\\s+-[a-zA-Z]*r[a-zA-Z]*f.*(~|\\$HOME|/home|/etc|/var|/usr|\\.\\s*$|\\.\\.\\s*$)",
+      "on": "plain",
+      "pattern": "^rm\\b(?=.*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(?:\\s|$))(?=.*\\s(?:(?:~|\\$HOME|\\$\\{HOME\\})(?:/\\S*)?|/|/\\*|/(?:etc|var|usr|bin|sbin|lib|lib64|boot|root|opt)(?:/\\S*)?|/home(?:/[^/\\s]+(?:/[^/\\s]+)?)?/?|\\.\\.?/?)(?:\\s|$))",
       "reason": "Recursive delete on a sensitive path",
-      "alternative": "Confirm the exact path with the user before deleting"
+      "alternative": "Confirm the exact path with the user before deleting. A path below /home/<user>/<dir>, such as a worktree, is not blocked"
     },
     {
       "id": "mv-over-managed-dotfile",
-      "pattern": "\\bmv\\b\\s+[^|;&]*\\s+(~|\\$HOME|/home/[a-z]+)/\\.(claude|config|local)/",
-      "reason": "mv REPLACES a mise-managed symlink with a regular file, silently unlinking it from ~/dotfiles — edits then stop reaching the repo",
+      "on": "plain",
+      "pattern": "^mv\\b.*\\s(?:~|\\$HOME|/home/[A-Za-z][\\w.-]*)/(?:\\.claude|\\.config|\\.agents|\\.local/bin)/\\S*$",
+      "reason": "mv into ~/.claude, ~/.config, ~/.agents or ~/.local/bin REPLACES a mise-managed symlink with a regular file, silently unlinking it from ~/dotfiles — edits then stop reaching the repo",
       "alternative": "Use `cp` instead of `mv`, which writes through the symlink and keeps it intact"
+    },
+    {
+      "id": "mise-write-task-subagent",
+      "repos": ["home-infra"],
+      "subagent_only": true,
+      "decision": "ask",
+      "pattern": "^mise\\b(?=.*(?:(?<![\\w/.-])(?:<<TASKS>>)(?![\\w-])|//(?:terraform|ansible):(?:apply|import|run|ucg-authkey)(?![\\w-])|\\s(?:--yes|-y)(?=\\s|$)))",
+      "reason": "A subagent is about to run a mise task that writes: it can change a live cluster, a host or the cloud. The safety is the procedure around the task (suspend root and target, watch, wait for confirmation, resume in order), and a subagent skips all of it. The owner has to allow each one.",
+      "alternative": "Validate offline instead ('mise run //kube/clusters/<cluster>:render-ks <ns> <ks>'), or read live state with diff-ks. If the write is wanted, approve this prompt."
+    },
+    {
+      "id": "git-write-subagent",
+      "subagent_only": true,
+      "decision": "ask",
+      "pattern": "^git<<GITOPTS>>\\s+(?:add|commit|push|rebase|merge|reset|checkout|switch|restore|stash(?!\\s+(?:list|show)\\b)|cherry-pick|revert|am|apply|branch\\s+-[dDmM]|tag\\s+(?:-[adfsu]\\S*|[^-\\s]\\S*)|update-ref)\\b",
+      "reason": "A subagent is about to write to git history or the working tree (stage, commit, push, rebase, merge, reset, checkout, stash, cherry-pick, branch delete). The owner has to allow each one. This is a PreToolUse hook, so it holds under every permission mode.",
+      "alternative": "Leave the working tree dirty and report what you changed, or approve this prompt. Read-only git (status, log, diff, show, worktree) is unaffected."
     }
   ]
 }

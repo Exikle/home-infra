@@ -14,13 +14,22 @@ fire.
   `PreToolUse:Bash` is the destructive-command guard. `PostToolUse:Edit|Write|MultiEdit` lints
   manifests. The guards are generated, not hand-written. `.claude/hooks/gen-guards.py` emits
   both `.claude/hooks/guard-destructive.sh` and `.opencode/plugins/guard-destructive.js` from
-  `.claude/hooks/guard-rules.json`. To change a guard, edit the rule table, then run
-  `python3 .claude/hooks/gen-guards.py`. Pre-commit runs it again with `--check`. So a hand-edit
-  or a half-applied change fails the commit and does not ship. Both guards strip heredoc bodies
-  before they match. A heredoc body is data, not a command. When the guards matched heredoc
-  bodies, they blocked the writing of docs that only quoted a guarded command.
+  `.claude/hooks/guard-rules.json`. These files are vendored. The master copies are in
+  `~/dotfiles/home/claude/agent-hooks/`. To change a guard, edit the rule table there, run
+  `sync-hooks.sh` (it copies the files here and regenerates both guards), then commit here.
+  Pre-commit runs `gen-guards.py --check`, which also runs every case in
+  `.claude/hooks/guard-cases.json` against both guards. So a hand-edit, a half-applied change or
+  a rule that breaks a known case fails the commit.
+- How the guard reads a command: it joins `\` line breaks, splits the command at `;`, `&&`,
+  `||` and `|`, and blanks the text inside quotes. A rule matches only a tool in command
+  position. So `grep 'kubectl apply' file` passes, and `kubectl apply` is caught. The body of
+  `bash -c '…'` and of a heredoc that feeds a shell is checked. Any other heredoc body is data.
+- A subagent that runs a write task (a cluster mise task, any `mise run --yes`, or a git write)
+  gets a permission prompt for the user, not a block. The main thread is not asked. Those tasks
+  keep their own `confirm` gates. opencode has no prompt, so its plugin skips these rules.
 - A rule can carry a scoped `exempt` pattern. `kubectl-delete-critical` has one. If a command
-  contains `I_HAVE_A_KOPIUR_SNAPSHOT`, it opts out of _that rule only_. So a planned PVC
+  starts with `I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl …`, it opts out of _that rule only_. The marker
+  anywhere else (a trailing comment, an `echo`) does not count. So a planned PVC
   recreation can run without a blanket hole. Every other rule still fires, `talosctl reset/wipe`
   included. For this reason, the marker is a per-rule `exempt` and not an entry in the global
   `always_allow`. The procedure that it exists for is `.agents/skills/recreate-pvc/SKILL.md`. The

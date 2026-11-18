@@ -45,6 +45,8 @@ echo ""
 case "$GUARD_REPO" in
     frostlink)
         echo "Note: The k8s MCP tools point at Artemis, not this cluster — use kubectl --context frostlink (flag after the verb) or just kube recipes. For past decisions use memini memory_recall." ;;
+    home-infra)
+        echo "Note: The k8s MCP tools see Artemis only. For Frostlink use kubectl get … --context frostlink (flag after the verb). For past decisions use memini memory_recall." ;;
     *)
         echo "Note: For live cluster state use mcp-k8s tools. For past decisions use memini memory_recall." ;;
 esac

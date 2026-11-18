@@ -1,0 +1,933 @@
+{
+  "//": "Expected verdicts for the generated destructive-command guard, run by gen-guards.py --check. Each case is a Bash command as the model would type it (never executed, only fed to the guard as a payload), whether it comes from a subagent (the payload has agent_id), and the verdict: allow, block, or ask (a PreToolUse permissionDecision ask). The cases cover every bypass found in the 2026-11-17 review, every read-only command that used to be blocked, and ordinary safe commands. Add a case here whenever a rule changes.",
+  "repos": ["home-infra"],
+  "cases": [
+    { "command": "kubectl apply -f x.yaml", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl --context frostlink apply -f x.yaml",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl -n media apply -f x.yaml", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl patch hr foo -n x --type merge -p '{}'",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl replace --force -f x.yaml", "subagent": false, "expect": "block" },
+    { "command": "kubectl scale deploy foo --replicas 0", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl drain node1 --delete-emptydir-data",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl create -f x.yaml", "subagent": false, "expect": "block" },
+    { "command": "kubectl edit deploy foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl label ns foo a=b", "subagent": false, "expect": "block" },
+    { "command": "kubectl annotate ks foo -n x a=b", "subagent": false, "expect": "block" },
+    { "command": "kubectl set image deploy/foo foo=bar", "subagent": false, "expect": "block" },
+    { "command": "kubecolor apply -f x.yaml", "subagent": false, "expect": "block" },
+    { "command": "kubecolor delete namespace foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl cordon node1", "subagent": false, "expect": "allow" },
+    { "command": "kubectl uncordon node1", "subagent": false, "expect": "allow" },
+    { "command": "kubectl rollout restart deploy/foo -n x", "subagent": false, "expect": "allow" },
+    { "command": "kubectl rollout status deploy/foo", "subagent": false, "expect": "allow" },
+    { "command": "kubectl get pods -A", "subagent": false, "expect": "allow" },
+    { "command": "kubectl --context frostlink get ks -A", "subagent": false, "expect": "allow" },
+    { "command": "kubectl logs deploy/foo -n x", "subagent": false, "expect": "allow" },
+    { "command": "kubectl exec -it pod -- ls", "subagent": false, "expect": "allow" },
+    { "command": "kubectl auth can-i create pods", "subagent": false, "expect": "allow" },
+    { "command": "kubectl config set-context foo", "subagent": false, "expect": "allow" },
+    { "command": "kubectl top nodes", "subagent": false, "expect": "allow" },
+    { "command": "kubectl version --client", "subagent": false, "expect": "allow" },
+    { "command": "kubectl get -f x.yaml", "subagent": false, "expect": "allow" },
+    { "command": "kubectl describe ks foo -n x", "subagent": false, "expect": "allow" },
+    { "command": "kubectl get ns -o name | head", "subagent": false, "expect": "allow" },
+    { "command": "kubectl delete namespace foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete ns foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete namespaces foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete pvcs data", "subagent": false, "expect": "block" },
+    { "command": "kubectl -n media delete pvc data", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete secrets -n x foo", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl delete crd clusters.postgresql.cnpg.io",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl delete -f kube/clusters/artemis/apps/x",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl delete -k kube/clusters/artemis/apps/x",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl delete sts foo", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl delete cluster postgres -n database",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl delete all --all -n media", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete deploy foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete pod --all -n x", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete hr foo -n x", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete ks foo -n x", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete secret/foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete node n1", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl --context frostlink delete pvc data -n x",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl delete ocirepository x -n y", "subagent": false, "expect": "block" },
+    {
+      "command": "kubectl delete namespace foo --dry-run=none",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl delete namespace foo; echo --dry-run",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl apply --dry-run=client -f a.yaml && kubectl apply -f a.yaml",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl apply --dry-run=client -f a.yaml\nkubectl apply -f a.yaml",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl delete pvc data # I_HAVE_A_KOPIUR_SNAPSHOT",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "kubectl delete ns foo; echo I_HAVE_A_KOPIUR_SNAPSHOT",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "echo I_HAVE_A_KOPIUR_SNAPSHOT=1; kubectl delete pvc data",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl apply -f x.yaml",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl \\\n  delete namespace foo", "subagent": false, "expect": "block" },
+    { "command": "kubectl \\\n  apply -f x.yaml", "subagent": false, "expect": "block" },
+    { "command": "kubectl delete pod foo --namespace media", "subagent": false, "expect": "allow" },
+    { "command": "kubectl delete pod foo -n media", "subagent": false, "expect": "allow" },
+    { "command": "kubectl delete pods -l app=foo -n x", "subagent": false, "expect": "allow" },
+    { "command": "kubectl apply --dry-run=client -f a.yaml", "subagent": false, "expect": "allow" },
+    { "command": "kubectl apply --dry-run=server -f a.yaml", "subagent": false, "expect": "allow" },
+    { "command": "kubectl apply --dry-run -f a.yaml", "subagent": false, "expect": "allow" },
+    {
+      "command": "kubectl delete namespace foo --dry-run=client",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl delete pvc -n x data --wait=false",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "kubectl delete job foo -n x", "subagent": false, "expect": "allow" },
+    { "command": "bash -c 'kubectl delete namespace foo'", "subagent": false, "expect": "block" },
+    { "command": "sh -c \"kubectl apply -f x\"", "subagent": false, "expect": "block" },
+    { "command": "bash -lc 'kubectl apply -f x'", "subagent": false, "expect": "block" },
+    { "command": "eval 'kubectl delete ns foo'", "subagent": false, "expect": "block" },
+    { "command": "bash -c \"bash -c 'kubectl apply -f x'\"", "subagent": false, "expect": "block" },
+    {
+      "command": "KUBECONFIG=x kubectl delete namespace foo",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "sudo kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "env FOO=1 kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "time kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "xargs kubectl apply -f", "subagent": false, "expect": "block" },
+    { "command": "watch -n 5 kubectl delete ns x", "subagent": false, "expect": "block" },
+    { "command": "sudo -u root kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "nohup kubectl apply -f x &", "subagent": false, "expect": "block" },
+    { "command": "/usr/local/bin/kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "\"kubectl\" apply -f x", "subagent": false, "expect": "block" },
+    { "command": "\\kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "(kubectl apply -f x)", "subagent": false, "expect": "block" },
+    { "command": "echo $(kubectl apply -f x)", "subagent": false, "expect": "block" },
+    { "command": "echo \"$(kubectl delete ns foo)\"", "subagent": false, "expect": "block" },
+    { "command": "echo `kubectl delete ns foo`", "subagent": false, "expect": "block" },
+    { "command": "if kubectl apply -f x; then echo ok; fi", "subagent": false, "expect": "block" },
+    { "command": "true && kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "false || kubectl apply -f x", "subagent": false, "expect": "block" },
+    { "command": "ls | kubectl apply -f -", "subagent": false, "expect": "block" },
+    { "command": "cat x.yaml | kubectl apply -f -", "subagent": false, "expect": "block" },
+    {
+      "command": "for f in a b; do kubectl apply -f $f; done",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "kubectl get ns && kubectl delete ns foo", "subagent": false, "expect": "block" },
+    { "command": "X=$(kubectl delete ns foo)", "subagent": false, "expect": "block" },
+    {
+      "command": "bash <<'EOF'\nkubectl delete namespace foo\nEOF",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "sh <<EOF\nkubectl apply -f x.yaml\nEOF", "subagent": false, "expect": "block" },
+    {
+      "command": "bash -s <<'EOF'\nset -e\nkubectl apply -f x\nEOF",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "cat > notes.md <<'EOF'\nkubectl delete namespace foo\nEOF",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "cat <<EOF\nkubectl apply -f x\nEOF", "subagent": false, "expect": "allow" },
+    {
+      "command": "git commit -F - <<'MSG'\nfeat: x\n\nkubectl apply bypasses gitops\nMSG",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "echo \"kubectl apply\"", "subagent": false, "expect": "allow" },
+    { "command": "echo 'kubectl delete ns foo'", "subagent": false, "expect": "allow" },
+    { "command": "printf '%s\\n' \"talosctl reset\"", "subagent": false, "expect": "allow" },
+    { "command": "bash -c 'ls -la'", "subagent": false, "expect": "allow" },
+    { "command": "fish -c 'echo hi'", "subagent": false, "expect": "allow" },
+    { "command": "bash <<'EOF'\nls -la\nEOF", "subagent": false, "expect": "allow" },
+    { "command": "cat <<< 'kubectl apply'", "subagent": false, "expect": "allow" },
+    { "command": "helm upgrade foo bar", "subagent": false, "expect": "block" },
+    { "command": "helm install foo bar", "subagent": false, "expect": "block" },
+    { "command": "helm --kube-context x uninstall foo", "subagent": false, "expect": "block" },
+    { "command": "helm rollback foo 1", "subagent": false, "expect": "block" },
+    { "command": "helm delete foo", "subagent": false, "expect": "block" },
+    {
+      "command": "helmfile -f kube/clusters/frostlink/bootstrap/helmfile.yaml sync",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "helmfile destroy", "subagent": false, "expect": "block" },
+    { "command": "helmfile apply", "subagent": false, "expect": "block" },
+    { "command": "helmfile -e x delete", "subagent": false, "expect": "block" },
+    { "command": "flux delete ks foo", "subagent": false, "expect": "block" },
+    { "command": "flux uninstall", "subagent": false, "expect": "block" },
+    { "command": "flux --context x delete hr y -n z", "subagent": false, "expect": "block" },
+    { "command": "tofu apply", "subagent": false, "expect": "block" },
+    { "command": "terraform apply -auto-approve", "subagent": false, "expect": "block" },
+    { "command": "tofu destroy", "subagent": false, "expect": "block" },
+    { "command": "tofu import a.b c", "subagent": false, "expect": "block" },
+    { "command": "tofu state rm a.b", "subagent": false, "expect": "block" },
+    { "command": "tofu -chdir=terraform apply", "subagent": false, "expect": "block" },
+    { "command": "terraform state list", "subagent": false, "expect": "block" },
+    { "command": "env TF_VAR_x=1 tofu apply", "subagent": false, "expect": "block" },
+    { "command": "helm list -A", "subagent": false, "expect": "allow" },
+    { "command": "helm template foo bar", "subagent": false, "expect": "allow" },
+    { "command": "helm get values foo", "subagent": false, "expect": "allow" },
+    { "command": "helm repo update", "subagent": false, "expect": "allow" },
+    { "command": "helm lint .", "subagent": false, "expect": "allow" },
+    { "command": "helmfile template", "subagent": false, "expect": "allow" },
+    { "command": "helmfile diff", "subagent": false, "expect": "allow" },
+    { "command": "helmfile -f sync.yaml diff", "subagent": false, "expect": "allow" },
+    { "command": "helm upgrade foo bar --dry-run", "subagent": false, "expect": "allow" },
+    { "command": "flux get ks -A", "subagent": false, "expect": "allow" },
+    { "command": "flux reconcile ks foo -n x", "subagent": false, "expect": "allow" },
+    { "command": "flux logs --kind=Kustomization", "subagent": false, "expect": "allow" },
+    { "command": "flux get hr -A | grep delete", "subagent": false, "expect": "allow" },
+    { "command": "tofu plan", "subagent": false, "expect": "allow" },
+    { "command": "tofu plan -out x", "subagent": false, "expect": "allow" },
+    { "command": "terraform fmt", "subagent": false, "expect": "allow" },
+    { "command": "tofu validate", "subagent": false, "expect": "allow" },
+    { "command": "tofu init", "subagent": false, "expect": "allow" },
+    { "command": "terraform output", "subagent": false, "expect": "allow" },
+    { "command": "mise run --yes //terraform:apply", "subagent": false, "expect": "allow" },
+    { "command": "mise run //terraform:plan", "subagent": false, "expect": "allow" },
+    {
+      "command": "talosctl --talosconfig kube/clusters/frostlink/talosconfig reboot",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "talosctl --talosconfig kube/clusters/frostlink/talosconfig reboot # not artemis",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "talosctl -n 10.0.0.1 reboot > /tmp/artemis.log",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "talosctl -n 10.0.0.1 reboot && echo artemis",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "talosctl --talosconfig kube/clusters/frostlink/talosconfig apply-config -f c.yaml --mode reboot",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "talosctl upgrade --image x", "subagent": false, "expect": "block" },
+    { "command": "talosctl shutdown", "subagent": false, "expect": "block" },
+    { "command": "talosctl upgrade-k8s --to 1.35.0", "subagent": false, "expect": "block" },
+    { "command": "talosctl reset --nodes 1.2.3.4", "subagent": false, "expect": "block" },
+    { "command": "talosctl --context artemis reset", "subagent": false, "expect": "block" },
+    { "command": "talosctl wipe disk sdb", "subagent": false, "expect": "block" },
+    { "command": "talosctl patch machineconfig -p @x.yaml", "subagent": false, "expect": "block" },
+    {
+      "command": "talosctl --context artemis patch mc -p @x.yaml",
+      "subagent": false,
+      "expect": "block"
+    },
+    { "command": "talosctl --context artemis reboot -n x", "subagent": false, "expect": "allow" },
+    {
+      "command": "talosctl --talosconfig kube/clusters/artemis/talosconfig upgrade --image x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "talosctl --talosconfig=/home/exikle/home-infra/kube/clusters/artemis/talosconfig reboot -n x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "talosctl get members", "subagent": false, "expect": "allow" },
+    { "command": "talosctl health", "subagent": false, "expect": "allow" },
+    { "command": "talosctl dmesg -n x", "subagent": false, "expect": "allow" },
+    {
+      "command": "talosctl --talosconfig kube/clusters/frostlink/talosconfig get members",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "grep -n 'talosctl reset' notes.md", "subagent": false, "expect": "allow" },
+    { "command": "talosctl reboot --dry-run", "subagent": false, "expect": "allow" },
+    { "command": "rm -rf ~/foo", "subagent": false, "expect": "block" },
+    { "command": "rm -fr ~/foo", "subagent": false, "expect": "block" },
+    { "command": "rm -r -f ~/foo", "subagent": false, "expect": "block" },
+    { "command": "rm --recursive --force ~/foo", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /*", "subagent": false, "expect": "block" },
+    { "command": "rm -rf $HOME", "subagent": false, "expect": "block" },
+    { "command": "rm -rf \"$HOME/x\"", "subagent": false, "expect": "block" },
+    { "command": "rm -rf ${HOME}/x", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /etc/foo", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /var/lib/x", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /usr/local/x", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /home/exikle", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /home/exikle/foo", "subagent": false, "expect": "block" },
+    { "command": "rm -rf /home", "subagent": false, "expect": "block" },
+    { "command": "rm -rf .", "subagent": false, "expect": "block" },
+    { "command": "rm -rf ..", "subagent": false, "expect": "block" },
+    { "command": "rm -Rf ~/x", "subagent": false, "expect": "block" },
+    { "command": "sudo rm -rf /usr/local/x", "subagent": false, "expect": "block" },
+    { "command": "rm -rf ~", "subagent": false, "expect": "block" },
+    { "command": "rm -rf a b ~/x", "subagent": false, "expect": "block" },
+    { "command": "ls; rm -rf ~/x", "subagent": false, "expect": "block" },
+    {
+      "command": "rm -rf /home/exikle/home-infra/.worktrees/fix-x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "rm -rf /home/exikle/dotfiles/.worktrees/fix-guard-rebuild",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "rm -rf /tmp/foo", "subagent": false, "expect": "allow" },
+    { "command": "rm -f /home/exikle/foo.txt", "subagent": false, "expect": "allow" },
+    { "command": "rm foo.txt", "subagent": false, "expect": "allow" },
+    { "command": "rm -rf ./build", "subagent": false, "expect": "allow" },
+    { "command": "rm -rf node_modules", "subagent": false, "expect": "allow" },
+    { "command": "rm -rf /home/exikle/.local/state/x/y/z", "subagent": false, "expect": "allow" },
+    { "command": "grep -n 'rm -rf ~' notes.md", "subagent": false, "expect": "allow" },
+    { "command": "echo \"rm -rf /\"", "subagent": false, "expect": "allow" },
+    { "command": "git rm -r --cached x", "subagent": false, "expect": "allow" },
+    { "command": "mv /tmp/x ~/.claude/settings.json", "subagent": false, "expect": "block" },
+    { "command": "mv /tmp/x /home/exikle/.config/x", "subagent": false, "expect": "block" },
+    { "command": "mv /tmp/x $HOME/.agents/y", "subagent": false, "expect": "block" },
+    { "command": "mv /tmp/x ~/.local/bin/tool", "subagent": false, "expect": "block" },
+    { "command": "mv -f /tmp/x ~/.config/fish/config.fish", "subagent": false, "expect": "block" },
+    {
+      "command": "mv /tmp/x \"$HOME/.claude/settings.json\"",
+      "subagent": false,
+      "expect": "block"
+    },
+    {
+      "command": "mv /home/exikle/.local/state/x.yaml /home/exikle/.local/state/dir/",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "mv /tmp/a /tmp/b", "subagent": false, "expect": "allow" },
+    { "command": "mv a.txt b.txt", "subagent": false, "expect": "allow" },
+    { "command": "mv /tmp/x ~/.local/share/foo", "subagent": false, "expect": "allow" },
+    { "command": "mv ~/.claude/x /tmp/y", "subagent": false, "expect": "allow" },
+    { "command": "grep -n 'mv x ~/.claude/' notes.md", "subagent": false, "expect": "allow" },
+    { "command": "mv /tmp/x ~/dotfiles/home/claude/x", "subagent": false, "expect": "allow" },
+    {
+      "command": "grep -nE 'kubectl|tofu (apply|state|import)' .agents/references/ansible.md",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "rg 'kubectl delete namespace' .agents/", "subagent": false, "expect": "allow" },
+    { "command": "cat notes-on-kubectl-apply.md", "subagent": false, "expect": "allow" },
+    { "command": "git log -S 'kubectl apply' --oneline", "subagent": false, "expect": "allow" },
+    { "command": "git log --grep 'kubectl apply'", "subagent": false, "expect": "allow" },
+    { "command": "grep -rn 'helm upgrade' .agents/", "subagent": false, "expect": "allow" },
+    { "command": "rg 'flux delete' docs", "subagent": false, "expect": "allow" },
+    {
+      "command": "grep -n 'talosctl reset' .agents/references/talos.md",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "grep -n 'talosctl reboot' .agents/references/oci-talos.md",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "rg 'talosctl patch machineconfig' .agents",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "grep -n 'rm -rf ~' notes.md", "subagent": false, "expect": "allow" },
+    { "command": "grep -n 'mv x ~/.claude/' notes.md", "subagent": false, "expect": "allow" },
+    {
+      "command": "rg 'mise run //kube/clusters/artemis:apply-ks' .agents",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "rg 'git commit' .agents", "subagent": false, "expect": "allow" },
+    { "command": "grep -n kubectl\\ apply notes.md", "subagent": false, "expect": "allow" },
+    { "command": "ls kubectl-apply-notes/", "subagent": false, "expect": "allow" },
+    { "command": "kubectl get ks -A | grep apply", "subagent": false, "expect": "allow" },
+    {
+      "command": "gh issue create --body \"run: rm -rf ~ and kubectl apply\"",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "rg 'git reset --hard' ~/.agents", "subagent": false, "expect": "allow" },
+    { "command": "rg -n 'mise run --yes' .agents", "subagent": false, "expect": "allow" },
+    { "command": "sed -n '1,20p' kubectl-apply.md", "subagent": false, "expect": "allow" },
+    { "command": "wc -l helm-upgrade.txt", "subagent": false, "expect": "allow" },
+    { "command": "echo helm upgrade > /tmp/x.txt", "subagent": false, "expect": "allow" },
+    { "command": "head -5 git-commit-notes.md", "subagent": false, "expect": "allow" },
+    {
+      "command": "grep -nE 'kubectl|tofu (apply|state|import)' .agents/references/ansible.md",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "rg 'kubectl delete namespace' .agents/", "subagent": true, "expect": "allow" },
+    { "command": "cat notes-on-kubectl-apply.md", "subagent": true, "expect": "allow" },
+    { "command": "git log -S 'kubectl apply' --oneline", "subagent": true, "expect": "allow" },
+    { "command": "git log --grep 'kubectl apply'", "subagent": true, "expect": "allow" },
+    { "command": "grep -rn 'helm upgrade' .agents/", "subagent": true, "expect": "allow" },
+    { "command": "rg 'flux delete' docs", "subagent": true, "expect": "allow" },
+    {
+      "command": "grep -n 'talosctl reset' .agents/references/talos.md",
+      "subagent": true,
+      "expect": "allow"
+    },
+    {
+      "command": "grep -n 'talosctl reboot' .agents/references/oci-talos.md",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "rg 'talosctl patch machineconfig' .agents", "subagent": true, "expect": "allow" },
+    { "command": "grep -n 'rm -rf ~' notes.md", "subagent": true, "expect": "allow" },
+    { "command": "grep -n 'mv x ~/.claude/' notes.md", "subagent": true, "expect": "allow" },
+    {
+      "command": "rg 'mise run //kube/clusters/artemis:apply-ks' .agents",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "rg 'git commit' .agents", "subagent": true, "expect": "allow" },
+    { "command": "grep -n kubectl\\ apply notes.md", "subagent": true, "expect": "allow" },
+    { "command": "ls kubectl-apply-notes/", "subagent": true, "expect": "allow" },
+    { "command": "kubectl get ks -A | grep apply", "subagent": true, "expect": "allow" },
+    {
+      "command": "gh issue create --body \"run: rm -rf ~ and kubectl apply\"",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "rg 'git reset --hard' ~/.agents", "subagent": true, "expect": "allow" },
+    { "command": "rg -n 'mise run --yes' .agents", "subagent": true, "expect": "allow" },
+    { "command": "sed -n '1,20p' kubectl-apply.md", "subagent": true, "expect": "allow" },
+    { "command": "wc -l helm-upgrade.txt", "subagent": true, "expect": "allow" },
+    { "command": "echo helm upgrade > /tmp/x.txt", "subagent": true, "expect": "allow" },
+    { "command": "head -5 git-commit-notes.md", "subagent": true, "expect": "allow" },
+    { "command": "ls -la", "subagent": false, "expect": "allow" },
+    { "command": "cat foo.yaml", "subagent": false, "expect": "allow" },
+    { "command": "python3 script.py", "subagent": false, "expect": "allow" },
+    { "command": "curl -s https://example.com | jq .", "subagent": false, "expect": "allow" },
+    { "command": "sed -n '1,5p' x", "subagent": false, "expect": "allow" },
+    { "command": "cp a b", "subagent": false, "expect": "allow" },
+    { "command": "chmod +x x.sh", "subagent": false, "expect": "allow" },
+    { "command": "ls ~/.claude", "subagent": false, "expect": "allow" },
+    { "command": "command -v kubectl", "subagent": false, "expect": "allow" },
+    { "command": "which helm", "subagent": false, "expect": "allow" },
+    { "command": "git status", "subagent": false, "expect": "allow" },
+    { "command": "git log --oneline -5", "subagent": false, "expect": "allow" },
+    { "command": "git diff --staged", "subagent": false, "expect": "allow" },
+    { "command": "mise run //ai:lint-agents", "subagent": false, "expect": "allow" },
+    { "command": "kubectl get pods 2>&1 | grep -i error", "subagent": false, "expect": "allow" },
+    { "command": "git commit -m 'fix: x'", "subagent": false, "expect": "allow" },
+    { "command": "git push origin main", "subagent": false, "expect": "allow" },
+    { "command": "git reset --hard HEAD~1", "subagent": false, "expect": "allow" },
+    { "command": "git add foo", "subagent": false, "expect": "allow" },
+    { "command": "git stash", "subagent": false, "expect": "allow" },
+    {
+      "command": "mise run //kube/clusters/artemis:apply-ks media foo",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run --yes //kube/clusters/frostlink/talos:upgrade v1.12.0",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "just --list", "subagent": false, "expect": "allow" },
+    { "command": "echo done", "subagent": false, "expect": "allow" },
+    {
+      "command": "mise run //kube/clusters/artemis:apply-ks media foo",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:apply-ks network x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:delete-ks media foo",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:suspend-ks flux-system flux-system",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:resume-ks flux-system flux-system",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:sync-flux ocirepo flux-system",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:restore-pvc ns ks claim",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:release-snapshot x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:reclaim-pv x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:reset-hr ns x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:unstick-hr ns x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:snapshot-pvc media",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:toggle-kopiur ns x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    { "command": "mise run //kube/clusters/artemis:prune-pods", "subagent": true, "expect": "ask" },
+    {
+      "command": "mise run //kube/clusters/artemis:test-ks ns x",
+      "subagent": true,
+      "expect": "ask"
+    },
+    { "command": "mise run //:land", "subagent": true, "expect": "ask" },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:apply-node n1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:reboot-node n1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:reset-node n1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:shutdown-node n1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:upgrade-node n1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:upgrade-k8s v1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/talos:upgrade v1.12.0",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/talos:patch-node",
+      "subagent": true,
+      "expect": "ask"
+    },
+    { "command": "mise run //terraform:apply", "subagent": true, "expect": "ask" },
+    { "command": "mise run //terraform:import a b", "subagent": true, "expect": "ask" },
+    { "command": "mise run //terraform:run x", "subagent": true, "expect": "ask" },
+    { "command": "mise run //ansible:apply", "subagent": true, "expect": "ask" },
+    { "command": "mise run //ansible:ucg-authkey", "subagent": true, "expect": "ask" },
+    {
+      "command": "mise run //kube/clusters/frostlink/bootstrap:phase1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/bootstrap:phase2",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/bootstrap:tailnet",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:towonel-invite",
+      "subagent": true,
+      "expect": "ask"
+    },
+    { "command": "mise run --yes //ai:something", "subagent": true, "expect": "ask" },
+    { "command": "mise run -y //x:y", "subagent": true, "expect": "ask" },
+    { "command": "mise run apply-ks media foo", "subagent": true, "expect": "ask" },
+    {
+      "command": "mise run --yes //kube/clusters/artemis/talos:apply-node n1",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "MISE_X=1 mise run //kube/clusters/artemis:apply-ks a b",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "bash -c 'mise run //kube/clusters/artemis:apply-ks a b'",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:suspend-ks a b && mise run //kube/clusters/artemis:apply-ks a b",
+      "subagent": true,
+      "expect": "ask"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:apply-ks media foo",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:apply-ks network x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:delete-ks media foo",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:suspend-ks flux-system flux-system",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:resume-ks flux-system flux-system",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:sync-flux ocirepo flux-system",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:restore-pvc ns ks claim",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:release-snapshot x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:reclaim-pv x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:reset-hr ns x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:unstick-hr ns x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:snapshot-pvc media",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:toggle-kopiur ns x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:prune-pods",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:test-ks ns x",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "mise run //:land", "subagent": false, "expect": "allow" },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:apply-node n1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:reboot-node n1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:reset-node n1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:shutdown-node n1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:upgrade-node n1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis/talos:upgrade-k8s v1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/talos:upgrade v1.12.0",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/talos:patch-node",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "mise run //terraform:apply", "subagent": false, "expect": "allow" },
+    { "command": "mise run //terraform:import a b", "subagent": false, "expect": "allow" },
+    { "command": "mise run //terraform:run x", "subagent": false, "expect": "allow" },
+    { "command": "mise run //ansible:apply", "subagent": false, "expect": "allow" },
+    { "command": "mise run //ansible:ucg-authkey", "subagent": false, "expect": "allow" },
+    {
+      "command": "mise run //kube/clusters/frostlink/bootstrap:phase1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/bootstrap:phase2",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink/bootstrap:tailnet",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/frostlink:towonel-invite",
+      "subagent": false,
+      "expect": "allow"
+    },
+    { "command": "mise run --yes //ai:something", "subagent": false, "expect": "allow" },
+    { "command": "mise run -y //x:y", "subagent": false, "expect": "allow" },
+    { "command": "mise run apply-ks media foo", "subagent": false, "expect": "allow" },
+    {
+      "command": "mise run --yes //kube/clusters/artemis/talos:apply-node n1",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "MISE_X=1 mise run //kube/clusters/artemis:apply-ks a b",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "bash -c 'mise run //kube/clusters/artemis:apply-ks a b'",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:suspend-ks a b && mise run //kube/clusters/artemis:apply-ks a b",
+      "subagent": false,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:render-ks media foo",
+      "subagent": true,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:diff-ks media foo",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "mise run //ai:lint-agents", "subagent": true, "expect": "allow" },
+    { "command": "mise tasks --all", "subagent": true, "expect": "allow" },
+    { "command": "mise ls --current", "subagent": true, "expect": "allow" },
+    { "command": "mise run //:wt:new feat/land-x", "subagent": true, "expect": "allow" },
+    { "command": "mise run //:wt:ls", "subagent": true, "expect": "allow" },
+    {
+      "command": "mise run //kube/clusters/artemis:view-secret ns s",
+      "subagent": true,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:check-postgres ns app",
+      "subagent": true,
+      "expect": "allow"
+    },
+    {
+      "command": "mise run //kube/clusters/artemis:browse-pvc ns pvc",
+      "subagent": true,
+      "expect": "allow"
+    },
+    { "command": "git commit -m x", "subagent": true, "expect": "ask" },
+    { "command": "git -C /repo commit -m x", "subagent": true, "expect": "ask" },
+    { "command": "git -c user.name=x commit -m x", "subagent": true, "expect": "ask" },
+    { "command": "git push origin main", "subagent": true, "expect": "ask" },
+    { "command": "git -C /repo push origin main", "subagent": true, "expect": "ask" },
+    { "command": "git reset --hard HEAD~1", "subagent": true, "expect": "ask" },
+    { "command": "git checkout -- .", "subagent": true, "expect": "ask" },
+    { "command": "git stash", "subagent": true, "expect": "ask" },
+    { "command": "git stash pop", "subagent": true, "expect": "ask" },
+    { "command": "git cherry-pick abc", "subagent": true, "expect": "ask" },
+    { "command": "git branch -D main", "subagent": true, "expect": "ask" },
+    { "command": "git add foo", "subagent": true, "expect": "ask" },
+    { "command": "git rebase origin/main", "subagent": true, "expect": "ask" },
+    { "command": "git merge --ff-only x", "subagent": true, "expect": "ask" },
+    { "command": "git tag v1", "subagent": true, "expect": "ask" },
+    { "command": "git restore x", "subagent": true, "expect": "ask" },
+    { "command": "git switch main", "subagent": true, "expect": "ask" },
+    { "command": "git commit -F - <<'EOF'\nmsg\nEOF", "subagent": true, "expect": "ask" },
+    { "command": "git status && git commit -m x", "subagent": true, "expect": "ask" },
+    { "command": "bash -c 'git commit -m x'", "subagent": true, "expect": "ask" },
+    { "command": "git --no-pager commit -m x", "subagent": true, "expect": "ask" },
+    { "command": "git revert abc", "subagent": true, "expect": "ask" },
+    { "command": "git am x.patch", "subagent": true, "expect": "ask" },
+    { "command": "git update-ref -d refs/x", "subagent": true, "expect": "ask" },
+    { "command": "git -C /repo -c core.x=y push", "subagent": true, "expect": "ask" },
+    { "command": "git checkout -b x", "subagent": true, "expect": "ask" },
+    { "command": "git commit -m x", "subagent": false, "expect": "allow" },
+    { "command": "git -C /repo commit -m x", "subagent": false, "expect": "allow" },
+    { "command": "git -c user.name=x commit -m x", "subagent": false, "expect": "allow" },
+    { "command": "git push origin main", "subagent": false, "expect": "allow" },
+    { "command": "git -C /repo push origin main", "subagent": false, "expect": "allow" },
+    { "command": "git reset --hard HEAD~1", "subagent": false, "expect": "allow" },
+    { "command": "git checkout -- .", "subagent": false, "expect": "allow" },
+    { "command": "git stash", "subagent": false, "expect": "allow" },
+    { "command": "git stash pop", "subagent": false, "expect": "allow" },
+    { "command": "git cherry-pick abc", "subagent": false, "expect": "allow" },
+    { "command": "git branch -D main", "subagent": false, "expect": "allow" },
+    { "command": "git add foo", "subagent": false, "expect": "allow" },
+    { "command": "git rebase origin/main", "subagent": false, "expect": "allow" },
+    { "command": "git merge --ff-only x", "subagent": false, "expect": "allow" },
+    { "command": "git tag v1", "subagent": false, "expect": "allow" },
+    { "command": "git restore x", "subagent": false, "expect": "allow" },
+    { "command": "git switch main", "subagent": false, "expect": "allow" },
+    { "command": "git commit -F - <<'EOF'\nmsg\nEOF", "subagent": false, "expect": "allow" },
+    { "command": "git status && git commit -m x", "subagent": false, "expect": "allow" },
+    { "command": "bash -c 'git commit -m x'", "subagent": false, "expect": "allow" },
+    { "command": "git --no-pager commit -m x", "subagent": false, "expect": "allow" },
+    { "command": "git revert abc", "subagent": false, "expect": "allow" },
+    { "command": "git am x.patch", "subagent": false, "expect": "allow" },
+    { "command": "git update-ref -d refs/x", "subagent": false, "expect": "allow" },
+    { "command": "git -C /repo -c core.x=y push", "subagent": false, "expect": "allow" },
+    { "command": "git checkout -b x", "subagent": false, "expect": "allow" },
+    { "command": "git status", "subagent": true, "expect": "allow" },
+    { "command": "git log --oneline -5", "subagent": true, "expect": "allow" },
+    { "command": "git diff --staged", "subagent": true, "expect": "allow" },
+    { "command": "git show HEAD", "subagent": true, "expect": "allow" },
+    { "command": "git worktree add .worktrees/x -b x", "subagent": true, "expect": "allow" },
+    { "command": "git stash list", "subagent": true, "expect": "allow" },
+    { "command": "git stash show -p", "subagent": true, "expect": "allow" },
+    { "command": "git branch -a", "subagent": true, "expect": "allow" },
+    { "command": "git tag -l", "subagent": true, "expect": "allow" },
+    { "command": "git -C /repo log", "subagent": true, "expect": "allow" },
+    { "command": "git fetch origin", "subagent": true, "expect": "allow" },
+    { "command": "git push --dry-run", "subagent": true, "expect": "allow" },
+    { "command": "git rev-parse HEAD", "subagent": true, "expect": "allow" },
+    { "command": "git ls-files | grep x", "subagent": true, "expect": "allow" },
+    { "command": "git -C /repo status --short", "subagent": true, "expect": "allow" },
+    { "command": "git remote -v", "subagent": true, "expect": "allow" },
+    { "command": "git branch --show-current", "subagent": true, "expect": "allow" },
+    { "command": "git worktree list", "subagent": true, "expect": "allow" },
+    { "command": "kubectl apply -f x", "subagent": true, "expect": "block" },
+    { "command": "kubectl delete ns foo", "subagent": true, "expect": "block" },
+    { "command": "git commit -m x; kubectl apply -f y", "subagent": true, "expect": "block" },
+    { "command": "git commit -m x && talosctl reset", "subagent": true, "expect": "block" },
+    { "command": "helm upgrade x y", "subagent": true, "expect": "block" },
+    { "command": "talosctl reboot -n x", "subagent": true, "expect": "block" },
+    { "command": "rm -rf ~/x", "subagent": true, "expect": "block" },
+    { "command": "tofu apply", "subagent": true, "expect": "block" },
+    { "command": "bash <<'EOF'\nkubectl delete ns foo\nEOF", "subagent": true, "expect": "block" }
+  ]
+}
