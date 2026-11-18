@@ -50,6 +50,9 @@ or subagent, or want to know why a guard did not fire.
   same link in its own folder: `.opencode/agents/<name>.md` → `.agents/agents/<name>.md`. A new
   subagent needs both links. `lint-agents` checks only the `.claude/agents/` link, so it does not
   catch a missing `.opencode/agents/` link.
+- The subagents in `.agents/agents/` have no `model:` line, on purpose. They inherit the model of
+  the session. Both clients read the same file, and the two clients name models differently. In
+  opencode, `model: haiku` fails with `Model not found: haiku/.` (tested 2026-11-18, #3393).
 - Path-scoped rules: `.claude/rules/<name>.md` is a symlink to a file in `.agents/instructions/`
   that carries `paths:` frontmatter. Claude Code loads such a rule only when it touches a matching
   file. So `cluster-conventions.md`, `yaml-conventions.md` and `frostlink.md` stay out of the
