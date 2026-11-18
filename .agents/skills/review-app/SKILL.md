@@ -152,7 +152,7 @@ check IDs, and code-format the values:
 
 **[Y3]** `enabled` is not the first field in `probes.liveness`.
 
-**[H27a]** emptyDir `tmp` uses `globalMounts` instead of `advancedMounts` with `subPath`.
+**[H27a]** emptyDir `tmp` uses `globalMounts` in a pod that has more than one container. Use `advancedMounts` with `subPath`.
 
 ---
 

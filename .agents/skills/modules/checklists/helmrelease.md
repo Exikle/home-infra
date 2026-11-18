@@ -58,11 +58,11 @@ no app-template HelmRelease uses a standalone `httproute.yaml`. This applies to 
 
 ## Persistence
 
-| #    | Check                                                                                                          | Result |
-| ---- | -------------------------------------------------------------------------------------------------------------- | ------ |
-| H26  | If the app uses kopiur: `existingClaim: <app>` (not an inline PVC spec)                                        |        |
-| H27  | If `readOnlyRootFilesystem: true`: a `tmp` emptyDir mount exists                                               |        |
-| H27a | Every emptyDir uses `advancedMounts` (never `globalMounts`), with a `subPath` per path, even for a single path |        |
+| #    | Check                                                                                                                                                     | Result |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| H26  | If the app uses kopiur: `existingClaim: <app>` (not an inline PVC spec)                                                                                   |        |
+| H27  | If `readOnlyRootFilesystem: true`: a `tmp` emptyDir mount exists                                                                                          |        |
+| H27a | If the pod has more than one container, every emptyDir uses `advancedMounts` with a `subPath` per path. `globalMounts` is fine for a single-container pod |        |
 
 ## Route
 

@@ -66,11 +66,8 @@ spec:
                     - path: /data
             tmp:
                 type: emptyDir
-                advancedMounts:
-                    <app>:
-                        app:
-                            - path: /tmp
-                              subPath: tmp
+                globalMounts:
+                    - path: /tmp
         route:
             app:
                 hostnames:
@@ -127,8 +124,9 @@ Those files win. These notes are only about this template:
 
 - Do not add `namespace:` to metadata. The `targetNamespace` of the Flux Kustomization injects it.
 - `fsGroup: 1000` is needed only when the app uses a PVC.
-- `readOnlyRootFilesystem: true` requires a `tmp` emptyDir entry. Use `advancedMounts` with
-  `subPath`, even for a single path.
+- `readOnlyRootFilesystem: true` requires a `tmp` emptyDir entry. If the pod has more than one
+  container, use `advancedMounts` with a `subPath` per path. For a single container, `globalMounts`
+  is fine.
 - Remove the `persistence` block entirely if the app has no PVC and no writable paths.
 - Remove the `route` block if no ingress is needed.
 - Omit the `startup` probe unless the app is slow to start. app-template turns every probe off
