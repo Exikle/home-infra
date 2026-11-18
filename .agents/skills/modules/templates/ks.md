@@ -1,15 +1,19 @@
 # Module: ks.yaml Template
 
-Spec field order is in `.agents/instructions/yaml-conventions.md` § ks.yaml.
+The spec field order is in `.agents/instructions/yaml-conventions.md` § ks.yaml.
 
-Frostlink differences for Kopiur: add `dependsOn` for `kopiur-repository` (namespace `kopiur-system`),
-use `../../../../components/kopiur` (no `/backup`), and set `KOPIUR_APP: *app` under
-`postBuild.substitute`. The component owns the PVC, so do not declare one. Every `KOPIUR_*`
-substitution except `KOPIUR_APP` has a default (`KOPIUR_CAPACITY` is `5Gi`), see
+Frostlink uses Kopiur in a different way:
+
+1. Add `dependsOn` for `kopiur-repository` (namespace `kopiur-system`).
+2. Use `../../../../components/kopiur` (no `/backup`).
+3. Set `KOPIUR_APP: *app` under `postBuild.substitute`.
+
+The component owns the PVC, so do not declare one. Every `KOPIUR_*` substitution except
+`KOPIUR_APP` has a default (`KOPIUR_CAPACITY` is `5Gi`). The defaults are in
 `kube/clusters/frostlink/components/kopiur/`. For a periodic full restore check, add
 `../../../../components/kopiur-deep-verify` and `KOPIUR_DEEP_VERIFY_CAPACITY`. Paths use
-`kube/clusters/frostlink/apps/<ns>/<app>/`, and the Frostlink `wait` and `healthChecks`
-placement is as in `kube/clusters/frostlink/apps/fediverse/gotosocial/ks.yaml`.
+`kube/clusters/frostlink/apps/<ns>/<app>/`. The Frostlink `wait` and `healthChecks` placement
+is as in `kube/clusters/frostlink/apps/fediverse/gotosocial/ks.yaml`.
 
 ## Minimal (no persistence, no secrets)
 
@@ -25,7 +29,7 @@ spec:
     commonMetadata:
         labels:
             app.kubernetes.io/name: *app
-    path: ./clusters/<cluster>/apps/<namespace>/<app>/app
+    path: ./kube/clusters/<cluster>/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
         kind: OCIRepository
@@ -53,6 +57,10 @@ postBuild:
         APP: *app
         KOPIUR_CAPACITY: 5Gi
 ```
+
+A Kustomization with kopiur sets `wait: false`. With `wait: true`, the kopiur `SnapshotSchedule`
+stalls the health checks (`.agents/references/flux-patterns.md` § kopiur CRs stall `wait: true`
+health checks). If a dependent must wait for the app, add `healthChecks` on the HelmRelease.
 
 ## With scale-to-zero (add to components)
 
@@ -85,7 +93,7 @@ spec:
     commonMetadata:
         labels:
             app.kubernetes.io/name: *app
-    path: ./clusters/<cluster>/apps/<namespace>/<app>/app
+    path: ./kube/clusters/<cluster>/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
         kind: OCIRepository
@@ -101,30 +109,31 @@ spec:
         substitute:
             APP: *app
             KOPIUR_CAPACITY: 5Gi
-    wait: true
+    wait: false
 ```
 
 ## Components
 
-`ls kube/clusters/artemis/components` lists them. Each component's substitutions are the `${...}` references in
-its own files (`grep -rho '\${[A-Z_]*' kube/clusters/artemis/components/<name>`), and
-`grep -rln 'components/<name>' kube/clusters/artemis/apps/` shows who uses it, with a working example.
-`kopiur/backup` renders a PVC, `Restore`, `SnapshotPolicy` and `SnapshotSchedule`.
-`envoy-oidc` needs `pocket-id-operator` in `dependsOn` and an `oidcclient.yaml` (see `add-oidc-app`).
+`ls kube/clusters/artemis/components` lists them. The substitutions of a component are the
+`${...}` references in its own files (`grep -rho '\${[A-Z_]*' kube/clusters/artemis/components/<name>`).
+`grep -rln 'components/<name>' kube/clusters/artemis/apps/` shows which apps use it, with a
+working example. `kopiur/backup` renders a PVC, a `Restore`, a `SnapshotPolicy` and a
+`SnapshotSchedule`. `envoy-oidc` needs `pocket-id-operator` in `dependsOn` and an
+`oidcclient.yaml` (see `add-oidc-app`).
 
-All paths sit four `../` from `kube/clusters/artemis/apps/<ns>/<app>/`. A wrong count is the most common
-failure here: `../../../` resolves outside the kustomize root and the build fails with an error. Components
-stack.
+All paths sit four `../` from `kube/clusters/artemis/apps/<ns>/<app>/`. A wrong count is the most
+common failure here. `../../../` resolves outside the kustomize root, and the build fails with an
+error. Components stack.
 
 ## Notes
 
-- YAML blocks in these templates render at 4-space indent, but real manifests use 2 spaces. Copy the
-  structure, not the indentation (`yaml-conventions.md` § What the tooling does for you).
-- Use the YAML anchor `&app` on `metadata.name` and the alias `*app` everywhere the app name repeats
-  (labels, postBuild).
-- Always include `namespace:` on every cross-namespace `dependsOn` entry. If you omit it, the entry silently
-  resolves to the local namespace.
+- YAML blocks in these templates render at 4-space indent, but real manifests use 2 spaces. Copy
+  the structure, not the indentation (`yaml-conventions.md` § What the tooling does for you).
+- Use the YAML anchor `&app` on `metadata.name`. Use the alias `*app` everywhere that the app name
+  repeats (labels, postBuild).
+- Always include `namespace:` on every cross-namespace `dependsOn` entry. If you omit it, the entry
+  silently resolves to the local namespace.
 - `retryInterval` and `timeout` are optional. Add them only when the app is known to be slow to
   reconcile.
-- `healthChecks` goes last, after `wait`. Only a handful of apps need it: a CRD-bearing operator
-  whose dependents must not start until a named object exists.
+- `healthChecks` goes last, after `wait`. Only a small number of apps need it. One example is a
+  CRD-bearing operator whose dependents must not start until a named object exists.

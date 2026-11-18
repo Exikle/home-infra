@@ -7,58 +7,65 @@ paths:
 # Frostlink — differences from Artemis
 
 Frostlink is a single-node Talos cluster under `kube/clusters/frostlink/`. `cluster-conventions.md`
-and `yaml-conventions.md` also load here and hold the shared rules. Rules in this file win over
-any rule they label (Artemis). Tasks are `mise run //kube/clusters/frostlink:<task>`.
+and `yaml-conventions.md` also load here and hold the shared rules. The rules in this file win
+over any rule that those files label (Artemis). Tasks are `mise run //kube/clusters/frostlink:<task>`.
 
 ## Apps
 
-- Every app is `ks.yaml` plus `app/` with `kustomization.yaml`, `ocirepository.yaml` and
-  `helmrelease.yaml`. Routes and ExternalSecrets are inline in the HelmRelease values.
-- Standalone `externalsecret.yaml` is also kept in a directory with no HelmRelease
-  (`clusterissuer`, `postgres`, `kopiur`, `certificates`). Set `target.name` explicitly. With one
-  entry, the object is named after the release, so `forceRename` is only for keeping an old name.
-- Never set `TZ`. k8tz handles it.
+- Every app is `ks.yaml` plus `app/`. The `app/` folder holds `kustomization.yaml`,
+  `ocirepository.yaml` and `helmrelease.yaml`. Routes and ExternalSecrets are inline in the
+  HelmRelease values.
+- A directory with no HelmRelease also keeps a standalone `externalsecret.yaml` (`clusterissuer`,
+  `postgres`, `kopiur`, `certificates`). Set `target.name` explicitly. With one entry, the object
+  gets the name of the release. Use `forceRename` only to keep an old name.
+- Never set `TZ`. k8tz sets it.
 
 ## Single node
 
 - Workloads schedule on the control plane (`taints: $patch: delete` in
   `kube/clusters/frostlink/talos/patches/controlplane.yaml`). No `nodeSelector` is needed.
-- No Rook-Ceph. Node work: `.agents/references/oci-talos.md`. Rebuild: `.agents/references/oci-rebuild.md`.
+- There is no Rook-Ceph. Node work: `.agents/references/oci-talos.md`. Rebuild:
+  `.agents/references/oci-rebuild.md`.
 
 ## Storage
 
-- Default class: `openebs-zfs` (ZFS-backed). `miroir` does not exist here. See
-  `.agents/references/openebs-zfs.md`, which also covers backups (Kopiur to Cloudflare R2).
+- The default class is `openebs-zfs` (backed by ZFS). `miroir` does not exist here. Read
+  `.agents/references/openebs-zfs.md`. It also covers backups (Kopiur to Cloudflare R2).
 
 ## Database and cache
 
-One shared CNPG `Cluster/postgres` with `Pooler/pooler-rw`, and one shared `Dragonfly`, both in
-the `database` namespace. No app runs its own Postgres, Redis or Valkey. Full detail:
-`.agents/references/database.md`.
+Frostlink has one shared CNPG `Cluster/postgres` with `Pooler/pooler-rw`, and one shared
+`Dragonfly`. Both are in the `database` namespace. No app runs its own Postgres, Redis or Valkey.
+`.agents/references/database.md` has the full detail and wins over this section.
 
-- Connect only through `pooler-rw.database.svc:5432`. Never to the `Cluster` directly.
-- Onboard an app with the `kube/clusters/frostlink/components/postgres/cert` component in
-  its `ks.yaml`. It makes the `Database` CR, a client `Certificate` and a `ConfigMap` with the
-  mTLS DSN. Auth is by certificate, so there is no password. Apps read the DSN from the ConfigMap.
-  `ksgate` holds the app pod until the `Database` CR is Ready.
-- Also add the app's role (`name: <app>`, `login: true`, `disablePassword: true`) to
+- Connect only through `pooler-rw.database.svc:5432`. Never connect to the `Cluster` directly.
+- To onboard an app, add the `kube/clusters/frostlink/components/postgres/csi` component to its
+  `ks.yaml`. If the Postgres driver of the app is lib/pq, use `components/postgres/cert` instead.
+  `database.md` § Client certificates gives the reason and the command that reads the driver out
+  of the binary.
+- Both components make the `Database` CR, the `DatabaseRole` CR and a `ConfigMap` with the mTLS
+  DSN. Auth is by client certificate, so there is no password. The app reads the DSN from the
+  ConfigMap. `ksgate` holds the app pod until the `Database` CR is applied.
+- The `DatabaseRole` of the component makes the role of the app. Do not add the role to
   `spec.managed.roles` in `kube/clusters/frostlink/apps/database/postgres/cluster/cluster.yaml`.
-  Without it you get `role "<app>" does not exist (SQLSTATE 42704)`.
-- Client keys use PKCS8 through the CSI path. History and reissue traps: `database.md`
+  That list holds only `pooler-rw`.
+- If the app gets `role "<app>" does not exist (SQLSTATE 42704)`, the `DatabaseRole` did not
+  reconcile. Read its state with `kubectl get databaseroles -n database --context frostlink`.
+- The CSI component uses PKCS8 client keys. History and reissue traps: `database.md`
   § Client certificates and § CNPG PKI gotchas.
 
 ## Ingress
 
-- One gateway: `external-gateway` in the `network` namespace. There is no `internal-gateway` and
-  no `edge-gateway`. Publishing a service: `.agents/references/towonel.md`. Network detail:
-  `.agents/references/oci-networking.md`.
+- There is one gateway: `external-gateway` in the `network` namespace. There is no
+  `internal-gateway` and no `edge-gateway`. Publishing a service: `.agents/references/towonel.md`.
+  Network detail: `.agents/references/oci-networking.md`.
 - There is no Cloudflare tunnel.
 
 ## Common mistakes
 
-| Pattern       | Correct                          | Wrong                                       |
-| ------------- | -------------------------------- | ------------------------------------------- |
-| Gateway       | `external-gateway` only          | `internal-gateway`, `edge-gateway`          |
-| Storage class | `openebs-zfs`                    | `miroir`, `local-path`, `ceph-block`        |
-| App database  | shared `postgres/cert` component | sidecar postgres, SQLite, app-specific CNPG |
-| App cache     | shared Dragonfly (`database` ns) | sidecar Redis/Valkey                        |
+| Pattern              | Correct                          | Wrong                                |
+| -------------------- | -------------------------------- | ------------------------------------ |
+| Gateway              | `external-gateway` only          | `internal-gateway`, `edge-gateway`   |
+| Storage class        | `openebs-zfs`                    | `miroir`, `local-path`, `ceph-block` |
+| App needing Postgres | shared `postgres/csi` component  | sidecar postgres, app-specific CNPG  |
+| App cache            | shared Dragonfly (`database` ns) | sidecar Redis/Valkey                 |

@@ -5,7 +5,8 @@ description: Take a fast read on overall cluster health (failing pods, unready F
 
 # Skill: Cluster Status
 
-This skill is a quick read-only health digest of home-infra. It produces a 🟢/🟡/🔴 summary per layer.
+This skill is a quick, read-only health digest of home-infra. It produces a 🟢/🟡/🔴 summary for
+each layer.
 
 ## Run
 
@@ -17,24 +18,37 @@ flux get helmreleases -A --status-selector ready=false
 # Nodes
 kubectl get nodes -o wide
 
-# Unhealthy pods (exclude Succeeded/Completed)
-kubectl get pods -A --field-selector='status.phase!=Running,status.phase!=Succeeded' | grep -v Completed
+# Unhealthy pods: phase not Running or Succeeded, or Running with a container that is not ready (CrashLoopBackOff)
+kubectl get pods -A -o go-template='{{range .items}}{{$p := .}}{{if ne .status.phase "Succeeded"}}{{if ne .status.phase "Running"}}{{$p.metadata.namespace}}/{{$p.metadata.name}}  phase={{$p.status.phase}}{{"\n"}}{{else}}{{range .status.conditions}}{{if and (eq .type "Ready") (ne .status "True")}}{{$p.metadata.namespace}}/{{$p.metadata.name}}  phase=Running  waiting={{range $p.status.containerStatuses}}{{if .state.waiting}}{{.state.waiting.reason}} {{end}}{{end}}{{"\n"}}{{end}}{{end}}{{end}}{{end}}{{end}}'
 
 # Recent warning events
 kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' | tail -20
 
 # Flux suspended resources
-flux get all -A | grep -i suspend
+kubectl get kustomizations,helmreleases,ocirepositories -A -o jsonpath='{range .items[?(@.spec.suspend==true)]}{.kind}/{.metadata.namespace}/{.metadata.name}{"\n"}{end}'
 ```
 
-If local kubectl is unavailable, use the `-ops` k8s MCP tools. List them and match on the server and tool portion (resources list/get, events list), as `.agents/instructions/tooling.md` § MCP servers describes.
+The pod command and the suspended-resources command print nothing when nothing is wrong.
+
+The pod command reads the pod's `Ready` condition, not only its phase. A pod in
+`CrashLoopBackOff` stays in phase `Running`, so a filter on phase alone hides it. The command
+prints the waiting reason of each container, for example `CrashLoopBackOff` or
+`ImagePullBackOff`. It skips Completed (Succeeded) job pods. It still prints a Failed job pod.
+
+The suspended-resources command reads `spec.suspend` directly. `resume-ks` uses the same filter.
+Do not use `flux get all -A | grep -i suspend`. `flux get` prints `True` or `False` in its
+SUSPENDED column, so the `grep` matches only the header lines and never finds a suspended object.
+
+If local kubectl is not available, use the `-ops` k8s MCP tools. List them and match on the server
+and tool portion (resources list/get, events list), as `.agents/instructions/tooling.md` § MCP
+servers describes.
 
 ## Frostlink
 
-Frostlink is a single node (`frostlink`, ARM64, Oracle Cloud). The MCP k8s tools point at Artemis,
-so there is no MCP fallback. Run the same commands with `--context frostlink` on every one,
-because a bare `kubectl` or `flux` in an agent shell hits Artemis. A suspended root or app is a
-finding, not noise.
+Frostlink is a single node (`frostlink`, ARM64, Oracle Cloud). The MCP k8s tools point at
+Artemis, so there is no MCP fallback. Add `--context frostlink` to every command above. A bare
+`kubectl` or `flux` in an agent shell hits Artemis. A suspended root or app is a finding, not
+noise.
 
 ## Output Format
 
@@ -51,13 +65,14 @@ finding, not noise.
 
 ## Layers (check in order)
 
-1. Flux: kustomizations and helmreleases that are not Ready, and any that are Suspended
-2. Nodes: NotReady nodes. `kubectl get nodes` lists every node (ymir included)
-3. Pods: pods that are not Running (skip Completed/Succeeded jobs)
-4. Events: Warning events in the last 15 minutes
+1. Flux: kustomizations and helmreleases that are not Ready, and any resource that is Suspended.
+2. Nodes: NotReady nodes. `kubectl get nodes` lists every node (ymir included).
+3. Pods: pods that are not Running, and Running pods with a container that is not ready. Skip
+   Completed (Succeeded) job pods.
+4. Events: Warning events in the last 15 minutes.
 
 ## Status Key
 
 - 🟢 All clear
-- 🟡 Degraded / non-critical issue
-- 🔴 Down / blocking issue that requires action
+- 🟡 Degraded or non-critical issue
+- 🔴 Down, or a blocking issue that requires action

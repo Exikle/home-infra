@@ -13,7 +13,7 @@ disallowedTools: [Edit, Write, NotebookEdit]
 Deep, read-only correctness audit of one app. `review-app` asks "is this written the way
 this repo writes things". This agent asks "is this actually right". To answer that, you must
 read the live cluster, the components the app wires, the runtime configuration of the app, and the
-upstream behavior of the app.
+upstream behaviour of the app.
 
 ## Rules
 
@@ -40,18 +40,18 @@ upstream behavior of the app.
 Always read `.agents/instructions/cluster-conventions.md` and `.agents/instructions/yaml-conventions.md`.
 Then load only the files that apply. These files are on-demand for a reason:
 
-| If the app has…                      | Read                                                                                                   |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| any component wired in `ks.yaml`     | the component's own files under `kube/clusters/artemis/components/<name>/` (the definition, not a doc) |
-| a PVC or kopiur                      | `.agents/references/kopiur.md`, `.agents/references/storage.md`                                        |
-| Postgres, Redis, or any cache        | `.agents/references/postgres-dragonfly.md` (mandatory, especially § Cert-incapable apps)               |
-| an HTTPRoute                         | `.agents/references/networking.md`                                                                     |
-| OIDC, tinyauth, or a SecurityPolicy  | `.agents/references/identity-stack.md`                                                                 |
-| zeroscaler, or metrics/scrape config | `.agents/references/observability.md`                                                                  |
-| a `frostlink.dev` hostname           | `.agents/references/towonel-agent.md`                                                                  |
-| namespace `media`                    | `.agents/references/media-stack.md`                                                                    |
-| an MCP server that reaches it        | `.agents/references/cortex-mcp.md`, `.agents/references/memory-config.md`                              |
-| a stuck or odd reconciliation        | `.agents/references/flux-patterns.md`                                                                  |
+| If the app has…                      | Read                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| any component wired in `ks.yaml`     | the component's own files under `kube/clusters/artemis/components/<name>/` (the definition, not a doc)      |
+| a PVC or kopiur                      | `.agents/references/kopiur.md`, `.agents/references/storage.md`                                             |
+| Postgres, Redis, or any cache        | `.agents/references/postgres-dragonfly.md` (mandatory, especially § Onboarding an app onto shared Postgres) |
+| an HTTPRoute                         | `.agents/references/networking.md`                                                                          |
+| OIDC, tinyauth, or a SecurityPolicy  | `.agents/references/identity-stack.md`                                                                      |
+| zeroscaler, or metrics/scrape config | `.agents/references/observability.md`                                                                       |
+| a `frostlink.dev` hostname           | `.agents/references/towonel-agent.md`                                                                       |
+| namespace `media`                    | `.agents/references/media-stack.md`                                                                         |
+| an MCP server that reaches it        | `.agents/references/cortex-mcp.md`, `.agents/references/memory-config.md`                                   |
+| a stuck or odd reconciliation        | `.agents/references/flux-patterns.md`                                                                       |
 
 ---
 
@@ -103,7 +103,7 @@ grep -rn '\${' kube/clusters/artemis/components/<name>/
 | `zeroscaler`    | `${CONTROLLER}` defaults to `Deployment`. A StatefulSet app without it targets a resource that does not exist. Also, the metric is not what the name suggests. Check how many series the metric of the HPA actually has.                                                                                                                                                                                                       | Run `kubectl get hpa -n <ns> <app>`. If `TARGETS` reads `<unknown>/1`, the metric does not resolve. If `REFERENCE` names a kind that the app does not use, the substitution is wrong. Then query the metric itself. If every HPA in the cluster reads the _same single series_, this is a shared-fate gate, not per-app autoscaling.                                                                                                                                                      |
 | `postgres/app`  | The app uses the DSN key that matches its driver: `url` (libpq), `url_node` (postgres-js), or `url_prisma` (Prisma). `pg_hba` is `scram-sha-256` (`postgres-dragonfly.md`).                                                                                                                                                                                                                                                    | Step 2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `tinyauth`      | The three ACL keys exist in `security/tinyauth/app/helmrelease.yaml`: `TINYAUTH_APPS_<NAME>_OAUTH_WHITELIST` (must be `"/.*/"`), `_OAUTH_GROUPS`, and `_LDAP_GROUPS`. Under `TINYAUTH_AUTH_ACLS_POLICY: deny` an app with none is locked out entirely. The app's namespace must also appear in `security/tinyauth/app/resourceset.yaml`'s `spec.inputs`, or the `SecurityPolicy` sits `Accepted=False` with `RefNotPermitted`. | `grep TINYAUTH_APPS_<NAME> kube/clusters/artemis/apps/security/tinyauth/app/helmrelease.yaml`, `sed -n '/inputs:/,/resources:/p' kube/clusters/artemis/apps/security/tinyauth/app/resourceset.yaml`, `kubectl get referencegrant -n security`. Then Step 3.                                                                                                                                                                                                                               |
-| `envoy-oidc`    | A `PocketIDOIDCClient` exists for the app with `callbackUrls` ending `/oauth2/callback` and `secret.keys.clientSecret: client-secret`. Also, `dependsOn` includes `pocket-id-operator` (`security`); the component's `SecurityPolicy` `<app>-oidc` targets the app's real HTTPRoute (`${HTTP_ROUTE_TARGET:=${APP}}`), and `${OIDC_HOST}` matches the route's hostname.                                                         | `kubectl get securitypolicy -n <ns> <app>-oidc -o yaml`, `kubectl get pocketidoidcclient -n <ns> <app>`, `kubectl get httproute -n <ns>`. Then Step 3.                                                                                                                                                                                                                                                                                                                                    |
+| `envoy-oidc`    | A `PocketIDOIDCClient` exists for the app with `callbackUrls` ending `/oauth2/callback` and `secret.keys.clientSecret: client-secret`. Also, `dependsOn` includes `pocket-id-operator` (`security`). The component's `SecurityPolicy` `<app>-oidc` targets the app's real HTTPRoute (`${HTTP_ROUTE_TARGET:=${APP}}`), and `${OIDC_HOST}` matches the route's hostname.                                                         | `kubectl get securitypolicy -n <ns> <app>-oidc -o yaml`, `kubectl get pocketidoidcclient -n <ns> <app>`, `kubectl get httproute -n <ns>`. Then Step 3.                                                                                                                                                                                                                                                                                                                                    |
 
 Then ask the inverse: is a component obviously needed and absent? Examples are a PVC with no
 `kopiur/backup` (advisory A2) and a publicly routed app with no gate (A10). Also ask the reverse:
@@ -121,59 +121,95 @@ resources of the app. Make sure that the objects it must produce exist and are w
 
 Skip this step only if the app has no database at all. In that case, say why it does not need one.
 
-1. Does it support Postgres, and how? Cite the env var names that it exposes. Read them from upstream
-   source at the running tag or from the image itself. Never read them from a doc, a brief, or a previous
-   audit. Briefs get this wrong routinely, in both directions.
-2. Is it cert-capable, or does it need a sidecar? See `postgres-dragonfly.md` § driver table. libpq, pgx and
-   node-postgres read `sslcert`/`sslkey`/`sslrootcert` and use the component DSN as-is. postgres-js
-   cannot present a client cert at all. Prisma has no `sslkey`. An app that exposes only
-   host/port/user/password env vars cannot do cert auth. It needs a pgbouncer
-   sidecar.
-3. If a sidecar is present, verify its shape, not only its existence. Look for `listen_addr = 127.0.0.1`
-   (never wider, because auth is `trust`), empty `unix_socket_dir`, `auth_type = trust`,
-   `pool_mode = session`, `server_tls_sslmode = verify-full` plus the three `server_tls_*_file`
-   paths, and a readiness probe that is `exec: pg_isready -h 127.0.0.1 …`. A `tcpSocket` probe
-   dials the pod IP, and a loopback-only listener never answers it. The result is a silent never-ready.
-   Check `default_pool_size` explicitly. The reference `pgbouncer.ini` is not sized for a fleet.
-   If you copy it verbatim across many apps, the pool sizes add up in the connection
-   budget of the cluster.
-4. Check the connection budget before you recommend any onboarding. `max_connections` on the
-   shared cluster and the sum of the sidecar pool sizes are a hard ceiling that the manifest of no single
-   app reveals. Query `SELECT * FROM pg_settings WHERE name = 'max_connections'` and the
-   14-day peak of `cnpg_backends_total`. An app that fits alone can fail to fit in total.
-5. Check declared extensions against the live database. Suppose a `Database` CR has
-   `spec.extensions: []` while the live database has hand-created extensions. A rebuild from
-   git then silently recreates the database without them, and every index or query that depends on one fails.
-   Compare `\dx` in `psql` against `spec.extensions` in the tree.
-6. If the app is on SQLite and stays there, say so explicitly and give the reason.
-   Silence reads as an oversight. Single-writer, low-concurrency, and no operational pain is a complete reason
+Know the current wiring before you judge an app against it. The source of truth is the component
+under `kube/clusters/artemis/components/postgres/` and `postgres-dragonfly.md` § Onboarding an app
+onto shared Postgres. Read both. This is what they set today:
+
+- Auth is a password over TLS. The live `pg_hba` is `hostssl all all all scram-sha-256`. There are
+  no client certificates, no pooler and no pgbouncer sidecars
+  (`postgres-dragonfly.md` § There are no pgbouncer sidecars). Do not recommend a sidecar.
+- `components/postgres/app` creates a `<app>-postgres` Secret in the namespace of the app, from the
+  1Password item `postgres-artemis`. The Secret holds three DSN keys (`url`, `url_node`,
+  `url_prisma`) and the discrete fields `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DATABASE`,
+  `POSTGRES_USERNAME` and `POSTGRES_PASSWORD`. Every DSN points at
+  `postgres-rw.database.svc:5432` with `sslmode=verify-full`.
+- It also creates a `<app>-postgres` ConfigMap with `PGSSLMODE: verify-full` and `PGSSLROOTCERT`.
+  The app connects with the Secret, not the ConfigMap.
+- It emits a `ResourceSetInputProvider` named `<app>-postgres`. The `postgres-tenants` ResourceSet
+  of the namespace (`components/postgres/tenants`) turns it into a `DatabaseRole`, a `Database` and
+  a role Secret, all three in the `database` namespace, not in the namespace of the app.
+- Its patch (`components/postgres/app/patch`) targets a `HelmRelease` only. It adds three ksgate
+  scheduling gates and mounts the `postgres-server-ca` Secret at
+  `/var/run/secrets/postgres-server-ca`. It skips a HelmRelease that carries the annotation
+  `postgres.dcunha.io/skip-patch`.
+
+Then audit the app:
+
+1. Does it support Postgres, and how? Cite the env var names that it exposes. Read them from
+   upstream source at the running tag or from the image itself. Never read them from a doc, a
+   brief, or a previous audit. Briefs get this wrong routinely, in both directions.
+2. Does it use the DSN key that fits its driver? Pick by driver, from the table in
+   `postgres-dragonfly.md` § Onboarding an app onto shared Postgres, step 3:
+    - `url`: libpq, pgx and node-postgres.
+    - `url_node`: postgres-js. The CA comes through `NODE_EXTRA_CA_CERTS`.
+    - `url_prisma`: Prisma. Its `sslcert` parameter means the root certificate.
+    - The discrete `POSTGRES_*` fields: an app that takes host, port, user and password
+      separately.
+
+    A wrong key is not a soft failure. If postgres-js gets the `url` key, it fails with
+    `unrecognized configuration parameter "sslrootcert"` and never connects. If Prisma gets a key
+    it does not understand, it fails open and connects without verifying the server. The
+    `check-postgres` task tests the `url` key only, so it cannot prove that the app picked the right
+    key.
+
+3. Does the pod mount the server CA? `verify-full` needs `postgres-server-ca` at
+   `/var/run/secrets/postgres-server-ca`. The patch adds the mount to a HelmRelease. An app that is
+   a custom resource, or a HelmRelease with `postgres.dcunha.io/skip-patch`, must declare its own
+   mount (`postgres-dragonfly.md` § CR-based apps get the Database CR, but not the pod patch). If
+   the mount is missing, nothing reports an error.
+4. Check the connection budget before you recommend any onboarding. There is no pooler, so every
+   client connection is a server backend. `max_connections` on the shared cluster is a hard ceiling
+   that the manifest of no single app reveals. Query
+   `SELECT * FROM pg_settings WHERE name = 'max_connections'` and the 14-day peak of
+   `cnpg_backends_total`. An app that fits alone can fail to fit in total.
+5. Check declared extensions against the live database. Suppose that a `Database` CR has
+   `spec.extensions: []` while the live database has hand-created extensions. A rebuild from git
+   then silently recreates the database without them, and every index or query that depends on one
+   fails. Compare `\dx` in `psql` against `spec.extensions` in the tree.
+6. If the app is on SQLite and stays there, say so explicitly and give the reason. Silence reads
+   as an oversight. Single-writer, low-concurrency, and no operational pain is a complete reason
    (`cluster-conventions.md` § Deployment Philosophy). So is "upstream has no Postgres support".
-   Verify that from source. Do not assume it.
-7. If you propose a migration, state all four of these: whether an import path exists and whether you
-   ran its `--help` to confirm it (some apps ship a first-class migrator, and others initialize an
-   empty schema and silently leave the library, history and settings behind), the procedure, the
-   rollback path, and what happens to the old PVC (`postgres-dragonfly.md` § Retiring an app's own
-   Postgres leaves its PVC behind). Never propose deleting a PVC as a migration step. It is
+   Make sure of that from source. Do not assume it.
+7. If you propose a migration, state all four of these: whether an import path exists and whether
+   you ran its `--help` to confirm it, the procedure, the rollback path, and what happens to the
+   old PVC (`postgres-dragonfly.md` § Retiring an app's own Postgres leaves its PVC behind). Some
+   apps ship a first-class migrator. Others initialize an empty schema and silently leave the
+   library, history and settings behind. Never propose deleting a PVC as a migration step. It is
    the last step, after the new path is proven, and it is always RISKY.
-8. Cache: if the app uses Dragonfly, confirm the index against the allocation table
-   (`postgres-dragonfly.md` § Onboarding an app onto shared Dragonfly) and against the live
-   keyspace. The manifest can lie, but the keyspace cannot:
+8. Cache: if the app uses Dragonfly, compare the index with the allocation table
+   (`postgres-dragonfly.md` § Onboarding an app onto shared Dragonfly) and with the live keyspace.
+   The manifest can lie, but the keyspace cannot:
    `kubectl -n database exec dragonfly-0 -c dragonfly -- redis-cli INFO keyspace`.
    An app with no index configured silently lands on `0`, the forgot-to-configure tripwire.
 
-Verify that the wiring resolved, and that the app really uses it. The first command lists
-the Secret's key names only: `url`, `url_node`, `url_prisma`, `POSTGRES_*`. Never print the values.
+Make sure that the wiring resolved, and that the app really uses it. The first command lists the
+key names of the Secret only: `url`, `url_node`, `url_prisma`, `POSTGRES_*`. Never print the
+values. The `Database` and `DatabaseRole` live in `database`, so read them there.
 
 ```bash
 kubectl get secret -n <ns> <app>-postgres -o go-template='{{range $k,$v := .data}}{{$k}}{{"\n"}}{{end}}'
 kubectl get configmap -n <ns> <app>-postgres -o jsonpath='{.data}'
-kubectl get database.postgresql.cnpg.io -n <ns>
+kubectl get database.postgresql.cnpg.io,databaserole.postgresql.cnpg.io -n database <app>
+kubectl get pod -n <ns> -l app.kubernetes.io/name=<app> -o jsonpath='{range .items[*]}{.metadata.name}{"  ca="}{.spec.volumes[?(@.name=="postgres-server-ca")].secret.secretName}{"\n"}{end}'
 kubectl get pod -n <ns> -l app.kubernetes.io/name=<app> -o jsonpath='{.items[*].status.conditions[?(@.type=="PodScheduled")].reason}'
 ```
 
+The `Database` and the `DatabaseRole` must both show `APPLIED` `true`. An empty `ca=` means that the
+pod has no server CA mount.
+
 `SchedulingGated` is expected while the ksgate gates wait on Postgres. It is not a stuck pod.
-`pg_stat_activity` and `pg_stat_ssl` on the primary prove that a connection exists and uses
-real cert authentication. They show that the app did not quietly fall back to a local file.
+`pg_stat_activity` and `pg_stat_ssl` on the primary prove that a connection exists and that it uses
+TLS (`ssl` is `t`). They show that the app did not quietly fall back to a local file.
 
 ---
 
@@ -242,7 +278,7 @@ Report these cases, worst first:
 - Peak approaching the limit (for example, above ~85% of `limits.memory` over 14 days). This is the
   finding that matters most, and an instant `top` hides it completely. Check
   `lastState.terminated` and namespace events for `OOMKilling` to see whether it already fired.
-- Request far below observed: the scheduler packs on a false number, the pod is a noisy neighbor,
+- Request far below observed: the scheduler packs on a false number, the pod is a noisy neighbour,
   and the pod is first to be evicted under pressure.
 - Request far above observed: the pod reserves schedulable capacity that it never uses.
 - Limit far above observed (an order of magnitude or more): the limit does not do its job. A
@@ -348,7 +384,7 @@ Numbered, worst first. Each one has these parts:
 - Evidence: `file:line`, or the live object inspected, quoted.
 - Severity: broken (it does not work) | risk (it works until it breaks) | drift (it works,
   but this repo does it another way).
-- Fix: the concrete YAML you would write.
+- Fix: the concrete YAML that you propose.
 - SAFE or RISKY: SAFE is pure config with no data or access consequence. RISKY is anything
   that migrates data, changes auth, or can lock out or empty an app. Be honest. The caller
   sequences on this.
@@ -365,7 +401,7 @@ cite it.
 
 ## Unverified suspicions
 
-Anything not confirmed, and what it would take to confirm it.
+Anything not confirmed, and what you need to confirm it.
 ```
 
 ## Gotchas
@@ -382,7 +418,7 @@ Anything not confirmed, and what it would take to confirm it.
   auth mode and integration URLs all live on the PVC. A manifest-only audit misses the whole class.
 - A component that renders is not a component that works. Kustomize accepts a patch target
   that matches nothing, so a component can apply cleanly and reach none of the resources of the app.
-  This is exactly how a CR-based app got a `Database` CR with no cert mounts while Flux stayed green
+  This is exactly how a CR-based app got a `Database` CR with no server-CA mount while Flux stayed green
   (`postgres-dragonfly.md` § CR-based apps).
 - Never propose deleting a PVC as part of a migration step. It is the last step, after the new
   path is proven, and it is always RISKY.

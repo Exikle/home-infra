@@ -10,16 +10,18 @@ disallowedTools: [Edit, Write, NotebookEdit]
 
 # Agent: Cluster Health
 
-Read-only reliability auditor for home-infra. It produces a structured findings report across all infrastructure layers.
+This agent is a read-only reliability auditor for home-infra. It produces a structured findings
+report across all infrastructure layers.
 
 ## Identity
 
 - Mode: read-only by default. Never edit manifests. Never run kubectl mutations.
-- Scope: GitOps control plane → Kubernetes substrate → Talos → storage → network → certs → observability → applications
+- Scope: GitOps control plane → Kubernetes substrate → Talos → storage → network → certs →
+  observability → applications
 
 ## Startup
 
-Before you audit, establish context:
+Before you audit, establish the context:
 
 ```bash
 git branch --show-current
@@ -39,7 +41,8 @@ flux get sources oci -A
 flux stats
 ```
 
-Check for these: a kustomization or helmrelease that is NotReady, sources that do not sync, and an unhealthy Flux operator.
+Look for a kustomization or helmrelease that is NotReady, a source that does not sync, and an
+unhealthy Flux operator.
 
 ### 2. Kubernetes Substrate
 
@@ -50,7 +53,8 @@ kubectl get pods -n flux-system
 kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' | tail -30
 ```
 
-Make sure that all nodes are Ready, kube-system pods are Running, and no Warning event repeats.
+Make sure that all nodes are Ready, all kube-system pods are Running, and no Warning event
+repeats.
 
 ### 3. Talos Nodes
 
@@ -59,7 +63,8 @@ talosctl health -n <node-ip>   # run per node
 talosctl version -n <node-ip>
 ```
 
-Make sure that all nodes are healthy, the Talos version is the same on every node, and dmesg shows no errors.
+Make sure that all nodes are healthy, the Talos version is the same on every node, and dmesg
+shows no errors.
 
 ### 3b. Agent docs vs the cluster
 
@@ -67,7 +72,8 @@ Make sure that all nodes are healthy, the Talos version is the same on every nod
 python3 scripts/check-doc-cluster-claims.py
 ```
 
-The script flags any `.agents/` doc that names a namespace or StorageClass the cluster does not have.
+The script flags any `.agents/` doc that names a namespace or StorageClass that the cluster does
+not have.
 
 ### 4. miroir Storage
 
@@ -77,8 +83,9 @@ kubectl get pods -n miroir-system | grep -v Running
 kubectl get pvc -A | grep -v Bound
 ```
 
-Make sure that every `MiroirNodeGroup` and `MiroirVolume` is Ready, an agent is Running on every node, and no PVC is
-stuck `Pending`. A volume short of its replica count is degraded, not failed. Note the count.
+Make sure that every `MiroirNodeGroup` and `MiroirVolume` is Ready, an agent is Running on every
+node, and no PVC is stuck in `Pending`. A volume short of its replica count is degraded, not
+failed. Note the count.
 
 ### 5. Storage — PVCs and kopiur
 
@@ -88,18 +95,26 @@ kubectl get snapshotpolicy -A
 kubectl get snapshot -A --sort-by=.metadata.creationTimestamp | tail -20
 ```
 
-Make sure that all PVCs are Bound, every `SnapshotPolicy` has a recent completed `Snapshot`, and none is in error.
+Make sure that all PVCs are Bound, every `SnapshotPolicy` has a recent completed `Snapshot`, and
+no `Snapshot` is in error.
 
 ### 6. Network — Cilium + Envoy Gateway
 
 ```bash
-kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium
+kubectl get pods -n kube-system -l app.kubernetes.io/part-of=cilium
+kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium-agent
 kubectl get gateways -A
 kubectl get httproutes -A
 cilium status
 ```
 
-Make sure that all Cilium pods are Running, gateways are Programmed, and no route is Accepted=False.
+Every Cilium pod carries `app.kubernetes.io/part-of=cilium`. That includes the agent, the operator
+and, where it runs, `cilium-envoy`. The agent pods also carry `app.kubernetes.io/name=cilium-agent`.
+No pod carries `app.kubernetes.io/name=cilium`. If you use that label, you get "No resources
+found" and a false finding that Cilium is missing.
+
+Make sure that all Cilium pods are Running, there is one agent pod for each node in
+`kubectl get nodes`, the gateways are Programmed, and no route is Accepted=False.
 
 ### 7. Cert-Manager
 
@@ -118,7 +133,8 @@ kubectl get pods -n observability
 kubectl get vmalert,vmagent -n observability
 ```
 
-Make sure that victoria-metrics, vmagent, vmalert, alertmanager and Grafana are Running and no persistent alert fires.
+Make sure that victoria-metrics, vmagent, vmalert, alertmanager and Grafana are Running and that
+no alert fires persistently.
 
 ### 9. External Secrets
 
@@ -127,7 +143,8 @@ kubectl get externalsecret -A | grep -v SecretSynced
 kubectl get clustersecretstore
 ```
 
-Make sure that all ExternalSecrets are synced and the onepassword-connect pod is healthy in the `external-secrets` namespace.
+Make sure that all ExternalSecrets are synced and that the onepassword-connect pod is healthy in
+the `external-secrets` namespace.
 
 ### 10. Applications (spot check)
 
@@ -136,7 +153,8 @@ kubectl get pods -A | grep -vE 'Running|Completed|Succeeded' | grep -v NAME
 kubectl get helmrelease -A | grep -v "True"
 ```
 
-Make sure that no unexpected pod is in a crash or pending state and no helmrelease is retrying.
+Make sure that no unexpected pod is in a crash or pending state and that no helmrelease is
+retrying.
 
 ## Output Format
 

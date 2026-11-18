@@ -6,17 +6,21 @@ compatibility: Requires the Grafana Operator and its CRDs. Dashboards are CRs, n
 
 # Skill: Grafana Dashboard
 
-Create and manage Grafana resources through the Grafana Operator (CRD-based, not ConfigMaps or HelmRelease values).
+You create and manage Grafana resources through the Grafana Operator. They are CRs, not ConfigMaps
+or HelmRelease values.
 
-> Also read `.agents/references/observability.md` before you work on dashboards. Edit in a worktree:
-> run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7).
+> Also read `.agents/references/observability.md` before you work on dashboards. Edit in a
+> worktree. Run `mise run //:wt:new feat/<slug>` first (`AGENTS.md` rule 7).
 
 ## All Resources Use `grafana.integreatly.org/v1beta1`
 
 ```yaml
 apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDashboard # or GrafanaDataSource, GrafanaFolder, GrafanaAlertRuleGroup
+kind: GrafanaDashboard # or GrafanaDatasource, GrafanaFolder, GrafanaAlertRuleGroup
 ```
+
+Kinds are case-sensitive. The datasource kind is `GrafanaDatasource`, with a lowercase `s`. To list
+every kind in the group, run `kubectl api-resources --api-group=grafana.integreatly.org`.
 
 ## Instance Selector (required on every resource)
 
@@ -27,7 +31,7 @@ spec:
             dashboards: grafana
 ```
 
-Run this command to verify the exact label:
+To make sure that the label is exact, run this command:
 
 ```bash
 kubectl get grafana -n observability -o yaml | grep -A5 "labelSelector\|dashboards"
@@ -35,7 +39,8 @@ kubectl get grafana -n observability -o yaml | grep -A5 "labelSelector\|dashboar
 
 ## Namespace = Folder
 
-The namespace that a `GrafanaDashboard` is deployed in determines which Grafana folder it appears in. Deploy dashboards in the app's own namespace, not `observability` or `default`.
+The namespace of a `GrafanaDashboard` sets the Grafana folder that it appears in. Deploy dashboards
+in the app's own namespace, not in `observability` or `default`.
 
 ```yaml
 metadata:
@@ -45,17 +50,24 @@ metadata:
 
 ## Datasource Names
 
-Use these exact names. A mismatch gives silent empty panels:
+A dashboard refers to a datasource by its `spec.datasource.name`, not by the name of the CR. A
+wrong name gives empty panels and no error. The two names differ for two datasources. For example,
+the CR `victoria-logs` has the datasource name `VictoriaLogs`.
 
-| Name            | Type                                                              |
-| --------------- | ----------------------------------------------------------------- |
-| `prometheus`    | VictoriaMetrics, Prometheus-compatible (`observability/victoria`) |
-| `alertmanager`  | Alertmanager                                                      |
-| `victoria-logs` | VictoriaLogs                                                      |
+Before you write a dashboard, list the real names:
+
+```bash
+kubectl get grafanadatasource -A \
+  -o custom-columns=CR:.metadata.name,NAME:.spec.datasource.name,TYPE:.spec.datasource.type
+```
+
+Use the `NAME` column. `observability.md` § `datasourceName` is the CR's `spec.datasource.name`,
+not the CR's own name has the table and the reasons. That file wins.
 
 ## CRITICAL: Escape All Grafana Variables
 
-You must double every `$` in dashboard JSON to `$$`. The operator treats a single `$` as a Go template variable and silently replaces it with an empty string.
+You must double every `$` in dashboard JSON to `$$`. The operator treats a single `$` as a Go
+template variable. It silently replaces it with an empty string.
 
 ```json
 { "expr": "rate(http_requests_total{job=$$job}[$$__rate_interval])" }
@@ -69,11 +81,11 @@ Common tokens to double:
 
 ## GrafanaDashboard Template
 
-Grafana runs in `observability`, so a dashboard in any other namespace needs
-`allowCrossNamespaceImport: true` (first key under `spec`). Otherwise the operator never imports it. For a
-dashboard that you fetch with `url:` or `configMapRef:`, bind panels with `spec.datasources[]`
-(`datasourceName` plus the `inputName` that the JSON declares). See
-`kube/clusters/artemis/apps/observability/grafana/app/grafanadashboard.yaml`.
+Grafana runs in `observability`. A dashboard in any other namespace needs
+`allowCrossNamespaceImport: true` as the first key under `spec`. If it is missing, the operator
+never imports the dashboard. For a dashboard that you fetch with `url:` or `configMapRef:`, bind
+the panels with `spec.datasources[]`. Each entry has a `datasourceName` and the `inputName` that
+the JSON declares. See `kube/clusters/artemis/apps/observability/grafana/app/grafanadashboard.yaml`.
 
 ```yaml
 apiVersion: grafana.integreatly.org/v1beta1
@@ -94,11 +106,11 @@ spec:
         }
 ```
 
-## GrafanaDataSource Template
+## GrafanaDatasource Template
 
 ```yaml
 apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDataSource
+kind: GrafanaDatasource
 metadata:
     name: <name>
     namespace: <namespace>
@@ -114,11 +126,11 @@ spec:
         isDefault: false
 ```
 
-`editable: true` is required, because the Grafana Operator sets datasources read-only by default.
+`editable: true` is required, because the Grafana Operator makes datasources read-only by default.
 
 ## Suppressing Bundled Chart Dashboards
 
-Some charts unconditionally include GrafanaDashboards. Suppress them through a postRenderer:
+Some charts always include GrafanaDashboards. Remove them with a postRenderer:
 
 ```yaml
 postRenderers:
@@ -139,8 +151,8 @@ postRenderers:
 
 | Symptom                                  | Cause                                                                                          | Fix                                                                      |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Dashboard exists but panels show no data | Single `$` instead of `$$` in query                                                            | Double all `$` tokens                                                    |
-| Dashboard in wrong folder                | Deployed in wrong namespace                                                                    | Move to correct namespace; delete stale copy in old namespace            |
-| Dashboard not appearing in Grafana       | Wrong `instanceSelector` label, or `allowCrossNamespaceImport` missing outside `observability` | Check `kubectl get grafana -n observability` for the label; add the flag |
-| Datasource fields all empty              | `editable: true` missing                                                                       | Add `editable: true` to datasource spec                                  |
-| Old dashboard overriding new             | Stale copy in `default` namespace                                                              | `kubectl delete grafanadashboard <name> -n default`                      |
+| Dashboard exists but panels show no data | Single `$` instead of `$$` in the query, or a CR name used as `datasourceName`                 | Double all `$` tokens. Use the `NAME` column from § Datasource Names     |
+| Dashboard in wrong folder                | Deployed in the wrong namespace                                                                | Move it to the correct namespace. Remove the old copy from git           |
+| Dashboard not appearing in Grafana       | Wrong `instanceSelector` label, or `allowCrossNamespaceImport` missing outside `observability` | Read the label with `kubectl get grafana -n observability`. Add the flag |
+| Datasource fields all empty              | `editable: true` missing                                                                       | Add `editable: true` to the datasource spec                              |
+| Old dashboard overriding new             | Stale copy in the `default` namespace                                                          | Remove it from git. If git does not manage it, ask the user to delete it |

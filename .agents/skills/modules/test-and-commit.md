@@ -1,17 +1,16 @@
 # Module: Test and Commit
 
-The suspend, apply, confirm, commit, artifact-wait and resume sequence is defined once, in
-`.agents/instructions/commit-style.md` § The sequence. Follow it from there. This module does not
-restate it. This module adds only what is specific to a skill-driven session.
+The sequence is defined once, in `.agents/instructions/commit-style.md` § The sequence. It covers
+suspend, apply, confirm, commit, the wait for the artifact, and resume. Follow it from there. This
+module does not restate it. This module adds only what is specific to a session that a skill
+drives.
 
-Edit in a worktree. Before the first edit, run `mise run //:wt:new <type>/<slug>` (`AGENTS.md` rule 7).
+Edit in a worktree. Before the first edit, run `mise run //:wt:new <type>/<slug>` (`AGENTS.md`
+rule 7).
 
 On Frostlink, the paths and tasks use `kube/clusters/frostlink/apps/<namespace>/<app>/` and
-`mise run //kube/clusters/frostlink:<task>`, and every `kubectl` takes `--context frostlink`.
-The commit step differs. The artifact only rebuilds on a push to `main`, so after the user confirms,
-hand the branch back and ask the user to land it on `main`. Do not push it yourself, and do not
-leave the root and target suspended. Once the artifact has rebuilt (`sync-flux ocirepo` until the
-`flux-system` digest moves), resume, root first. If the user abandons the change, resume both at once.
+`mise run //kube/clusters/frostlink:<task>`. Every `kubectl` takes `--context frostlink`. The
+sequence is the same as on Artemis. `commit-style.md` § Frostlink has the differences, and it wins.
 
 ---
 
@@ -30,16 +29,18 @@ mise run //kube/clusters/artemis:diff-ks <namespace> <ks-name>
 
 ## Verifying the rollout (after `apply-ks`)
 
-For read-only inspection, use the `-ops` MCP k8s tools. List the tools and match on the server and
-tool portion (`.agents/instructions/tooling.md` § MCP servers). Look for the pod list, the resource
-get on the HelmRelease, and the pod log tools. These `kubectl` commands do the same:
+For read-only inspection, use the `-ops` MCP k8s tools. List the tools and match on the server
+and tool portion (`.agents/instructions/tooling.md` § MCP servers). Look for the pod list tool,
+the resource get tool for the HelmRelease, and the pod log tool. These `kubectl` commands do the
+same:
 
 ```bash
 kubectl get pods -n <namespace> -l app.kubernetes.io/name=<app>
 kubectl describe helmrelease <app> -n <namespace>
 ```
 
-Wait for the explicit confirmation of the user before you commit. A running pod is not confirmation. The word of the user is.
+Wait for the explicit confirmation of the user before you commit. A running pod is not
+confirmation. Only the word of the user is.
 
 ## Staging and message
 
@@ -52,7 +53,7 @@ git add kube/clusters/artemis/apps/<namespace>/<app>/ kube/clusters/artemis/apps
 - New app: `feat(<namespace>): deploy <app>`
 - Convention fix: `fix(<namespace>): bring <app> manifests to convention`
 
-After the push, finish the sequence in `commit-style.md` step 5 and resume, root first. If a session
-stops before the resume, Flux stays suspended.
+After the push, finish the sequence in `commit-style.md` step 5, and resume, root first. If a
+session stops before the resume, Flux stays suspended.
 
 Pull requests are for Renovate only (`commit-style.md` § Two-identity signing model).
