@@ -1,6 +1,6 @@
 ---
 name: modify-app
-description: Change an app that is already deployed — bump or repin an image, edit HelmRelease values, resize or move storage, add or remove a component, change a route, rewire a secret, adjust resources or probes. Then diff it against the live cluster and test-apply before committing. Use for "change X", "update X's config", "bump X", "add persistence to X", "move X behind tinyauth", "give X more memory", "add a backup to X", "edit X's HelmRelease", or "X needs a different port". For a brand-new app use `deploy-app`. For a pure convention lint use `review-app`. Scoped to the Artemis cluster.
+description: Change an app that is already deployed — bump or repin an image, edit HelmRelease values, resize or move storage, add or remove a component, change a route, rewire a secret, adjust resources or probes. Then diff it against the live cluster and test-apply before committing. Use for "change X", "update X's config", "bump X", "add persistence to X", "move X behind tinyauth", "give X more memory", "add a backup to X", "edit X's HelmRelease", or "X needs a different port". For a brand-new app use `deploy-app`. For a pure convention lint use `review-app`. Covers Artemis and Frostlink.
 ---
 
 # Skill: Modify App
@@ -120,6 +120,22 @@ Read `.agents/skills/modules/test-and-commit.md` and follow it. Edit in a worktr
 If anything fails, read `.agents/skills/modules/common-issues.md`.
 
 ---
+
+## Frostlink
+
+The steps are the same. Change the paths and the commands. Read `.agents/instructions/frostlink.md`
+first. It wins where it differs from the shared conventions.
+
+- The app directory is `kube/clusters/frostlink/apps/<namespace>/<app>/`. Replace
+  `kube/clusters/artemis/` with `kube/clusters/frostlink/` in every path above.
+- Run the tasks as `mise run //kube/clusters/frostlink:diff-ks`, `:render-ks` and `:test-ks`.
+- Read the live cluster with `kubectl ... --context frostlink`. Never use the MCP k8s tools. They
+  point at Artemis only, so they report the wrong cluster (`AGENTS.md` rule 2).
+- Routes use `external-gateway` only. The storage class is `openebs-zfs`, not `miroir`. For a
+  persistence change, read `.agents/references/openebs-zfs.md` instead of `storage.md`.
+- It is one node. A change that restarts a core pod (Cilium, CoreDNS, the Envoy front door) is an
+  outage of every public site. Test it with the user watching
+  (`.agents/instructions/commit-style.md` § Frostlink).
 
 ## Gotchas
 
