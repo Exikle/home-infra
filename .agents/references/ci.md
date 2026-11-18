@@ -1,8 +1,8 @@
 # CI — home-infra
 
 This file explains how Forgejo Actions runs here. It covers the `oci-push` workflow that builds
-the Flux artifact of this repo, the container builds for `Exikle/containers`, the runner that they
-all share, and the reasons behind each. Manifests under `kube/clusters/artemis/` carry no comments
+the Flux artifacts of this repo, the container builds for `Exikle/containers`, the runner that they
+all share, and the reasons behind each. Manifests under `kube/clusters/*/` carry no comments
 (`yaml-conventions.md` § No Comments in Manifests), so the reasons live here.
 
 Tekton (`tekton-system`, `forgejo/tekton-runner`) was retired on 2026-10-27. Every workflow now runs
@@ -49,7 +49,8 @@ the label of the job names.
 | `talos`                                    | `podspec-talos`    | talosctl jobs. It mounts a Talos API service account       |
 
 Keep the runner and the plugin on the same major version. The plugin protocol changed between 12.x
-and 13.x, and a mismatched pair does not run jobs.
+and 13.x, and a mismatched pair does not run jobs. Renovate does not group the two images. So when
+one of them gets a major bump, hold it until the other one has the same major.
 
 The plugin has these behaviours, which the chart does not make clear:
 
@@ -74,9 +75,8 @@ The plugin has these behaviours, which the chart does not make clear:
 
 A change to a shared workflow has two halves. One half is the pin of the caller, which Forgejo reads
 from git on each run. The other half is the shared workflow at that pin. Both halves are in git.
-There is no cluster half any more. The old Tekton library reconciled from the OCI artifact, and it
-could lock CI out of shipping its own fix. If a change to a shared workflow breaks `oci-push`,
-revert the pin of the caller. Nothing in the cluster has to change first.
+There is no cluster half. If a change to a shared workflow breaks `oci-push`, revert the pin of
+the caller. Nothing in the cluster has to change first.
 
 The runner labels are the one cluster dependency that is left. If a workflow asks for a label that
 the runner does not offer, the job waits in the queue forever and reports nothing. Before you land
@@ -89,35 +89,37 @@ a workflow that uses a new label, do these steps:
 
 ## `oci-push`
 
-`oci-push` is one job with one step. It runs on `ubuntu-latest` with the `ci-toolbox` image. The
-step does this:
+The caller in this repo (`.forgejo/workflows/oci-push.yaml`) first runs a `changes` job. That job
+picks the clusters that the push reaches (`commit-style.md` § Frostlink). Then it runs one job per
+picked cluster. Each of these jobs calls the shared `oci-push` workflow, which is one job with one
+step. It runs on `ubuntu-latest` with the `ci-toolbox` image. The step does this:
 
 1. It shallow-clones the commit. The `path` input names the folder that becomes the artifact
    root, and `ignore-paths` names what to leave out. This repo passes `path: .` and an ignore
    list per cluster. So each artifact holds `kube/base/`, `kube/components/` and the Flux folders
    of one cluster. It does not hold the other cluster, `talos/` or `bootstrap/`.
-2. In the background, it releases to the Forgejo mirror (`git.dcunha.io/exikle/<repo>`).
-3. In the foreground, it releases to the standalone registry (`registry.dcunha.io`). Then it sends
-   a ping to Flux.
+2. In the background, it releases to the Forgejo mirror (`oci://git.dcunha.io/exikle/<cluster>`).
+3. In the foreground, it releases to the standalone registry of the cluster
+   (`registry.dcunha.io` for Artemis, `registry.frostlink.dev` for Frostlink). Then it sends a
+   ping to Flux.
 4. It waits for the mirror. If the mirror release failed, the run fails.
 
 "Release" is `flux push artifact` → `flux tag artifact --tag main` → `cosign sign` → `cosign verify`.
 The job tries each part up to 3 times. Flux reads only the standalone registry. So the webhook
-fires as soon as that copy passes verification, about 20s after the job starts. The mirror no
-longer comes before it.
+fires as soon as that copy passes verification, about 20s after the job starts. It does not wait
+for the mirror.
 
-Keep the mirror. `registry.dcunha.io` is apoci, in `fediverse/apoci`, which runs inside this
-cluster. So Flux bootstraps the cluster from a registry that the cluster hosts. The Forgejo copy on
+Keep the mirror. Each standalone registry is apoci (`fediverse/apoci`), which runs inside its own
+cluster. So Flux bootstraps a cluster from a registry that the cluster hosts. The Forgejo copy on
 LXC 105 is the only artifact that survives when the cluster is down.
 
-A missed webhook ping never fails the run. Flux finds the artifact on its next poll. The ping sends
-an explicit User-Agent (`flux-notify/0.1`). Nothing depends on it now. It dates from the
-Cloudflare Tunnel, which is retired. The Frostlink receiver has a grey DNS record that points at
-the node, and CrowdSec exempts the `flux-webhook.frostlink.dev` host from the bot challenge
-(`crowdsec.md` § What is never challenged).
+A missed webhook ping never fails the run. Flux finds the artifact on its next poll. The Frostlink
+receiver has a grey DNS record that points at the node, and CrowdSec exempts the
+`flux-webhook.frostlink.dev` host from the bot challenge (`crowdsec.md` § What is never
+challenged).
 
-The workflow has one step, not five. On this runner, each extra step costs about 4s of exec round
-trips. So related commands share a step and a job.
+The workflow has one step, not five, because each extra step costs time (§ Workflow shape — what
+costs time).
 
 ---
 
@@ -154,8 +156,11 @@ The OCIRepository of `flux-system` sets `verify.provider: cosign` with
 `secretRef: cosign-public-key`. Flux rejects an artifact that it cannot verify. So a broken signing
 key stops reconciliation in the whole cluster.
 
-- If you push a manual recovery artifact, sign it:
-  `flux push artifact` → `flux tag artifact --tag main` →
+- If you push a manual recovery artifact, copy the `path` and `ignore-paths` of the job of that
+  cluster in `.forgejo/workflows/oci-push.yaml` exactly
+  (`flux push artifact oci://…/<cluster>:<sha> --path=. --ignore-paths='<that list>' …`). Without
+  them, the artifact holds the whole repo, `terraform/` included. Then sign it:
+  `flux tag artifact --tag main` →
   `cosign sign --yes --tlog-upload=false --use-signing-config=false --key …`. The key is the
   `cosign` item in the `artemis` 1Password vault.
 - Signing is offline. Nothing goes to the public Rekor log. cosign v3 rejects
@@ -169,17 +174,15 @@ reconcile time.
 Two keys stay apart:
 
 - The `cosign` key, which Flux trusts. Only this key can sign a cluster artifact. So it is a repo
-  secret on `home-infra` and `frostlink` only.
+  secret on `home-infra` alone, and the jobs of both clusters use it.
 - The `cosign-release` key, which signs `containers` images. It is in the account-level
   `COSIGN_PRIVATE_KEY` and `COSIGN_PASSWORD` secrets. The workflows of every repo can read them.
 
 A repo secret overrides an account secret of the same name. That is what makes the split work.
 Never set the Flux key at account level.
 
-Secrets are now job env. Under Tekton, they came into the cluster as Secrets. Tekton mounted them
-only into the steps that needed them. On the plain runner, every step of a job sees the secrets of
-the job. This is one more reason why each workflow is a single step that only its own repo can
-change.
+Secrets are job env. Every step of a job sees the secrets of the job. This is one more reason why
+each workflow is a single step that only its own repo can change.
 
 ---
 
@@ -236,9 +239,9 @@ that CA with a clientAuth EKU also authenticates. To mint one, you need RBAC to 
 `Certificate`. That is a much higher bar than to create a pod in `forgejo`, so the team accepted
 the risk.
 
-> Not closed by any of this: the Role of `forgejo-runner` carries `pods/exec: create` on every
-> pod in `forgejo`, `buildkit-0` included. An exec goes around the NetworkPolicy and the TLS
-> listener.
+> Not closed by any of this: the Role `forgejo-runner` (from the chart, not from git) carries
+> `pods/exec: create` on every pod in `forgejo`, `buildkit-0` included. An exec goes around the
+> NetworkPolicy and the TLS listener.
 
 ### Settings that look wrong but are not
 
@@ -272,13 +275,6 @@ original test harness.
   with `podman run … ci <command> --dry-run`.
 - The vulnerability scan is one job for every app. The grype database is a download of ~4 minutes,
   and a matrix fetched it once per app.
-
-Reference timings after the move from Tekton:
-
-- `oci-push`: ~31s (Flux gets the ping at ~20s).
-- labeler: ~12s.
-- A containers PR: ~1m with a cached lint.
-- A single-app sandbox release: ~1m15s.
 
 ---
 

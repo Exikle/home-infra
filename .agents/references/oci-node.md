@@ -12,12 +12,10 @@ Frostlink is one machine. Every fact on this page carries weight, so the page is
 - Location: ca-toronto-1 AD-1, instance `instance-20260612-2239`.
 - Public address: `40.233.88.33` (reserved). Internal address: `10.0.0.203`. The internal address
   is the management address. You reach it over the Headscale site link.
-- Extensions: `iscsi-tools`, `tailscale`, `util-linux-tools`, `zfs`. Do not remove `zfs`. The whole
-  `openebs-zfs` storage layer depends on it.
-- Live versions are a command, not a number:
-  `talosctl version --talosconfig kube/clusters/frostlink/talosconfig -n 10.0.0.203` and
-  `kubectl version --context frostlink`. The talosconfig names no node, so every `talosctl` call
-  needs `-n 10.0.0.203`.
+- Extensions: `kube/clusters/frostlink/talos/schematic.yaml` lists them. `oci-talos.md` § Schematic
+  says which ones carry weight, and it wins.
+- Live versions: `oci-talos.md` § Node Reference gives the command. The talosconfig names no node,
+  so every `talosctl` call needs `-n 10.0.0.203`.
 
 Management access is over the Headscale site link (`oci-networking.md` § Access Methods). The tool
 calls of an agent do not get the cluster kubeconfig, so always pass `--context frostlink`. The VCN,
@@ -26,8 +24,8 @@ the DNS records, the ingress set of the security list and the front door are in
 
 ## Namespaces
 
-`ls kube/clusters/frostlink/apps/` is the live list. The table keeps only the purpose column,
-because no command recovers it.
+`ls kube/clusters/frostlink/apps/` lists the Flux folders. `k8tz` makes its own namespace, with no
+folder. The table keeps only the purpose column, because no command recovers it.
 
 | Namespace          | Purpose                                                                       |
 | ------------------ | ----------------------------------------------------------------------------- |
@@ -45,6 +43,7 @@ because no command recovers it.
 | `network`          | Front door (Envoy, CrowdSec bouncer), certificates, Cloudflare DNS, Headscale |
 | `observability`    | Metrics, alerting, status page                                                |
 | `openebs-system`   | zfs-localpv CSI. Provides the default `openebs-zfs` StorageClass              |
+| `security`         | CrowdSec LAPI and AppSec. The bouncer is in Envoy (`crowdsec.md`)             |
 | `system-upgrade`   | Talos and Kubernetes upgrade controller (tuppr)                               |
 | `towonel`          | Tunnel hub and edge, in its own `privileged` namespace for `hostNetwork`      |
 
@@ -58,8 +57,8 @@ Each of these cost real time to find. The full text is in the linked doc.
 - Helm v4 SSA conflicts (`helm-controller` field manager): cilium, coredns and cert-manager install
   with a direct `helm upgrade --install`. See `oci-rebuild.md` § Cilium / CoreDNS / cert-manager —
   Install Directly.
-- Do not use `helmfile --cleanup-on-fail`. On failure, it deletes cluster-scoped resources. It also
-  leaves orphaned SSA ownership that conflicts on the next try.
+- Do not use `helmfile --cleanup-on-fail`. See `oci-rebuild.md` § Cilium / CoreDNS / cert-manager —
+  Install Directly.
 - `talosctl patch machineconfig --patch` takes a delta, never a full configuration. See
   `oci-talos.md` § Config Management.
 - Forgejo is HTTPS-only, because SSH is not reachable from OCI. The `flux-system/flux-system` secret

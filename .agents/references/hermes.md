@@ -5,8 +5,9 @@ The team deployed it on 2026-08-14. The team ported it from
 [eleboucher/homelab](https://git.erwanleboucher.dev/eleboucher/homelab). The port is finished, and
 this file does not describe how to do it again.
 
-The team last reviewed this file against the v0.22 image on 2026-10-20. The image tag is in the
-HelmRelease (`grep -n 'repository:' -A2 kube/clusters/artemis/apps/cortex/hermes/app/helmrelease.yaml`).
+The image tag is in the HelmRelease
+(`grep -n 'repository:' -A2 kube/clusters/artemis/apps/cortex/hermes/app/helmrelease.yaml`).
+Statements marked "(checked on v0.22)" were not checked again on a later image.
 
 Before you change the models, the cron cadence or the MCP tier, read § Cost. hermes is the
 largest consumer of inference in the cluster. The OpenCode Go allowance is a hard monthly limit,
@@ -36,25 +37,19 @@ Three init containers run in this order:
    init containers with a topological sort on `dependsOn`. Containers without `dependsOn` run in
    name order. That is why this container declares it.
 
-The app runs `/opt/hermes` from the image itself. v0.22 ships that directory root-owned and
+The app runs `/opt/hermes` from the image itself. The image ships that directory root-owned and
 read-only on purpose. So the agent cannot edit its own interpreter, venv or dashboard. There is no
 copy of the directory and no writable source tree.
 
-The team retired two init containers permanently:
+Do not bring back the retired `copy-agent-source` and `install-tools` init containers. Extra tools
+come from `uvx` or `npx`, or from a derived image. They do not come from a download at runtime. A
+`pip install` into the image tree fails by design.
 
-- `copy-agent-source` is gone. Its reason was the playwright `.deps`, and that reason no longer
-  exists in the image.
-- `install-tools` is gone. It put `gh`, Go and Homebrew on the PVC. For months they had no exec
-  bit, because the old `init` chmod removed it. Nothing used them.
-
-Extra tools come from `uvx` or `npx`, or from a derived image. They do not come from a download
-at runtime. A `pip install` into the image tree now fails by design.
-
-`args` is plain `[gateway, run]`. v0.22 registers the gateway as an s6 service next to the
-dashboard. It keeps the main process alive with `sleep infinity`. With `--no-supervise`, the main
-process collides with the gateway that s6 owns, and it exits 1. The pod then stays alive only
-because the s6 shutdown hangs. So every rollout sends SIGKILL to the gateway after the 120s grace
-period.
+`args` is plain `[gateway, run]`. The image registers the gateway as an s6 service next to the
+dashboard (checked on v0.22). It keeps the main process alive with `sleep infinity`. With
+`--no-supervise`, the main process collides with the gateway that s6 owns, and it exits 1. The pod
+then stays alive only because the s6 shutdown hangs. So every rollout sends SIGKILL to the gateway
+after the 120s grace period.
 
 `$HOME` is `/opt/data`. That is the `hermes` PVC (4Gi `miroir`, `existingClaim: hermes` from
 `components/kopiur/backup`). The PVC holds the home directory, the plugin, the skill library, the
@@ -68,8 +63,7 @@ There are two routes. Both are on `edge-gateway`, which is public through towone
 | `hermes.dcunha.io`     | `9119`       | dashboard             | pocket-id OIDC, `allowedUserGroups: app-admin` |
 | `hermes-app.dcunha.io` | `9120`       | Webapp (from v0.23.0) | the same pocket-id OIDC client                 |
 
-Authorization is in `oidcclient.yaml`. `GATEWAY_ALLOWED_USERS` controls messaging platforms only.
-No messaging platform is turned on, so that variable does nothing for the dashboard.
+Authorization is in `oidcclient.yaml`.
 
 The Webapp is the Desktop workspace in a browser tab. The `webapp:` block in `config.yaml` turns
 it on. It needs `host: 0.0.0.0`, because the default `127.0.0.1` cannot receive traffic from
@@ -103,10 +97,9 @@ spoof `X-Forwarded-*`.
 one is the operator whose CRs hermes needs.
 
 The memini plugin is the `memini-hermes` memory plugin. It reads `MEMINI_BASE_URL`, not
-`MEMINI_URL`. If that variable is missing, the plugin silently uses `http://localhost:8080`.
-Memory then looks enabled, but nothing is stored. Memory was broken in this way from 2026-08-14
-to 2026-10-20. After any change to the environment, search the memini log for
-`handshake: namespace resolved namespace=homelab/hermes`.
+`MEMINI_URL`. If that variable is missing, the plugin silently uses `http://localhost:8080`. Memory
+then looks enabled, but nothing is stored. After any change to the environment, search the memini
+log for `handshake: namespace resolved namespace=homelab/hermes`.
 
 The `install-memini` init container installs the plugin onto the PVC at `/opt/data/plugins/memini`
 with `hermes plugins install eleboucher/memini-hermes --ref <sha> --force --yes-deps --no-enable`.
@@ -148,9 +141,8 @@ ConfigMap changes the Secret, and Reloader restarts the pod.
 in the container environment. It then appends a generated decoy key to the user `.env` on every
 boot.
 
-`FORGEJO_PAT` belongs to dusk-bot, not Exikle. Until 2026-08-16 it belonged to Exikle. In that
-period, every PR that a skill merged and every README that a skill committed showed Exikle as the
-author. All other commits by Exikle are GPG-signed.
+`FORGEJO_PAT` belongs to dusk-bot, not Exikle. Never give hermes a token of Exikle. The commits
+of hermes then show Exikle as the author.
 
 dusk-bot is a repo admin on `home-infra`. Renovate uses the same identity. So a hermes commit and
 a Renovate commit have the same author. Branch protection does not apply to admins, so the token
@@ -232,11 +224,15 @@ ConfigMap. Other keys (`AGENTGATEWAY_API_KEY`, `FORGEJO_PAT`, ...) reach the con
 `secretKeyRef` env vars, and they are not pinned. If someone writes a key to the user `.env`,
 `init` empties it on the next boot.
 
-To make sure that the managed scope works, run
-`kubectl -n cortex exec deploy/hermes -c app -- hermes doctor`. It reports
-`Managed scope active: N config key(s), 2 env key(s) pinned by /etc/hermes` and
-`Config version up to date (v53)`. It reports no deprecated keys. Also,
-`hermes config get model.default` returns the git value.
+To make sure that the managed scope works, run this command:
+
+```bash
+kubectl -n cortex exec deploy/hermes -c app --context artemis -- hermes doctor
+```
+
+It reports `Managed scope active: N config key(s), 2 env key(s) pinned by /etc/hermes` and
+`Config version up to date (v<N>)`, where N is `_config_version` in the `user.yaml` key. It reports
+no deprecated keys. Also, `hermes config get model.default` returns the git value.
 
 ---
 
@@ -246,82 +242,58 @@ To make sure that the managed scope works, run
 `opencode-go` models. If agentgateway serves a model but `providers.agentgateway.models` does not
 list it, the agent cannot use that model.
 
-The team declared the provider in the v0.22 `providers:` dict. The old `custom_providers:` list
-is a retired store, and `hermes doctor` warns about it. `custom:agentgateway` in `model`, aliases,
-fallbacks and `auxiliary` resolves to the dict key `agentgateway`.
+The provider is declared in the `providers:` dict. The old `custom_providers:` list is a retired
+store, and `hermes doctor` warns about it. `custom:agentgateway` in `model`, aliases, fallbacks
+and `auxiliary` resolves to the dict key `agentgateway`.
 
-| Model                           | `context_length` | Alias      |
-| ------------------------------- | ---------------- | ---------- |
-| `opencode-go/minimax-m3`        | 1000000          | `minimax`  |
-| `opencode-go/glm-5.2`           | 1048560          | `glm`      |
-| `opencode-go/mimo-v2.5`         | 262144           | `mimo`     |
-| `opencode-go/qwen3.6-plus`      | 262144           | `qwen`     |
-| `opencode-go/qwen3.7-max`       | 262144           | `qwenmax`  |
-| `opencode-go/kimi-k2.6`         | 262128           | `kimi`     |
-| `opencode-go/kimi-k2.7-code`    | 262128           | `kimicode` |
-| `opencode-go/deepseek-v4-flash` | 131072           | `dsv4f`    |
+To read the declared models, their `context_length` and their aliases, run:
+
+```bash
+grep -A20 '    models:' kube/clusters/artemis/apps/cortex/hermes/app/configmap.yaml
+grep -A25 'model_aliases:' kube/clusters/artemis/apps/cortex/hermes/app/configmap.yaml
+```
 
 - The default model is `opencode-go/minimax-m3`.
 - `model.context_length` is the compaction trigger and nothing else. Upstream never uses it to
   truncate a request. It is 262144. Compaction does not start at `compression.threshold` (0.5)
-  times that value. v0.22 raises the ratio to 0.75 for any window under 512K tokens. So the real
-  trigger is 196,608 tokens. The team measured this with the compressor functions of the image,
-  run in the pod.
-- Until 2026-09, `model.context_length` was `1000000` (the real window of minimax-m3), so the
-  trigger was 500K. If you set it too high, a runaway session grows very large before anything
-  trims it. If you set it below the real window, the only cost is earlier compaction. You never
-  get a provider error.
+  times that value. The image raises the ratio to 0.75 for any window under 512K tokens (checked
+  on v0.22). So the real trigger is 196,608 tokens. The team measured this with the compressor
+  functions of the image, run in the pod.
+- The real window of minimax-m3 is `1000000`. If you set `model.context_length` too high, a runaway
+  session grows very large before anything trims it. If you set it below the real window, the only
+  cost is earlier compaction. You never get a provider error.
 - The pin also logs a startup warning that the provider advertises a larger window. That warning
   is expected. For an absolute cap, the native setting is `compression.threshold_tokens`. It is
   not set.
 - The `auxiliary:` roles use `minimax-m3`, and no other model. `delegation` uses `mimo-v2.5`, the
-  cheapest model on the account. Until 2026-08-16 the roles were pinned to `deepseek-v4-flash`.
-  That put the least efficient model on the small, frequent tasks, where its overhead of about
-  7,900 tokens costs the most.
-- The team removed `auxiliary.session_search` on 2026-09-07. Upstream deleted that role (PR
-  #27590), and it is not an LLM call. `web_extract` is also not an LLM call.
-- `app/virtualkey.yaml` controls which models the key can call. It is a second list to keep in
-  sync. Until 2026-09-07 it granted only `minimax-m3` and `mimo-v2.5`, so every `glm-5.2`
-  fallback returned 403. It now grants all eight declared models. But the automatic paths
-  (default, fallbacks, `auxiliary`, `delegation`) stay on `minimax-m3` and `mimo-v2.5` on
-  purpose. The other models exist so that an interactive `@glm` or `@kimi` works. Nothing compares
-  the two lists. A mismatch shows as a 403 at fallback time, when you are least likely to be
-  watching.
-- `fallback_providers` is `mimo-v2.5` only. Before, it was `glm-5.2` and then `mimo-v2.5`.
-  glm-5.2 costs ten times as much as minimax-m3. A fallback starts exactly when the account is
-  already under pressure.
-- There is no `moa` block. The team configured a `council` preset until 2026-09-07, and it never
-  ran. MoA is a virtual provider. It runs only when `model.provider` is literally `moa`, and ours
-  is `custom:agentgateway`. `moa.default_preset` names the preset that the picker uses. It does
-  not turn on MoA. The team removed the block because it was a trap, not to save cost.
-- `agent.max_turns` is 40 (it was 150). `delegation` is 2 children and depth 1. It was 8 and 2,
-  and the upstream default is 3 and 1. Both settings limit the worst case of a single run.
+  cheapest model on the account. Do not put `deepseek-v4-flash` on these small, frequent tasks.
+  Its overhead of about 7,900 tokens costs the most there.
+- `auxiliary.session_search` does not exist. Upstream deleted that role (PR #27590), and it is not
+  an LLM call. `web_extract` is also not an LLM call.
+- The automatic paths (default, fallbacks, `auxiliary`, `delegation`) stay on `minimax-m3` and
+  `mimo-v2.5` on purpose. The other models exist so that an interactive `@glm` or `@kimi` works.
+  Any gateway key can call any declared model. Only the `memini` key is limited (§ Per-key
+  limits).
+- `fallback_providers` is `mimo-v2.5` only. Do not add `glm-5.2`. It costs ten times as much as
+  minimax-m3, and a fallback starts exactly when the account is already under pressure.
+- Do not add a `moa` block. MoA is a virtual provider. It runs only when `model.provider` is
+  literally `moa`, and ours is `custom:agentgateway`. `moa.default_preset` names the preset that
+  the picker uses. It does not turn on MoA.
+- `agent.max_turns` is 40. `delegation` is 2 children and depth 1, and the upstream default is 3
+  and 1. Both settings limit the worst case of a single run.
 
 ### Model selection is measured, not assumed
 
-Until 2026-09-07, LiteLLM reported $0.000/Mtok for every opencode-go model. That figure was a
-reporting error, not the price. agentgateway now has a real cost catalogue (§ Cost). Within the
-allowance of the account, the remaining selection criteria are accuracy and latency.
+agentgateway has a real cost catalogue (§ Cost). Within the allowance of the account, the
+remaining selection criteria are accuracy and latency.
 
-On 2026-08-16 the team measured each model against the actual workload, with 2 runs each. The
-two tasks were to emit the exact notification JSON, and to make a tool call that must leave out an
-unused parameter:
-
-| Model               | JSON contract | Tool call | Latency | Completion tokens |
-| ------------------- | ------------- | --------- | ------- | ----------------- |
-| `minimax-m3`        | 2/2           | 2/2       | 1.9s    | 129               |
-| `glm-5.2`           | 2/2           | 2/2       | 5.7s    | 1007              |
-| `mimo-v2.5`         | 2/2           | 2/2       | 13.1s   | 1222              |
-| `deepseek-v4-flash` | 2/2           | 2/2       | 35.9s   | 7934              |
-| `qwen3.6-plus`      | 2/2           | 2/2       | 35.5s   | 2444              |
-| `qwen3.7-max`       | 1/2           | 2/2       | 52.9s   | 3206              |
-| `kimi-k2.6`         | 1/2           | 2/2       | 103.3s  | 4384              |
-
-`deepseek-v4-flash` used 7,934 completion tokens and 36s on a task that `minimax-m3` answered
-correctly in 129 tokens and 1.9s. Despite the "flash" name, it is the least efficient option, not
-the most efficient. `qwen3.7-max` miscounted (`fixed=1` where the answer was 2). So it is not
-suitable for jobs whose whole output is counts. Before you change an assignment, run the bake-off
-again. Do not choose a model by its name.
+A bake-off on 2026-08-16 ran each model twice against the actual workload: emit the exact
+notification JSON, and make a tool call that must leave out an unused parameter. `minimax-m3`
+was correct in 129 completion tokens and 1.9s. `deepseek-v4-flash` was also correct, but it used
+7,934 tokens and 36s, so it is the least efficient model despite its name. `qwen3.7-max` and
+`kimi-k2.6` each got the JSON wrong once. `qwen3.7-max` miscounted, so it is not suitable for jobs
+whose whole output is counts. Before you change an assignment, run the bake-off again. Do not
+choose a model by its name.
 
 ### kimi-k2.7-code rejects `temperature`
 
@@ -351,9 +323,9 @@ not mean that anyone charged $60.
 
 ### Spend figures
 
-Until 2026-09-07, LiteLLM reported $0.00 for every opencode-go call (#1832). The team removed
-LiteLLM on 2026-10-26. Any older spend figure has no meaning. For that period, use
-`/opt/data/cron/usage_audit.jsonl`, the per-fire token ledger.
+Spend figures from before 2026-10-26 (the LiteLLM era) have no meaning, because LiteLLM reported
+$0.00 for every opencode-go call (#1832). For that period, use `/opt/data/cron/usage_audit.jsonl`,
+the per-fire token ledger.
 
 agentgateway prices calls from the ConfigMap `agentgateway-model-costs`. It holds USD per 1M
 tokens for input, output and `cacheRead`. The source is <https://opencode.ai/docs/go/#usage-limits>,
@@ -381,8 +353,8 @@ a week of `usage_audit.jsonl`, never over one sample.
 
 ### MCP tool schemas are charged on every turn
 
-hermes mounted both the `ops` tier and the `general` tier. Their `tools/list` payloads are 165KB
-and 81KB. The payload of `agent` is 46KB. The team measured this directly:
+hermes once mounted both the `ops` tier and the `general` tier. Their `tools/list` payloads were
+several times larger than the payload of the `agent` tier. To measure a tier:
 
 ```bash
 # from inside the hermes pod, after an initialize that returns a Mcp-Session-Id
@@ -396,32 +368,29 @@ curl -s -X POST "http://agentgateway.cortex.svc.cluster.local:4000/agent/mcp" \
 
 hermes uses its own tier, `mcp-agent`. It carries only what the hermes skills call: `k8s`, `flux`,
 `searxng`, `victoria-logs`. Its endpoint is `/agent/mcp`. The MCP server is registered as
-`ai-agent`, and the key goes in `x-api-key`. Its payload is 46KB / 52 tools. `ops` and `general`
-together are 246KB / 180. Only the hermes key can use this tier.
+`ai-agent`, and the key goes in `x-api-key`. Only the hermes key can use this tier. The tier
+rules and the tool count of each server are in `cortex-mcp.md`.
 
 To give hermes a new target, add it to `mcp-agent` in
 `kube/clusters/artemis/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml`. Then hermes pays
 for the schema of that target on every turn of every run. Before you add one, weigh that cost
-against § Cost. `forgejo` alone is 40 tools, and `github` is 44. No hermes skill calls either one.
-Both skills reach Forgejo over `curl` with `$FORGEJO_PAT`. The tier rules are in `cortex-mcp.md`.
+against § Cost. `forgejo` and `github` are large, and no hermes skill calls either one. The skills
+reach Forgejo over `curl` with `$FORGEJO_PAT`.
 
 ### `x-opencode-session` is mandatory and agentgateway injects it
 
-OpenCode Go requires a stable `x-opencode-session` for each conversation. It hard-rejects a
-request without one: `400 MissingSessionID — Request is missing x-opencode-session and cannot be routed
+OpenCode Go requires a stable `x-opencode-session` for each conversation. It hard-rejects a request
+without one: `400 MissingSessionID — Request is missing x-opencode-session and cannot be routed
 efficiently`. The error cannot be retried, so it kills a whole cron fire.
 
-Enforcement widened during 2026-09-07. At 04:00 only `mimo-v2.5` (the `openai/`-prefixed
-`/zen/go/v1` path) rejected requests. By 09:00 `minimax-m3` (the `anthropic/`-prefixed `/zen/go`
-path) did too. Every model now requires the header. For a few hours, all hermes inference was
-down.
+Every model requires the header.
 
 Hermes cannot supply the header, and client-header forwarding cannot supply it either:
 
 - Hermes sends the header only when its provider or base URL matches `opencode-*` or an
   `opencode.ai` host. Ours is `custom:agentgateway`, which points at the in-cluster proxy, so it
-  matches neither. The upstream fix (`NousResearch/hermes-agent` PR #101864) merged to `main` on
-  2026-09-03. No tagged release contains it, and it does not apply to our provider shape anyway.
+  matches neither. The upstream fix (`NousResearch/hermes-agent` PR #101864) does not apply to our
+  provider shape.
 - Forwarding client headers does not help, because the client never sets this header.
 
 So the gateway injects the header for each model, under `policies.headers.request.set` in
@@ -472,14 +441,13 @@ These steps are in order of impact, largest first, per the cost breakdown above:
 1. Cut turns. Cost grows with the square of the turn count. Shorten the sweeps of the skill, drop
    optional steps, and lower `agent.max_turns`.
 2. Widen the cron interval. It multiplies everything linearly.
-3. Trim the `agent` MCP tier. Compared with the `ops` and `general` pair, it is worth about 35K
-   per turn. But trimming it only moves the fixed prefix.
+3. Trim the `agent` MCP tier. Trimming it only moves the fixed prefix.
 4. Lower `model.context_length`, so that a runaway compacts sooner.
-5. Move a job to a cheaper model. `mimo-v2.5` is $0.14/$0.28. `glm-5.2` is $1.40/$4.40, ten times
-   dearer.
+5. Move a job to a cheaper model. The prices are in the ConfigMap `agentgateway-model-costs`.
 
 A measured budget check turns the cadence decision into arithmetic, not a guess. At
-$0.1175/run, a run every 2 hours is 12 runs/day, about $42/month. A run every 4 hours was 6 runs/day, about $21/month.
+$0.1175/run, a run every 2 hours is 12 runs/day, about $42/month. A run every 4 hours is 6
+runs/day, about $21/month.
 
 `cluster-health` is now script-first. The 30-minute fire is a shell script and uses no tokens.
 The agent runs only when the findings are new, or when the same findings are 4 hours old (§ Cron
@@ -548,7 +516,8 @@ Reloader restarts the pod, and the reconcile runs before the app starts. The sch
 To remove a job, take it out of the file and run `hermes cron remove <id>` in the pod. The
 reconcile never deletes a job. If you change a field with `hermes cron edit` or in the dashboard,
 and the file lists that field, the next boot reverts the change. To see the result, run
-`kubectl -n cortex logs deploy/hermes -c cron-reconcile` and `hermes cron list`.
+`kubectl -n cortex logs deploy/hermes -c cron-reconcile --context artemis` and
+`hermes cron list`.
 
 Scripts are not symlinks. The scheduler refuses a script that resolves outside
 `/opt/data/scripts/`. So on every boot, `init` copies each `/run/scripts/*.sh` there with mode
@@ -603,27 +572,17 @@ it at a directory that you can throw away.
 
 ### Other cron facts
 
-`cluster-health` was an `interval: 60m` job until 2026-08-16. Interval schedules re-arm from the
-completion of the run, so the run time drifts. A cron expression pins a fixed minute. From
-2026-09-07 the job ran every four hours, for cost (§ Cost). On 2026-10-21 it moved to a 30-minute
-script check that wakes the agent on change. Alertmanager already pages in real time. So this job
-is an extra audit, not the alerting path.
+Use a cron expression, not an `interval:` schedule. Interval schedules re-arm from the
+completion of the run, so the run time drifts. A cron expression pins a fixed minute. Alertmanager
+already pages in real time, so `cluster-health` is an extra audit, not the alerting path.
 
-The team retired `readme-sync` on 2026-10-20. It reconciled a README section
-(`## ⛵ Kubernetes` → `### Directories`) that no longer exists. So every run aborted and raised a
-flag, at 645K to 1.3M prompt tokens each. It is not in `jobs.yaml`. If it is still in
-`jobs.json`, remove it with `hermes cron remove <id>`.
+The retired jobs `readme-sync` and `forgejo-pr-review` are not in `jobs.yaml`. If either is still
+in `jobs.json`, remove it with `hermes cron remove <id>`, because the reconcile never deletes a job.
 
-The team retired `forgejo-pr-review` on 2026-09-07. It was the third-largest consumer on the
-account. It duplicated the human `triage-renovate` skill, which is the path that actually merges
-the Renovate queue. Its skill directory, ConfigMap and HelmRelease mounts are gone from git. The
-in-pod copy under `/opt/data/skills/devops/` does nothing once the cron job is removed. If you
-want it gone, delete it by hand.
-
-`cron.catch_up_missed` is `false`. With the v0.22 default (`true`), a slot that was missed while
-the pod restarted fires once at start. Reloader restarts the pod on every skill or configuration
-change. With a 30-minute script cadence, a skipped slot costs nothing, and the next slot is at
-most 30 minutes away. The scheduler logs the skip and re-anchors to the next slot.
+`cron.catch_up_missed` is `false`. With the default (`true`, checked on v0.22), a slot that was
+missed while the pod restarted fires once at start. Reloader restarts the pod on every skill or
+configuration change. With a 30-minute script cadence, a skipped slot costs nothing, and the next
+slot is at most 30 minutes away. The scheduler logs the skip and re-anchors to the next slot.
 
 `jobs.json` is runtime state on the PVC (`/opt/data/cron/jobs.json`). It is an object,
 `{"jobs": [...], "updated_at": ...}`, owned by uid 10000. Do not edit it by hand. Use
@@ -634,9 +593,9 @@ most 30 minutes away. The scheduler logs the skip and re-anchors to the next slo
 To list the jobs:
 
 ```bash
-POD=$(kubectl -n cortex get pod -l app.kubernetes.io/name=hermes \
+POD=$(kubectl -n cortex get pod --context artemis -l app.kubernetes.io/name=hermes \
   --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
-kubectl -n cortex exec "$POD" -c app -- hermes cron list
+kubectl -n cortex exec "$POD" -c app --context artemis -- hermes cron list
 ```
 
 ---
@@ -658,10 +617,10 @@ ConfigMap `hermes-skill-<name>`. That ConfigMap is mounted read-only as a direct
   `/opt/data/pending/skills/` instead of applying it. A skill change is a PR that a human merges.
   See § Changing a skill.
 - `skills.disabled` lists every bundled skill except the ones that a cron job names
-  (`grep -A3 '"skills"' /opt/data/cron/jobs.json`). Each image bump can add new bundled skills,
-  and they arrive enabled. To rebuild the list, run
-  `kubectl -n cortex exec deploy/hermes -c app -- cat /opt/data/skills/.bundled_manifest` and take
-  the first field before `:` on each line.
+  (`grep -A3 '"skills"' /opt/data/cron/jobs.json`). Each image bump can add new bundled skills, and
+  they arrive enabled. To rebuild the list, run
+  `kubectl -n cortex exec deploy/hermes -c app --context artemis -- cat /opt/data/skills/.bundled_manifest`
+  and take the first field before `:` on each line.
 
 The bundled skills still live in `/opt/data/skills/<category>/<name>/SKILL.md`, next to
 `.usage.json`. That file holds `use_count`, `last_used_at` and `patch_count` for each skill. The
@@ -670,10 +629,10 @@ startup log line `Syncing bundled skills into ~/.hermes/skills/` is wrong. The s
 
 ### The anti-collision guard
 
-v0.22 can find the same skill name in `/opt/data/skills` and in an external dir. It picks one by
-precedence. The local copy wins, and the git copy is hidden, with one warning in the log
-(`agent/skill_utils.py`). Older releases failed loudly with `Ambiguous skill name`. Now a stale
-local copy runs silently in place of the git skill.
+hermes can find the same skill name in `/opt/data/skills` and in an external dir. It picks one by
+precedence (checked on v0.22). The local copy wins, and the git copy is hidden, with one warning in
+the log (`agent/skill_utils.py`). Older releases failed loudly with `Ambiguous skill name`. Now a
+stale local copy runs silently in place of the git skill.
 
 So on every boot, `init` reads the `name:` of each mounted skill. It then deletes any directory
 under `/opt/data/skills` whose `SKILL.md` has the same name. Before it deletes the directory, it
@@ -710,32 +669,17 @@ blocks that.
 
 The security scanner of the agent flags two patterns as HIGH: a pipe to an interpreter
 (`curl … | python3`) and an inline interpreter script (`python3 -c`). It then marks the command
-`pending_approval`. So skill instructions must follow these rules:
-
-- Write output to a file, and parse it in a separate step.
-- Build JSON payloads with `write_file` + `curl --data @file`, not with a heredoc.
-- Use bash `date` math for arithmetic, not python.
-
-`write_file` refuses `/tmp` paths, because they are protected. `curl -o /tmp/...` is fine.
-
-### Building a Forgejo `contents` PUT payload
-
-There is no shell path for this. The scanner rules of the skills ban heredocs, and `execute_code`
-is not available in cron. Do it in two steps:
-
-1. Use `read_file` on the base64 body and on the GET response.
-2. Use `write_file` to write the JSON under `/opt/data/workspace`. That path is inside
-   `HERMES_WRITE_SAFE_ROOT`. A write to `/tmp` is refused.
-
-`skills/skill-change-pr/SKILL.md` has the canonical shape.
+`pending_approval`, which stalls a cron run. The command shapes that the skills must use are in
+`skills/cluster-health/SKILL.md` § Rules for every command. The Forgejo `contents` PUT recipe is in
+`skills/skill-change-pr/SKILL.md`. The skills keep their own copies, because hermes loads each
+skill on its own.
 
 ---
 
 ## Autonomy posture — what hermes is allowed to do unattended
 
-The team set this posture on 2026-08-18. The team found that hermes had patched its own skills 13
-times since 2026-08-16, and that none of the patches reached git. Each of two independent gates
-was enough to stop it. Skills are now read-only (§ Skills), so the self-patching has ended.
+hermes once patched its own skills, and none of the patches reached git. Skills are now read-only
+(§ Skills), so it cannot do that again.
 
 ### 1. Cron approvals (`approvals` in `configmap.yaml`)
 
@@ -745,8 +689,8 @@ flow and the notification POST. The agent was silently unable to report. It was 
 unable to report that failure. `execute_code` uses the same setting (`tools/approval.py`), so
 there was no workaround inside the pod.
 
-Now the setting is `cron_mode: approve`. Enforcement moved to two floors that act before any
-bypass (`_match_user_deny_rule`, `tools/approval.py:3751`):
+Now the setting is `cron_mode: approve`. These layers enforce the rules. The deny globs act before
+any bypass (`_match_user_deny_rule` in `tools/approval.py`):
 
 | Layer                           | Scope                    | Enforces in cron?                                                                                                                      |
 | ------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -764,9 +708,8 @@ reason. Give a new deny glob a leading `*` and a trailing `*`.
 Matching ignores case and runs over deobfuscated variants of the command, so quoting tricks do
 not get around it.
 
-The current deny globs cover PR merge, force/main push, `talosctl`, `kubectl drain|cordon|delete`,
-`flux uninstall|delete`, `helm uninstall`, `ceph osd`, `kubectl get secret`, `/opt/data/.env` and
-pipe-to-shell.
+To read the live deny globs, run
+`grep -A16 '    deny:' kube/clusters/artemis/apps/cortex/hermes/app/configmap.yaml`.
 
 ### 2. RBAC — the pod holds none; the MCP path is the only one
 
@@ -775,14 +718,13 @@ hermes reaches the cluster in one way only: the k8s MCP tools, under `mcp-k8s-sa
 
 - It mounts no ServiceAccount token. The app-template default for `automountServiceAccountToken`
   is `false`, and nothing overrides it. The image has no `kubectl`.
-- The `hermes` ServiceAccount exists but is bound to nothing. The team removed its three roles
-  (`hermes-read-all`, `hermes-pod-delete`, `hermes-exec-deploy`) on 2026-10-20. With no token,
-  the pod was never able to use any of their grants, cluster-wide pod delete included.
+- The `hermes` ServiceAccount exists but is bound to nothing. Do not bind a role to it.
 - No skill or configuration calls the kube API from inside the pod.
   `grep -rniE 'kubectl|serviceaccount|KUBERNETES_SERVICE' kube/clusters/artemis/apps/cortex/hermes/app/skills`
   finds only prose that says not to.
 
-To make sure, run `kubectl auth can-i --list --as=system:serviceaccount:cortex:hermes -n cortex`.
+To make sure, run
+`kubectl auth can-i --list --as=system:serviceaccount:cortex:hermes -n cortex --context artemis`.
 It shows only the self-review and discovery rules that every account has.
 
 `mcp-k8s-sa` (the MCP server) has broader access, and it is cluster-wide. Everything is read-only
@@ -795,15 +737,13 @@ It shows only the self-review and discovery rules that every account has.
 - `events`: `create`
 
 `helmreleases` and `kustomizations` are read-only, so the MCP path cannot start a Flux reconcile.
-Workloads are read-only too, and scale is the only write. The team removed the patch grants on
-workloads and Flux objects on 2026-08-29 (see `cortex-mcp.md`). The MCP path cannot create or
-delete workloads. It cannot touch Talos or node-level state.
+Workloads are read-only too, and scale is the only write (see `cortex-mcp.md`). The MCP path
+cannot create or delete workloads. It cannot touch Talos or node-level state.
 
-> `mcp-k8s` holds no `secrets` rule. The team removed the grant on 2026-08-29 (see
-> `cortex-mcp.md`). The ClusterRole carries only the External Secrets CRs (`externalsecrets`,
-> `secretstores`, `clustersecretstores`). These are references, not secret data. To make sure,
-> run
-> `kubectl get clusterrole mcp-k8s -o jsonpath='{range .rules[*]}{.resources}{" -> "}{.verbs}{"\n"}{end}'`
+> `mcp-k8s` holds no `secrets` rule (see `cortex-mcp.md`). The ClusterRole carries only the
+> External Secrets CRs (`externalsecrets`, `secretstores`, `clustersecretstores`). These are
+> references, not secret data. To make sure, run
+> `kubectl get clusterrole mcp-k8s --context artemis -o jsonpath='{range .rules[*]}{.resources}{" -> "}{.verbs}{"\n"}{end}'`
 >
 > `mcp-k8s-sa` is the only path to the cluster, and it cannot read Secret data. The deny globs and
 > the smart-policy ESCALATE rule limit the shell only. Approvals control the `terminal` tool, and
@@ -829,31 +769,33 @@ Readiness stays a plain `httpGet` on `/health`. A restart fixes a stale ticker. 
 from the Service only takes the dashboard down with it.
 
 Startup allows `60 × 10s = 10 minutes` for the first heartbeat before liveness can act. Liveness
-then fails after `3 × 30s`, with a 10s probe timeout. Boot now takes about a minute (three init
-containers, no download, no source copy), so that budget has room to spare. Before you make it
-tighter, measure the init duration on a cold PVC. The ticker is async (`cron_tick(sync=False)`),
-so a long agent run does not delay the heartbeat.
+then fails after `3 × 30s`, with a 10s probe timeout. Boot takes about a minute (three init
+containers plus the injected `k8tz`, no download, no source copy), so that budget has room to spare.
+Before you make it tighter, measure the init duration on a cold PVC. The ticker is async
+(`cron_tick(sync=False)`), so a long agent run does not delay the heartbeat.
 
-To make sure that the probes pass, run `kubectl -n cortex describe pod -l app.kubernetes.io/name=hermes`.
-It shows no `Unhealthy` events. Then run
-`kubectl -n cortex exec deploy/hermes -c app -- cat /opt/data/cron/ticker_heartbeat`.
+To make sure that the probes pass, run these commands. The first shows no `Unhealthy` events:
 
-HelmRelease timeout: `spec.timeout` was unset, so it used the Helm default of 5m. With
-`strategy: Recreate`, `terminationGracePeriodSeconds: 120` and the init containers, that budget is
-too small. An upgrade timed out mid-audit, and Flux rolled back to `hermes.v30`. The timeout is
-now `15m`, with remediation retries for install and upgrade.
+```bash
+kubectl -n cortex describe pod -l app.kubernetes.io/name=hermes --context artemis
+kubectl -n cortex exec deploy/hermes -c app --context artemis -- cat /opt/data/cron/ticker_heartbeat
+```
+
+HelmRelease timeout: `spec.timeout` is `15m`, with remediation retries for install and upgrade. The
+Helm default of 5m is too small for `strategy: Recreate`, `terminationGracePeriodSeconds: 120` and
+the init containers. With 5m, an upgrade timed out mid-audit, and Flux rolled back.
 
 `HERMES_CRON_TIMEOUT` is an inactivity timeout, not a wall-clock limit. Per
 `/opt/hermes/cron/jobs.py`, a job that keeps producing output can legitimately run past it, and
 `0` turns it off entirely. With `0`, only the 1800s stale-claim TTL recovers a tick that actually
-died. So a run that hangs but stays alive can block without limit. It was `0`. It is now `900`.
+died. So a run that hangs but stays alive can block without limit. It is `900`.
 `streaming.enabled` is `false`, so a single slow LLM call is silent for its full duration. Do not
 lower this value to detect a slow model.
 
 `wait: false` on the Kustomization: `ks.yaml` sets `wait: false` with no `healthChecks`. So the
 Kustomization reports `Applied revision` even while the HelmRelease under it fails or rolls back.
-Judge a hermes deploy by `flux get helmrelease hermes -n cortex`. Never judge it by the
-Kustomization alone.
+Judge a hermes deploy by `flux get helmrelease hermes -n cortex --context artemis`. Never judge it
+by the Kustomization alone.
 
 `render-ks` cannot validate chart output. It renders the resources of the Flux Kustomization (the
 HelmRelease, the ConfigMaps), not the templated chart. So probe or container changes seem to "not
@@ -861,23 +803,20 @@ render". To validate those changes, run `helm template` against the app-template
 `spec.values` of the HelmRelease.
 
 Backups, and how an `exec` silently breaks them: the kopiur `SnapshotPolicy` takes an hourly
-snapshot of `/opt/data` to `atlas` (`kubectl get snapshotpolicy -n cortex hermes`).
-`LAST-VERIFIED` is empty, so nobody has tested a restore of the snapshots. Use the
-`restore-drill` skill.
+snapshot of `/opt/data` to `atlas`
+(`kubectl get snapshotpolicy -n cortex hermes --context artemis`). `LAST-VERIFIED` is empty, so
+nobody has tested a restore of the snapshots. Use the `restore-drill` skill.
 
 A `kubectl exec` into `app` runs as uid 10000, the container user. So `sh -c`, `cp` and `tee`
-write files that the scheduler and the kopia mover can read. The mover is also uid 10000. This
-closes the failure of 2026-09-07. In that failure, root-owned files from an exec made every hourly
-snapshot fail for seven hours, because kopia fails the whole snapshot on one unreadable file. To
-make sure that no file has another owner, and to force a snapshot:
+write files that the scheduler and the kopia mover can read. The mover is also uid 10000. A
+root-owned file from an exec once made every hourly snapshot fail for seven hours, because kopia
+fails the whole snapshot on one unreadable file. To make sure that no file has another owner, and
+to force a snapshot:
 
 ```bash
-kubectl -n cortex exec deploy/hermes -c app -- find /opt/data ! -user 10000   # expect only lost+found
-kopiur snapshot now --policy hermes -n cortex
+kubectl -n cortex exec deploy/hermes -c app --context artemis -- find /opt/data ! -user 10000   # expect only lost+found
+mise run //kube/clusters/artemis:snapshot-pvc cortex hermes
 ```
-
-The repo also warns `Found too many index blobs (1368) ... run 'kopia maintenance'`. That warning
-is about the whole `atlas` repository, not hermes. This file does not cover it.
 
 ### Run as uid 10000
 
@@ -899,13 +838,11 @@ refuse any other non-root uid. The `hermes` user of the image has that uid. The 
   version, raise the number in `user.yaml` with it, or add a `config-migrate` init as bjw-s does.
 - The dependency refresh matters only for opt-in plugin dependencies after an image upgrade.
 - The `init` and `install-memini` containers also run as 10000 with a read-only root filesystem.
-- No container runs as root. On 2026-10-27 the team removed the one-time `chown-data` init (root,
-  `CHOWN`). It changed the owner of the PVC from uid 1000 to 10000, and the team removed it once
-  every file was `10000:10000`. If someone restores an old 1000-owned snapshot outside Kopiur, a
-  root step is again necessary to change the owner. A non-root process cannot chown files that it
-  does not own, and `fsGroup` does not change the owner.
+- No container runs as root. Every file on the PVC is `10000:10000`. If someone restores an old
+  1000-owned snapshot outside Kopiur, a root step is necessary to change the owner. A non-root
+  process cannot chown files that it does not own, and `fsGroup` does not change the owner.
 - Kopiur: `KOPIUR_PUID`/`KOPIUR_PGID` are `10000` in `ks.yaml`, for the `SnapshotPolicy` mover
-  and the `Restore` mover (`kopiur.md` § Mover uid). A restore writes files as the mover uid. So
+  and the `Restore` mover (`kopiur.md` § kopiur, the "Mover uid" bullet). A restore writes files as the mover uid. So
   a restore of an older snapshot (owned by 1000) with these settings gives files owned by uid
   10000, which is what the pod needs. To change the `Restore` spec, delete the `Restore` CR once,
   so that Flux recreates it (`kopiur.md`).
@@ -917,7 +854,7 @@ does not list.
 
 Ingress comes only from the `edge-gateway` envoy pods, on 9119 and 9120. Kubelet probes on 8642
 come from the node host, and Cilium always lets that traffic through. Nothing else calls 9119,
-9120 or the API server on 8642.
+9120, or the API server of hermes on 8642.
 
 | Egress                         | Port  | Why                                                                       |
 | ------------------------------ | ----- | ------------------------------------------------------------------------- |
@@ -971,14 +908,14 @@ work, and how to validate a template change offline, see `.agents/references/obs
 ## Debugging runbook
 
 ```bash
-flux get helmrelease hermes -n cortex                       # the real deploy verdict
-kubectl -n cortex logs deploy/hermes -c app --tail=200
-kubectl -n cortex logs deploy/hermes -c init --previous     # stale-skill guard and seeding
-kubectl -n cortex logs deploy/hermes -c cron-reconcile --previous   # job matched, edited or errored
-POD=$(kubectl -n cortex get pod -l app.kubernetes.io/name=hermes \
+flux get helmrelease hermes -n cortex --context artemis                       # the real deploy verdict
+kubectl -n cortex logs deploy/hermes -c app --context artemis --tail=200
+kubectl -n cortex logs deploy/hermes -c init --context artemis --previous     # stale-skill guard and seeding
+kubectl -n cortex logs deploy/hermes -c cron-reconcile --context artemis --previous   # job matched, edited or errored
+POD=$(kubectl -n cortex get pod --context artemis -l app.kubernetes.io/name=hermes \
   --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
-kubectl -n cortex exec "$POD" -c app -- cat /opt/data/cron/jobs.json
-kubectl -n cortex exec "$POD" -c app -- ls /etc/hermes-skills /opt/data/workspace/cluster-health
+kubectl -n cortex exec "$POD" -c app --context artemis -- cat /opt/data/cron/jobs.json
+kubectl -n cortex exec "$POD" -c app --context artemis -- ls /etc/hermes-skills /opt/data/workspace/cluster-health
 ```
 
 When cron stops firing, the cause is almost always one of four things. Here they are in order of

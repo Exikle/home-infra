@@ -13,6 +13,10 @@ To read the running Talos and Kubernetes versions, run `kubectl get nodes -o wid
 The single node runs everything, because the patch deletes the control-plane taint (§ Config
 Management below).
 
+Every `talosctl` command on this page needs the client version that `.mise/config.toml` pins. The
+`talosctl` on the PATH of an agent shell can be older. Run each one as `mise exec -- talosctl`
+(§ CRITICAL: never `apply-config` the patch file says why the version matters).
+
 ## Config Management
 
 Frostlink uses patch files in `kube/clusters/frostlink/talos/patches/`. It does not use
@@ -21,7 +25,7 @@ Jinja2/render-config like Artemis.
 ### Multi-document format (Talos 1.14)
 
 `kube/clusters/frostlink/talos/patches/controlplane.yaml` uses the 1.14 typed-document layout. It is
-a patch over `talosctl gen config`. On 1.14, gen already emits 28 typed documents on its own. So,
+a patch over `talosctl gen config`. On 1.14, gen already emits the full typed-document set. So,
 unlike Artemis, Frostlink does not write the mandatory
 `KubeAuthorizerConfig`/`KubeAuthenticationConfig` set by hand. The patch adds only what differs from
 gen.
@@ -187,18 +191,6 @@ The client version matters. talosctl decodes configuration documents on the clie
 client rejects a v1.14 document with `"KubeTalosAPIAccessConfig" "v1alpha1": not registered` before
 the node sees it. `.mise/config.toml` pins talosctl to match the cluster. Use `mise exec -- talosctl`.
 
-### certSANs minimal patch
-
-```yaml
-machine:
-    certSANs:
-        - <ip-or-hostname>
-cluster:
-    apiServer:
-        certSANs:
-            - <ip-or-hostname>
-```
-
 ## Schematic
 
 Never type the schematic ID into docs or files. The ID of the checked-in schematic comes only
@@ -234,7 +226,8 @@ To add or change an extension:
 
 1. Edit `kube/clusters/frostlink/talos/schematic.yaml`.
 2. Run `mise run //kube/clusters/frostlink/talos:schematic-id` to compute the ID again. The task is
-   hidden (`hide = true`), so a plain `mise tasks` does not list it. `mise run //kube/clusters/frostlink/talos:upgrade` calls it.
+   hidden (`hide = true`), so a plain `mise tasks` does not list it.
+   `mise run //kube/clusters/frostlink/talos:upgrade` calls it.
 3. Run `mise run //kube/clusters/frostlink/talos:upgrade <current-talos-version>`. This step is
    required. An edit to `schematic.yaml` alone changes nothing on the node. tuppr keeps rebuilding
    from the old recorded ID until an upgrade records the new one. The same Talos version is fine.
@@ -245,7 +238,7 @@ To add or change an extension:
 
 Upgrades are declarative. Edit the version in
 `kube/clusters/frostlink/apps/system-upgrade/tuppr/upgrades/talosupgrade.yaml` (or
-`kubernetesupgrade.yaml`) and merge. tuppr then does the upgrade.
+`kubernetesupgrade.yaml`), then commit and push. tuppr then does the upgrade.
 
 Frostlink is a single node, so every upgrade is full cluster downtime. tuppr skips draining
 automatically, because there is no other node to drain to. It tracks completion by polling node
@@ -335,16 +328,12 @@ talosctl --talosconfig kube/clusters/frostlink/talosconfig get machineconfig -n 
   metadata service.
 - hostDNS: `ResolverConfig` with `forwardKubeDNSToHost: true, resolveMemberNames: true`. Pod DNS
   goes to the host, and node names resolve inside pods.
-- CNI, CoreDNS and kube-proxy are disabled by typed documents, not by v1alpha1 keys
-  (`KubeFlannelCNIConfig` `$patch: delete`, `KubeCoreDNSConfig`/`KubeProxyConfig`
-  `enabled: false`). Cilium and CoreDNS come from Flux/helm (`oci-rebuild.md`).
 - Cilium on Talos/OCI: the Cilium HelmRelease requires `sysctlfix.enabled: false`. Talos has no
   `/etc/sysctl.d/`. Without the setting, the cilium-agent init crashes.
-- The `tailscale` extension creates `tailscale0` (MTU 1280). Without a pin, Cilium detects it
-  automatically and uses it to cap every pod at 1280. So the Cilium HelmRelease pins `devices: enp0s6` and
-  `MTU: 1500`. See `oci-networking.md` § cilium `devices` and `MTU` are pinned. If you change or
-  replace the tailscale patch (for example, to point it at Headscale), Cilium needs no change. If
-  you add another host interface that pods must route over, Cilium does need a change.
+- The `tailscale` extension creates `tailscale0` (MTU 1280). That is why Cilium pins `devices` and
+  `MTU` (`oci-networking.md` § cilium `devices` and `MTU` are pinned, which wins). If you change or
+  replace the tailscale patch, Cilium needs no change. If you add another host interface that pods
+  must route over, Cilium does need a change.
 - The Talos `clusterName` (`frostlink`) is not the cluster name of Cilium. The Talos name comes from
   `talosctl gen config frostlink` and names the Kubernetes cluster. The Cilium name
   (`frostlink-vps`, ID 2) is set only in the Cilium HelmRelease. It is a leftover from the removed

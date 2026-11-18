@@ -254,6 +254,6 @@ an init script is the same violation as one in the manifest body.
 If a value seems to need a comment, write it up in the matching reference doc instead. If the
 constraint is dangerous to violate, reviewers then cite the doc. For example, the ordering of the
 CoreDNS `template` plugin is load-bearing, and its rationale runs about 40 lines. It lives in
-`.agents/references/networking.md` § CoreDNS (Artemis), and the manifest itself is bare. Another
+`.agents/references/networking.md` § CoreDNS, and the manifest itself is bare. Another
 example: the kopiur R2 credential key warning lives in `.agents/references/openebs-zfs.md`
 (Frostlink), not in the ExternalSecret.

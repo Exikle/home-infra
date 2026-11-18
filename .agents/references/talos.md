@@ -2,8 +2,9 @@
 
 ## Running Versions
 
-Anything in this file that names `v1.14.0-beta.1` describes a bug on that build, not the current
-state.
+Anything in this file that names `v1.14.0-beta.1` describes a bug seen on that build. This file
+records no re-test on a later build. Treat the bug as still present until a test on one node
+(`diff-node`, then `talosctl get staticpods`) shows otherwise.
 
 This file does not give the versions. The places below hold the version, and they must move
 together. Read them. Do not trust a doc:
@@ -15,8 +16,8 @@ grep -rn version kube/clusters/artemis/apps/system-upgrade/tuppr/upgrades/   # b
 grep -n '^talos' .mise/config.toml             # talosctl pin
 ```
 
-`talosctl` decodes config documents on the client. A client that is older than the cluster rejects
-a v1.14 document (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`) before the node sees it.
+`talosctl` decodes configuration documents on the client. A client that is older than the
+cluster rejects a v1.14 document (`"KubeTalosAPIAccessConfig" "v1alpha1": not registered`) before the node sees it.
 So always run `talosctl` from inside this repo. There, the mise shim resolves the pinned version.
 If you run it from somewhere else, you get the global install, which is older. You do not need a
 `mise exec --` wrapper. The shims are on PATH through `~/.zshenv`. They resolve the repo pin from
@@ -66,18 +67,13 @@ lives in `kube/clusters/artemis/talos/mise.toml` § `schematic-type`:
 `kube/clusters/artemis/talos/schematics/metal.yaml` and
 `kube/clusters/artemis/talos/schematics/controlplane.yaml` have identical content today. They have
 the same seven extensions and the same kernel args, so the Image Factory returns one ID for both.
-These are the live node annotations (`extensions.talos.dev/schematic`):
+The control planes and `ymir` show the same ID in the node annotation
+`extensions.talos.dev/schematic`. The command in § Extension Changes prints the annotation of
+every node.
 
-| Nodes                       | Schematic ID        | Source file                        |
-| --------------------------- | ------------------- | ---------------------------------- |
-| `talos-cp-01/02/03`, `ymir` | `1ec0c55058196a04…` | `controlplane.yaml` ≡ `metal.yaml` |
-| `talos-w-01`, `talos-w-02`  | `a67271c479dead6a…` | `worker.yaml`                      |
-| `talos-gpu-01`              | `5bfc5ba67508c0c6…` | `gpu.yaml`                         |
-
-Never copy an ID out of this table into a manifest. Resolve it with
+Never copy an ID from a node into a manifest. Resolve it with
 `mise run //kube/clusters/artemis/talos:schematic-id <type>`. That task POSTs the schematic file to
-the Image Factory. The table explains why ymir and the control planes share an ID. It is not a
-source of truth.
+the Image Factory.
 
 This has two consequences that are not obvious:
 
@@ -92,8 +88,7 @@ This has two consequences that are not obvious:
 `metal` is `worker` minus `siderolabs/qemu-guest-agent`. On bare metal, that service can never
 come up. Talos blocks its boot sequence while it waits for the service. When the phase times out,
 the node reboots, about every 70 minutes. Bare-metal workers must get `metal`, never `worker`.
-Node files carry only the disk selector and the wipe flag. Never hardcode a schematic hash in a
-node file. That pattern let `schematics/controlplane.yaml` silently drift away from what the CP
+Node files never carry an installer image or a schematic hash. That pattern let `schematics/controlplane.yaml` silently drift away from what the CP
 nodes ran.
 
 ## Extension Changes
@@ -104,10 +99,10 @@ update nothing by hand:
 1. Edit the schematic in
    `kube/clusters/artemis/talos/schematics/<controlplane|worker|gpu|metal>.yaml`. There are four
    files, not three. People usually forget `metal.yaml`.
-2. Run `mise run //kube/clusters/artemis/talos:apply-node <node> --mode=reboot`.
+2. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node> --mode=reboot`.
 
 To see the image that a node will get, without an apply, run
-`mise run //kube/clusters/artemis/talos:render-config <node> | yq 'select(.kind == "UnattendedInstallConfig") | .installer.image'`.
+`mise run //kube/clusters/artemis/talos:machine-image <node>`.
 
 A schematic change at the same Talos version leaves a boot-order trap:
 
@@ -123,21 +118,18 @@ A schematic change at the same Talos version leaves a boot-order trap:
 The naming of Talos itself makes its newest image look older than the image that it replaced.
 
 Symptom when the node lands on the stale image: the node booted without the `drbd` extension. Every
-miroir PVC on it hangs in Init (`diskless leg not realized`; agent log `Module drbd not found in
-directory /lib/modules/…-talos`).
+miroir PVC on it hangs in Init (`diskless leg not realized`). The agent log says `Module drbd not
+found in directory /lib/modules/…-talos`.
 
 A Talos version upgrade clears the trap by itself. It writes a plain-named UKI for the new version.
-It keeps only that UKI and the previous version, so no `~N` pair survives. The bare-metal nodes
-carry no pair after the v1.14.1 and v1.14.2 upgrades, with nothing moved by hand
-([#2763](https://git.dcunha.io/Exikle/home-infra/issues/2763)).
-The team fixed the three Proxmox VMs earlier. On each ESP, it moved the stale plain UKI out of the
-sd-boot scan path to `/Talos-v1.14.0.efi.bak`. The trap comes back after any same-version schematic
-change. After the next reboot of a node that had a schematic change, compare it with the schematic
-table.
+It keeps only that UKI and the previous version, so no `~N` pair survives
+([#2763](https://git.dcunha.io/Exikle/home-infra/issues/2763)). The trap comes back after any
+same-version schematic change. After the next reboot of a node that had a schematic change,
+compare what it runs with what it must run (the commands below).
 
 Nothing else reports the trap:
 
-- The `installer.image` of the machine config stays correct.
+- The `installer.image` of the machine configuration stays correct.
 - `unattendedinstallstatuses` says `phase: installed`.
 - tuppr says Completed. It keys on the version, not on the schematic.
 - The node is `Ready`.
@@ -155,10 +147,9 @@ runs a same-version `talosctl upgrade` with the rendered machine image and `-m p
 upgrade writes an image to disk. `apply-node --mode=reboot` changes the configuration and reboots,
 but it does not reinstall.
 
-For the read-only `talosctl` calls in this section, use the node IP. The short names resolve only
-through LAN DNS (public DNS has no record for them). A mise task gets `TALOSCONFIG` from
-`kube/clusters/artemis/mise.toml`. A bare `talosctl` call in a script does not, so export it there.
-Without it, `talosctl` fails with "failed to determine endpoints".
+The talos tasks pass the hostname to `talosctl`, so they need LAN or Headscale DNS. Public DNS has
+no record for the short names. Off the LAN, run the read-only `talosctl` calls in this section by
+node IP.
 
 When you diagnose this, read the boot variables directly. They persist correctly, so you can trust
 the values:
@@ -221,7 +212,7 @@ These caused real downtime when done wrong:
   down on 2026-08-03. The node stays Ready, so the fault shows only on reboot. Make sure with
   `talosctl get staticpods`.
     - Consequence: `cluster.yaml.j2` sets the worker endpoint and `controlplane.yaml.j2` overrides
-      it. So `.cluster.controlPlane` is never absent from a rendered config.
+      it. So `.cluster.controlPlane` is never absent from a rendered configuration.
 - Disabled components still need an explicit `image:`. In 1.14.0-beta.1, `images.List()` calls
   `mustParseTag` on every component, with no condition. `KubeProxyConfig` and `KubeCoreDNSConfig`
   with `enabled: false` and no `image:` give `""` and panic-loop
@@ -250,11 +241,11 @@ Quieter ones:
 
 - There is no `TimeSyncConfig` document, on purpose. Talos always emits a `default` layer time
   server (`constants.DefaultNTPServer` = `time.cloudflare.com`) with `useNTS: true`. `useNTS`
-  defaults to true only when no NTP config exists at all. If you write an explicit `TimeSyncConfig`
-  without `useNTS: true`, it silently _disables_ NTS. The UCG-Max at 10.10.99.1 does not run an NTP
+  defaults to true only when no NTP configuration exists at all. If you write an explicit
+  `TimeSyncConfig` without `useNTS: true`, it silently _disables_ NTS. The UCG-Max at 10.10.99.1 does not run an NTP
   daemon (UDP/123 returns connection refused) and does not send DHCP option 42. So it was only ever
-  a dead first entry. NTS also needs hostnames, not IPs, so that entry was not possible anyway. Make sure with
-  `talosctl get timeserverspecs --namespace network-config` (it shows the layers). Look for
+  a dead first entry. NTS also needs hostnames, not IPs, so that entry was not possible anyway.
+  Make sure with `talosctl get timeserverspecs --namespace network-config` (it shows the layers). Look for
   "established NTS session" in `dmesg`. Layer precedence: default → cmdline → platform → operator
   (DHCP) → configuration.
 
@@ -275,7 +266,7 @@ logs to the `observability/talos-logs` receiver at `tcp://127.0.0.1:5170/`
 
 ## 1.14 Documents Considered and NOT Adopted
 
-The team audited these against the full 1.14 catalogue on 2026-08-03. They are deliberate
+These came from the same audit as § Config Format (Talos 1.14 multi-document). They are deliberate
 omissions, not gaps. It is cheaper to read this list again than to find out again why each was
 skipped:
 
@@ -296,7 +287,7 @@ skipped:
 Do not opt a workload in. Kata was tried on this cluster and did not work
 ([#2761](https://git.dcunha.io/Exikle/home-infra/issues/2761), closed).
 
-All four schematics still ship `siderolabs/kata-containers` (3.32.0 on the nodes). A `kata-qemu`
+All four schematics still ship `siderolabs/kata-containers`. A `kata-qemu`
 RuntimeClass exists in the cluster. No pod uses it. Nothing in `kube/clusters/artemis/talos/`
 wires a containerd runtime handler for it, because the extension supplies its own.
 
@@ -362,7 +353,7 @@ also means that a stale recorded schematic silently installs again an extension 
 from git. The removal of an extension takes two steps:
 
 1. Edit the schematic file.
-2. Run `mise run //kube/clusters/artemis/talos:apply-node <node> --mode=reboot`. The node then
+2. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node> --mode=reboot`. The node then
    records the new ID _before_ the next tuppr run.
 
 If you edit only the schematic file, nothing changes in what tuppr installs.
@@ -382,17 +373,7 @@ git. The next reconcile reverts the CR, and tuppr downgrades the cluster.
 
 ## Node Reference
 
-| Node           | Role           | Hardware                                        | IP         |
-| -------------- | -------------- | ----------------------------------------------- | ---------- |
-| `talos-cp-01`  | Control plane  | Lenovo M710q                                    | 10.10.99.x |
-| `talos-cp-02`  | Control plane  | Lenovo M710q                                    | 10.10.99.x |
-| `talos-cp-03`  | Control plane  | Lenovo M710q                                    | 10.10.99.x |
-| `talos-w-01`   | Worker         | Proxmox VM (pantheon)                           | 10.10.99.x |
-| `talos-w-02`   | Worker         | Proxmox VM (pantheon)                           | 10.10.99.x |
-| `talos-gpu-01` | Worker + GPU   | Proxmox VM, Arc A380 passthrough                | 10.10.99.x |
-| `ymir`         | Worker (metal) | Gigabyte C246N-WU2, Xeon E-2124G, UHD P630 iGPU | 10.10.99.x |
-
-The cluster has seven nodes, not six. `ymir` is a bare-metal worker
-(`kube/clusters/artemis/talos/nodes/ymir.yaml.j2`). It is the only node on the `metal` schematic.
-Anything that counts nodes, such as a tuppr blast-radius argument or a drain plan, must count seven.
-Node files are the ground truth: `ls kube/clusters/artemis/talos/nodes/`.
+Node files are the ground truth: `ls kube/clusters/artemis/talos/nodes/`. Anything that counts
+nodes, such as a tuppr blast-radius argument or a drain plan, must count from that list. `ymir` is
+a bare-metal worker and the only node on the `metal` schematic. The IPs are in
+`kubectl get nodes -o wide`. The hardware is in `hardware.md`.

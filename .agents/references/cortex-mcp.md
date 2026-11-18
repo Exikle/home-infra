@@ -30,11 +30,10 @@ Service. One `HTTPRoute` (`agentgateway-mcp`) maps a path to each backend: `/ops
 `grep -n 'name:' kube/clusters/artemis/apps/cortex/agentgateway/mcp/agentgatewaybackend.yaml`.
 
 The `agent` tier is for hermes only. It is absent from every client registration file on purpose
-(`memory-config.md`). The tier exists because each tool schema costs tokens on every turn of every
-run. When hermes mounted `ops` and `general`, it sent about 61,500 tokens again on each turn. That
-was the largest reason that it went over the OpenCode Go monthly allowance. The `agent` tier
-carries only the tools that the hermes skills call (`.agents/references/hermes.md` § Cost has the
-numbers). If you add a target to `mcp-agent`, hermes pays for that schema on every turn.
+(`memory-config.md`). It carries only the tools that the hermes skills call, because each tool
+schema costs tokens on every turn of every run. If you add a target to `mcp-agent`, hermes pays for
+that schema on every turn. Why, and what it costs: `.agents/references/hermes.md` § Cost, which
+wins.
 
 A route-level `AgentgatewayPolicy` guards each route. The `apiKey.user_id` must be equal to the
 identity of the tier (`ops`, `general` or `hermes`). The request must also have no
@@ -72,30 +71,37 @@ that form is out of date.
 
 Every backend sets `spec.mcp.sessionRouting: Stateless`. With this value, the gateway opens a new
 session on each target for each request. It sends `DELETE` when the response is complete (v1.6.0
-`serve_stateless`). The default is `Stateful`. Under `Stateful`, the gateway's 30-minute idle
-reaper removed only the gateway's own entry and sent nothing upstream. So every stateful server
-kept every session that it ever got. `mcp-forgejo` grew by about 85 MiB an hour after the
-2026-10-26 change to agentgateway. The CRD has no field for a session time limit. The cost of
+`serve_stateless`). The default is `Stateful`. Under `Stateful`, the 30-minute idle reaper of the
+gateway removes only its own entry and sends nothing upstream. So every stateful server keeps every
+session that it ever got, and its memory grows without limit. The CRD has no field for a session
+time limit. The cost of
 `Stateless` is one more upstream round trip for each call. A client `GET` or `DELETE` gets `405`,
 and the MCP spec permits that.
 
 ### One replica, on purpose
 
-`agentgatewayparameters.yaml` sets one replica. MCP sessions are stateful and live in the memory
-of the proxy. With a second replica, a follow-up request from a client can go to a pod that never
-saw its session. Do not scale it, and do not add an HPA.
+`agentgatewayparameters.yaml` sets one replica. The token rate limit of each key
+(`models/agentgatewaypolicy.yaml`, `rateLimit.local`) is counted in each replica. A second replica
+doubles the limit of every key. Do not scale it, and do not add an HPA.
 
 ### The forgejo allow-list
 
-forgejo registers 297 tools (0.3.1, with `FORGEJO_DISABLED_AREAS` set to turn off actions,
-organizations, packages and repo-settings). The `policies.mcp.authorization` Deny rule on the
-backend in `agentgatewaybackend.yaml` permits 37 of them. The 37 tools keep the issue tracker,
-Renovate PR triage and code reads. The rule removes these tools:
+forgejo registers a few hundred tools, with `FORGEJO_DISABLED_AREAS` set to turn off
+actions, organizations, packages and repo-settings. To see the tag, run
+`grep tag: kube/clusters/artemis/apps/cortex/mcp/app/forgejo/helmrelease.yaml`. The
+`policies.mcp.authorization` Deny rule on the backend in `agentgatewaybackend.yaml` permits 37 of
+them. The 37 tools keep the issue tracker, Renovate PR triage and code reads. The rule removes
+these tools:
 
 - All `admin_*` tools.
 - Org, team and user management, notifications, templates and social endpoints.
 - The file create, update and delete calls. These calls make commits that the instance key
   signs. That goes around the two-identity signing model in `commit-style.md`.
+
+The list keeps `merge_pull_request` and `update_pr_branch`. Both also make server-side commits that
+the instance key signs. That fits the signing model only for Renovate PRs, which are
+instance-signed by design. Never use them on your own work (`commit-style.md` § Two-identity
+signing model wins).
 
 The rule applies when a tool is called. A client that is already connected keeps its cached tool
 list until it connects again. So a running session shows an older tool list than the
@@ -129,10 +135,8 @@ they reach it at `http://agentgateway.cortex.svc.cluster.local:4000/<tier>/mcp`.
 
 ### arr (`mcp-arr`, target `arr`, general)
 
-<https://github.com/aplaceforallmystuff/mcp-arr>. It runs the official GHCR image, not npx. That
-project publishes to npm by hand, and npm is far behind the GHCR pipeline that each tag starts.
-Versions 1.6.1 (which added `MCP_TRANSPORT=http`) through 1.7.2 (which fixed a gateway/proxy
-deadlock in that transport) never went to npm.
+<https://github.com/aplaceforallmystuff/mcp-arr>. It runs the official GHCR image, not npx. The
+project publishes to npm by hand, and npm lags far behind the tags.
 
 It has 48 tools. The seven `trash_*` TRaSH-guide helpers have no upstream switch to turn them off.
 So the `mcp-general` backend denies them, and 41 tools are left. Health is `GET /health`.
@@ -153,10 +157,8 @@ an explicit TLS `sni`. It has 2 tools.
 ours, `git.dcunha.io/exikle/forgejo-mcp`. `Exikle/containers` (`apps/forgejo-mcp`) builds it from
 the npm release, and it runs upstream `dist/http.js`. Renovate bumps the npm version there.
 
-Up to 0.2.0, the HTTP bin had one transport for the whole process. A single `DELETE` stopped that
-transport permanently. Version 0.2.1 fixed this with one transport for each session, with an LRU
-limit of 32. Our old `http-fixed.mjs` wrapper was older than the fix. It had no limit, and it
-leaked memory. The team deleted it on 2026-10-26.
+Do not wrap `dist/http.js` again. Upstream keeps one transport for each session, with an LRU
+limit. A local wrapper once had no limit and leaked memory.
 
 We override two upstream defaults, `PORT` and `RATE_LIMIT_MAX`. `PORT` defaults to 3000. The
 upstream default for `RATE_LIMIT_MAX` is 100 requests a minute for each client IP. Every request
@@ -173,7 +175,7 @@ the image of the `flux-operator` Deployment.
 It runs `serve --transport http --port 8080 --read-only --mask-secrets`. `--mask-secrets` defaults
 to true. We pass it explicitly, so the intent stays if the upstream default changes.
 
-`--read-only` leaves 10 tools, not the 15 that upstream documents (live tool list, 2026-10-26):
+`--read-only` leaves 10 tools, not the 15 that upstream documents:
 `get_flux_instance`, `get_kubernetes_api_versions`, `get_kubernetes_events`,
 `get_kubernetes_logs`, `get_kubernetes_metrics`, `get_kubernetes_resources`, `read_flux_doc`,
 `search_flux_docs`, `trace_kubernetes_resource` and `diff_kubernetes_manifest`. The flag turns off
@@ -236,10 +238,9 @@ with about four proxy tools. The upstream `.env.example` says that it "Reduces i
 ~46K to ~5K tokens." It is set. This was the largest context saving available in the fleet.
 
 The first request after a restart is slow, because ha-mcp builds its tool-search index on first
-use. agentgateway has a hidden 10 s default timeout for MCP upstream calls. Before every target got
-`policies.http.requestTimeout: 300s`, that default stopped the first request. With `FailClosed`,
-the whole ops tier was down for a minute or two. The team fixed both. If a tier shows a 500 with
-`upstream call timeout` at exactly 10 s, a target has no `requestTimeout`.
+use. agentgateway has a hidden 10 s default timeout for MCP upstream calls. So every target needs
+`policies.http.requestTimeout: 300s`. If a tier shows a 500 with `upstream call timeout` at exactly
+10 s, a target has no `requestTimeout`.
 
 Upstream publishes semver image tags (`release-publish.yml`). So the pin is `<version>@sha256`,
 and Renovate tracks it.
@@ -261,7 +262,7 @@ The RBAC has no `secrets` rule. In the Kubernetes API, `list` returns full objec
 included. So a `secrets: list` grant gives full read access to every credential, from an LLM tool
 endpoint. There is also no `patch` on `helmreleases`, `kustomizations` or workloads (`AGENTS.md`
 rule 2: no cluster changes through MCP). The live rule set is
-`kubectl get clusterrole mcp-k8s -o yaml`. `hermes.md` § RBAC summarises it.
+`kubectl get clusterrole mcp-k8s --context artemis -o yaml`. `hermes.md` § RBAC summarises it.
 
 We keep these writes on purpose, as operational actions and not configuration changes:
 `pods/exec: create`, `pods: delete`, `jobs: delete`, `events: create` and `*/scale`. Read-only
@@ -300,7 +301,7 @@ message.
 
 It has 8 tools. Six are ported from upstream. The other two are `seerr_find_api` and
 `seerr_call`. `seerr_find_api` gives areas, browse, search and details over all of the Seerr
-v3.5.1 API. `seerr_call` runs any operation. `seerr_call` masks secrets in replies. On a write, it
+API. `seerr_call` runs any operation. `seerr_call` masks secrets in replies. On a write, it
 puts a secret back only into the same key in the same settings area. It refuses the key-rotating
 `POST /settings/main/regenerate`, `POST /settings/initialize` and `/auth/*`. Health is
 `GET /health`. The app and its tools are `seerr`, not "Jellyseerr". See `media-stack.md`.
@@ -324,8 +325,10 @@ The workload is `victoria-logs-mcp`, while every sibling is `mcp-<x>`. The team 
 purpose, because a rename means that the Deployment and the Service are made again. Do not rename
 it to make it tidy.
 
-The embedded bleve index is an in-memory keyword index over its docs, not a vector DB. It uses
-76–113 MiB of the 256Mi limit. Health is `/health/liveness` and `/health/readiness`.
+The embedded bleve index is an in-memory keyword index over its docs, not a vector DB. Most of its
+memory is that index. Before you change the 256Mi limit, run
+`kubectl top pod -n cortex -l app.kubernetes.io/name=victoria-logs-mcp --context artemis`. Health
+is `/health/liveness` and `/health/readiness`.
 
 ## Fleet-wide
 

@@ -1,6 +1,8 @@
 # Reference: Storage — home-infra
 
-This file is the entry point for cluster storage. It covers the StorageClasses, the NFS media mount, and the PVC lifecycle, including the orphans that nothing reclaims. Read this file first, then go to these files:
+This file is the entry point for cluster storage. It covers the StorageClasses, the NFS media
+mount, and the PVC lifecycle, including the orphans that nothing reclaims. Read this file first,
+then go to these files:
 
 | File              | Covers                                                        |
 | ----------------- | ------------------------------------------------------------- |
@@ -11,39 +13,58 @@ This file is the entry point for cluster storage. It covers the StorageClasses, 
 
 | Class          | Backing          | Modes | Binding                | Reclaim  | Notes                                     |
 | -------------- | ---------------- | ----- | ---------------------- | -------- | ----------------------------------------- |
-| `miroir`       | lvmthin + DRBD9  | RWO   | `WaitForFirstConsumer` | `Delete` | cluster **default**, 2 replicas           |
+| `miroir`       | lvmthin + DRBD9  | RWO   | `WaitForFirstConsumer` | `Delete` | cluster default, 2 replicas               |
 | `miroir-local` | lvmthin, no DRBD | RWO   | `WaitForFirstConsumer` | `Delete` | 1 replica — kopiur caches, staging clones |
 
-These two classes are all that exist (`kubectl get sc`). Rook-Ceph is gone. `AGENTS.md` § "What was deliberately removed" covers that, and it wins.
+These two classes are all that exist (`kubectl get sc`). Rook-Ceph is gone. `AGENTS.md`
+§ "What was deliberately removed" covers that, and it wins.
 
-There is no RWX StorageClass. An app that needs RWX has nothing to ask for, so use the NFS mount below. A PVC that names `ceph-filesystem` stays `Pending` forever.
+There is no RWX StorageClass. An app that needs RWX has nothing to ask for, so use the NFS mount
+below.
 
 ### Binding mode decides how a restore is driven
 
 Both classes use `volumeBindingMode: WaitForFirstConsumer`.
 
-This applies to POPULATOR restores only. A populator restore is a `Restore` CR that hands a volume to a new, unbound PVC. You must drive these restores with the workload scaled back UP. If you scale to 0 and wait, the restore deadlocks.
+This applies to POPULATOR restores only. A populator restore is a `Restore` CR that hands a volume
+to a new, unbound PVC. You must drive these restores with the workload scaled back UP. If you
+scale to 0 and wait, the restore deadlocks.
 
-It does not apply to an in-place restore into an existing, bound PVC. That restore is `kopiur restore
---to-pvc <claim>`, which `mise run //kube/clusters/artemis:restore-pvc` runs. A bound PVC stays bound when its consumer scales to 0, and the mover pod is itself the consumer. For this restore you _must_ scale to 0, so that nothing writes while the data is replaced. The two flows are opposites. Pick the flow by whether the claim already exists.
+It does not apply to an in-place restore into an existing, bound PVC. That restore is
+`kopiur restore --to-pvc <claim>`, which `mise run //kube/clusters/artemis:restore-pvc` runs. A
+bound PVC stays bound when its consumer scales to 0, and the mover pod is itself the consumer. For
+this restore you _must_ scale to 0, so that nothing writes while the data is replaced. The two
+flows are opposites. Pick the flow by whether the claim already exists.
 
-On a miroir-backed PVC, the populator starts only after a pod that references the PVC is scheduled. The sequence is:
+On a miroir-backed PVC, the populator starts only after a pod that references the PVC is
+scheduled. The sequence is:
 
 1. The pod sits `Pending`.
 2. That sets the selected node of the PVC.
-3. The `xbrowsersync-populate` job runs.
+3. The `<app>-populate` job runs.
 4. The PVC binds.
 5. The pod starts.
 
-If you scale to 0 and wait, nothing ever happens. This was verified during the first miroir migration on 2026-09-05.
+If you scale to 0 and wait, nothing ever happens. This was verified during the first miroir
+migration on 2026-09-05.
 
 ## miroir `quorum: freeze` means DRBD `on-no-quorum io-error`
 
-The name of the StorageClass parameter is misleading. `quorum: freeze` does **not** configure the freeze/suspend-io action of DRBD. `drbdsetup show` on such a volume prints `on-no-quorum io-error`. So any momentary quorum dip returns hard I/O errors. ext4 aborts its journal and latches `emergency_ro` (visible in `/proc/mounts` on kernel 6.15+). The filesystem stays read-only **after DRBD has returned to Primary/UpToDate**. Only an unmount and remount clears it.
+The name of the StorageClass parameter is misleading. `quorum: freeze` does not configure the
+freeze/suspend-io action of DRBD. `drbdsetup show` on such a volume prints
+`on-no-quorum io-error`. So any momentary quorum dip returns hard I/O errors. ext4 aborts its
+journal and latches `emergency_ro` (visible in `/proc/mounts` on kernel 6.15+). The filesystem
+stays read-only after DRBD returns to Primary/UpToDate. Only an unmount and remount clears it.
 
-A momentary quorum dip once took 20 volumes read-only across all seven nodes at once. The failure cascaded from postgres to apoci to `registry.dcunha.io` to every Flux OCIRepository pull. Many apps stayed `Running` while they silently discarded writes.
+A momentary quorum dip once took 20 volumes read-only across all seven nodes at once. The failure
+cascaded from postgres to apoci to `registry.dcunha.io` to every Flux OCIRepository pull. Many apps
+stayed `Running` while they silently discarded writes.
 
-`freeze` is the deliberate default. Since `1e27513bc` (2026-09-16), the `miroir` class sets no `quorum` parameter, so miroir gives every new volume `freeze`. The other value, `last-man-standing`, renders DRBD `quorum off`. It does not prevent the latch. The read-only cascades of 2026-09-09 and 2026-09-11 hit volumes that were already on `last-man-standing`. Do not recreate a volume to move it off `freeze`.
+`freeze` is the deliberate default. Since `1e27513bc` (2026-09-16), the `miroir` class sets no
+`quorum` parameter, so miroir gives every new volume `freeze`. The other value,
+`last-man-standing`, renders DRBD `quorum off`. It does not prevent the latch. The read-only
+cascades of 2026-09-09 and 2026-09-11 hit volumes that were already on `last-man-standing`. Do not
+recreate a volume to move it off `freeze`.
 
 To see the setting of a volume, run:
 
@@ -51,50 +72,90 @@ To see the setting of a volume, run:
 kubectl exec -n miroir-system <miroir-agent> -c agent -- drbdsetup show <pv> | grep on-no-quorum
 ```
 
-`on-no-quorum io-error` means `freeze`, which is the expected value. No output means `last-man-standing`.
+`on-no-quorum io-error` means `freeze`, which is the expected value. No output means
+`last-man-standing`.
 
-The `MiroirVolumeReadOnly` alert fires when a latch happens. It reads `node_filesystem_readonly` for the pod mount of each miroir volume, so the node-exporter `mount-points-exclude` of Artemis must keep `/var/lib/kubelet/pods/<uid>/volumes/kubernetes.io~csi/` visible. The triggers seen so far were pantheon tap drops on 2026-09-09 (#2160), a UCG-Max firmware reboot on 2026-09-11 and 2026-10-29 (#3061), and a network loss from `talos-w-02` to all three control planes on 2026-11-18.
+The `MiroirVolumeReadOnly` alert fires when a latch happens. It reads `node_filesystem_readonly`
+for the pod mount of each miroir volume, so the node-exporter `mount-points-exclude` of Artemis
+must keep `/var/lib/kubelet/pods/<uid>/volumes/kubernetes.io~csi/` visible. The triggers seen so
+far were pantheon tap drops on 2026-09-09 (#2160), a UCG-Max firmware reboot on 2026-09-11 and
+2026-10-29 (#3061), and a network loss from `talos-w-02` to all three control planes on
+2026-11-18.
 
-The alert cannot fire when the `victoria-metrics-server` volume latches too, because no metrics reach vmalert. On 2026-11-18 it latched, and the only page was the Gatus heartbeat `core/artemis`. To list the latched pods without metrics, grep the pod logs for `read-only file system`. That grep misses an app that has not tried to write.
+The alert cannot fire when the `victoria-metrics-server` volume latches too, because no metrics
+reach vmalert. On 2026-11-18 it latched, and the only page was the Gatus heartbeat
+`core/artemis`. To list the latched pods without metrics, grep the pod logs for
+`read-only file system`. That grep misses an app that did not try to write.
 
-A deleted pod does not always remount the filesystem. Each volume has one node-level mount (`.../plugins/kubernetes.io/csi/miroir.home-operations.com/<hash>/globalmount`), and every pod mount on that node reuses it. The kubelet removes it only after no pod on the node uses the volume. If the replacement pod starts on the same node first, it gets the same read-only mount. On 2026-11-18, `thelounge` and `rensaio` came back read-only this way. To clear a latch, do these steps:
+A deleted pod does not always remount the filesystem. Each volume has one node-level mount
+(`.../plugins/kubernetes.io/csi/miroir.home-operations.com/<hash>/globalmount`), and every pod
+mount on that node reuses it. The kubelet removes it only after no pod on the node uses the
+volume. If the replacement pod starts on the same node first, it gets the same read-only mount.
+On 2026-11-18, `thelounge` and `rensaio` came back read-only this way. To clear a latch, do these
+steps:
 
 1. Scale the workload of the pod to 0 replicas.
-2. On the node, make sure that `kubectl exec -n miroir-system <miroir-agent> -c agent -- grep -c <drbd-device> /proc/1/mounts` prints `0`. It took about 45 seconds on 2026-11-18.
+2. On the node, make sure that
+   `kubectl exec -n miroir-system <miroir-agent> -c agent -- grep -c <drbd-device> /proc/1/mounts`
+   prints `0`. It took about 45 seconds on 2026-11-18.
 3. Scale the workload back to its replica count.
 4. Make sure that `/proc/mounts` in the new pod shows the volume without `emergency_ro`.
 
-miroir exposes only `freeze` and `last-man-standing`. It has no `suspend-io` option. `nklmilojevic/home` runs an identical topology and differs from ours in this one parameter.
+miroir exposes only `freeze` and `last-man-standing`. It has no `suspend-io` option.
+`nklmilojevic/home` runs an identical topology and differs from ours in this one parameter.
 
-Quorum loss happens only on the worker nodes. They hold diskless legs, because the `nvme` pool is control-plane-only. Their quorum depends entirely on the network to cp-01/02/03.
+Quorum loss happens only on the worker nodes. They hold diskless legs, because the `nvme` pool is
+control-plane-only. Their quorum depends entirely on the network to cp-01/02/03.
 
 ## miroir alerts — which ones are structural here
 
-`MiroirVolumeRemoteConsumer` is **disabled** through `monitoring.prometheusRule.overrides` on the miroir chart. Alertmanager also blackholes it by alertname. Do not re-enable it.
+`MiroirVolumeRemoteConsumer` is disabled through `monitoring.prometheusRule.overrides` on the
+miroir chart. Alertmanager also blackholes it by alertname. Do not re-enable it.
 
-The exposure is real, but this alert cannot report it. It is true of about 30 volumes permanently, so it never transitions and can never mark an event. That makes it an inventory, and an inventory is a PromQL query, not an alert. The query `miroir_volume_diskless_primary == 1` in VictoriaMetrics returns the same list on demand. Blackholing alone was not enough, because `siren` renders the whole alert list of Alertmanager. Receiver routing governs delivery, not membership. The blackhole route stays as a backstop, so a future re-enable cannot page. The remedy that the alert suggests (`autoDiskfulAfter`) cannot apply here. A diskful replica needs the pool of the volume on that node, and `nvme` exists only on the three control planes.
+The exposure is real, but this alert cannot report it. It is true of many volumes permanently, so
+it never transitions and can never mark an event. That makes it an inventory, and an inventory is
+a PromQL query, not an alert. The query `miroir_volume_diskless_primary == 1` in VictoriaMetrics
+returns the same list on demand. Blackholing alone was not enough, because `siren` renders the
+whole alert list of Alertmanager. Receiver routing governs delivery, not membership. The blackhole
+route stays as a backstop, so a future re-enable cannot page. The remedy that the alert suggests
+(`autoDiskfulAfter`) cannot apply here. A diskful replica needs the pool of the volume on that
+node, and `nvme` exists only on the three control planes.
 
-No direct detector exists for a diskless leg that drops. A diskless leg exports only `miroir_volume_diskless_primary`, and `miroir_volume_connected` never moves when a client leg drops. `node_filesystem_readonly` would catch the `emergency_ro` latch. But the default `--collector.filesystem.mount-points-exclude` of node-exporter drops `/var/lib/kubelet/pods/.+`, so no `/dev/drbd*` mount is scraped. If this failure mode recurs, the real fix is to narrow that exclusion.
+A diskless leg that drops has no direct metric. A diskless leg exports only
+`miroir_volume_diskless_primary`, and `miroir_volume_connected` does not move when a client leg
+drops. `MiroirVolumeReadOnly` catches the result, the `emergency_ro` latch.
 
-`MiroirVolumeOutOfSync` is deliberately left alone, although it is noisy. Its rule is `miroir_volume_out_of_sync_bytes > 0`, so it trips on a few KiB of ordinary write-in-flight lag. But it is also the only alert that caught a genuinely stalled resync. Read `peer-disk-state` before you react. `UpToDate` means both copies are good and the count is stale bitmap bits. `Inconsistent` means that leg really is missing data. A byte floor would be the right fix, but the `overrides` of the chart accept only `disabled`, `for` and `labels`, not `expr`.
+`MiroirVolumeOutOfSync` is deliberately left alone, although it is noisy. Its rule is
+`miroir_volume_out_of_sync_bytes > 0`, so it trips on a few KiB of ordinary write-in-flight lag.
+But it is also the only alert that caught a stalled resync. Read `peer-disk-state` before you
+react. `UpToDate` means both copies are good and the count is stale bitmap bits. `Inconsistent`
+means that leg really is missing data. A byte floor is the right fix, but the `overrides` of the
+chart accept only `disabled`, `for` and `labels`, not `expr`.
 
-The Alertmanager config routes `MiroirPoolUsageHigh` for `pool=client` to blackhole. A loopfile pool reports the root filesystem of the node, and those pools hold no replicas at all.
+The Alertmanager configuration routes `MiroirPoolUsageHigh` for `pool=client` to blackhole. A
+loopfile pool reports the root filesystem of the node, and those pools hold no replicas at all.
 
 ## NFS Media Mount
 
-- **Server**: `10.10.99.100` (TrueNAS `atlas`)
-- **Path**: `/mnt/atlas/media` → mounted at `/media` in pods
-- **Usable**: ~41TB (3× RAIDZ2)
+- Server: `10.10.99.100` (TrueNAS `atlas`)
+- Path: `/mnt/atlas/media` → mounted at `/media` in pods
+- Capacity: `hardware.md` § Storage
 
 ## Orphaned PVCs — nothing reclaims them, and they are replicated
 
-If you delete a HelmRelease or a StatefulSet, or migrate an app off its own database, the PVC stays behind. Both classes have `reclaimPolicy: Delete`, but that fires only when someone deletes the **PVC**. An unreferenced PVC is not garbage. It is idle, and Kubernetes holds it forever. The `nvme` pool is small (control planes only), and every idle gibibyte on `miroir` costs one gibibyte per replica. `kubectl get sc miroir -o jsonpath='{.parameters}'` gives the live replica count. Do not trust a count written in prose.
+If you delete a HelmRelease or a StatefulSet, or migrate an app off its own database, the PVC
+stays behind. Both classes have `reclaimPolicy: Delete`, but that fires only when someone deletes
+the PVC. An unreferenced PVC is not garbage. It is idle, and Kubernetes holds it forever. The
+`nvme` pool is small (control planes only), and every idle gibibyte on `miroir` costs one
+gibibyte per replica. `kubectl get sc miroir -o jsonpath='{.parameters}'` gives the live replica
+count. Do not trust a count written in prose.
 
-The earlier audit is [#1889](https://git.dcunha.io/Exikle/home-infra/issues/1889). Match a suspect claim to its live workload by the claim name that the workload actually mounts. Do not match by a shared prefix, because a renamed workload owns a claim with a different name.
+The earlier audit is [#1889](https://git.dcunha.io/Exikle/home-infra/issues/1889). Match a suspect
+claim to its live workload by the claim name that the workload actually mounts. Do not match by a
+shared prefix, because a renamed workload owns a claim with a different name.
 
-Claims named `exikle-pvc-setup-*`, and retained `lint`/`grype` cache claims in `forgejo`, are Tekton-era leftovers. The Tekton runner that provisioned and reaped them was retired on 2026-10-27 (`ci.md`). The plain runner uses emptyDirs and the actions cache. Any such claim that is still present is an orphan, and you can delete it safely.
-
-Find orphans with a pod-volume diff. Do not look at `kubectl get pvc` by eye, because a bound PVC with no consumer looks identical to a healthy one:
+Find orphans with a pod-volume diff. Do not look at `kubectl get pvc` by eye, because a bound PVC
+with no consumer looks identical to a healthy one:
 
 ```bash
 kubectl get pods -A -o json | jq -r '.items[] | .metadata.namespace as $n
@@ -104,4 +165,9 @@ kubectl get pvc -A --no-headers -o custom-columns=A:.metadata.namespace,B:.metad
   | awk '{print $1"/"$2}' | sort -u | comm -23 - /tmp/used
 ```
 
-Before you delete anything, check the list against a live restore. Two entries legitimately have no consumer. One is `kopiur-system/kopiur-cache-atlas`, which is mounted only while the maintenance Job runs. The other is any `*-kopia-cache` or `*-src` PVC that belongs to a mover in the middle of a run. If you delete either during a backup, you kill that run. The same shape exists in R2 for barman. See `postgres-dragonfly.md` § Orphaned prefixes are never reclaimed by `retentionPolicy`.
+Before you delete anything, compare the list against a live restore. Two entries have no consumer
+for a valid reason. One is `kopiur-system/kopiur-cache-atlas`, which is mounted only while the
+maintenance Job runs. The other is any `*-kopia-cache` or `*-src` PVC that belongs to a mover in
+the middle of a run. If you delete either during a backup, you kill that run. The same shape
+exists in R2 for barman. See `postgres-dragonfly.md` § Orphaned prefixes are never reclaimed by
+`retentionPolicy`.

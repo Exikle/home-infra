@@ -17,12 +17,10 @@ reasons and the traps.
 
 ## What does NOT belong here
 
-- Talos nodes. They have no SSH, no package manager and no Python interpreter. There is no
-  `siderolabs` Ansible collection. People build `command:` wrappers around `talosctl`. That is
-  Ansible used as a shell script, and it gives none of the value of Ansible. The Talos machine
-  configuration _is_ the declarative state. `mise run //kube/clusters/artemis/talos:render-config`
-  already does this job. The wider home-operations community moved to this model after it dropped
-  Ansible.
+- Talos nodes. They have no SSH, no package manager and no Python interpreter. A `command:`
+  wrapper around `talosctl` uses Ansible as a shell script, and it gives none of the value of
+  Ansible. The Talos machine configuration _is_ the declarative state
+  (`mise run //kube/clusters/artemis/talos:render-config`).
 - Anything inside Kubernetes. Flux owns it.
 - Restore drills and runbooks. They are interactive procedures with branches, and they need human
   judgment. That is the opposite of convergent state. They stay as mise tasks and in
@@ -42,9 +40,8 @@ reasons and the traps.
 gitignored `collections` directory under `ansible`. In a fresh worktree, that directory does not
 exist until you run the command.
 
-`community.proxmox` is the current home of the `proxmox_*` modules. These modules were split out of
-`community.general`, which now keeps only deprecated redirects. Write new code against
-`community.proxmox`.
+No role uses a `proxmox_*` module today. If you add one, use `community.proxmox`, not the
+deprecated redirects in `community.general`.
 
 `arensb.truenas` is the only usable TrueNAS collection. It does _not_ call the REST API from the
 control node. It runs on the box over SSH and calls `midclt` in a shell, so `atlas` needs SSH
@@ -80,18 +77,16 @@ This choice has a real cost. The role does not converge keys that are absent fro
 `forgejo_settings`. The role cannot see drift in a setting that it does not manage. That is the
 trade: the role leaves undeclared settings alone, and it does not destroy them.
 
+`ini_file` never removes a key on its own. To remove a key, or to move a key to another section,
+list its old location in `forgejo_settings_absent`. If you only delete it from `forgejo_settings`,
+the old copy stays in `app.ini`.
+
 ### The secrets live in 1Password
 
-Four `app.ini` values are secrets that Forgejo generated at install time. They live in the `server`
-section of `op://infrastructure/forgejo`, beside `METRICS_TOKEN`. A second `ini_file` task with
-`no_log: true` applies them from there. That task uses `forgejo_secret_settings`:
-
-| app.ini                         | 1Password field      |
-| ------------------------------- | -------------------- |
-| `[security] INTERNAL_TOKEN`     | `INTERNAL_TOKEN`     |
-| `[security] PASSWORD_HASH_ALGO` | `PASSWORD_HASH_ALGO` |
-| `[oauth2] JWT_SECRET`           | `OAUTH2_JWT_SECRET`  |
-| `[server] LFS_JWT_SECRET`       | `LFS_JWT_SECRET`     |
+Some `app.ini` values are secrets. They live in the `server` section of
+`op://infrastructure/forgejo`. A second `ini_file` task with `no_log: true` applies them from
+there. The list of `app.ini` keys and their 1Password fields is `forgejo_secret_settings` in
+`roles/forgejo/defaults/main.yml`.
 
 A separate 1Password item does not hide these secrets from the clusters. The 1Password Connect
 tokens of both clusters can read the `infrastructure` vault, because the cluster's own Forgejo
@@ -105,7 +100,7 @@ under the old value.
 The role applies these values and does not template them. So a `--check` run is a live
 consistency test:
 
-- If all four report `ok`, the vault matches the box.
+- If every entry of `forgejo_secret_settings` reports `ok`, the vault matches the box.
 - If one reports `changed`, the vault and the host are different. Find out which one is correct
   before you apply.
 
@@ -142,20 +137,20 @@ Each file is a compiled Forgejo base, followed by a trailing `:root` block. That
 `--steel-*` (dark) or `--zinc-*` (light) colour ramp of the base onto a named palette. The trailing
 block is the whole theme. The base above it is unchanged upstream output.
 
-The base comes from Forgejo 16. A Forgejo major version can add variables that the base never
-defines. Forgejo 17 builds `--color-thin-*` (callouts, danger buttons, coloured text) from
-`--hue-*`. In light mode, it also uses `--thin-lightness` and `--regular-chroma`. A last `:root`
-block in each file holds the Forgejo 17 values for those variables. After a major upgrade, do these
-steps:
+The base comes from an older Forgejo major. A newer major can add variables that the base never
+defines. For example, Forgejo 17 builds `--color-thin-*` (callouts, danger buttons, coloured text)
+from `--hue-*`. In light mode, it also uses `--thin-lightness` and `--regular-chroma`. A last
+`:root` block in each file holds values for those variables. The host upgrades itself across
+majors (see the cron table below). So after each Forgejo major upgrade, do these steps:
 
-1. Diff the variables that `index.css` references against the variables that `index.css` and each
+1. Get the running version with `curl -s https://git.dcunha.io/api/v1/version`.
+2. Diff the variables that `index.css` references against the variables that `index.css` and each
    theme define.
-2. Compare the result with the built-in `forgejo-dark`/`-light`.
+3. Compare the result with the built-in `forgejo-dark`/`-light`.
 
 `solarized` is the default theme. The team built it from `anthracite`: they replaced only the
 trailing block with the 16 colours of Solarized (<https://ethanschoonover.com/solarized/>). The 16
-colours are in each file as `--sol-<name>` variables, and every ramp is mixed from them. It replaced
-the earlier `ayu` theme.
+colours are in each file as `--sol-<name>` variables, and every ramp is mixed from them.
 
 In some places, Solarized measures below WCAG AA (4.5:1). So the theme has three deliberate
 deviations:
@@ -358,21 +353,9 @@ drifted (routes, hostname, SNAT). The role default stays `ucg_tailscale_up: fals
 
 ## Secrets
 
-Use the `community.general.onepassword` lookup. It supports both service-account tokens and
-1Password Connect. Give the vault, the item and the field as separate values. Do not use an
-`op://` URI:
-
-```yaml
-forgejo_runner_token: "{{ lookup('community.general.onepassword',
-    'forgejo', field='RUNNER_TOKEN', vault='infrastructure') }}"
-```
-
-Under a service-account token, the `op://` URI form fails with
-`'vault' is required with 'service_account_token'`. Laptop runs use a service-account token, so
-they hit this failure.
-
-Use a service account for laptop runs. No CI job runs Ansible. Put `no_log: true` on tasks that use
-secrets. Do not use ansible-vault. `AGENTS.md` rule 3 (1Password only, no SOPS) wins.
+`ansible/README.md` § Secrets has the lookup form and the `op://` trap, and it wins. A working
+example is the `forgejo_secret_settings` task in `ansible/roles/forgejo/tasks/main.yml`. Do not use
+ansible-vault. `AGENTS.md` rule 3 (1Password only, no SOPS) wins.
 
 ## The netdata.conf chore, solved properly
 
@@ -388,12 +371,8 @@ section of `/etc/netdata/netdata.conf` to bind `10.10.99.100:19999` (`netdata_ex
 role also keeps the loopback bind that the TrueNAS Reporting tab reads. A TrueNAS update removes
 this section too.
 
-The team retired the `truenas-exporter` graphite bridge in `d1fb5e655`. `exporting.conf` does not
-belong to the role. The TrueNAS middleware renders that file from Reporting → Exporters
-(`midclt call reporting.exporters.query`). So the team set up the graphite push there, not in a
-file. The role also used to stage its own copy. The team removed that copy in #2762. They also
-removed the middleware exporter. Its destination, `10.10.99.93`, had become the ClusterMesh
-apiserver LoadBalancer (`networking.md` § ClusterMesh with Frostlink).
+`exporting.conf` does not belong to the role. The TrueNAS middleware renders it from Reporting →
+Exporters (`midclt call reporting.exporters.query`). No exporter is configured there.
 
 `roles/netdata_exporter` is the fix. The canonical configuration and a restore script live on a
 dataset (`/mnt/atlas/config/netdata/`). They must not live in `/etc`, because an update replaces
@@ -442,8 +421,6 @@ Nothing runs Ansible in CI. Run the lint and the syntax check by hand, with
   inventory differs on that line. `inventory/hosts.yml` already has this for the Forgejo container.
 - ZFS: set dataset properties. Never create or destroy pools. Pool operations happen once, and they
   can need a reboot. Write them as a check-and-assert, not as enforced state.
-- Reports say that `community.proxmox.proxmox_cluster` is not reliably idempotent. Use the module
-  set for guests, ACLs and backup schedules. Use plain `ansible.builtin` for the host OS.
 - Run `ansible` directly. You do not need `mise exec`. The shims directory is on PATH through
   `~/.zshenv`, so any tool that you add to `.mise/config.toml` resolves automatically.
 - `.mise/config.toml` sets `ANSIBLE_CONFIG` and the related variables as absolute paths. Without
@@ -451,9 +428,7 @@ Nothing runs Ansible in CI. Run the lint and the syntax check by hand, with
   wrong inventory, the wrong roles path, and no error. The variables are absolute
   (`{{config_root}}/...`), so they work from any directory. The relative paths inside
   `ansible/ansible.cfg` are only a fallback for someone who already ran `cd` into `ansible/`.
-- The `ansible` binary needs a generated UTF-8 locale. This box exports `LANG=en_US.utf-8`, but it
-  has only `C.utf8` generated. So ansible refuses to start. `.mise/config.toml` pins
-  `LANG`/`LC_ALL` to `C.UTF-8` for the repo.
+- If `ansible` refuses to start with a locale error, read `tooling.md` § mise. It wins.
 
 ## Formatting
 

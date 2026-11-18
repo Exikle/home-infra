@@ -7,31 +7,30 @@ The default storage class is `openebs-zfs`. Its provisioner is `zfs.csi.openebs.
 - Pool: `openebs` (`poolname`), a ZFS pool on the separate block volume `sdb`, not on the boot
   disk (`oci-node.md` § The node)
 - fstype: `zfs`
-- Access mode: `ReadWriteOnce`
+- Access modes: `ReadWriteOnce` only. There is no RWX class and no second tier.
 - Volume binding mode: `WaitForFirstConsumer`
 - Volume expansion: supported (`allowVolumeExpansion: true`)
 - Reclaim policy: `Delete`
+
+`openebs-zfs` is the only class on Frostlink. A stateful app does not make its own claim. The
+kopiur component makes the PVC (§ Component template), and the app mounts it:
 
 ```yaml
 persistence:
     data:
         type: persistentVolumeClaim
-        storageClass: openebs-zfs
-        accessMode: ReadWriteOnce
-        size: 5Gi
+        existingClaim: <app>
 ```
-
-`openebs-zfs` is the default class. If you accept the default, you can leave out
-`storageClassName`. It is the only class on Frostlink. There is no RWX class and no second tier.
 
 ### Where this differs from Artemis
 
 Artemis documents kopiur in `kopiur.md` and `storage.md`. The kopiur semantics are the same on both
 clusters. Two things differ:
 
-- Populator restore. Both clusters bind `WaitForFirstConsumer`. So on both, a populator restore needs
-  the workload scaled back up (`storage.md` § Binding mode decides how a restore is driven). The
-  in-place `restore-pvc` flow on Artemis does the opposite: it scales to 0.
+- How `restore-pvc` restores. On Frostlink, the task deletes the PVC and lets the populator fill a
+  new one. Because of `WaitForFirstConsumer`, that needs the workload scaled back up. On Artemis,
+  the task restores in place into the existing PVC, with the app at 0 (`storage.md` § Binding mode
+  decides how a restore is driven).
 - How the pods reach the repository secret. Frostlink uses `credentialProjection` from
   `kopiur-system`. Artemis uses a `kopiur/secret` component per namespace. The substitute variable
   is `${KOPIUR_APP}` here and `${APP}` on Artemis (§ Component template).
@@ -94,8 +93,8 @@ Three behaviours the component enables that nothing else documents:
 - Monthly deep verify: the optional `kube/clusters/frostlink/components/kopiur-deep-verify` layer
   (`H 5 1 * *`, jitter 1h). It uses a scratch PVC sized by `KOPIUR_DEEP_VERIFY_CAPACITY`, default
   `5Gi`. Deep verify is a real restore into scratch space. So it is the only check that proves the
-  data comes back. It is also the only check that costs CPU and disk. `fediverse/gotosocial` and
-  `network/headscale` use it.
+  data comes back. It is also the only check that costs CPU and disk. To list the apps that use it,
+  run `grep -rln components/kopiur-deep-verify kube/clusters/frostlink/apps`.
 
 ### Schedule and retention
 
@@ -121,9 +120,7 @@ You can override the cadence and the retention per app in `postBuild.substitute`
 | `vm-single` | `H 3 * * *`, 1/0/7/0/0 | The TSDB of VictoriaMetrics rewrites its parts all the time. Hourly snapshots deduplicated badly and caused most of the churn in the R2 repository. Metrics are the easiest data here to rebuild. Daily, 7 deep, is enough. |
 | `apoci`     | `H */6 * * *`          | Registry blobs are content-addressed and in practice never change. Hourly gave almost nothing more than 6-hourly. Retention stays at the component default (about 30 restore points).                                       |
 
-> If you change a `KOPIUR_SCHEDULE`, also update the branch of that policy in
-> `KopiurPolicyBackupStale`. See "Backup staleness alerting is per-policy" below. Nothing derives it
-> automatically. If you forget, the alert fires all the time and nobody reads it.
+If you change a `KOPIUR_SCHEDULE`, read § Backup staleness alerting is per-policy.
 
 ### The R2 credential key is unrecoverable if repointed — read before editing
 
@@ -183,8 +180,7 @@ the bucket, but only a small part of its bytes. `data.compression` is `gzip`. Th
   empty volume and report success. See the Restore section.
 - The populator acts only on an UNBOUND claim. After the PVC is bound, the Restore reports
   `Ready=True` with reason `TargetAlreadyBound` and does nothing. It makes no prime PVC, starts no
-  mover, and does not touch the live volume. `fediverse/apoci-data` is in exactly this state. That
-  behaviour is correct and safe. But it means that if you edit a `Restore` and wait, nothing is
+  mover, and does not touch the live volume. That behaviour is correct and safe. But it means that if you edit a `Restore` and wait, nothing is
   ever restored. You must delete the PVC so that it is created again unbound, with its
   `dataSourceRef`. `mise run //kube/clusters/frostlink:restore-pvc` is the sequence that does this
   safely.
@@ -276,7 +272,7 @@ You can drop the annotation only after every live PVC already matches its render
 > touch this, test it with a server dry-run:
 >
 > ```
-> mise run //kube/clusters/frostlink:render-ks <ns> <app> | kubectl apply --server-side \
+> mise run //kube/clusters/frostlink:render-ks <ns> <ks> | kubectl apply --server-side \
 >   --force-conflicts --field-manager=kustomize-controller --dry-run=server --context frostlink -f -
 > ```
 
@@ -284,7 +280,7 @@ You can drop the annotation only after every live PVC already matches its render
 > the live object, not only off the rendered manifest. So a resource that still carries a stale
 > `ssa: ignore` is skipped forever. There is no warning, because the Kustomization still reports
 > Ready. To strip it from the live objects, run a server-side apply that no longer includes the
-> field. `mise run //kube/clusters/frostlink:apply-ks <ns> <app>` does exactly that. Then make sure
+> field. `mise run //kube/clusters/frostlink:apply-ks <ns> <ks>` does exactly that. Then make sure
 > that it worked:
 >
 > ```
@@ -363,16 +359,10 @@ There are now two layers:
    still catches a backup that is really dead, even if layer 2 is removed. Its second branch (a
    policy that fails and never succeeded) does not depend on the threshold.
 2. `KopiurPolicyBackupStale` in the `baseline` VMRule (`kopiur-overrides.rules`). This is the real
-   detector. Each policy gets an allowance of about one interval plus a grace period:
-
-    | Policy                                               | Schedule      | Allowance    |
-    | ---------------------------------------------------- | ------------- | ------------ |
-    | `gotosocial`, `continuwuity`, `headscale`, `towonel` | hourly        | 6h (default) |
-    | `apoci-data`                                         | `H */6 * * *` | 8h (28800s)  |
-    | `server-volume-victoria-metrics-server-0`            | `H 3 * * *`   | 26h (93600s) |
-
-    Only the two exceptions are `or` branches in the rule. The hourly policies fall through to the
-    21600s catch-all. That is correct and needs no edit.
+   detector. Each policy gets an allowance of about one interval plus a grace period. To list
+   the exceptions and their allowances, run
+   `grep -n 'policy=' kube/clusters/frostlink/apps/observability/vm-alert/app/vmrule.yaml`.
+   Every other policy falls through to the 21600s (6h) catch-all.
 
 The rule builds the threshold by `or`-chaining constant vectors off the metric itself. So the label
 sets match, and the comparison joins cleanly:
@@ -486,14 +476,8 @@ The gaps are on purpose:
 Anything added to that list needs a deliberate decision. `KopiurPolicyBackupStale` can alert only on
 policies that exist. No alert in this file can see a PVC with no backup.
 
-`ClusterRepository/r2` sets `deletionProtection.threshold: 10`. kopiur refuses a prune that deletes
-more than 10 snapshots in one pass. This guards against a retention edit that collapses history by
-accident. If a correct, tighter retention trips it, raise the threshold for that change. Do not
-delete snapshots by hand.
-
 ### Two failure modes seen during the migration
 
-- Snapshot fails with `disk quota exceeded`. The `SnapshotPolicy` has no `mover.cache.capacity`
-  (2Gi was enough). Set it before you take the snapshot.
+- Snapshot fails with `disk quota exceeded`: see the mover cache item in § Known quirks.
 - Snapshot deletion hangs. If the cleanup Job never starts, remove the
   `kopiur.home-operations.com/snapshot-cleanup` finalizer by hand.

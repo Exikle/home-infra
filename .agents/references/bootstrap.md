@@ -1,14 +1,14 @@
 # Bootstrap — Artemis
 
 This file tells you how to bring up a fresh Artemis cluster. The bootstrap task below is for
-Artemis only. To rebuild Frostlink, read `oci-rebuild.md`. This text moved out of `AGENTS.md` on
-2026-09-02, because you need it only when you bootstrap, not in every session.
+Artemis only. To rebuild Frostlink, read `oci-rebuild.md`.
 
 ---
 
 ## Order
 
-`mise run //kube/clusters/artemis/bootstrap:cluster` does the full bootstrap. It chains
+`mise run //kube/clusters/artemis/bootstrap:cluster` does the full bootstrap. It asks for
+confirmation before it starts, so a script must pass `--yes`. It chains
 `nodes → k8s → kubeconfig → base → apps → kubeconfig`. Before `base` starts, it waits on
 `api-ready` and `nodes-ready`.
 
@@ -28,20 +28,14 @@ templates look in `kube/clusters/<cluster>/apps/<ns>/<app>/app/` first, then in
 order as Flux. So a rebuild installs the versions and values that Flux runs. The `cni` task of
 Frostlink does the same for Cilium, CoreDNS and cert-manager.
 
-You do not have to apply the node configurations by hand first. That step was here because the
-`nodes` stage was broken. It took its list from `talosctl config info`, whose `.nodes` is one IP
-that a person set. It gave those IPs to `mise run //kube/clusters/artemis/talos:apply-node`, which
-takes a hostname. The list now comes from `kube/clusters/artemis/talos/nodes/*.yaml.j2`, control
-planes first (fixed 2026-09-10).
-
-The task is `mise run //kube/clusters/artemis/bootstrap:cluster`. It asks for confirmation before
-it starts.
+The `nodes` stage takes its node list from `kube/clusters/artemis/talos/nodes/*.yaml.j2`, control
+planes first. You do not apply the node configurations by hand before you run the task.
 
 There are two node lists, and you cannot use one in place of the other:
 
-- The fleet is `kube/clusters/artemis/talos/nodes/*.yaml.j2` (7 nodes, by hostname). Run
+- The fleet is `kube/clusters/artemis/talos/nodes/*.yaml.j2`, by hostname. Run
   `mise run //kube/clusters/artemis/bootstrap:node-list` to print it.
-- The control planes are `.endpoints` in `talosctl config info` (3 IPs).
+- The control planes are `.endpoints` in `talosctl config info`, by IP.
 
 `api-ready` polls `:6443/readyz` and must use the second list. Upstream onedr0p runs control
 planes only, so its loop goes over every node. A direct copy of that loop waits forever on a

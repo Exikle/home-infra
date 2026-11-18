@@ -21,7 +21,7 @@ Details of `edge-gateway`:
   `https-dcunha-apex` (`dcunha.io`). The last two use `dcunha-io-tls`. The listener table and the
   `sectionName: https` trap are in `towonel-agent.md` § Which gateway a route uses.
 - Artemis has no CrowdSec. The Envoy on frostlink terminates TLS for public traffic, and CrowdSec
-  on frostlink checks it before it reaches the backhaul (frostlink `crowdsec.md`). Nothing checks
+  on frostlink checks it before it reaches the backhaul (`crowdsec.md`). Nothing checks
   LAN traffic.
 - The `:80` listener `http` carries only the shared `https-redirect` route (301 to `https://`, path
   and query kept). LAN clients connect to `10.10.99.90:80`. The Envoy on frostlink redirects public
@@ -54,11 +54,8 @@ service uses `internal-gateway`. An app can carry two routes for two hostnames. 
 `silo-jf.dcunha.io`, a different port). Both are on `edge-gateway`. The towonel origin mapping is in
 `.agents/references/towonel-agent.md`. That file wins over this file on anything about towonel.
 
-Define routes inline in the HelmRelease values under `route.app:`. Do not use standalone HTTPRoute
-files. A few routes are older than the convention and still exist as files. Treat a new standalone
-file as a lint failure. `grep -rl 'kind: HTTPRoute' kubernetes --include='*.yaml' | grep -v helmrelease`
-finds them. The command also matches policy `targetRefs`, `components/` and the
-`external-endpoints` templates, so read each hit.
+Routes go inline under `route.app:`. `cluster-conventions.md` wins on that rule. The exceptions
+are in `app-structure.md` § Non-standard resource types.
 
 ### Gateway selection rules
 
@@ -124,7 +121,7 @@ By decision, SSH stays on the LAN and Headscale only. towonel routes TLS by SNI,
 public TCP port on the VPS. The team considered that and rejected it because of scanner noise and
 the port mismatch. Route `parentRefs` use `group: gateway.networking.k8s.io` and
 `kind: ListenerSet`. Do not use the old `gateway.networking.x-k8s.io` group. Its `xlistenersets`
-CRD (v1.4.1) is a leftover.
+CRD is a leftover.
 
 ### Do not rename `compression` to `compressor` on Envoy Gateway 1.9.x
 
@@ -144,7 +141,10 @@ curl -s localhost:19000/config_dump |   jq -r '.configs[].dynamic_listeners[]?.a
 On 1.9.1, compression no longer stops. But `compressor` loses zstd and ignores list order.
 `Accept-Encoding: zstd` alone gets nothing, and `zstd, br, gzip` gets `br`. Test with
 `curl -s -o /dev/null -D - -H "Accept-Encoding: zstd" https://<app>` against each gateway IP.
-Test again on the next minor release. The deprecation warning is the smaller problem.
+Artemis now runs a later minor
+(`grep tag: kube/clusters/artemis/apps/network/envoy-gateway/app/ocirepository.yaml`). No re-test
+on it is recorded. Until someone tests it with the commands above, keep `compression`. The
+deprecation warning is the smaller problem.
 
 ### Proxies roll all at once (`maxSurge: 100%`)
 
@@ -173,8 +173,8 @@ This has no relation to `network/envoy-gateway`. Cilium knows nothing about it.
 
 ## Cluster-Internal Traffic
 
-Pod-to-pod traffic uses `<app>.<namespace>.svc.cluster.local` or `<app>.<namespace>.svc`, never an external hostname (`AGENTS.md` rule 5).
-`AGENTS.md` rule 5 is the home for that rule, and it wins.
+Pod-to-pod traffic uses `<app>.<namespace>.svc.cluster.local` or `<app>.<namespace>.svc`, never
+an external hostname. `AGENTS.md` rule 5 is the home for that rule, and it wins.
 
 ## VLANs
 
@@ -183,12 +183,12 @@ Pod-to-pod traffic uses `<app>.<namespace>.svc.cluster.local` or `<app>.<namespa
 | 1001 | HME  | 10.10.1.0/24    | none                    | Trusted home                                               |
 | 1099 | LAB  | 10.10.99.0/24   | `2607:fea8:4e1f:3800::` | Servers, K8s nodes                                         |
 | 1152 | IOT  | 10.10.152.0/24  | `2607:fea8:4e1f:3801::` | IoT (reachable from worker pods)                           |
-| 1062 | CAM  | 10.10.62.0/24   | none                    | Cameras — frigate via the `cam` NAD                        |
+| 1062 | CAM  | 10.10.62.0/24   | none                    | Cameras, reached by frigate through the `cam` NAD          |
 | 1151 | GST  | 10.10.151.0/24  | none                    | Guest                                                      |
 | 1088 | TST  | 192.168.88.0/24 | none                    | Testing                                                    |
 | 1    | LAN  | 192.168.1.0/24  | none                    | Native/untagged on the UCG and CRS309 uplinks and pantheon |
 
-Not a VLAN: the WireGuard server `10.10.2.0/24` on the UCG (one peer, never connected). Wi-Fi:
+Not a VLAN: the WireGuard server `10.10.2.0/24` on the UCG. Wi-Fi:
 `SGxAP` → HME, `SGxGuest` → GST, `SGxIoT` → IOT.
 
 DNS: the UCG-Max at 10.10.99.1 serves LAN DNS. It answers the `*.dcunha.io` names that
@@ -217,9 +217,8 @@ through the VPS.
 ### Remote access — the UCG is the subnet router
 
 The tailnet is self-hosted Headscale on Frostlink (`headscale.frostlink.dev`). The UCG Max is the
-home subnet router, `tag:home-router`. It advertises LAB `10.10.99.0/24` and HME `10.10.1.0/24`. It
-no longer advertises the Artemis pod range `10.42.0.0/16`, a ClusterMesh leftover. Ansible manages
-it. See `ansible.md` § The UCG Max role.
+home subnet router, `tag:home-router`. It advertises LAB `10.10.99.0/24` and HME `10.10.1.0/24`.
+Ansible manages it. See `ansible.md` § The UCG Max role.
 
 Away from home, a Headscale device with subnet routes on reaches every LAB address and every
 `*.dcunha.io` gateway name. The split DNS of Headscale sends `dcunha.io` to `10.10.99.1`. This is
@@ -240,7 +239,7 @@ except:
 
 | Rule (description as shown in UniFi)                       | Effect                                                |
 | ---------------------------------------------------------- | ----------------------------------------------------- |
-| Block CAM VLAN from Internet / to Local Networks           | Cameras reach only frigate; NTP to Cloudflare allowed |
+| Block CAM VLAN from Internet / to Local Networks           | Cameras reach only frigate. NTP to Cloudflare allowed |
 | Block GST VLAN to Local Networks (IoT allowed for casting) | Guest reaches the internet and IOT only               |
 
 The guest rule leaves out IOT on purpose, so guests can cast to TVs and speakers. The mDNS
@@ -302,8 +301,10 @@ false statement. Both apply to any Cilium flag:
    routes for each endpoint to `lxc*` devices stay until each pod is recreated. Both paths work at
    the same time. The same asymmetry applies to `enableIPv4BIGTCP`.
 
-`rollOutCiliumPods: false` is set, so you roll the agents by hand. Do it one node at a time. Do not
-let `maxUnavailable: 2` take two control planes.
+`rollOutCiliumPods: false` is set, so you roll the agents by hand. The values do not set an update
+strategy for the agent DaemonSet, so it keeps the chart default `maxUnavailable: 2`. A
+`rollout restart` can then take two control planes at once. Delete the agent pods one node at a
+time instead.
 
 A trap in the counts: `cilium-dbg metrics list | grep 'Policy denied'` returns two rows,
 `cilium_drop_bytes_total` and `cilium_drop_count_total`. Read the count, not the bytes.
@@ -353,12 +354,7 @@ opts in with `PreferDualStack`/`RequireDualStack`.
   The node ULA is never an egress source, because nothing upstream routes `fd00::/8`.
 - Cilium does not change running pods. A pod that was created before the Cilium agent of its node
   restarted has no IPv6 until the pod restarts. The command below counts those pods.
-- CoreDNS Guard 2 still answers NODATA for every AAAA. One condition blocked narrowing it back to
-  `dcunha.io`: a pod without IPv6 that gets a real AAAA fails with `network is unreachable`. That
-  condition is met, because no running pod lacks IPv6. The manifest is unchanged
-  (`template ANY AAAA .`). The narrowing is tracked in
-  [#2364](https://git.dcunha.io/Exikle/home-infra/issues/2364). Before you narrow it, count again
-  with `kubectl get pods -A -o json | jq '[.items[] | select(.spec.hostNetwork != true and .status.phase == "Running" and (.status.podIPs | length) < 2)] | length'`.
+- CoreDNS still answers NODATA for every AAAA (§ CoreDNS, Guard 2).
 - IPv6 LoadBalancer IPs over BGP are not done. Cilium sends an IPv4 next hop for IPv6 routes on the
   existing sessions, and the UCG has no stable IPv6 to peer with.
 
@@ -428,8 +424,10 @@ manifest.
 kubernetes → autopath → template(ANY ANY dcunha.io) → template(ANY AAAA .) → forward
 ```
 
-Both templates must stay after `kubernetes`, and in this order relative to each other. If you change
-either position, you bring back the cluster-wide outage described below.
+The order of the two `template` blocks is load-bearing. Guard 1 must come before Guard 2 (see
+below). If you swap them, you bring back the cluster-wide outage described below. Their position
+relative to `kubernetes` and `forward` in the list does not matter. CoreDNS runs plugins in its
+compiled order, where `template` already runs before `kubernetes`.
 
 ### Guard 1 — `template ANY ANY dcunha.io`, NXDOMAIN for 2+ label names
 
@@ -452,21 +450,17 @@ The answer must be NXDOMAIN. A NODATA lets the walk through the search domains c
 The team deleted the Cloudflare wildcard that caused this on 2026-10-04, with the tunnel. So upstream
 now answers these names NXDOMAIN by itself. The guard is still in place.
 
-### Guard 2 — `template ANY AAAA dcunha.io`, NODATA for AAAA
-
-The internal split-horizon overrides only the A record, so a public AAAA passes through unchanged.
-The pod network cannot reach that address. Any client that tries it first fails with "network is
-unreachable". This happened at random times, across tasks and hosts that had no relation. NODATA
-(NOERROR, no answer, no fallthrough) means that callers only ever see the reachable IPv4. The
-`authority` SOA lets resolvers cache the NODATA, so they do not ask again on every lookup.
-
-The guard still covers any name that has a public AAAA.
-
 ### Guard 2 is unscoped — `template ANY AAAA .`
 
-Guard 2 matches `.`, which is every zone and not only `dcunha.io`. So every AAAA query gets NODATA.
-Pods dial IPv4 by name, as they did before dual-stack. Narrowing it is
-[#2364](https://git.dcunha.io/Exikle/home-infra/issues/2364).
+Guard 2 matches `.`, which is every zone and not only `dcunha.io`. So every AAAA query gets NODATA
+(NOERROR, no answer, no fallthrough). Pods only ever dial IPv4 by name, as they did before
+dual-stack. Narrowing it is [#2364](https://git.dcunha.io/Exikle/home-infra/issues/2364).
+
+The guard started for this reason. The internal split-horizon overrides only the A record, so a
+public AAAA passed through unchanged. A pod with no IPv6 had no route to that address, and any
+client that tried it first failed with "network is unreachable". This happened at random times,
+across tasks and hosts that had no relation. The `authority` SOA lets resolvers cache the NODATA,
+so they do not ask again on every lookup.
 
 Two constraints hold it in place:
 
@@ -479,9 +473,10 @@ Two constraints hold it in place:
   `kubectl get svc -A -o json | jq -r '.items[] | select(.spec.ipFamilyPolicy != "SingleStack") | "\(.metadata.namespace)/\(.metadata.name)"'`.
   The cluster is dual-stack now, so revert this first when you narrow Guard 2.
 
-This guard started as a workaround for pods that had no IPv6. The cluster is dual-stack now, and
-the condition that _Dual-stack_ set for narrowing it is met. Nothing about Matter blocks it. See
-_CoreDNS plays no part in Matter_.
+The condition for narrowing it is that every running pod has IPv6. Before you narrow it, count
+the pods that do not:
+`kubectl get pods -A -o json | jq '[.items[] | select(.spec.hostNetwork != true and .status.phase == "Running" and (.status.podIPs | length) < 2)] | length'`.
+Nothing about Matter blocks it. See _CoreDNS plays no part in Matter_.
 
 ### Verifying a CoreDNS change
 
@@ -638,10 +633,11 @@ Gateway replicas are not pinned. So the nodes that they land on change with ever
 Some pods need direct L2 access to IoT VLAN 1152, for example home-automation apps and Matter
 Server. Multus gives them a second interface, `net1`. The network attachment definition (NAD) is
 named `iot`, in `kube-system`.
-A second NAD, `cam` in `kube-system`, puts frigate on the camera VLAN 1062. Frigate runs on
-talos-cp-01. Its node selector is `node.kubernetes.io/gpu-tier: gen9`. It gets the HD 530 iGPU
-through a DRA (dynamic resource allocation) claim from the `frigate-igpu` ResourceClaimTemplate (`gpu.intel.com`, PCI ID
-`0x1912`). Since 2026-09-23 the CRS309 also trunks 1062 to pantheon, so a pantheon VM can host it.
+A second NAD, `cam` in `kube-system`, puts frigate on the camera VLAN 1062. Every node has a
+`bond0.1062` interface (`kube/clusters/artemis/talos/cluster.yaml.j2`), so frigate can run on any
+node that its GPU selector allows. Its node selector is `node.kubernetes.io/gpu-tier: gen9`. It
+gets the HD 530 iGPU through a DRA (dynamic resource allocation) claim from the `frigate-igpu`
+ResourceClaimTemplate (`gpu.intel.com`, PCI ID `0x1912`). See `gpu.md`.
 
 ### Annotation format
 
@@ -729,9 +725,9 @@ If this comes up again, follow this safe sequence:
    `kubectl exec -n home-automation deploy/home-assistant -c app -- ip -6 route show | grep default`
 2. Demote the router first (`ra-preference=low`). Make sure that clients moved. Only then set
    `ra-lifetime=0s`
-3. To drop the default route from the Talos hosts without touching pods, use the sysctl
-   `net.ipv6.conf.bond0/1152.accept_ra_defrtr=0`. macvlan children have their own netns and
-   `accept_ra`, so the sysctl cannot affect the Matter pods
+3. Leave the Talos hosts alone. They already ignore the RA default on 1152 and 1062
+   (`accept_ra_defrtr: "0"` in `kube/clusters/artemis/talos/cluster.yaml.j2`). macvlan children
+   have their own netns and `accept_ra`, so that sysctl does not affect the Matter pods
 
 ### CoreDNS plays no part in Matter
 
@@ -739,7 +735,3 @@ Matter/Thread discovery is mDNS over multicast (`ff02::fb`). It uses the resolve
 itself. The pods run `hosts: files dns` with no mDNS NSS module. The `fd00:10:10:152::/64` and
 Thread ULA ranges have no unicast DNS records in either direction. So CoreDNS changes cannot affect
 the Matter fabric, and Guard 2 does not need to stay wide for it.
-
-`fc00::/7` covers all ULA addresses, including any Thread mesh prefix. The more specific
-`fd00:10:10:152::/64` (IoT VLAN) takes precedence by itself. Only Thread ULA traffic goes through
-the TBR.

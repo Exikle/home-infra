@@ -24,9 +24,10 @@ between bursts, so a point sample looks like waste. Measure p95 over a week inst
 quantile_over_time(0.95, sum by (pod) (rate(container_cpu_usage_seconds_total{pod=~"<app>-[0-9a-f]{6,}-.*"}[5m]))[7d:10m])
 ```
 
-The p95 measurement showed that jellyfin and eco, which both request 1000m, use more than a full
-core. Jellyfin peaks near 11 cores during transcodes. They are under-requested, not
-over-requested. If you cut requests to unblock CI, you starve workloads that have honest requests.
+The p95 measurement showed that transcoding apps use more than a full core while they request
+1000m. Jellyfin (now `media/silo`) peaked near 11 cores during transcodes. Such apps are
+under-requested, not over-requested. If you cut requests to unblock CI, you starve workloads that
+have honest requests.
 
 The pod-name regex is important. kopiur backup Jobs are named `<app>-<timestamp>-<suffix>`. If you
 match on `<app>.*`, those Jobs fill the result set.
@@ -58,9 +59,8 @@ prevent that failure.
 
 Cordon adds the taint `node.kubernetes.io/unschedulable:NoSchedule`.
 `RemovePodsViolatingNodeTaints` treats that taint like any other taint. It evicts every pod that
-does not tolerate it. On 2026-09-02 it evicted 26 pods in one pass. One of them was the CNPG
-primary, so Postgres failed over. Nothing was lost. CNPG `instances: 2` worked, and the
-`postgres-rw` consumers did not notice. But a cordon that causes a mass restart is a trap.
+does not tolerate it. Without the exclusion below, one cordon evicted 26 pods, including the CNPG
+primary (#1927).
 
 The plugin now carries `excludedTaints: [node.kubernetes.io/unschedulable]`. This restores the
 documented cordon behaviour: it stops the scheduling of new pods and leaves running pods alone.

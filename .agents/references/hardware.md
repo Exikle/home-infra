@@ -23,13 +23,10 @@ sustained small sync writes. The average device write latency of `sda` was 61.3m
 against 1.9ms on cp-02/03. So the apiserver of cp-01 was about 7× slower on pod reads. This caused
 the cluster-wide Multus sandbox failures in #1956 / #2088. The QVO was not failing. It had no ATA
 errors, it was 8% full, and it was stable for months. It was the wrong class of drive for etcd,
-and no tuning could fix that.
+and no tuning made a difference. An etcd boot disk must be TLC with power-loss protection, never QLC.
 
 The power-loss-protection capacitors of the S4610 are what fix the problem. The drive
-acknowledges an fsync from its DRAM and does not wait for the NAND. After the swap, latency
-settled to about 3ms within half an hour of the rebuild, against 1.3ms on cp-02. At that time
-cp-01 was still pulling the images it needed again. So treat 3ms as a ceiling, not the steady
-state.
+acknowledges an fsync from its DRAM and does not wait for the NAND.
 
 cp-01 has the least disk headroom in the fleet: 240GB, against 500GB on cp-02/03. Kubelet image
 GC (85% threshold) keeps the usage under control, and images are most of the usage. You do not
@@ -74,19 +71,11 @@ The drives sit on an LSI SAS2116 HBA in IT mode, not on a Smart Array card. So t
 
 Rook-Ceph is gone. `AGENTS.md` § What was deliberately removed is the home for that, and it wins.
 
-For everything else about volumes (the NFS media mount, orphaned PVCs, the Prometheus WAL sizing),
-see `storage.md`.
+For everything else about volumes (the NFS media mount, orphaned PVCs), see `storage.md`.
 
 ## Known hardware and ops issues
 
 Eaton UPS: the batteries are dead. It gives no real protection. Treat the cluster as a cluster
 with no power backup.
 
-TrueNAS netdata metrics: automated since 2026-08-22, so this is no longer a manual task. A TrueNAS
-update replaces `/etc/netdata`. That silently removes the `[web]` bind that the VMStaticScrape
-`netdata-atlas` scrapes on `10.10.99.100:19999`. `ansible/roles/netdata_exporter` keeps the
-canonical configuration on a dataset (`/mnt/atlas/config/netdata/`). It also registers a POSTINIT
-init script, so the box repairs itself at boot. If the configuration drifts, run
-`mise run --yes //ansible:apply atlas` again. The team retired the graphite bridge
-(`truenas-exporter`). `ansible.md` § The netdata.conf chore has the current path, and the reason
-that `exporting.conf` belongs to the TrueNAS middleware.
+TrueNAS netdata scrape: `ansible.md` § The netdata.conf chore, solved properly.

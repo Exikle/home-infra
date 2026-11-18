@@ -59,19 +59,19 @@ The receiver accepts names, groups and results only, never URLs. A leaked token 
 results, but it cannot make Frostlink probe an address. Names must match `[A-Za-z0-9 ._-]`, so a
 name cannot inject a `${VAR}` into the Gatus configuration.
 
-If home stops pushing, `home.yaml` stays on the Frostlink PVC and every home check turns red. A
-test on 2026-11-17 (Artemis Gatus scaled to 0) turned all 57 red in 9 minutes. Gatus checks a
-heartbeat once for each interval, so the worst case is twice the interval. A 10 minute heartbeat
-took 20 minutes.
+If home stops pushing, `home.yaml` stays on the Frostlink PVC and every home check turns red.
+Gatus checks a heartbeat once for each interval, so a check turns red within about two heartbeat
+intervals. At 5 minutes that is about 10 minutes.
 
-Each of these facts cost a failed attempt:
+These are the Gatus configuration traps:
 
 - Gatus reads its configuration folder again every 30 seconds when a file changes. A reload
   restarts all monitoring. The first push after a new app appears gets `404` from Gatus for that
-  app. The receiver tries again on the next push. Frostlink sets `skip-invalid-config-update: true`,
-  so a bad `home.yaml` cannot crash Gatus at reload.
+  app. The receiver tries again on the next push. Both Gatus configurations set
+  `skip-invalid-config-update: true`, so a bad file cannot crash Gatus at reload.
 - Gatus does not reload when you delete a file from `/config`, because Gatus compares modification
-  times. The old `artemis-sidecar.yaml` stayed loaded until the next write of `home.yaml`.
+  times. A deleted file stays loaded until another file changes. To force a reload, change
+  another file.
 - Two files that define the same key make the configuration invalid. A check can move between a
   regular endpoint and a pushed one. Before it moves, remove the old file.
 - Gateway group names must be unique across both clusters. Two gateways with the group `external`
@@ -125,8 +125,3 @@ Gatus also has its own deviations:
   classes such as `dark:text-green-400`, and a `.dark .text-green-400` selector does not match them.
 - Secondary text in dark mode is `base0`. It measures 4.75:1 on the page, but only 3.7:1 on the
   `--muted` surface.
-
-## Alert plumbing on Frostlink
-
-Both facts that were here apply to both clusters. They are now in `observability.md` § Alert
-plumbing (both clusters).

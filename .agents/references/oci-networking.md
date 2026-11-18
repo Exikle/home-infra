@@ -2,10 +2,10 @@
 
 ## Gateway
 
-Frostlink has one gateway: `external-gateway` in the `network` namespace. There is no
-internal-gateway.
+`frostlink.md` § Ingress says which gateway Frostlink has, and it wins. This section holds the
+detail of `external-gateway`:
 
-- It is the front door. Artemis issue #3082 has the decision and the history. It owns the public 80
+- It is the front door. Issue #3082 has the decision and the history. It owns the public 80
   and 443 of the node. The Envoy Service is `ClusterIP` with `externalIPs: [10.0.0.203]` (the
   `envoyService.patch` in `envoy-gateway/app/envoy.yaml`). The kube-proxy replacement of Cilium
   serves that address. See _The front door_ below.
@@ -20,8 +20,7 @@ internal-gateway.
   `crowdsec.md`). `kube/clusters/frostlink/components/envoy/response-hardening` adds the response
   headers.
 
-Routes attach to `external-gateway` in `network`. They are defined inline in the HelmRelease
-values, under `route.app:` (`frostlink.md`).
+Where a route is defined: `frostlink.md` § Apps, which wins.
 
 ## DNS
 
@@ -37,13 +36,14 @@ named `external-dns-cloudflare`. Search for that name when you inspect the clust
 There is no `--cloudflare-proxied`. So every record is grey (DNS-only) and points at the node.
 
 The DNS target annotation on the gateway is `external-dns.kubernetes.io/target: external.frostlink.dev`.
-`DNSEndpoint/front-door` (`envoy-gateway/app/dnsendpoint.yaml`) makes `frostlink.dev` and
-`external.frostlink.dev` CNAMEs to `edge.frostlink.dev`. `edge.frostlink.dev` is a grey A record
-to the public IP of the node. To test it, run `dig +short frostlink.dev @1.1.1.1`. A Cloudflare
-address (`104.x` or `172.64.x`) means that a record went orange.
+`DNSEndpoint/front-door` (`envoy-gateway/app/dnsendpoint.yaml`) makes `external.frostlink.dev` a
+CNAME to `edge.frostlink.dev`. `edge.frostlink.dev` is a grey A record to the public IP of the
+node. To test it, run `dig +short frostlink.dev @1.1.1.1`. A Cloudflare address (`104.x` or
+`172.64.x`) means that a record went orange.
 
 The `frostlink.dev` apex record was made by hand in Cloudflare. It has no external-dns owner TXT
-record, so external-dns does not manage it. Change it in Cloudflare.
+record, so external-dns does not manage it. The `frostlink.dev` entry in `DNSEndpoint/front-door`
+has no effect for this reason. Change the apex in Cloudflare.
 
 A `target` annotation on one HTTPRoute does not override that. In the `gateway-httproute` source,
 the target comes from the _Gateway_, and external-dns ignores the annotation on the route. If a
@@ -51,23 +51,14 @@ record needs a different target, put it in a `DNSEndpoint`, and let the `crd` so
 grey with `providerSpecific` on the endpoint itself. external-dns ignores an annotation on the
 DNSEndpoint object.
 
-`status.dcunha.io` is a grey CNAME to `edge.frostlink.dev`. Artemis writes it
-(`cloudflare-dns/app/dnsendpoint.yaml`). The public `dcunha.io` records come from the `edge-dns` of
-Artemis, and they are also grey CNAMEs to `edge.frostlink.dev`.
+Artemis writes the public `dcunha.io` records and `status.dcunha.io`. All of them are grey CNAMEs
+to `edge.frostlink.dev`. `towonel-agent.md` § DNS has the detail, and it wins.
 
 ### The `frostlink.dev` zone is shared with Artemis
 
-Artemis runs a second external-dns (`external-dns-frostlink`) against this same zone, also with
-`policy: sync`. The two do not fight, because they differ in both the owner id and the TXT prefix:
-
-| Instance                            | `txt-owner-id` | `txt-prefix`                  |
-| ----------------------------------- | -------------- | ----------------------------- |
-| frostlink `external-dns-cloudflare` | `frostlink`    | `k8s.%{record_type}-`         |
-| Artemis `external-dns-frostlink`    | `artemis`      | `k8s.artemis.%{record_type}-` |
-
-The same prefix with different owner ids causes a loop. Each instance overwrites the registry TXT
-records of the other, and then deletes the entries of the other. Do not change either value on this
-side. `towonel-agent.md` § The collision guard on Artemis is the authority.
+Artemis also runs an external-dns (`external-dns-frostlink`, `policy: sync`) on this zone. Never
+change the `txt-owner-id` or the `txt-prefix` of this cluster. The reason and both values are in
+`towonel-agent.md` § The collision guard, which wins.
 
 Artemis removed its `*.frostlink.dev` wildcard on 2026-11-12
 (`dig +short zz-none.frostlink.dev @1.1.1.1` returns nothing). A new Frostlink app needs its own
@@ -148,25 +139,16 @@ detects, which is the 1280 of tailscale. `enp0s6` runs at 9000.
 Artemis is `id: 1`. Both values are left over from ClusterMesh (removed 2026-11-14), which needed
 them to be unique. They stay, because a change gives every endpoint a new identity for no gain.
 
-- Change the ID and the name together, never the ID alone. The name is a pod identity label
-  (`io.cilium.k8s.policy.cluster`). The ID is not. After an ID-only change, the existing
-  identities still match, and Cilium uses them again, with the old numbers. A restart of the
-  workloads does not help (Cilium maintainer, cilium/cilium#48801). A change of the name forces new
-  identities.
-- No reboot. Apply the values. Then restart `deploy/cilium-operator` and `ds/cilium` by hand
-  (`rollOutCiliumPods` is false). Every endpoint gets a new identity on the agent restart. Cilium
-  garbage-collects the old identities on its own.
-- Make sure that the range is correct. The identities of cluster N are `N*65536 … N*65536+65535`,
-  so cluster 2 is `131072–196607`. `cilium-dbg endpoint list -o json` shows the `identity.id` of
-  each endpoint.
+If you ever must change them, change the ID and the name together, never the ID alone. The name is
+a pod identity label (`io.cilium.k8s.policy.cluster`). The ID is not. After an ID-only change,
+Cilium uses the existing identities again, with the old numbers (cilium/cilium#48801).
 
 ## The front door
 
 The Cloudflare Tunnel is gone. Public traffic reaches the node directly, and Envoy takes it.
 
-- Envoy owns public 80 and 443. The towonel edge still binds host 443 and 80 (chart values). But a
-  BPF path sends that traffic to Envoy, so the edge no longer receives it. Moving the edge off
-  those ports is parked, because of the risk to the advertised address.
+- Envoy owns public 80 and 443. The towonel edge still binds host 443 and 80, but a BPF path sends
+  that traffic to Envoy (`towonel.md` § Ports, which wins).
 - Envoy serves the Frostlink apps with their own HTTPRoutes.
 - Home (Artemis) apps go over a private path. `towonel/home-backhaul` has the Services
   `artemis-backhaul` and `artemis-backhaul-apex`. Both point at the towonel pod on `:15001`. The
@@ -179,10 +161,8 @@ The Cloudflare Tunnel is gone. Public traffic reaches the node directly, and Env
 - When home is down: a BackendTrafficPolicy runs a TCP health check with a 3 s connect timeout. A
   502, 503 or 504 becomes the `home-down` ConfigMap page. Do not point the backhaul at the Artemis
   `internal-gateway`. `edge-gateway` is the list of public Artemis apps.
-- Real client IPs: the Artemis `ClientTrafficPolicy/edge` trusts `X-Forwarded-For` from the pod
-  CIDR of the agent. So its per-IP rate limits see real clients. Without it, every client shares one
-  limit. There is no PROXY protocol, no CrowdSec and no towonel hostname claim on Artemis now. For
-  the details, read the Artemis `.agents/references/towonel-agent.md`.
+- Real client IPs travel in `X-Forwarded-For`. The Artemis half (the header trust, no PROXY
+  protocol, no CrowdSec on Artemis) is in `towonel-agent.md` § What the agent does, which wins.
 
 ## Oracle Cloud VCN
 
@@ -200,15 +180,15 @@ These facts were compared against the OCI console.
       link. This public rule is the break-glass path when the tailnet is down. It is also the only
       way in during a rebuild (`oci-rebuild.md` § Rebuild order). If you close it, you remove
       both.
-    - `6443/tcp` is closed. You open it to your home /32 only for the length of a rebuild.
-    - `22/tcp`: dead weight. Talos runs no SSH daemon.
+    - `22/tcp`: to be deleted (#3082). Talos runs no SSH daemon, and the Talos firewall blocks
+      the port.
     - `icmp` 3,4 (path MTU) and `icmp` 3 from `10.0.0.0/16`.
 - Closed on purpose:
-    - `8443/tcp`: the towonel hub API is bound on the host, but it speaks plain HTTP. Clients reach
-      it through Envoy at `hub.frostlink.dev`. If you open this port, you expose the operator API
-      in cleartext.
+    - `8443/tcp`: the plain-HTTP towonel hub API. `towonel.md` § Why the hub API is not exposed
+      directly has the reason, and it wins.
     - `6443/tcp`: removed. `kubeconfig` uses `10.0.0.203` over the Headscale site link, so the
-      Kubernetes API never needed to be public.
+      Kubernetes API never needed to be public. During a rebuild only, you open it to your home
+      /32 (`oci-rebuild.md` § Rebuild order).
 - Security list egress: all allowed. Egress carries Tailscale, which starts its connections
   outbound and has no ingress rule of its own.
 
@@ -259,7 +239,7 @@ server. To list the live devices, run
 `kubectl --context frostlink -n network exec deploy/headscale -c app -- headscale nodes list`. The
 node is `tag:frostlink`, the UCG Max is `tag:home-router`, and the rest are the user `exikle`.
 
-The tailnet is for remote admin access (Artemis #3082). Public traffic never uses it. The policy
+The tailnet is for remote admin access (#3082). Public traffic never uses it. The policy
 was rewritten from scratch on 2026-11-14:
 
 - Your own devices (`autogroup:member`) reach each other (`autogroup:self`), both routers, HME,
@@ -280,7 +260,7 @@ stay shut.
 Before you commit a policy edit, test it with the own checker of Headscale. The running server can
 test a file without loading it. The image has no shell, so pipe the file in:
 `kubectl --context frostlink -n network exec -i deploy/headscale -c app -- headscale policy check -f /dev/stdin < policy.hujson`.
-The checker (0.29.7) has two traps:
+The checker has two traps:
 
 - A failing test blocks only `policy check` and a SIGHUP reload. A policy change reaches the pod as
   a ConfigMap update, and Reloader restarts Headscale. At startup, a failing test only logs a
@@ -298,8 +278,8 @@ names and the split domains. The global `1.1.1.1`/`9.9.9.9` are only a fallback.
 
 ### Split DNS
 
-`dns.nameservers.split` in the Headscale configuration sends `dcunha.io` to `10.10.99.1`, the UCG,
-the same as the SaaS tailnet did. That is how `*.dcunha.io` names resolve on a device away from
+`dns.nameservers.split` in the Headscale configuration sends `dcunha.io` to `10.10.99.1`, the UCG.
+That is how `*.dcunha.io` names resolve on a device away from
 home.
 
 - The dnsmasq of the UCG must listen on `tailscale0`. UniFi generates an `interface=` list of LAN

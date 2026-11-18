@@ -3,11 +3,11 @@
 The Renovate rules live in three places. `.renovaterc.json5` at the repo root has no prose on
 purpose. Every "why" below was once a comment block in that file.
 
-| Layer          | Where                                      | What it holds                                                                                                    |
-| -------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Shared default | `default.json` in `exikle/renovate-config` | The policy that every repo on git.dcunha.io shares                                                               |
-| Cluster preset | `cluster.json` in `exikle/renovate-config` | The rules that only Artemis and Frostlink share                                                                  |
-| This repo      | `.renovaterc.json5`                        | Artemis rules, plus Frostlink rules scoped to `kube/clusters/frostlink/**`. Its `packageRules` come last and win |
+| Layer          | Where                                      | What it holds                                                                                                                                       |
+| -------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared default | `default.json` in `exikle/renovate-config` | The policy that every repo on git.dcunha.io shares                                                                                                  |
+| Cluster preset | `cluster.json` in `exikle/renovate-config` | The rules that only Artemis and Frostlink share                                                                                                     |
+| This repo      | `.renovaterc.json5`                        | The schedule, the PR body, the manager scopes, and the Frostlink rules scoped to `kube/clusters/frostlink/**`. Its `packageRules` come last and win |
 
 The shared presets are at <https://git.dcunha.io/exikle/renovate-config>. Read `default.json` and
 `cluster.json` there for the rules themselves. This doc does not restate them. If the doc and the
@@ -23,18 +23,13 @@ repo.
 ## Preset Pinning
 
 ```json5
-extends: [
-  "local>exikle/renovate-config",
-  "local>exikle/renovate-config:cluster",
-  "github>home-operations/renovate-presets//apps/grafanaDashboards.json5#8.1.0",
-  "github>home-operations/renovate-presets//apps/searxng.json5#8.1.0",
-],
+extends: ["local>exikle/renovate-config", "local>exikle/renovate-config:cluster"],
 ```
 
-These pins now live in the shared preset, not here:
+This repo pins no upstream preset itself. The pins live in the shared preset:
 
 - The `renovate-presets` base pin, in `default.json`.
-- The `apps/` presets, in `cluster.json`.
+- Every `apps/` preset pin, in `cluster.json`.
 
 Bump them in the shared preset.
 
@@ -52,7 +47,7 @@ dependency updates ran at all.
 
 7.0.0 is the first release whose files are self-contained. Before you bump the
 `renovate-presets` pin to a new tag, make sure that the target tag has no self-references. This
-applies to the pin in the shared preset and to the `apps/` pins here.
+applies to the base pin in `default.json` and to the `apps/` pins in `cluster.json`.
 
 ```bash
 curl -sf "https://api.github.com/repos/home-operations/renovate-presets/git/trees/<TAG>?recursive=1" \
@@ -66,16 +61,10 @@ A silent stop looks the same as "no updates were due". Read the Renovate log, no
 
 ### Why the apps/ presets are listed individually
 
-6.0.0 made the `apps/` presets opt-in. The root preset no longer pulls them in. So you must list
-every app-specific manager or datasource that this repo depends on. If you drop one, nothing tells
-you. The custom manager stops extracting, and the dependency goes stale with no error.
-
-| Preset                    | What it feeds here                 | Listed in           |
-| ------------------------- | ---------------------------------- | ------------------- |
-| `cnpg.json5`              | `Cluster.spec.imageName`           | cluster preset      |
-| `grafanaDashboards.json5` | every `grafanadashboard.yaml`      | `.renovaterc.json5` |
-| `searxng.json5`           | searxng's sha-suffixed tags        | `.renovaterc.json5` |
-| `talosFactory.json5`      | `kube/clusters/artemis/talos/*.j2` | cluster preset      |
+6.0.0 made the `apps/` presets opt-in. The root preset no longer pulls them in. So the shared
+preset must list every app-specific manager or datasource that this repo depends on. If you drop
+one, nothing tells you. The custom manager stops extracting, and the dependency goes stale with no
+error. The list is the `extends` of `cluster.json` in `exikle/renovate-config`.
 
 ### 7.0.0 ➔ 8.0.0 — the helm-values narrowing
 
@@ -115,9 +104,9 @@ is important.
 
 ### Cilium — a bump restarts Multus on every node
 
-This is not a guard. It is a known side effect. A Cilium upgrade that changes the `cniVersion` of
-its CNI conflist restarts every `multus` pod. The pods exit with 0 / Completed, then come back
-clean.
+The `cilium` group in `cluster.json` never automerges, on both clusters. This section gives the
+reason. A Cilium upgrade that changes the `cniVersion` of its CNI conflist restarts every `multus`
+pod. The pods exit with 0 / Completed, then come back clean.
 
 The cause is upstream, not our configuration:
 
@@ -131,15 +120,15 @@ The cause is upstream, not our configuration:
 
 This is why the effect matters. `00-multus.conflist` is the first CNI configuration on every node.
 Multus is in the ADD path for every pod, with a NAD or without one. During the gap, pod creation
-fails across the whole cluster. Expect this on any Cilium bump that moves the CNI spec version. Do
-not merge one unattended.
+fails across the whole cluster. Expect this on any Cilium bump that moves the CNI spec version.
+Merge it only while you watch the nodes.
 
 ### Talos — never automerge
 
 The rule itself lives in `cluster.json`, and so does the rule for the Kubernetes group. This
 section gives the reason.
 
-A merged Talos bump makes tuppr drain and roll all seven nodes. So it is never unattended, for a
+A merged Talos bump makes tuppr drain and roll every node. So it is never unattended, for a
 stable release and for a prerelease. The team first wrote the guard while the cluster ran
 v1.14.0-rc.2 (2026-08-26). When `currentValue` is unstable, Renovate follows the prerelease
 stream. `factory.talos.dev/versions` lists betas and RCs. So without the guard, an `rc.3` merges itself.
@@ -182,21 +171,6 @@ these bumps must not automerge.
 
 The operator lags pocket-id by days to weeks on every minor, so this will happen again. Bump only
 after an operator release lists the target version as tested.
-
-### Eco — track only promoted `-beta` tags
-
-strangeloopgames publishes four tag streams against the same version:
-
-- The promoted build, `0.14.0.2-beta`.
-- The CI builds, `0.14.0.2-beta-release-1054` and `0.14.0.0-beta-staging-3328`.
-- `latest`.
-
-Docker versioning reads everything after the first `-` as a compatibility suffix. So a pin on a
-`-release-NNNN` tag has a suffix that no other tag shares. Renovate then crosses streams to
-satisfy it. That is how the pin went `0.14.0.1-beta-release-1052 ➔ 0.14.0.2-beta`.
-
-If you anchor the versioning regex on `-beta`, only the promoted builds stay visible. The fourth
-component maps to `build`, and Renovate ranks that as a patch-level bump.
 
 ### Python — hold below 3.15
 
@@ -249,8 +223,9 @@ v3.
 ## Grafana Dashboards
 
 Dashboard revisions are bare integers, so every bump reads as `major`. That is the shape of the
-datasource, not a breaking change. For this reason, `automerge: true` is set on
-`matchDatasources: ["custom.grafana-dashboards"]` + `matchUpdateTypes: ["major"]`.
+datasource, not a breaking change. For this reason, `cluster.json` sets `automerge: true` and
+`ignoreTests: true` on `matchDatasources: ["custom.grafana-dashboards"]` +
+`matchUpdateTypes: ["major"]`. `.renovaterc.json5` turns this off for Frostlink.
 
 This repo has no `automergeType` override. For why `branch` is not an option, read
 Commit Signing — Model A above.
@@ -275,12 +250,10 @@ reads the monthly PR.
 
 ## Grouping
 
-| Group           | Matches                                                                         | `minimumGroupSize` | Lives in       |
-| --------------- | ------------------------------------------------------------------------------- | ------------------ | -------------- |
-| `flux-operator` | `/flux-operator/`, `/flux-instance/`                                            | 2                  | cluster preset |
-| `kubernetes`    | `siderolabs/kubelet`, kube-apiserver/-controller-manager/-scheduler, kube-proxy | 2                  | cluster preset |
-| `cilium`        | `cilium/charts/cilium`, `charts-mirror/cilium`                                  | 2                  | this repo      |
-| `envoy-gateway` | `envoyproxy/gateway-helm`                                                       | none               | this repo      |
+Every shared group lives in `cluster.json` of `exikle/renovate-config`. To list them, run
+`git -C ~/renovate-config show origin/main:cluster.json | grep -n groupName`. The only local group
+is the Frostlink `cnpg` group in `.renovaterc.json5` (§ Frostlink). For `minimumGroupSize`, read
+the last paragraph of § Schedule and release age.
 
 ---
 
@@ -305,11 +278,11 @@ own pace gets its own job. The three jobs live in
 `kube/clusters/artemis/apps/kube-system/renovate-operator/jobs/`. They share the `default`
 RenovateJobTemplate, which holds the image, the provider, the secret and the webhook.
 
-| Job              | Repos                | Schedule (UTC)                      |
-| ---------------- | -------------------- | ----------------------------------- |
-| `infrastructure` | home-infra, dotfiles | every hour                          |
-| `containers`     | containers           | every 6 hours, at minute 30         |
-| `apps`           | every other repo     | Mondays, hourly from 04:15 to 10:15 |
+| Job              | Repos                                                                   | Schedule (UTC)                      |
+| ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
+| `infrastructure` | home-infra, dotfiles                                                    | every hour                          |
+| `containers`     | containers                                                              | every 6 hours, at minute 30         |
+| `apps`           | every other repo, except the ones that `renovatejob-apps.yaml` excludes | Mondays, hourly from 04:15 to 10:15 |
 
 The `apps` job runs only on Monday, because the `app` preset of `exikle/renovate-config` sets
 `schedule: ["before 6am on monday"]` (America/Toronto). Outside that window, Renovate does nothing
@@ -328,7 +301,10 @@ release timestamp. The default (`timestamp-required`) holds such an update pendi
 is why the Talos and Kubernetes PRs of Frostlink never opened (frostlink#345).
 
 Do not extend `home-operations/renovate-config`. That repo was deleted around 2026-10-30. The
-`type/*` labels that it gave now live in `default.json` of `exikle/renovate-config`.
+`type/*` labels that it gave now live in `default.json` of `exikle/renovate-config`. The
+label-based PR-review merge job that read those labels was retired on 2026-11-16 (forgejo-workflows
+commit `f27e27f`). kritika reviews PRs now (§ AI review on pull requests). `default.json` still
+names the old job in two descriptions.
 
 `minimumGroupSize: 2` does not raise a lone update as its own PR. Renovate holds it on the
 Dependency Dashboard under _Group Size Not Met_ until someone ticks its checkbox. `envoy-gateway`
@@ -348,7 +324,7 @@ This repo drops two of them.
 | `configDescription` | ~10 identical lines per PR: schedule, rebasing policy, how to ignore |
 | `footer`            | the Mend attribution line and its separator                          |
 
-At 30+ PRs/day, that boilerplate was most of the body. Two things replace it:
+That boilerplate was most of the body. Two things replace it:
 
 - A one-line verdict (`prHeader`).
 - A callout that appears only when something blocks the merge (`prBodyNotes`).
@@ -361,7 +337,8 @@ that it does not apply to. A body with no ⛔/⚠️ callout is a PR with nothin
 
 Each callout carries the rationale of its rule, not a generic warning. So the reason that a bump
 is held shows on the PR, and not only in this file. Every `automerge: false` guard above has a
-callout. So do cilium (which automerges but must not go in unattended) and any `isMajor` update.
+callout, the `cilium` group included. So does every major update, through the `⛔ Major` rule in
+`cluster.json`.
 
 ### Why the body cannot say "this automerges"
 
@@ -374,9 +351,9 @@ That is the whole reason for the inverted design. The `🚦 Automerge: Enabled/D
 Renovate lives inside `configDescription`, which the team dropped. The only honest signal left is
 the absence of a callout.
 
-`prBodyNotes` is `mergeable: true`. So the top-level entry and a matching `packageRules` entry
-concatenate, and one does not override the other. A major update to a guarded package gets both
-callouts.
+`prBodyNotes` is `mergeable: true`. So every matching `packageRules` entry adds its note, and one
+does not override the other. A major update to a held package gets both the `⛔ Major` note and the
+note of the hold.
 
 ### The verdict line
 
@@ -453,15 +430,9 @@ evidence.
 
 ## Merging a batch
 
-Renovate PRs auto-merge through squash. To trigger one PR by hand:
-
-```bash
-FORGEJO_TOKEN=$(op read 'op://infrastructure/forgejo/EXIKLE_CLI_TOKEN') && \
-curl -s -X POST "https://git.dcunha.io/api/v1/repos/exikle/home-infra/pulls/<PR_NUMBER>/merge" \
-  -H "Authorization: Bearer $FORGEJO_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"Do":"squash","merge_when_checks_succeed":true,"delete_branch_after_merge":true}'
-```
+Renovate PRs auto-merge through squash. To merge one PR or a batch by hand, use `fjo`, one PR at
+a time (the command is below). Do not use `merge_when_checks_succeed` (§ Never batch
+`merge_when_checks_succeed`).
 
 The squash lands as `title (#N)` on main, signed by git.dcunha.io Instance.
 
@@ -479,7 +450,7 @@ This flag has two more traps:
   PR only sits there and looks queued.
 - `merged=true` is not proof that the change reached `main`.
 
-For a batch, merge one PR after the other with `fjo`, and make sure that each one landed.
+Merge one PR after the other with `fjo`, and make sure that each one landed.
 `FORGEJO_HOST` and `FORGEJO_TOKEN` come from the mise env of the repo, so there is no `--login` to
 pass:
 
@@ -552,14 +523,14 @@ The two clusters share one `.renovaterc.json5`, and the mechanisms are similar. 
 differences are easy to copy wrongly. The rules of Frostlink are scoped to
 `kube/clusters/frostlink/**` (§ Frostlink below). These differences are intentional:
 
-|                            | Artemis                                                   | Frostlink                                                      |
-| -------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
-| Local `apps/` presets      | grafanaDashboards, searxng (cnpg and talosFactory shared) | phanpy (cnpg and talosFactory shared)                          |
-| Signing                    | shared `automergeType: "pr"`, no `platformCommit`         | the same: shared `automergeType: "pr"`, no `platformCommit`    |
-| `automergeType: "branch"`  | never used: it lands unsigned on main                     | never used, the same as Artemis                                |
-| Container-digest automerge | unscoped: every `docker` digest                           | scoped to `matchPackageNames: ["/home-operations/"]`           |
-| Talos automerge guard      | shared (`cluster.json`), datasource-agnostic              | same shared guard, plus a local 7-day `minimumReleaseAge` hold |
-| tuppr guard                | not needed (the Talos guard covers it)                    | `matchFileNames` + `minimumReleaseAge: "7 days"`               |
+|                            | Artemis                                      | Frostlink                                                      |
+| -------------------------- | -------------------------------------------- | -------------------------------------------------------------- |
+| Container-digest automerge | unscoped: every `docker` digest              | scoped to `matchPackageNames: ["/home-operations/"]`           |
+| Talos automerge guard      | shared (`cluster.json`), datasource-agnostic | same shared guard, plus a local 7-day `minimumReleaseAge` hold |
+| tuppr guard                | not needed (the Talos guard covers it)       | `matchFileNames` + `minimumReleaseAge: "7 days"`               |
+| Grafana dashboards         | automerge (`cluster.json`)                   | do not automerge                                               |
+| Update window              | `* 0-3 * * *`                                | at any time                                                    |
+| CNPG updates               | not grouped locally                          | one `cnpg` group, in a Saturday window (`* 4-6 * * 6`)         |
 
 Before you "harmonise" a row, read the rationale of both files for it.
 
@@ -587,27 +558,20 @@ only the reasons. The two cluster presets and the guards above apply to both clu
   is Talos's own pin, and it is not tied to the Kubernetes version.
 - Talos version in two places: `talosupgrade.yaml` and the talosctl pin. The package-level Talos
   rule keeps the CLI from drifting. The reason is that an old client rejects a newer configuration
-  document (`oci-talos.md` § Client version matters).
+  document (`oci-talos.md`, the client-version note at the top).
 - 0.x guard matters here. Most of the control plane is 0.x (flux-operator, kopiur, ksgate,
   dragonfly-operator, both victoria-metrics charts). Without the zer0ver guard, a 0.x minor merges
   unattended.
 - Container digests. Only trusted digests (`/home-operations/`) automerge. Other digests wait for a
   human.
-- Signing. Frostlink uses the same signing path as Artemis (§ Commit Signing — Model A). There is no
-  `platformCommit` and no branch automerge.
 - Update window. Frostlink updates at any time, not only in the Artemis window.
-- Groups. A group with one dependency never opens a PR ("Group Size Not Met"). So Cilium and Envoy
-  Gateway are not grouped. Cilium has its own never-automerge rule, because it is the CNI of a
-  single node. Envoy Gateway follows the normal rules. The CNPG group batches the updates that
-  roll the Postgres instances and move the primary, in a Saturday window. It does not prevent the
-  outage (`database.md` § Why clients must tolerate a primary change).
+- Groups. Cilium and Envoy Gateway use the shared groups of `cluster.json`. The `cilium` group has
+  `minimumGroupSize: 2`, so a lone Cilium chart bump waits on the Dependency Dashboard
+  (§ Schedule and release age). The local CNPG group batches the updates that roll the Postgres
+  instances and move the primary, in a Saturday window. It does not prevent the outage
+  (`database.md` § Why clients must tolerate a primary change).
 - Dashboards. Grafana dashboard updates do not automerge on Frostlink.
-- external-dns never automerges. v0.22.0 changed the default annotation prefix with no fallback,
-  and it deleted a whole zone on Frostlink.
-- helm-values is narrowed to `helmrelease.yaml` (preset 8.0.0). This has no effect while every
-  HelmRelease has that name. A HelmRelease under another file name loses `spec.values.image.*`
-  extraction, with no error.
+- external-dns never automerges, on both clusters (`cluster.json`). v0.22.0 changed the default
+  annotation prefix with no fallback, and it deleted a whole zone on Frostlink.
 - `# renovate:` marker in `talosupgrade.yaml`. It resolves through the talos-factory datasource
   (`talosFactory` preset). If you drop the preset, the marker stops resolving.
-- Lock files. There are none. There is no `.mise/mise.lock`, on purpose, so lock-file maintenance
-  does nothing here.

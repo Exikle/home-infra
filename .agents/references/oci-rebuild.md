@@ -5,7 +5,7 @@ anything on this page. Treat it as a disaster-recovery runbook. Before you run a
 `kube/clusters/frostlink/bootstrap/mise.toml` again (`mise tasks ls --all`). Do not trust the
 summaries here.
 
-## Two circles a rebuild has to break (frostlink#347)
+## Two circles a rebuild has to break
 
 1. The tailnet runs on Frostlink. The tailscale of the node logs into Headscale, and Headscale is a
    Frostlink app. So a rebuild reaches the node only over its public IP. The Talos API is on
@@ -64,9 +64,18 @@ Then do these steps in order:
 5. Delete the old frostlink node that the task prints (`headscale nodes delete -i <id>`). Make sure
    that the new node shows the route `10.0.0.203/32` as approved (`headscale nodes list-routes`).
    The policy approves it automatically for `tag:frostlink`.
-6. Switch to the site link. Run `kubectl config set-cluster frostlink --server=https://10.0.0.203:6443`
-   and `talosctl config endpoint 10.0.0.203`. phase2 wrote `kube/clusters/frostlink/talosconfig`
-   with the public IP. Make sure that both work.
+6. Switch to the site link. phase2 wrote `kube/clusters/frostlink/kubeconfig` and
+   `kube/clusters/frostlink/talosconfig` with the public IP. Run these three commands from the
+   repo root:
+
+    ```bash
+    kubectl --kubeconfig kube/clusters/frostlink/kubeconfig config set-cluster frostlink --server=https://10.0.0.203:6443
+    talosctl --talosconfig kube/clusters/frostlink/talosconfig config endpoint 10.0.0.203
+    talosctl --talosconfig kube/clusters/frostlink/talosconfig config node 10.0.0.203
+    ```
+
+    Make sure that both work.
+
 7. Remove the OCI 6443 rule. Leave 50000 open as the break-glass path.
 8. Apply the host firewall over the site link (`oci-talos.md` § Host ingress firewall). Do not
    apply it earlier. It blocks the public 6443 path that this rebuild used.
@@ -109,13 +118,9 @@ Flux pull secret needs no item. apoci serves pulls anonymously and ignores the c
 
 ## kube/clusters/frostlink/bootstrap/resources.yaml.j2
 
-This file creates the following secrets before Flux and ExternalSecrets run:
-
-- `external-secrets/onepassword-connect-credentials-secret`: the 1Password Connect credentials JSON
-- `external-secrets/onepassword-connect-vault-secret`: the 1Password Connect token
-- `flux-system/flux-system`: Forgejo HTTPS auth (username and password or token)
-- `network/cloudflare-tunnel-id-secret`: the Cloudflare tunnel ID. The tunnel is retired. This
-  secret and the `kube/clusters/frostlink/bootstrap/` steps that create it need a rewrite.
+This file creates the secrets that must exist before Flux and ExternalSecrets run. To list them,
+run `grep -n -e 'name:' -e 'namespace:' kube/clusters/frostlink/bootstrap/resources.yaml.j2`.
+`flux-system/flux-system` is a placeholder, not a Git credential (§ Flux flux-system Secret).
 
 `mise run //kube/clusters/frostlink/bootstrap:base` applies it. That task first creates every
 namespace under `kube/clusters/frostlink/apps/`. After that, it applies the CRDs from
@@ -128,21 +133,22 @@ namespace under `kube/clusters/frostlink/apps/`. After that, it applies the CRDs
 These three are not in `kube/clusters/frostlink/bootstrap/helmfile.d/01-apps.yaml`.
 `mise run //kube/clusters/frostlink/bootstrap:cni` installs all three directly with
 `helm upgrade --install`, one per iteration. `phase2` runs it between `base` and `apps`. The task
-reads `chart` and `version` from the `ocirepository.yaml` of each app, and `values` from its
-`helmrelease.yaml`. So the install at bootstrap always matches what is checked in. Nothing is
-hard-coded, so nothing goes stale.
+reads `chart` and `version` from the `ocirepository.yaml` of each app. It looks in the folder of
+this cluster first, then in `kube/base/`. It reads `values` from the `helmrelease.yaml` of the app,
+merged with `extras/values.yaml` if that file exists. So the install at bootstrap always matches
+what is checked in. Nothing is hard-coded, so nothing goes stale.
 
-The reason for not using helmfile: Talos pre-installs Cilium and CoreDNS with the field manager
+The reason for not using helmfile (not checked again since the typed-document migration, and it
+conflicts with the paragraph below): Talos pre-installs Cilium and CoreDNS with the field manager
 `helm-controller`. Helmfile v4 uses the same field manager. So if you apply both, you get SSA
 ownership conflicts. The `startupapicheck` Job of cert-manager conflicts too. Direct `helm` CLI
 calls use the default field manager (`helm`), so they do not collide. Never add
 `--cleanup-on-fail` to a helmfile release. On failure, it deletes cluster-scoped resources. It also
 leaves orphaned SSA ownership, which then conflicts on the next try.
 
-Talos never applies its own CNI, CoreDNS or kube-proxy manifests.
-`kube/clusters/frostlink/talos/patches/controlplane.yaml` disables them with typed documents
-(`KubeFlannelCNIConfig` `$patch: delete`, `KubeCoreDNSConfig` and `KubeProxyConfig`
-`enabled: false`). So there is nothing to clean up before Cilium and CoreDNS take over.
+Talos never applies its own CNI, CoreDNS or kube-proxy manifests (`oci-talos.md` § Multi-document
+format (Talos 1.14), which wins). So there is nothing to clean up before Cilium and CoreDNS take
+over.
 
 ## OCI DNS — CoreDNS Forward Target
 
@@ -166,18 +172,7 @@ The secret `flux-system/flux-system` is `Opaque`, with the keys `username` and `
 placeholder. apoci ignores it. Flux itself never authenticates to Forgejo. Anything that reaches
 Forgejo uses HTTPS, because SSH is not reachable from OCI.
 
-## Post-Bootstrap App Deployment Order
-
-Deploy the `network` namespace before any app that has an HTTPRoute. The route gets created, but
-traffic cannot flow until envoy-gateway runs. `dependsOn` does not encode this order. envoy-gateway
-depends only on cert-manager and onepassword-connect. So when Flux reconciles, follow the order by
-hand. This list needs a rewrite for the front door. The tunnel step is gone, and Envoy now owns the
-public 80 and 443 of the node (`oci-networking.md` § The front door).
-
-1. `cert-manager/clusterissuer`
-2. `network/envoy-gateway` (Envoy Gateway, GatewayClass, external-gateway)
-3. `network/certificates` (wildcard `frostlink.dev` / `*.frostlink.dev`)
-4. All other apps with HTTPRoutes, in any order
+## Cross-namespace dependsOn
 
 A cross-namespace `dependsOn` reference needs an explicit `namespace:` (`flux-patterns.md`
 § Cross-Namespace Kustomization Gotchas).

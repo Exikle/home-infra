@@ -22,9 +22,6 @@ SSD is on the onboard Intel C610 AHCI controller. It does not use a hot-swap bay
 | `vmpool`   | 2× mirror, 600GB 10K SAS | 1.09 TiB | Talos worker zvols + efidisks    |
 | `bulkpool` | RAIDZ1, 3× 2TB 7.2K SATA | 3.52 TiB | vzdump backups (`recordsize=1M`) |
 
-`hddpool` (RAIDZ1 of 3× worn ST500LM laptop drives) was destroyed on 2026-08-04. It caused
-repeated storage stalls in the Ceph era, and it is gone.
-
 Both pools use `ashift=12`, `compression=lz4`, `atime=off`, and WWN paths from
 `/dev/disk/by-id`. Never use `sdX` names. They change order across reboots and rescans.
 
@@ -115,12 +112,15 @@ errors follow the drive, the drive is bad. If the errors stay, the bay is bad.
 ZED posts to Alertmanager through `/etc/zfs/zed.d/statechange-alertmanager.sh`. That script is
 symlinked for `data`/`io`/`checksum`/`scrub_finish`/`resilver_finish`. The posts go to
 `https://alertmanager.dcunha.io/api/v2/alerts` over the internal gateway. Alerts carry
-`job=zed, instance=pantheon` and route to `chaski-critical`.
+`job=zed, instance=pantheon`. Alertmanager routes by `severity` only. So an alert reaches
+`chaski-critical` only if the zedlet also sets `severity=critical`. The zedlet is managed by hand
+on the host and is not in git.
 
 Outbound mail from pantheon is broken. Do not set anything to notify through `root` mail. That
 mail goes nowhere. This is why nobody saw a faulted drive before the bridge existed.
 
-Hot spares engage automatically on OpenZFS 2.4.x. The `zfs_retire` agent of ZED handles spares,
+Hot spares engage automatically on the OpenZFS that pantheon runs (`zfs version`). The
+`zfs_retire` agent of ZED handles spares,
 not a shell zedlet (`spare.sh` no longer exists). To add a spare, run
 `zpool add vmpool spare <wwn>`.
 
@@ -146,6 +146,10 @@ downtime).
 
 It keeps 30 copies. If it fails, it posts to Alertmanager through `alertmanager-notify@.service`.
 This protects against the loss of the single boot SSD, which is the realistic failure.
+
+Before the Sunday Forgejo self-update, `roles/pve_guest_snapshots` takes an `auto_*` ZFS snapshot
+of CT 105 at 02:55 UTC and keeps the newest 4 (`ansible.md` § The host updates itself — do not let
+the role fight it). These snapshots live on `vmpool`. They are not off-host.
 
 Off-host since 2026-10-10: `offsite-backup.timer` (`roles/offsite_backup`) copies all of
 `/bulkpool/backups` to `atlas:/mnt/atlas/backups/pantheon` nightly at 05:30, after the 02:00

@@ -55,7 +55,8 @@ names it.
 
 `count:` on the device plugin is not capacity accounting. It is the number of pods that can hold
 a slot, and nothing measures whether the card can keep up. Set it to what the GPU can sustain.
-Do not set a large number.
+Do not set a large number. To read the current value, run
+`grep -n count: kube/clusters/artemis/apps/kube-system/generic-device-plugin/app/daemonset.yaml`.
 
 ## Node affinity keys
 
@@ -162,11 +163,12 @@ Two things do not transfer from upstream repos:
    configuration exists for it.
 
 `ymir` is a 1U chassis, so the card cannot stand in the x16 slot. It must lie flat on a riser.
-The size fits: the ASRock A380 Challenger ITX is ~40mm thick, and the chassis has roughly 44mm
-of internal height. Fit is not the blocker.
+The ASRock A380 Challenger ITX is ~40mm thick. 1U is 44.45mm of external height, so the internal
+height is less, and the fit is marginal. Measure the internal height before you buy anything.
+The chassis, riser and 8-pin points are in `hardware.md` § Workers (metal).
 
-Before you decide on the move, check thermals and PSU power. The card cools with an axial fan
-that blows down onto its heatsink. If the card lies flat with a few millimetres of clearance,
+Before you decide on the move, make sure of the thermals and the PSU power. The card cools with
+an axial fan that blows down onto its heatsink. If the card lies flat with a few millimetres of clearance,
 the fan has no air to draw. 1U GPUs are normally passive blocks that the front-to-back airflow
 of the chassis cools. The card also takes an 8-pin PCIe connector, and 1U power supplies often
 do not have one.
@@ -190,5 +192,5 @@ While the Arc works on `i915`, there is no reason to do it.
 the node most likely to get `DiskPressure`. A node under `DiskPressure` carries a
 `node.kubernetes.io/disk-pressure:NoSchedule` taint. Any DaemonSet that does not tolerate the
 taint loses its pod. Any Helm release that waits for that DaemonSet to become Ready fails and
-rolls back. Before you move a workload onto a node, check the node conditions as well as the
+rolls back. Before you move a workload onto a node, read the node conditions as well as the
 hardware.

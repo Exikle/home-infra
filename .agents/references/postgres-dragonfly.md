@@ -1,9 +1,8 @@
 # Reference: Shared Postgres + Dragonfly — home-infra
 
 The cluster has one shared CNPG Postgres cluster and one shared Dragonfly. Both are in the
-`database` namespace. The base infra is live (Phase 0 complete 2026-07-02) and in production use.
-It is the default data layer for new apps. See `.agents/instructions/cluster-conventions.md`
-§ Deployment Philosophy.
+`database` namespace. They are the default data layer for new apps. See
+`.agents/instructions/cluster-conventions.md` § Deployment Philosophy.
 
 Shared Postgres cluster: every app that carries `components/postgres/app`, with `APP` set in the
 `postBuild` of its `ks.yaml`, is on it. This file has no roster on purpose, because the roster
@@ -11,19 +10,19 @@ changes with every onboarding. Run `grep -rln 'components/postgres' kube/cluster
 for the tree. Run `kubectl get database -n database --context artemis` for what actually reconciled.
 
 Shared Dragonfly: the index table further down is the authoritative list of which app uses which
-index. Index 3 is free. `litellm` claimed it but never set it, and agentgateway replaced LiteLLM on
-2026-10-26.
+index.
 
 Each further app migration is its own session. Use this doc when you do one.
 
 ## What's live
 
-- Cluster: `postgres` in `database`. It has `instances: 2` (HA, `primaryUpdateMethod:
-  switchover`). `.spec.imageName` is the live image. Renovate moves it, so do not trust a version
-  written here. The cluster loads VectorChord through `postgresql.extensions`, so vector-search
-  apps do not need a separate cluster fork. Here an image bump is a switchover. Clients see a short
-  break in the connection, not an outage. Frostlink also runs two instances, on its one node,
-  behind a pgbouncer Pooler. `database.md` wins for Frostlink.
+- Cluster: `postgres` in `database`. It has `instances: 2` (HA, `primaryUpdateMethod: switchover`).
+  Both instances run on nodes in zone `pantheon` (VMs on one Proxmox host), so a pantheon outage
+  takes both down. R2 is the copy that survives that. `.spec.imageName` is the live image. Renovate
+  moves it, so do not trust a version written here. The cluster loads VectorChord through
+  `postgresql.extensions`, so vector-search apps do not need a separate cluster fork. Here an image
+  bump is a switchover. Clients see a short break in the connection, not an outage. Frostlink also
+  runs two instances, on its one node, behind a pgbouncer Pooler. `database.md` wins for Frostlink.
 - No pooler. Apps connect straight to `postgres-rw` with a password over TLS. Do not add a
   pgbouncer back unless you can point at a measured problem with the connection count. The old
   `poolMode: session` pooler gave no multiplexing. Its `pg_ident` map also let the pooler cert
@@ -40,9 +39,8 @@ Each further app migration is its own session. Use this doc when you do one.
   `cert-manager`. trust-manager `Bundle`s with the same names (`postgres-server-ca`,
   `postgres-client-ca`) distribute them. Run `kubectl get bundle -A --context artemis` to list the
   Bundles. Each Bundle output is a cluster-wide Secret that holds only the public cert. Never
-  reflect the raw CA secrets (see Gotchas). Frostlink has its own Bundles (`postgres-client-ca`
-  and `root-ca`). Run `kubectl get bundle -A --context frostlink` to list them. `database.md` wins
-  for Frostlink.
+  reflect the raw CA secrets (see Gotchas). Frostlink has its own Bundles. To list them, run
+  `kubectl get bundle -A --context frostlink`. `database.md` wins for Frostlink.
 
 ## Onboarding an app onto shared Postgres
 
@@ -85,8 +83,8 @@ Each further app migration is its own session. Use this doc when you do one.
 
     You cannot test the first postgres app in a namespace with `apply-ks` on the app alone. The
     `tenants` ResourceSet is a resource of the namespace. It belongs to the root Kustomization
-    (`flux-system/flux-system`, path `./kube/clusters/<cluster>/apps`), not to the Kustomization of the
-    app. `mise run //kube/clusters/artemis:apply-ks <ns> <app>` renders only the app path. The
+    (`flux-system/flux-system`, path `./kube/clusters/<cluster>/apps`), not to the Kustomization of
+    the app. `mise run //kube/clusters/artemis:apply-ks <ns> <app>` renders only the app path. The
     result:
 
     - The ResourceSet never appears.
@@ -112,8 +110,7 @@ Each further app migration is its own session. Use this doc when you do one.
     Secret.
 
     Connect with the Secret, not the ConfigMap. The Secret and the ConfigMap have the same name.
-    A consumer that moves from the old cert component changes `configMapKeyRef` to `secretKeyRef`
-    and keeps `key: url`.
+    The ConfigMap holds only the libpq SSL env (`PGSSLMODE`, `PGSSLROOTCERT`).
 
     There are three DSN keys, because three drivers do not agree. Pick the key by driver:
 
@@ -220,6 +217,10 @@ mount.
 So a CR app declares its own mount. `security/pocket-id` (a `PocketIDInstance`) does. If an app
 does not have the mount, nothing tells you: `verify-full` has no CA to check against.
 
+A HelmRelease can also opt out of the gates and the mount. The patch skips any HelmRelease that
+carries the annotation `postgres.dcunha.io/skip-patch` (`annotationSelector` in
+`components/postgres/app/patch/kustomization.yaml`).
+
 ## Onboarding an app onto shared Dragonfly
 
 This is a config cutover only. It needs no data migration and no kustomize component. Dragonfly is
@@ -238,21 +239,24 @@ Dragonfly this way with no gates.
     that has not configured it yet exists nowhere else, so `grep` cannot find it. The table does
     not record key counts, on purpose. `redis-cli INFO keyspace` (below) gives them live.
 
-    | Index | App                                                              | Where the index is set                     |
-    | ----- | ---------------------------------------------------------------- | ------------------------------------------ |
-    | 0     | _(reserved, never assign)_                                       | —                                          |
-    | 1     | paperless                                                        | `PAPERLESS_REDIS` URL suffix `/1`          |
-    | 2     | immich                                                           | `REDIS_DBINDEX: "2"` (app + microservices) |
-    | 3     | _(free. The claim of litellm lapsed when it was removed)_        | —                                          |
-    | 4     | free. Was tekton-runner failover checkpoints, retired 2026-10-27 | —                                          |
-    | 5     | trawl (Cloudflare bypass session cache)                          | `REDIS_URL` suffix `/5`                    |
-    | 6     | silo                                                             | `REDIS_URL` suffix `/6`                    |
+    | Index | App                                     | Where the index is set                     |
+    | ----- | --------------------------------------- | ------------------------------------------ |
+    | 0     | _(reserved, never assign)_              | —                                          |
+    | 1     | paperless                               | `PAPERLESS_REDIS` URL suffix `/1`          |
+    | 2     | immich                                  | `REDIS_DBINDEX: "2"` (app + microservices) |
+    | 3     | _(free)_                                | —                                          |
+    | 4     | _(free)_                                | —                                          |
+    | 5     | trawl (Cloudflare bypass session cache) | `REDIS_URL` suffix `/5`                    |
+    | 6     | silo                                    | `REDIS_URL` suffix `/6`                    |
+
+    Index 3 was claimed by litellm, which never set it. Index 4 held tekton-runner checkpoints until
+    2026-10-27. Neither app exists now.
 
     Use the keyspace to make sure that an app uses its index. The manifest can be wrong, but the
     keyspace cannot:
 
     ```bash
-    kubectl -n database exec dragonfly-0 -c dragonfly -- redis-cli INFO keyspace
+    kubectl -n database exec dragonfly-0 -c dragonfly --context artemis -- redis-cli INFO keyspace
     ```
 
 2. Point the Redis or cache env of the app directly at
@@ -271,19 +275,9 @@ Dragonfly this way with no gates.
 
 ## R2 backup sizing — why the WAL settings are what they are
 
-The team audited this on 2026-08-05. The `artemis-kopiur` bucket then held 45.3 GiB in 13,481
-objects, and barman was its only consumer. Most of the space was WAL:
-
-| Prefix                     | Size     | Objects |
-| -------------------------- | -------- | ------- |
-| `barman/postgres` WAL      | 33.1 GiB | 11,242  |
-| `immich-pg18` base backups | 8.8 GiB  | 62      | ← now an orphaned prefix, see #1889 |
-| `barman/postgres` base     | 2.0 GiB  | 62      |
-| orphaned pre-pg18 prefixes | 1.2 GiB  | 251     |
-
-WAL, not base backups, was 73% of the bucket. The whole `postgres` cluster holds only about
-320 MB of actual data across all databases. It generated about 2.2 GiB of WAL per day. That is
-about 7× the entire database, every day.
+An audit on 2026-08-05 found that WAL, not base backups, was about 73% of the `artemis-kopiur`
+bucket. The whole `postgres` cluster holds only about 320 MB of actual data across all databases.
+It generated about 2.2 GiB of WAL per day. That is about 7× the entire database, every day.
 
 `pg_stat_wal` gave the cause. 942,903 full-page images made up about 90% of 7.36 GB of
 `wal_bytes`. Postgres writes a full 8 KiB page image the first time a page changes after each
@@ -312,9 +306,7 @@ RPO: R2 can now be up to 15 minutes stale. Local durability does not change. `po
 `instances: 2` with streaming replication, so R2 is the copy for when both nodes are lost. It is
 not the first line of recovery.
 
-Retention on both ObjectStores is `7d`. The base backups of Immich are about 291 MiB each and
-nearly the same from day to day, so retention is the only useful lever there. Its WAL is very
-small (182 MiB). For that reason it gets `archive_timeout` but not the checkpoint tuning.
+Retention on the `r2-store` ObjectStore is `7d`.
 
 ### Orphaned prefixes are never reclaimed by `retentionPolicy`
 
@@ -368,7 +360,7 @@ A per-app `Cluster` is not the default, and has not been since 2026-07-02. The o
 skill taught "one Cluster per app, never shared" with `username`/`password` ExternalSecrets. The
 shared cluster above replaces that policy. The team retired the skill on 2026-08-21.
 
-The fleet has exactly one CNPG `Cluster`. `kubectl get cluster -A` lists it. Read
+The fleet has exactly one CNPG `Cluster`. `kubectl get cluster -A --context artemis` lists it. Read
 `.spec.imageName` for the live version, because Renovate moves it. Storage is `40Gi` data + `8Gi`
 WAL, with the `r2-store` ObjectStore at `s3://artemis-kopiur/barman/`.
 
@@ -389,8 +381,8 @@ server becomes an orphan (see § Orphaned prefixes).
 
 This list is here because the next consolidation will look the same:
 
-- Create the extensions before the restore. `DATABASE_EXTENSIONS` in the component does not work
-  (see Gotchas), so run `CREATE EXTENSION` by hand on the new database. A dump loads index
+- Create the extensions before the restore. The tenants template has no `extensions` field (see
+  Gotchas), so run `CREATE EXTENSION` by hand on the new database. A dump loads index
   definitions that reference extension types. Without the extensions, the restore fails midway.
 - Use dump and restore, not logical replication. It rebuilds the vector indexes, which you want
   across a pgvector version change anyway.
@@ -432,7 +424,7 @@ shared cluster leaves its database behind, unless you drop it explicitly. Find t
 because it moves on switchover:
 
 ```bash
-kubectl get pods -n database -l cnpg.io/cluster=postgres,role=primary
+kubectl get pods -n database -l cnpg.io/cluster=postgres,role=primary --context artemis
 ```
 
 A hand-made `Backup` CR is a fifth, rarer case. A `ScheduledBackup` owns the Backups that it
@@ -455,7 +447,7 @@ commit. If you do, follow these rules:
 | Symptom                          | Cause                                                                        | Fix                                                                                                                                                                                                               |
 | -------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Pod stuck `Pending`              | `miroir` PVC not bound (WaitForFirstConsumer needs a consumer)               | Look at the miroir agent and CSI pods in `miroir-system`                                                                                                                                                          |
-| `role "<app>" does not exist`    | The `DatabaseRole` CR has not reconciled yet                                 | `kubectl -n database get databaserole <app> -o yaml`. Read `status.applied` and `status.message`                                                                                                                  |
+| `role "<app>" does not exist`    | The `DatabaseRole` CR has not reconciled yet                                 | `kubectl -n database get databaserole <app> --context artemis -o yaml`. Read `status.applied` and `status.message`                                                                                                |
 | `password authentication failed` | Stale or wrong `POSTGRES_PASSWORD` in the `<app>-postgres` secret of the app | Force-sync the ExternalSecret. Then run `mise run //kube/clusters/artemis:check-postgres <ns> <app>` to test the credential. It connects with the `url` DSN of the Secret, so it tests what the app actually uses |
 | WAL directory fills              | No separate `walStorage` volume                                              | Add `walStorage` and apply again                                                                                                                                                                                  |
 | Cluster stuck `Initializing`     | CRD not installed                                                            | `kubectl get crd clusters.postgresql.cnpg.io`                                                                                                                                                                     |
@@ -463,15 +455,15 @@ commit. If you do, follow these rules:
 
 ## Gotchas
 
-- `xbrowsersyncgo` runs as `PG_APP: signet`. Its database, role and `signet-postgres` secret keep the old app name, Signet. If you rename them, the app starts on an empty database.
-- `DATABASE_EXTENSIONS` in the component does not work. The `Database` CR template has
-  `extensions: ${DATABASE_EXTENSIONS:=[]}`, but you cannot pass a YAML list through the
-  substitution chain from the parent ks to the nested ks. The envsubst of Flux works on text. The
-  flow-list string parses again as a real YAML list inside `postBuild.substitute`, which must hold
-  strings. Quoted and block-scalar forms are normalized away too. Instead, run `CREATE EXTENSION`
-  once as superuser on the database of the app, right after the `Database` CR applies. Extensions
-  persist, and barman backups are physical, so the extensions survive restores. (This happened
-  with streamystats: `pg_trgm`, `uuid-ossp`, `vector`.)
+- `xbrowsersyncgo` runs as `PG_APP: signet`. Its database, role and `signet-postgres` secret keep
+  the old app name, Signet. If you rename them, the app starts on an empty database.
+- The `Database` template of the `postgres-tenants` ResourceSet has no `extensions` field, so the
+  component cannot create extensions. Use one of two ways:
+    - Run `CREATE EXTENSION` once as superuser on the database of the app, right after the
+      `Database` CR applies. Extensions persist, and barman backups are physical, so the
+      extensions survive restores.
+    - Own a `Database` CR with `spec.extensions`, as `kritika` does
+      (`kube/clusters/artemis/apps/kritika/kritika/database/database.yaml`).
 - Do not remove old-DB keys from the ExternalSecret of the app in the same cutover apply. If the
   new pods do not go ready, helm-controller rolls back to the previous release. The pods of that
   release still use `envFrom` on the secret. With the old `DATABASE_URL` and password gone, the
@@ -480,11 +472,11 @@ commit. If you do, follow these rules:
   patch the _secret_ directly, because ESO reverts drift on owned secrets within seconds. If you
   need a temporary shim, patch the ExternalSecret spec.
 
-- All apps share one Dragonfly memory budget (`limits.memory: 512Mi` today). There is no per-app
+- All apps share one Dragonfly memory budget (`resources.limits.memory` in
+  `kube/clusters/artemis/apps/database/dragonfly/cluster/dragonfly.yaml`). There is no per-app
   quota. A DB index only prevents key collisions. It does not stop one app from evicting the keys
   of another. If the working set of one app fills the cache, Dragonfly can evict keys from the DB
-  index of any other app. When more than one or two apps are actually onboarded, look again at
-  `resources.limits.memory` in `kube/clusters/artemis/apps/database/dragonfly/cluster/dragonfly.yaml`.
+  index of any other app.
 - Never reflect a cert-manager `isCA: true` secret cluster-wide. It contains `tls.key`, the
   private signing key of the CA, beside `ca.crt`/`tls.crt`. Distribute only the public cert,
   through a trust-manager `Bundle` that copies `tls.crt` into a secret that holds only `ca.crt`.

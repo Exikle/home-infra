@@ -1,9 +1,9 @@
 # CrowdSec — the front door's only CrowdSec
 
 CrowdSec on frostlink checks every public request that reaches the Envoy of frostlink, for both
-domains. Under the Shape 1 front door (Artemis issue #3082), this is the only CrowdSec. Artemis
-runs none. Home boxes sit behind the towonel backhaul (`towonel.md`), so their traffic is checked
-here before it leaves frostlink. LAN traffic at home never goes through it.
+domains. This is the only CrowdSec. Artemis runs none (`towonel-agent.md`). Home boxes sit behind
+the towonel backhaul (`towonel.md`), so their traffic is checked here before it leaves frostlink.
+LAN traffic at home never goes through it.
 
 It does three jobs:
 
@@ -12,7 +12,9 @@ It does three jobs:
   only local bans come from AppSec scenarios (see § Check it after a change).
 - Bot challenge. AppSec makes a browser solve a proof-of-work check before it reaches a site.
   Clients without JavaScript (curl, apps, federation) also get the challenge page, unless a rule
-  exempts them. CrowdSec calls this bot detection. It is alpha in CrowdSec 1.8.
+  exempts them. CrowdSec calls this bot detection, and it marks the feature alpha. Before a
+  CrowdSec bump, read the release notes for the new tag. To see the running tag, run
+  `grep tag: kube/clusters/frostlink/apps/security/crowdsec/app/helmrelease.yaml`.
 - Scrape block. One in-band rule, `frostlink/forgejo-anon-label-scrape`, blocks Forgejo issue,
   pull and milestone lists that filter on two or more labels. It lives in `appsec.rules` in
   `app/helmrelease.yaml`, and the `frostlink/appsec-bot-challenge` config loads it.
@@ -33,22 +35,22 @@ component. The filter does not cover two listeners. The `http` listener only sen
 
 ## What is never challenged
 
-The overlay holds our exemptions, one rule for each kind of client. The vendored
-`crowdsecurity/appsec-bot-challenge-exclude-*` configs in `appsec_configs` add more exemptions
-(for example search engines, feeds and monitoring). Read both there, not here. Our kinds:
+The overlay holds our exemptions. Each rule carries a label in `ExemptFromChallenge("<label>")`.
+To list every rule and its hosts, run
+`grep -n ExemptFromChallenge kube/clusters/frostlink/apps/security/crowdsec/app/helmrelease.yaml`.
+The vendored `crowdsecurity/appsec-bot-challenge-exclude-*` configs in `appsec_configs` add more
+exemptions (for example search engines, feeds and monitoring). Read both there, not here.
 
-- Any host: ActivityPub (`activity+json` or `ld+json` in `Accept` or `Content-Type`), signed
-  requests (`Signature: keyId=`), and the `Gatus/` user agent.
-- Whole hosts that have only machine clients: the towonel hub, Matrix, atuin, flux-webhook,
-  kromgo (both domains), Jellyfin and xBrowserSync.
-- Machine paths on browser hosts:
-    - Registry `/v2/` and `/ap/`.
-    - Git smart-HTTP, LFS, API and Actions.
-    - OIDC on pocket-id.
-    - On books: OPDS, KOReader, `/api/` and the `POST /login` of the Audiobookshelf-style API.
-    - The `/api/` of the phone-app services.
-    - The service routes of GoToSocial.
-    - `/.well-known/` on both apex domains.
+Our rules fall into three kinds. Each kind exists because its clients cannot solve the challenge:
+
+- Any host: requests that carry a machine marker. These are ActivityPub content types, signed
+  requests and the `Gatus/` user agent. Federation and the status checks send them.
+- Whole hosts: hosts whose clients are all machines, such as the towonel hub, Matrix and the
+  Jellyfin-compatible API of silo. `id.dcunha.io` is also exempt as a whole host, because apps
+  call the OIDC endpoints of Pocket-ID directly.
+- Machine paths on browser hosts: the protocol paths of a site that a person also opens in a
+  browser. Examples are the registry and Git paths, e-reader sync on books, the API of the
+  phone-app services, the status API and `/.well-known/` on both apex domains.
 
 The hub must stay exempt. The towonel agents refresh their credentials through it. If the hub is
 challenged or blocked, every home backhaul fails when those credentials expire.
@@ -59,7 +61,7 @@ challenged or blocked, every home backhaul fails when those credentials expire.
   `appsec-bot-challenge-warn-experimental`. `appsec-default` needs out-of-band rules that are not
   installed. Either one stops the AppSec pod with `no appsec-rules found`.
 - The init container of the AppSec pod has a 50Mi memory limit in the chart. It hits the limit
-  and spins forever. A `postRenderers` patch raises the limit.
+  and spins forever. A `postRenderers` patch in `app/helmrelease.yaml` raises the limit to 256Mi.
 - The `sha256` field of the policy is the checksum of the WASM module, not of the image. Apply
   with a wrong value. Then read the right one from `.status.ancestors[].conditions[]`.
 - `failOpen` is on, for both the filter and AppSec. If CrowdSec is down, the sites stay up without
@@ -73,7 +75,7 @@ challenged or blocked, every home backhaul fails when those credentials expire.
 
 Keep a test run to a few requests. On 2026-11-14, about 70 curl requests from home tripped the
 `crowdsecurity/appsec-bot-challenge-too-many-requests` scenario. CrowdSec banned the home public
-IP for about 3 hours.
+IP for about 3 hours. To lift such a ban, run `cscli decisions delete --ip <ip>` on the LAPI.
 
 1. Request `https://social.frostlink.dev/` with a browser user agent. You must get the page
    titled `CrowdSec Challenge`.

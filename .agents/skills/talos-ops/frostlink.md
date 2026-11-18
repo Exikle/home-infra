@@ -38,7 +38,7 @@ machine configuration. Never `apply-config` it, because that strands the node (`
 
 Both tasks refuse any file under `kube/clusters/frostlink/talos/patches/`. Do not run
 `talosctl patch` or `talosctl apply-config` directly. The guard blocks the patch verb. How to remove
-a field, and the certSANs delta, are in `oci-talos.md` § CRITICAL and § certSANs minimal patch.
+a field is in `oci-talos.md` § CRITICAL.
 
 ## Extension or schematic change
 

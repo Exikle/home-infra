@@ -23,7 +23,8 @@ Software cannot fix this. Two real options exist:
 
 1. Enable the onboard NICs again in BIOS and build an `active-backup` bond. The bond drops hard
    to 1G, and the change needs host downtime.
-2. Accept the risk, and make sure that no miroir replica pair lands on two pantheon VMs.
+2. Accept the risk, and make sure that no miroir replica pair lands on two pantheon VMs
+   (`pantheon-zfs.md` has the failure-domain trap, and it wins).
 
 ---
 
@@ -119,16 +120,15 @@ VLAN filtering. That was an early guess, and it is wrong.
 
 ## `bridge-vids` carried three VLANs that do not exist
 
-`vmbr0` allowed `1001,1002,1088,1099,1151,1152,1153,1154`. The `networkconf` API of the UniFi
-controller returns only 99, 1001, 1062, 1088, 1099, 1151, 1152. So 1002, 1153 and 1154 exist
-nowhere on the network. They were trimmed on 2026-09-17, first to `1099,1152` and then to
-`1062,1099,1152` after the CAM VLAN was trunked through to the VMs (below).
+`vmbr0` allowed `1001,1002,1088,1099,1151,1152,1153,1154`. 1002, 1153 and 1154 exist nowhere on
+the network. They were trimmed on 2026-09-17, first to `1099,1152` and then to `1062,1099,1152`
+after the CAM VLAN was trunked through to the VMs (below).
 
-To read the authoritative list again, run:
+The UniFi networks are in tofu. To list every VLAN that exists, run this command. VLAN 99 is the
+untagged default network, so it is not in the output.
 
 ```bash
-curl -sk -H "X-API-KEY: $(op read op://artemis/unifi/UNIFI_API_KEY)" \
-  https://10.10.99.1/proxy/network/api/s/default/rest/networkconf
+grep -hE '^\s+vlan\s+=' terraform/stacks/unifi/*.tf
 ```
 
 ### VLAN 1062 (CAM) is trunked to the pantheon VMs
@@ -164,12 +164,10 @@ host:
   quiet VLAN with mostly unicast traffic. Nothing floods to a guest that has not sent an ARP
   onto it yet. Test with a real `cam`-attached pod and a ping, not with interface counters.
 
-Correction (2026-09-23): the switch-side change was needed, and it was made late. pantheon is
-on the CRS309's `sfp-sfpplus8`, not directly on the UCG. Its MAC is learned there, and UCG
-port 3 is the CRS309 uplink. Until 2026-09-23, that port did not carry 1062, so camera traffic
-never reached `vmbr0`. frigate worked only because it ran on a bare-metal node, not on a
-pantheon VM. `sfp-sfpplus8` is now a full trunk that includes 1062 (tofu stack `mikrotik`). The
-paragraph below assumes this.
+The switch side must carry the VLAN too. pantheon is on the CRS309's `sfp-sfpplus8`, not directly
+on the UCG, and UCG port 3 is the CRS309 uplink. `sfp-sfpplus8` must carry every VLAN that the VMs
+trunk, 1062 included (tofu stack `mikrotik`, `routeros_interface_bridge_vlan.passthrough`). Without
+it, camera traffic never reaches `vmbr0`. The paragraph below assumes this.
 
 The cost is that camera broadcast and multicast traffic now enters `vmbr0` and floods to the VM
 taps. If that shows up as load, remove 1062 from the taps that do not need it. Do not remove it
@@ -200,23 +198,27 @@ rules and no per-guest rules. So the `fwbr`/`fwpr`/`fwln` triple bridge hop give
 
 ## Re-running the harness
 
+A human runs this harness, with the go-ahead of the user. It is not for agents. It creates pods
+outside git (`AGENTS.md` rules 1 and 2).
+
 ```bash
-kubectl run iperf-server-2204 --image=docker.io/networkstatic/iperf3:latest \
+kubectl run iperf-server-2204 --context artemis --image=docker.io/networkstatic/iperf3:latest \
   --restart=Never --overrides='{"spec":{"nodeName":"talos-gpu-01"}}' -- -s
-kubectl run iperf-client-2204 --image=docker.io/networkstatic/iperf3:latest \
+kubectl run iperf-client-2204 --context artemis --image=docker.io/networkstatic/iperf3:latest \
   --restart=Never --command --overrides='{"spec":{"nodeName":"ymir"}}' -- sleep 7200
-kubectl exec iperf-client-2204 -- iperf3 -c <server-pod-ip> -u -l 200 -b 522M -t 20
+kubectl exec iperf-client-2204 --context artemis -- iperf3 -c <server-pod-ip> -u -l 200 -b 522M -t 20
+kubectl delete pod iperf-server-2204 iperf-client-2204 --context artemis
 ```
 
 Each of these traps cost a run to find:
 
-- `.claude/hooks/guard-destructive.sh` hard-blocks `kubectl apply`. It does not block
-  `kubectl run`. The `default` namespace enforces `privileged`, so no securityContext is needed.
+- The pods go in `default`, which enforces PodSecurity `privileged`. So no securityContext is
+  needed. When you are done, delete both pods (the last command above).
 - Leave at least 8 seconds between runs. If you run `iperf3` back to back against one server,
   every run after the first fails at once, and a truncated capture hides the error.
 - Do not use the loss percentage of iperf3 as a host metric. At 125k pps it reports ~10% loss
-  while the host tap drops nothing. So a second loss mechanism exists further along: the guest
-  virtio ring, or the single-threaded UDP receiver of iperf3. The `tx_dropped` counter of
+  while the host tap drops nothing. That loss is the socket receive buffer of the receiving pod
+  (§ Where the loss actually goes, once the tap stops dropping). The `tx_dropped` counter of
   `tap104i0` is the host-side ground truth.
 - `ip link set txqueuelen` resizes a live tun `ptr_ring`, because tun handles
   `NETDEV_CHANGE_TX_QUEUE_LEN`. So a sweep needs no VM restart.

@@ -1,11 +1,14 @@
 # Identity Stack — lldap → Pocket-ID → tinyauth
 
 This file explains how the parts of the identity chain of this cluster fit together. It also tells
-you which auth mechanism to use. The facts were checked against the live cluster on 2026-08-24.
+you which auth mechanism to use.
 
 This file records no versions. Renovate changes them often, and a version string in prose is stale
 within a week. Read the tags off the manifests:
-`grep -E 'tag:|image:' kube/clusters/artemis/apps/security/{tinyauth,lldap}/app/helmrelease.yaml kube/clusters/artemis/apps/security/pocket-id/instance/pocketidinstance.yaml kube/clusters/artemis/apps/security/pocket-id/operator/ocirepository.yaml`.
+
+```bash
+grep -E 'tag:|image:' kube/clusters/artemis/apps/security/{tinyauth,lldap}/app/helmrelease.yaml kube/clusters/artemis/apps/security/pocket-id/instance/pocketidinstance.yaml kube/clusters/artemis/apps/security/pocket-id/operator/ocirepository.yaml
+```
 
 ## The chain
 
@@ -24,15 +27,15 @@ Three consumers exist. You must know which one an app uses:
 
 | Mechanism                       | Who is on it                                                                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Native `PocketIDOIDCClient`     | No roster here, because it changes. `kubectl get pocketidoidcclient -A`                                                              |
+| Native `PocketIDOIDCClient`     | No roster here, because it changes. `kubectl get pocketidoidcclient -A --context artemis`                                            |
 | `components/tinyauth` edge gate | No roster here, because it changes. `grep -rln 'components/tinyauth' kube/clusters/artemis/apps/`, or the ground-truth command below |
 | tinyauth's own OIDC provider    | Immich (see § tinyauth is also an OIDC provider)                                                                                     |
 
-`kubectl get pocketidoidcclient -A` is the ground truth for the first row. For the second row, run
-this command and keep only the rows whose `HTTP` column is `tinyauth`:
+`kubectl get pocketidoidcclient -A --context artemis` is the ground truth for the first row. For the
+second row, run this command and keep only the rows whose `HTTP` column is `tinyauth`:
 
 ```bash
-kubectl get securitypolicy -A -o 'custom-columns=NS:.metadata.namespace,NAME:.metadata.name,HTTP:.spec.extAuth.http.backendRefs[0].name'
+kubectl get securitypolicy -A --context artemis -o 'custom-columns=NS:.metadata.namespace,NAME:.metadata.name,HTTP:.spec.extAuth.http.backendRefs[0].name'
 ```
 
 `cortex/agentgateway` is a CORS policy. The `*-oidc` policies come from `components/envoy-oidc`.
@@ -55,10 +58,11 @@ tinyauth checks directly against lldap. Both paths use the same directory and th
 (`aclerici38/pocket-id-operator`) owns the Deployment, the Service and the HTTPRoute directly. It is
 not an app-template HelmRelease.
 
-Pocket-ID uses the shared CNPG cluster for Postgres, with cert-manager mTLS. The pod mounts
-`postgres-pocket-id-cert` and `postgres-server-ca` through `spec.podTemplate.spec.volumes` and
-`persistence.extraVolumeMounts`. The operator does not know this pattern, so you must copy it by
-hand.
+Pocket-ID uses the shared CNPG cluster for Postgres, with the password DSN of the component
+(Secret `pocket-id-postgres`, key `url`). The pod mounts `postgres-server-ca` by hand, through
+`spec.podTemplate.spec.volumes` and `persistence.extraVolumeMounts`. The component cannot patch a
+CR-based app (`postgres-dragonfly.md` § CR-based apps get the Database CR, but not the pod patch,
+which wins).
 
 Always pin `spec.image` explicitly. The default image of the operator can be older than the schema
 that your database already migrated to. Pocket-ID refuses to start when the schema is newer than
@@ -79,20 +83,21 @@ Read these live instance settings before you change anything:
 | `ldap.adminGroupName`    | `lldap_admin`                           | a member of this group is a Pocket-ID admin                  |
 | `metrics.enabled` / port | `true` / `9464`                         | the `pocket-id` ServiceMonitor in `instance/` scrapes it     |
 
-`security/pocket-id/operator/` ships its own alert rules and a ServiceMonitor. The rules include
-`PocketIDOIDCClientRotationFailing` and `PocketIDOIDCClientRotationOverdue`. So a failed rotation of
-a client secret sends an alert.
+`security/pocket-id/operator/` ships its own alert rules, including
+`PocketIDOIDCClientRotationFailing` and `PocketIDOIDCClientRotationOverdue`. They fire only because
+its HelmRelease turns on metrics and the ServiceMonitor. `observability.md` § The `security` hole
+has the reason, and it wins.
 
 ### Groups: the CR name is not the group name
 
 Three `PocketIDUserGroup` CRs exist. The `metadata.name` of each one is different from the
 `spec.name` that apps match on:
 
-| CR name (`kubectl get pocketidusergroup -n security`) | `spec.name` (what goes in the group list of an app) |
-| ----------------------------------------------------- | --------------------------------------------------- |
-| `app-admin`                                           | `app_admin`                                         |
-| `app-ops`                                             | `app_ops`                                           |
-| `app-users`                                           | `app_users`                                         |
+| CR name (`kubectl get pocketidusergroup -n security --context artemis`) | `spec.name` (what goes in the group list of an app) |
+| ----------------------------------------------------------------------- | --------------------------------------------------- |
+| `app-admin`                                                             | `app_admin`                                         |
+| `app-ops`                                                               | `app_ops`                                           |
+| `app-users`                                                             | `app_users`                                         |
 
 The CR name uses hyphens. The group name uses underscores. If you write a `TINYAUTH_APPS_*_GROUPS`
 value or an app-side group ACL with hyphens, it matches nobody. Depending on the app, the result is
@@ -118,7 +123,8 @@ To fix this, adopt the rows in place. Do not delete and recreate them.
 1. Get the real lldap `uuid` of each user or group from the lldap GraphQL API. Send
    `POST /auth/simple/login` to get a bearer token. Then send `POST /api/graphql` with
    `{ users { id uuid email } }` or `{ groups { id displayName uuid } }`.
-2. In Postgres, run `UPDATE users/user_groups SET ldap_id = '<real-uuid>' WHERE username/name = '<name>'` for each row.
+2. In Postgres, run this statement for each row:
+   `UPDATE users/user_groups SET ldap_id = '<real-uuid>' WHERE username/name = '<name>'`.
 
 This causes no disruption. Passkeys, sessions and audit history all stay. If you delete and recreate
 the rows instead, every real user must register their passkey again.
@@ -158,7 +164,7 @@ to the app. The two layers work well together.
 These rules apply when you wire an app into tinyauth. The full walkthrough is in
 `.agents/skills/add-tinyauth-app/SKILL.md`.
 
-- Since v5.1.0, every app ACL needs THREE keys, not two:
+- Every app ACL needs three keys:
 
     | Key                                    | Checked for              | If unset                  |
     | -------------------------------------- | ------------------------ | ------------------------- |
@@ -166,12 +172,11 @@ These rules apply when you wire an app into tinyauth. The full walkthrough is in
     | `TINYAUTH_APPS_<NAME>_OAUTH_GROUPS`    | Pocket-ID session groups | allows any Pocket-ID user |
     | `TINYAUTH_APPS_<NAME>_LDAP_GROUPS`     | lldap password session   | allows any lldap user     |
 
-    The whitelist is the trap. The v5.1.0 rules engine checks it against the OAuth email before the
-    group check. An empty whitelist does not mean "no filter". `CheckFilter` returns
-    `ErrFilterEmpty`, which resolves to `EffectDeny`. So an app that worked on v5.0.x locks out every
-    passkey user after the upgrade. LDAP password login keeps working, so the fault looks like a
-    Pocket-ID fault. Set the whitelist to the match-all regex `"/.*/"`. Then the group lists stay the
-    real gate:
+    The whitelist is the trap. tinyauth checks it against the OAuth email before the group check.
+    An empty whitelist abstains. This cluster sets `TINYAUTH_AUTH_ACLS_POLICY: deny`, and under
+    `deny` an abstain is a deny. So an app without the whitelist locks out every passkey user. LDAP
+    password login keeps working, so the fault looks like a Pocket-ID fault. Set the whitelist to
+    the match-all regex `"/.*/"`. Then the group lists stay the real gate:
 
     ```yaml
     TINYAUTH_APPS_<APP>_OAUTH_WHITELIST: "/.*/"
@@ -183,23 +188,15 @@ These rules apply when you wire an app into tinyauth. The full walkthrough is in
     tinyauth checks groups for each login provider separately. The same name works for both,
     because Pocket-ID syncs its groups from lldap.
 
-    Correction for v5.1.3 (read on 2026-08-24 in `internal/service/access_controls_rules.go`): an
-    empty OAuth whitelist now returns `EffectAbstain`, not `EffectDeny`. Under the default `allow`
-    policy, an abstain resolves to allowed. So the lockout above no longer happens by itself. But
-    this cluster sets `TINYAUTH_AUTH_ACLS_POLICY` to `deny`, and under `deny` an abstain resolves to
-    denied. So every app with an ACL still needs the `/.*/` whitelist. The reason is now the
-    opposite of the original one.
-
 - `TINYAUTH_AUTH_ACLS_POLICY: deny` is set. The default is `allow`. An app with no
   `TINYAUTH_APPS_*` entry at all abstains on `RuleUserAllowed`, so tinyauth denies it. Without this
   setting, tinyauth admits every signed-in user to such an app. This guardrail makes it safe to add
-  apps. The cost is that a new protected app stays locked until its ACL keys exist. This was checked
-  before the setting was turned on. `IPAllowedRule` returns `EffectAllow` when no allow-list is set
-  (`access_controls_rules.go:265`). So the negated `if !Evaluate(RuleIPAllowed)` check in
-  `proxy_controller.go:140` cannot lock everyone out.
+  apps. The cost is that a new protected app stays locked until its ACL keys exist. `IPAllowedRule`
+  returns `EffectAllow` when no allow-list is set. So the negated `Evaluate(RuleIPAllowed)` check
+  in the proxy controller cannot lock everyone out.
 
-    `deny` reaches further than the app ACLs. `AuthService.IsEmailWhitelisted`
-    (`auth_service.go:322`) checks the global `TINYAUTH_OAUTH_WHITELIST` through
+    `deny` reaches further than the app ACLs. `AuthService.IsEmailWhitelisted` checks the global
+    `TINYAUTH_OAUTH_WHITELIST` through
     `policyEngine.EvaluateFunc`. An unset whitelist returns `EffectAbstain`, and under `deny` that
     resolves to denied. This check runs at the OAuth callback in `oauth_controller.go`, before any
     app ACL. So every Pocket-ID login fails with "The user with username &lt;email&gt; is not
@@ -211,7 +208,7 @@ These rules apply when you wire an app into tinyauth. The full walkthrough is in
     decides who can reach tinyauth at all. The `TINYAUTH_APPS_*_GROUPS` keys of each app decide
     which apps they reach. The global whitelist is an email filter that this cluster does not use.
 
-- `TINYAUTH_LABELPROVIDER: none` is deliberate. The label-provider auto-detect of v5.1.0 needs an
+- `TINYAUTH_LABELPROVIDER: none` is deliberate. The label-provider auto-detect needs an
   in-cluster ServiceAccount token, and the pod does not mount one. If you leave the key unset,
   tinyauth logs detection failures at boot. ACLs here come from `TINYAUTH_APPS_*` environment
   variables, never from labels.
@@ -236,7 +233,7 @@ are. So an app with its own login shows that login anyway. Two mechanisms correc
 you use depends on what the app supports.
 
 tinyauth always sets `Remote-User`, `Remote-Name`, `Remote-Email`, `Remote-Groups` and `Remote-Sub`
-on the authenticated response (`proxy_controller.go:261-271`). But none of them reach the backend
+on the authenticated response. But none of them reach the backend
 unless the `headersToBackend` list of the SecurityPolicy names them. That list is the whole
 contract. `components/tinyauth/securitypolicy.yaml` holds `Authorization`, `Location` and
 `Set-Cookie`. When an app that reads the `Remote-*` headers arrives, add them there.
@@ -248,10 +245,10 @@ TINYAUTH_APPS_<APP>_RESPONSE_BASICAUTH_USERNAME: <user>
 TINYAUTH_APPS_<APP>_RESPONSE_BASICAUTH_PASSWORDFILE: /secrets/oidc/<app>-basic-password
 ```
 
-`proxy_controller.go:321-325` reads the password file and sets `Authorization: Basic <base64>`.
-This replaces the request `Authorization` header that line 309 echoes. It needs `Authorization` in
-`headersToBackend`, and it is there. The tinyauth source read on 2026-08-24 has this feature:
-`model.AppBasicAuth`, `config.go:328`. To read the tinyauth tag that runs now, run
+The proxy controller reads the password file and sets `Authorization: Basic <base64>`. This
+replaces the `Authorization` header of the request, which tinyauth otherwise echoes. It needs
+`Authorization` in `headersToBackend`, and it is there. The feature is `model.AppBasicAuth` in the
+tinyauth source. Before you rely on it, make sure that the running tag still has it:
 `grep -E 'tag:' kube/clusters/artemis/apps/security/tinyauth/app/helmrelease.yaml`.
 
 No app uses this today, because bazarr moved to `components/envoy-oidc`. The pattern is:
@@ -343,7 +340,7 @@ also why authorization for each app must live in `TINYAUTH_APPS_*`.
 
 ## tinyauth is also an OIDC provider
 
-Since v5.1.0, tinyauth does more than consume Pocket-ID. It also issues OIDC to apps behind it.
+tinyauth does more than consume Pocket-ID. It also issues OIDC to apps behind it.
 Immich authenticates against tinyauth (`auth.dcunha.io`), not against Pocket-ID directly, through
 `TINYAUTH_OIDC_CLIENTS_IMMICH_*`. So the login flow of Immich is
 `Immich → tinyauth → Pocket-ID → lldap`. The LDAP password form of tinyauth is an alternative
@@ -373,15 +370,13 @@ Gateway API requires the namespace that owns the resource to declare the grant, 
 This rule stops a namespace from granting itself access to anything.
 
 The grants come from one `ResourceSet` at `security/tinyauth/app/resourceset.yaml`. The
-`ResourceSet` kind (`fluxcd.controlplane.io/v1`) comes from `flux-operator`, which this cluster
-already runs, and it works here. `spec.inputs` is a flat list of namespaces. `spec.resources` is a
-template that makes one `ReferenceGrant` for each input. The template uses `<< inputs.namespace >>`
-syntax, not `{{ }}`, so that it does not clash with Helm.
+`ResourceSet` kind (`fluxcd.controlplane.io/v1`) comes from `flux-operator`. `spec.inputs` is a flat
+list of namespaces. `spec.resources` is a template that makes one `ReferenceGrant` for each input.
+The template uses `<< inputs.namespace >>` syntax, not `{{ }}`, so that it does not clash with Helm.
 
 To add a namespace, add one line to `spec.inputs`. Everything is inline: there is no external
 template path and no file for each namespace. You can test it with `apply-ks` like everything else.
-One input line for each namespace is better than a file for each namespace or nested
-Kustomizations, because you cannot test those with `apply-ks`.
+A file for each namespace, or nested Kustomizations, cannot be tested with `apply-ks`.
 
 The template must set `metadata.namespace` explicitly on what it generates. A `ResourceSet` does not
 give its generated resources a default namespace. A Flux Kustomization has `targetNamespace` for
@@ -389,19 +384,19 @@ this, but a `ResourceSet` does not.
 
 The `ResourceSet` makes one `ReferenceGrant` for each `spec.inputs` entry, named
 `<namespace>-grant`. Read the inputs from the tree, not from a list here:
-`sed -n '/inputs:/,/resources:/p'
-kube/clusters/artemis/apps/security/tinyauth/app/resourceset.yaml`, or
-`kubectl get referencegrant -n security`. To add the first app in a new namespace, add a line there
-and add the `SecurityPolicy` of the app. A missing grant does not show as a login failure. It shows
-as the `SecurityPolicy` at `Accepted=False` with the reason `RefNotPermitted`.
+`sed -n '/inputs:/,/resources:/p' kube/clusters/artemis/apps/security/tinyauth/app/resourceset.yaml`,
+or `kubectl get referencegrant -n security --context artemis`. To add the first app in a new
+namespace, add a line there and add the `SecurityPolicy` of the app. A missing grant does not show
+as a login failure. It shows as the `SecurityPolicy` at `Accepted=False` with the reason
+`RefNotPermitted`.
 
 ## Flux ordering: the operator installs the CRDs, so it goes first
 
 `pocket-id-operator` must not depend on `pocket-id` (the instance). The instance applies a
 `PocketIDInstance` CR, and the HelmRelease of the operator installs the CRD for it. Nothing in
-`kube/clusters/artemis/bootstrap/helmfile.d` installs those CRDs separately. On a running cluster you
-do not see the problem, but a rebuild from nothing deadlocks. The instance cannot apply without the
-CRD, and the operator that installs the CRD waits for the instance to go Ready. The graph is:
+`kube/clusters/artemis/bootstrap/helmfile.d` installs those CRDs separately. On a running cluster
+you do not see the problem, but a rebuild from nothing deadlocks. The instance cannot apply without
+the CRD, and the operator that installs the CRD waits for the instance to go Ready. The graph is:
 
 ```text
 pocket-id-operator  (no deps — installs the CRDs)

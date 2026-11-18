@@ -35,7 +35,7 @@ Terraform does not have this, and this repo depends on it. Every provider below 
 
 ### UniFi — the provider situation
 
-`paultyng/terraform-provider-unifi` (581★) is archived and read-only. Two live forks exist, and
+`paultyng/terraform-provider-unifi` is archived and read-only. Two live forks exist, and
 you cannot use one in place of the other:
 
 - `ubiquiti-community/unifi`: an org owns it. It continues the v0.41.x line, so it is a drop-in
@@ -70,7 +70,8 @@ support than the newer resource-mapping style.
 
 The state lives in git, next to the stack that owns it
 (`terraform/stacks/<name>/terraform.tfstate`). The native state encryption of OpenTofu encrypts it
-(`aes_gcm` keyed by `pbkdf2`, 600k iterations, sha512).
+(`aes_gcm` keyed by `pbkdf2`). `TF_ENCRYPTION` sets no iteration count and no hash, so OpenTofu
+uses its own defaults for them (the `run` task in `terraform/mise.toml`).
 
 Why the state is in the repo and not on a share: the team considered an NFS dataset on `atlas`
 and rejected it. `backend "local"` cannot tell "the state file is missing" from "the mount is not
@@ -125,10 +126,10 @@ This is important because `mise run //terraform:...` sets `TF_ENCRYPTION`, but a
 `tofu apply` does not. The team tested both paths. The task writes ciphertext. A bare apply writes
 plaintext, and the hook catches it.
 
-`.gitignore` does not ignore `*.tfstate`, on purpose, because git must track it. Each cluster's
-Flux OCI artifact holds only `kube/base/`, `kube/components/` and that cluster's own Flux folders, so
-tracked state never goes to the registry.
-`.sourceignore` also excludes `terraform/`, for a build that packs the full repo.
+`.gitignore` does not ignore `*.tfstate`, on purpose, because git must track it. The Flux OCI
+artifact of each cluster packs the repo root (`path: .`). Its `ignore-paths` list starts with `/*`,
+so it drops everything outside `kube/`, and `terraform/` never goes to the registry
+(`.forgejo/workflows/oci-push.yaml`). `.sourceignore` also excludes `terraform/`, as a second guard.
 
 ### If plaintext state ever gets committed
 
@@ -155,8 +156,9 @@ something that you did not intend, the resource block is wrong. Fix it, and do n
   changing that object (hostname, note, last-seen). DHCP reservations managed this way give diffs
   that never stop. Set `allow_existing = true` and `skip_forget_on_destroy = true`. In practice
   they are mandatory.
-- The UniFi site ID is the short hex slug, not `Default`. If you use the wrong value, the provider
-  silently targets the wrong site.
+- The provider wants the site name, `default` in lowercase, not the display name `Default`. Every
+  managed resource sets `site = "default"`. If you use the wrong value, the provider silently
+  targets the wrong site.
 - Do not manage DNS records here. external-dns owns them: `external-dns-unifi` for the LAN, and
   `external-dns-cloudflare` / `external-dns-edge` / `external-dns-frostlink` for Cloudflare
   (`networking.md` § External DNS). Each record set has one owner.
@@ -185,7 +187,8 @@ something that you did not intend, the resource block is wrong. Fix it, and do n
 
 ## Renovate
 
-`.renovaterc.json5` scopes the `terraform` manager to `terraform/**/*.tf`. Provider updates do not
-automerge, on purpose, because they change real hardware. This is important because the inherited
-`home-operations` preset sets no `enabledManagers` and extends `config:recommended`. So every
-manager is on by default.
+`.renovaterc.json5` scopes the `terraform` manager to `terraform/**/*.tf` and the `ansible-galaxy`
+manager to `ansible/requirements.yml`. Provider and collection updates do not automerge, on
+purpose, because they change real hardware. Those holds live in `cluster.json` of
+exikle/renovate-config (the layer table at the top of `renovate.md`). The scoping is important
+because the base preset extends `config:recommended`, so every manager is on by default.

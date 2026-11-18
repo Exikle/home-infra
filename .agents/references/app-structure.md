@@ -32,10 +32,14 @@ kube/clusters/artemis/apps/media/immich/
 └── microservices/
 ```
 
-- Kustomization names are `<app>-<component>`. `dependsOn` between them uses those names.
-- When the components are one product, `commonMetadata.labels.app.kubernetes.io/name` is the app,
-  not the component (all the immich Kustomizations label `immich`). Where the components are
-  genuinely separate deployables, label the component (`victoria-operator` vs `victoria-app`).
+The naming and label rules are in `cluster-conventions.md` § App Directory Structure, which wins.
+Two examples from the tree:
+
+- All the immich Kustomizations label `immich`, because the components are one product.
+  `dependsOn` between them uses the `<app>-<component>` names.
+- `observability/victoria` labels each component, because they are separate deployables. Its
+  names (`vm-operator`, `vm-single`, `victoria-logs`) are a known exception to
+  `<app>-<component>`.
 
 ### Operator and operand
 
@@ -58,8 +62,7 @@ kube/clusters/artemis/apps/security/pocket-id/
 
 Same shape:
 `observability/victoria/{operator,app,agent,alert,logs}`,
-`observability/grafana/{app,instance}`, `cortex/llmkube/{app,models}`,
-`cert-manager/trust-manager/{app,config}`.
+`observability/grafana/{app,instance}`, `cortex/llmkube/{app,models}`.
 
 ### CR collections
 
@@ -79,7 +82,7 @@ kube/clusters/artemis/apps/external-endpoints/services/
 ├── ks.yaml                  # ONE Kustomization, name: external-endpoints
 └── app/
     ├── kustomization.yaml   # resources: ./forgejo ./pve ./templates ./truenas ./unifi
-    ├── forgejo/{kustomization,envoyextensionpolicy,inputs}.yaml
+    ├── forgejo/
     ├── pve/
     ├── templates/
     ├── truenas/
@@ -87,20 +90,22 @@ kube/clusters/artemis/apps/external-endpoints/services/
 ```
 
 The tradeoff is deliberate. One Kustomization means one failure domain, so a build error in one
-member stalls them all. Validate with `mise run //kube/clusters/artemis:render-ks <ns> <ks>` before you commit. Prefer a
-fleet over N near-identical `ks.yaml` files once N is more than about three and the members share
-a lifecycle and a single controller.
+member stalls them all. Before you commit, make sure that the fleet renders with
+`mise run //kube/clusters/artemis:render-ks <ns> <ks>`. Prefer a fleet over N near-identical
+`ks.yaml` files when N is more than about three and the members share a lifecycle and a single
+controller.
 
-Do not template a fleet into a component or a ResourceSet unless the members are genuinely
-uniform. A component or ResourceSet earns its place when the resource skeleton is identical and
-only a handful of scalars vary. Examples are `components/kopiur/backup` (`${APP}`,
-`${KOPIUR_CAPACITY}`), `components/postgres/*` (`${APP}`), and the `agentgateway-opencode-go`
-ResourceSet in `cortex/agentgateway/models/`. Members can differ structurally: different auth
-mechanisms, some with a workload and some without, per-member volumes or RBAC. In that case,
-templating hides the differences, breaks schema validation and editor completion, and takes the
-pinned `image:` lines out of reach of Renovate. Keep those as readable per-member manifests.
-`cortex/mcp` is that case. It has ten MCP servers in one `mcp-servers` Kustomization, each with
-its own HelmRelease, because their RBAC, generated ConfigMaps and secrets all differ.
+Do not template a fleet into a component or a ResourceSet unless the members are uniform. A
+component or ResourceSet is right when the resource skeleton is identical and only a few scalars
+vary. Examples are `components/kopiur/backup` (`${APP}`, `${KOPIUR_CAPACITY}`),
+`components/postgres/*` (`${APP}`), and the `agentgateway-opencode-go` ResourceSet in
+`cortex/agentgateway/models/`. Members can differ in structure: different auth mechanisms, some
+with a workload and some without, per-member volumes or RBAC. In that case, templating hides the
+differences and breaks schema validation and editor completion. It also takes the pinned `image:`
+lines out of reach of Renovate. Keep those as readable per-member manifests. `cortex/mcp` is that
+case. It has several MCP servers (`ls kube/clusters/artemis/apps/cortex/mcp/app`) in one
+`mcp-servers` Kustomization. Each has its own HelmRelease, because their RBAC, generated
+ConfigMaps and secrets all differ.
 
 ### Shared apps (`kube/base/`)
 
@@ -164,17 +169,15 @@ run `flate build hr --path <artifact> --namespace <ns> <name>` without the flag.
 
 ### Non-standard resource types
 
-One resource per file, filename = lowercased kind, flat in the leaf directory alongside
-`helmrelease.yaml`, listed alphabetically in the `kustomization.yaml` of that directory. There is
-no `rbac/`, `monitoring/`, or `network/` sub-directory. Examples: `grafanadashboard.yaml`,
-`servicemonitor.yaml`, `networkpolicy.yaml`, `securitypolicy.yaml`, `oidcclient.yaml`,
-`resourceset.yaml`. ClusterRole + Binding + ServiceAccount go together in a single
-`rbac.yaml`.
+The rule (one resource per file, the filename is the lowercased kind, flat in the leaf directory)
+is in `cluster-conventions.md` § App Directory Structure, which wins. Examples:
+`grafanadashboard.yaml`, `servicemonitor.yaml`, `networkpolicy.yaml`, `securitypolicy.yaml`,
+`oidcclient.yaml`, `resourceset.yaml`. A ClusterRole, its Binding and its ServiceAccount go
+together in a single `rbac.yaml`.
 
-`HTTPRoute` is inline under `route.app:` in app-template values. The only exception is a
-non-app-template deployment with no `values.route` to write into. It gets a standalone
-`httproute.yaml` (`flux-system/flux-webhook`, `network/echo`, `cortex/agentgateway`).
+A deployment that is not app-template has no `values.route` to write into. It gets a standalone
+`httproute.yaml`. `find kube -name httproute.yaml` lists those files.
 
 Non-YAML configuration payloads go in a `resources/` (or `config/`) sub-directory of the leaf
-directory. They are mounted via `configMapGenerator` with `disableNameSuffixHash: true` and the
+directory. A `configMapGenerator` mounts them, with `disableNameSuffixHash: true` and the
 `kustomize.toolkit.fluxcd.io/substitute: disabled` annotation.

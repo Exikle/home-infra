@@ -5,12 +5,10 @@ component defaults, the mover uid, the cache budgets, how restores behave, and t
 look broken but are not. It covers backup and restore only. The StorageClass and
 VolumeSnapshotClass that the movers use are in `storage.md`.
 
-Frostlink runs the same operator against a different backend. Its counterpart is in
-`frostlink/.agents/references/storage.md` § kopiur. This file mirrors that one on purpose, so drift
-between the two clusters is a one-file diff. Three differences are intentional: the retention, the
-substitute var, and `usernameExpr`. They follow from the backends. Artemis uses NFS on a 41 TB
-array. Frostlink uses a metered R2 bucket. Do not "align" them by copying the setting of one repo
-onto the other. Read both files first.
+Frostlink runs the same operator against a metered R2 bucket. Its doc is `openebs-zfs.md`
+§ Backups via Kopiur. § Where this differs from Artemis in that file lists the deliberate
+differences: the retention, the substitute var, and `usernameExpr`. Do not "align" the two
+clusters by copying the setting of one onto the other.
 
 ## kopiur
 
@@ -20,8 +18,8 @@ wins. Every backed-up app uses kopiur against `ClusterRepository/atlas` (NFS
 them. The old VolSync kopia repo stays on the NAS at `atlas/VolsyncKopia` as a frozen historical
 fallback. To restore from it, you need a manual kopia client.
 
-These are the component defaults (`components/kopiur/backup/`). No manifest states them in one
-place:
+These are the component defaults (`kube/clusters/artemis/components/kopiur/backup/`). No manifest
+states them in one place:
 
 | Setting        | Default                                                | Override var                                              |
 | -------------- | ------------------------------------------------------ | --------------------------------------------------------- |
@@ -36,10 +34,8 @@ place:
 | Mover uid/gid  | `1000` / `1000`                                        | `KOPIUR_PUID` / `KOPIUR_PGID`                             |
 | Access modes   | `ReadWriteOnce`                                        | `KOPIUR_ACCESSMODES`                                      |
 
-The retention here is deeper than the retention of Frostlink on purpose. Frostlink keeps 3 latest /
-24 hourly / 7 daily / 4 weekly / 3 monthly against a metered R2 bucket. Artemis backs up to NFS on
-a 41 TB array, so it keeps 30 daily and 6 monthly. Do not "align" the two. The backends have
-different prices.
+The retention here is deeper than the retention of Frostlink on purpose. Frostlink keeps less,
+because R2 is metered (`openebs-zfs.md` § Schedule and retention).
 
 The substitute var is `${APP}`, not `${KOPIUR_APP}`. The component of Frostlink uses
 `${KOPIUR_APP}`. The component of Artemis uses `${APP}`. `components/postgres/app` now also uses
@@ -73,6 +69,10 @@ That path honours `spec.deletionPolicy: Delete` and the
 `SnapshotDeleteBatch` job. The `MassDeletionHeld` breaker on `ClusterRepository/atlas` trips above
 10 pending external destructive deletions. So you must delete a long lineage in batches.
 
+If a `Snapshot` CR stays in deletion, run
+`mise run --yes //kube/clusters/artemis:release-snapshot <ns> <snapshot>`. It removes the
+finalizer. The data of that snapshot stays in the repository.
+
 The order is the whole trick, and you cannot recover from a wrong order. After the CRs are gone,
 you cannot re-attach the snapshots. The `Snapshot` CRD builds a new snapshot from a PVC source. It
 has no adopt or import field. The only remaining route is a manual kopia client against the
@@ -100,9 +100,9 @@ number stays stale for an hour. Read the `kopiur-controller` logs instead.
   `cortex/hermes` sets 10000. Its image runs non-root only as that uid, and its data was re-owned
   to match (`hermes.md` § Run as uid 10000).
 - `kopiur-system` pulls in `components/kopiur/secret` too. The operator reads the repository
-  password to connect, and maintenance movers run in that namespace. The repository child ks wires
-  it, not the namespace kustomization. That way, `mise run //kube/clusters/artemis:apply-ks` can
-  still test it.
+  password to connect, and maintenance movers run in that namespace.
+  `kopiur-system/kopiur/repository/kustomization.yaml` pulls it in, not the namespace
+  kustomization. That way, `mise run //kube/clusters/artemis:apply-ks` can still test it.
 - `restore.yaml` must mirror the mover identity of the SnapshotPolicy. If it does not, a restore
   writes files as 1000 whatever the uid of the app is, and the app cannot open its own data.
 - A `Restore` is one-shot and terminal by design. Upstream says: _"a Restore is one-shot — fix the
@@ -135,18 +135,15 @@ number stays stale for an hour. Read the `kopiur-controller` logs instead.
 `kopiur.dcunha.io` is deleted. Do not re-add it as a "missing" route. The operator creates the
 Service from `spec.server`, so the route exists only when the UI does.
 
-The user asked for the removal. Almost nobody used the UI, and its pod restarted often (25× in 12h,
-all clean `exit=0`). The removal also costs nothing for security. The server pod holds the
-repository decryption key, even in `readOnly: true` mode. That is why its Service was ClusterIP and
-internal-gateway-only in the first place.
+The user asked for the removal, because almost nobody used the UI. The server pod also holds the
+repository decryption key, even in `readOnly: true` mode.
 
 To inspect the repository without the UI, use `kopiur status -n <ns>` and `kopiur doctor -n <ns>`.
 
 ### Mover cache budgets — `contentCacheSizeMb` / `metadataCacheSizeMb` are mandatory
 
 Set them on `ClusterRepository/atlas`. If they are not set, the maintenance mover fills its cache
-PVC, and every run fails with `no space left on device`. This first happened on 2026-08-09. The
-full-maintenance job failed for about 53 min.
+PVC, and every run fails with `no space left on device`.
 
 The kopia defaults are 5000 MB content plus 5000 MB metadata. So a 5Gi cache PVC cannot hold even
 the content cache alone. These sizes were observed on the full 5Gi `kopiur-cache-atlas`:
@@ -167,7 +164,7 @@ The budgets must leave headroom for logs on top of the two caches:
 | Scope                     | mode         | capacity        | content | metadata | headroom |
 | ------------------------- | ------------ | --------------- | ------- | -------- | -------- |
 | `moverDefaults.cache`     | `Ephemeral`  | none (emptyDir) | 2000 MB | 1000 MB  | node     |
-| `maintenance.mover.cache` | `Persistent` | 10Gi            | 3000 MB | 4000 MB  | ~3.2Gi   |
+| `maintenance.mover.cache` | `Persistent` | 10Gi            | 3000 MB | 4000 MB  | ~3.5Gi   |
 
 The per-app mover cache is an `emptyDir`, not a PVC (2026-09-07). An `Ephemeral` cache with no
 `capacity` is a node-local `emptyDir`. `capacity` is the only thing that makes kopiur provision a
@@ -202,8 +199,9 @@ annotated `selected-node: talos-w-01`, with the PVs on `talos-cp-03` and `talos-
 
 The fix is `storageCapacity.enabled: true` on the miroir chart, not a kopiur nodeSelector. When the
 chart publishes `CSIStorageCapacity`, the scheduler treats a `(node, class)` pair with no capacity
-as unfit. Live values show `miroir-local` at 0 on all four workers and about 173 GB on the three
-storage nodes. `miroir` (replicated, remotely consumable) stays available everywhere. The fix
+as unfit. `miroir-local` shows 0 on the workers and a non-zero capacity on the three storage nodes
+(`kubectl get csistoragecapacities -n miroir-system -o custom-columns=CLASS:.storageClassName,CAPACITY:.capacity,NODE:.nodeTopology.matchLabels`).
+`miroir` (replicated, remotely consumable) stays available everywhere. The fix
 constrains only the pods that actually claim from such a class.
 
 The team tried `moverDefaults.nodeSelector` first and reverted it, for three reasons:
@@ -223,7 +221,7 @@ Direct mounts the live PVC, with no VolumeSnapshot and no staged PVC. Do not pro
   plain lvmthin volume, and staging already moved to `miroir-local`.
 - Direct is a crash-consistent live read. It reads a database file and its `-wal` moments apart.
   Many backed-up PVCs hold a database, and several are in WAL mode (`komga`, `hermes`, `frigate`,
-  `jellyfin`, `qbittorrent`, `seerr`, `rensaio`). A connection to Postgres does not mean that the
+  `qbittorrent`, `seerr`, `rensaio`). A connection to Postgres does not mean that the
   PVC has no secondary database.
 - Scanning trap: `find -printf` is GNU-only, and busybox exits silently, which reads as clean.
   `find / -xdev` never enters a PVC. Derive the mountPath from the pod spec and scan that path.
@@ -255,11 +253,10 @@ purpose:
   not suspend the child. It is harmless to reconcile that configuration while the controller is at
   0 replicas.
 
+The mise tasks for snapshots and PVCs are in `tooling.md` § mise tasks, which wins. These are the
+commands that it does not list:
+
 ```bash
-mise run //kube/clusters/artemis:snapshot-pvc                     # every SnapshotPolicy in the cluster
-mise run //kube/clusters/artemis:snapshot-pvc <ns>                # every policy in one namespace
-mise run //kube/clusters/artemis:snapshot-pvc <ns> <policy>       # one policy
-mise run //kube/clusters/artemis:browse-pvc <ns> <pvc>            # browse a PVC interactively
 mise run //kube/clusters/artemis:toggle-kopiur <suspend|resume>   # suspend/resume the controller (webhook stays up)
 mise run --yes //kube/clusters/artemis:restore-pvc <ns> <app> [offset]  # in-place restore into a BOUND pvc; scales app to 0
 kopiur status -n <ns>                      # repositories, policies, schedules

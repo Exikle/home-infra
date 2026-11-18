@@ -3,8 +3,7 @@
 ## Grafana Operator
 
 - The namespace of a `GrafanaDashboard` is the name of its Grafana folder. Always deploy a
-  GrafanaDashboard in the namespace of its app (for example `miroir-system` or `kopiur-system`),
-  never in `default`.
+  GrafanaDashboard in the namespace of its app (for example `miroir-system` or `kopiur-system`).
 - Grafana is a `Grafana` CR (`observability/grafana/instance/grafana.yaml`). The operator
   reconciles it into Deployment `grafana-deployment`. It is not an app-template HelmRelease. There
   is no `GrafanaFolder` CR.
@@ -16,32 +15,35 @@
   1Password, but the account itself is in the Postgres database. If anyone rebuilds that database,
   recreate the service account in the UI and update `GRAFANA_SERVICE_ACCOUNT_TOKEN`. If you do not,
   the Grafana MCP server breaks.
-- A stale GrafanaDashboard in `default` overrides the copy in the correct namespace. `default` is
-  clean now. If a folder looks wrong in Grafana, run `kubectl get grafanadashboard -n default`
-  first.
+- A stray GrafanaDashboard in `default`, from an app that lives in another namespace, overrides
+  the copy in the correct namespace. If a folder looks wrong in Grafana, run
+  `kubectl get grafanadashboard -n default --context artemis` first. A dashboard of an app that
+  lives in `default` (for example `komga`) belongs there.
 
 ### `datasourceName` is the CR's `spec.datasource.name`, not the CR's own name
 
-A wrong name is the most common reason that a dashboard renders with empty panels. Four
-datasources exist. Two of them have a CR name that differs from the datasource name:
+A wrong name is the most common reason that a dashboard renders with empty panels. The repo
+defines three datasources in `observability/grafana/instance/grafanadatasource.yaml`. One of them
+has a CR name that differs from the datasource name:
 
 | CR (`grafanadatasource` in `observability`) | `datasourceName` to use in a dashboard | Type                              |
 | ------------------------------------------- | -------------------------------------- | --------------------------------- |
 | `prometheus`                                | `prometheus`                           | `prometheus`                      |
 | `alertmanager`                              | `alertmanager`                         | `alertmanager`                    |
 | `victoria-logs`                             | `VictoriaLogs`                         | `victoriametrics-logs-datasource` |
-| `victoriametrics`                           | `VictoriaMetrics`                      | `prometheus`                      |
 
-`prometheus` and `victoriametrics` both point at
-`http://victoria-metrics-server.observability.svc.cluster.local:8428`. The first is the
-compatibility name that most vendored dashboards expect. The second has the native type. Both work
-for metrics. Do not merge them, because vendored dashboards hardcode `prometheus`.
+`prometheus` points at `http://victoria-metrics-server.observability.svc.cluster.local:8428`. Use
+it for every metrics panel. Vendored dashboards expect that name.
+
+The live cluster also has a fourth CR, `victoriametrics` (datasource name `VictoriaMetrics`). It
+is not in the repo and not in the inventory of the `grafana-instance` Kustomization, so Flux never
+prunes it. No dashboard in the repo uses it. Do not use it in a new dashboard.
 
 Before you write a dashboard, make sure that the names are right:
 
 ```bash
-kubectl get grafanadatasource -A \
-  -o custom-columns=CR:.metadata.name,NAME:.spec.datasource.name,TYPE:.spec.datasource.type
+kubectl get grafanadatasource -A --context artemis \
+  -o 'custom-columns=CR:.metadata.name,NAME:.spec.datasource.name,TYPE:.spec.datasource.type'
 ```
 
 ## ServiceMonitor / PodMonitor Bootstrap Gap
@@ -77,26 +79,19 @@ either one works with no change.
 The names suggest a wrong shape. Keep these two facts in mind:
 
 - There is no `VMSingle` or `VMAlertmanager` CR. The metrics store is an ordinary chart workload.
-  `kubectl get vmsingle -A` returns nothing, and that is correct. `VMAgent` and `VMAlert` are the
-  only VM operator instance CRs in the cluster.
+  `kubectl get vmsingle -A --context artemis` returns nothing, and that is correct. `VMAgent` and
+  `VMAlert` are the only VM operator instance CRs in the cluster.
 - Alertmanager is its own app-template HelmRelease (`observability/alertmanager`, StatefulSet
   `alertmanager`). No VM chart bundles it.
 
 ### kube-prometheus-stack was here, and left litter
 
-A `kube-prometheus-stack` ran in `observability` until about 2026-05-16. Nothing in
-`kube/clusters/artemis/` references it now. For that reason, Flux will never prune what it left:
-
-| Leftover                                                           | Cost            |
-| ------------------------------------------------------------------ | --------------- |
-| `VMRule` `kube-prometheus-stack-kube-apiserver-availability.rules` | still evaluated |
-| `VMRule` `kube-prometheus-stack-kube-apiserver-burnrate.rules`     | still evaluated |
-
-The VMRules carry `helm.toolkit.fluxcd.io/name: kube-prometheus-stack` labels and no
-`ownerReferences`. Their deletion is
-[#2764](https://git.dcunha.io/Exikle/home-infra/issues/2764). They are orphans, not managed state.
-Do not look for the manifest that produces them. You can delete them safely. Nobody has done it
-yet.
+A `kube-prometheus-stack` release ran in `observability` until about 2026-05-16. The orphan
+VMRules that it left were deleted under
+[#2764](https://git.dcunha.io/Exikle/home-infra/issues/2764). The only trace left is its CRDs
+(next section). If an object still carries the label
+`helm.toolkit.fluxcd.io/name: kube-prometheus-stack`, it is an orphan. Do not look for the
+manifest that produces it.
 
 ### Where the `monitoring.coreos.com` CRDs come from
 
@@ -112,10 +107,10 @@ This step is load-bearing, because nothing under `kube/clusters/artemis/` instal
 `disable_prometheus_converter: false` only makes it watch `ServiceMonitor`, `PodMonitor`,
 `PrometheusRule` and `Probe`, which the repo uses everywhere. Only bootstrap registers those kinds.
 
-The CRDs in the cluster today are still the CRDs of the dead release (field manager
-`helm-controller`, `helm.toolkit.fluxcd.io/name: kube-prometheus-stack`). Nothing applied them
-again after about 2026-05-16. So a Renovate bump on that chart version changes nothing live. It
-only picks which CRD schemas the next rebuild installs.
+The CRDs in the cluster are still the CRDs that the dead release applied (field manager
+`helm-controller`, `helm.toolkit.fluxcd.io/name: kube-prometheus-stack`). So a Renovate bump on
+that chart version changes nothing live. It only picks which CRD schemas the next rebuild
+installs.
 
 ## Kubelet / cAdvisor Scraping
 
@@ -142,8 +137,8 @@ RBAC needs nothing. The operator already grants `nodes/metrics` to the VMAgent S
 
 ### Three things in that file that are load-bearing
 
-`honorTimestamps: false`: cAdvisor exports stale timestamps. If vmagent keeps them, they produce gaps
-and out-of-order rows. Upstream sets it for the same reason
+`honorTimestamps: false`: cAdvisor exports stale timestamps. If vmagent keeps them, they produce
+gaps and out-of-order rows. Upstream sets it for the same reason
 ([VictoriaMetrics#4697](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4697)).
 
 `labeldrop` of `(id|name)`: These labels are the cgroup path and the container runtime id. Each
@@ -152,18 +147,20 @@ uses them. Upstream drops them. Keep the drop.
 
 `labeldrop` of `extensions_talos_dev_.*|tuppr_home_operations_com_.*|beta_kubernetes_io_.*`: This
 one is ours, not upstream's. The blanket `labelmap __meta_kubernetes_node_label_(.+)` above it is
-upstream's. On Talos, it brings in labels that change:
+upstream's. On Talos, it brings in labels that change or that copy other labels:
 
 - `extensions.talos.dev/*` carries a version for each system extension (`i915`, `intel-ucode`,
   `kata-containers`, and others). It changes on every Talos or extension bump, and Renovate does
   those bumps often.
 - `tuppr.home-operations.com/upgrading`: tuppr adds it at the start of an upgrade and removes it
   at the end.
+- `beta.kubernetes.io/*` copies the stable `kubernetes.io/*` labels.
 
-Each of those changes forks every container series on that node into a new series. The labels
+Each change of a label forks every container series on that node into a new series. The labels
 `node` and `instance` already carry the node identity, and you can join node attributes from
 `kube_node_labels`. The configuration keeps stable node labels on purpose (`topology_*`,
-`node_kubernetes_io_gpu*`, `bgppolicy`). It drops only the label families that change.
+`node_kubernetes_io_gpu*`, `bgppolicy`). It drops only the label families that change or that
+copy others.
 
 ### Cost
 
@@ -171,7 +168,7 @@ cAdvisor adds tens of thousands of series. If that becomes a problem, drop unuse
 families in `metricRelabelConfigs`. Do not shorten retention. To measure again, run:
 
 ```bash
-kubectl port-forward -n observability svc/victoria-metrics-server 18428:8428
+kubectl port-forward -n observability svc/victoria-metrics-server 18428:8428 --context artemis
 curl -s 'localhost:18428/api/v1/query?query=sum(vm_cache_entries{type="storage/hour_metric_ids"})'
 ```
 
@@ -199,8 +196,8 @@ dashboard, and nothing alerts when the APIService goes `False`. To diagnose a cl
 "everything in media is down", run:
 
 ```bash
-kubectl get apiservice v1beta1.external.metrics.k8s.io
-kubectl get hpa -A
+kubectl get apiservice v1beta1.external.metrics.k8s.io --context artemis
+kubectl get hpa -A --context artemis
 ```
 
 `AVAILABLE=False` on that APIService, or `<unknown>/1` in the HPA `TARGETS` column, means that the
@@ -215,11 +212,13 @@ So the HelmRelease sets CPU and memory requests (a guaranteed share). It sets no
 purpose, so the exporter can still burst through a probe sweep without throttling. Do not add a
 CPU limit back.
 
-The `icmp` Probe lists the Talos nodes by IP: `talos-cp-01` to `03` (`10.10.99.101` to `.103`), `talos-w-01`, `talos-w-02` and `talos-gpu-01` (`.201` to `.203`), and `ymir` (`.204`). The `tcp` Probe checks the TrueNAS NFS port.
+The `icmp` Probe lists the Talos nodes by IP: `talos-cp-01` to `03` (`10.10.99.101` to `.103`),
+`talos-w-01`, `talos-w-02` and `talos-gpu-01` (`.201` to `.203`), and `ymir` (`.204`). The `tcp`
+Probe checks the TrueNAS NFS port.
 
 ## Other observability workloads worth knowing exist
 
-No other section of this file covers these apps, and it is easy to mistake them for something else:
+These workloads are easy to mistake for something else:
 
 | App                 | What it is                                                                                                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -277,15 +276,8 @@ The path is `/badges/<id>`, not `/<id>`. A bare `https://kromgo.dcunha.io/cluste
 path serves a gallery page that prints a Markdown snippet for each badge. Open it, and do not guess
 an id.
 
-The ids are in `kube/clusters/artemis/apps/observability/kromgo/app/resources/config.yaml`
-(`grep -n 'id:' <that file>`):
-
-| Group    | ids                                                                                                           |
-| -------- | ------------------------------------------------------------------------------------------------------------- |
-| Versions | `talos_version`, `kubernetes_version`, `flux_version`, `renovate_status`                                      |
-| Cluster  | `cluster_node_count`, `cluster_pod_count`, `cluster_cpu_usage`, `cluster_memory_usage`, `cluster_alert_count` |
-| Age      | `cluster_birth_age`, `cluster_uptime_age`                                                                     |
-| Gatus    | `core_ping`, `core_status_page`, `core_heartbeat`, `internal_truenas`, `internal_pve`                         |
+To list the ids, run
+`grep -n 'id:' kube/clusters/artemis/apps/observability/kromgo/app/resources/config.yaml`.
 
 | Wrong (and what older docs said) | Right                |
 | -------------------------------- | -------------------- |
@@ -297,8 +289,8 @@ The ids are in `kube/clusters/artemis/apps/observability/kromgo/app/resources/co
 so that you do not have to parse SVG.
 
 kromgo renders the SVG itself. The repo README embeds those URLs directly
-(`![Age](https://kromgo.dcunha.io/badges/cluster_birth_age)`), not shields.io endpoint URLs. The camo
-proxy of GitHub caches a direct SVG for a long time. On GitHub mirrors, treat badge values as
+(`![Age](https://kromgo.dcunha.io/badges/cluster_birth_age)`), not shields.io endpoint URLs. The
+camo proxy of GitHub caches a direct SVG for a long time. On GitHub mirrors, treat badge values as
 approximate, and read live values from `?format=json`.
 
 The badges that come from Gatus (`core_*`) depend on the Gatus of Frostlink, which
@@ -308,29 +300,20 @@ the colour of the last scraped value.
 
 ## Scrape coverage — where the holes are
 
-`vmagent` reports every target healthy (`up == 0` returns nothing). But the healthy targets are only
-the targets that exist. A namespace can run workloads that export metrics that nobody collects. Then
-the alert rules that those workloads ship can never fire. Before you trust an alert in a namespace,
-find out whether anything scrapes the namespace at all:
+When `up == 0` returns nothing, every target that vmagent knows is healthy. But the healthy
+targets are only the targets that exist. A namespace can run workloads that export metrics that
+nobody collects. Then the alert rules that those workloads ship can never fire. Before you trust an
+alert in a namespace, find out whether anything scrapes the namespace at all:
 
 ```bash
-kubectl get vmservicescrape,vmpodscrape -n <namespace>
+kubectl get vmservicescrape,vmpodscrape -n <namespace> --context artemis
 ```
-
-Known gaps: `cortex` hermes and most MCP servers (#1837).
 
 ### The `security` hole — a chart that ships rules and scrapes behind separate flags
 
-`security/pocket-id-operator` ships alert rules, including `PocketIDOIDCClientRotationFailing`,
-`PocketIDOIDCClientRotationOverdue` and `PocketIDExternalDeletions`. Every metric that they
-reference was absent from VictoriaMetrics. So a client-secret rotation was able to fail for any length of
-time with nothing firing.
-
-To count the rules, run
-`kubectl -n security get prometheusrule pocket-id-operator -o json | jq '[.spec.groups[].rules[]] | length'`.
-
-The cause is a difference between two defaults in the values, not a missing manifest. In chart
-0.14.0:
+Some charts turn on their alert rules and their scraping with separate flags. The rules then
+render and never fire. `security/pocket-id/operator` is the example in this cluster. Its chart
+defaults are:
 
 | Value                            | Default | Effect                                                              |
 | -------------------------------- | ------- | ------------------------------------------------------------------- |
@@ -338,16 +321,14 @@ The cause is a difference between two defaults in the values, not a missing mani
 | `metrics.enabled`                | `false` | operator starts with `--metrics-bind-address=0`. No metrics Service |
 | `metrics.serviceMonitor.enabled` | `false` | no ServiceMonitor                                                   |
 
-So the chart alerts by default and scrapes only when you turn it on. If you install it with no
-change, it produces a PrometheusRule. Every expression in that rule queries a metrics server that
-the same chart disabled. `kubectl get vmrule` looks healthy, but the rules do nothing. Any chart
-that controls rules and scraping with different flags can do this. Before you trust an alert that
-such a chart shipped, look at both flags.
+With no change, every expression in the PrometheusRule queries a metrics server that the same
+chart turned off. `kubectl get vmrule` looks healthy, but the rules do nothing. Before you trust an
+alert that a chart ships, look at both flags.
 
-The fix is to set `metrics.enabled: true` and `metrics.serviceMonitor.enabled: true` in
-`security/pocket-id/operator/helmrelease.yaml`. That renders Service
-`pocket-id-operator-metrics-service` on `:8080`, and a ServiceMonitor that the VM operator copies to
-a VMServiceScrape.
+`security/pocket-id/operator/helmrelease.yaml` sets `metrics.enabled: true` and
+`metrics.serviceMonitor.enabled: true`. That renders Service `pocket-id-operator-metrics-service`
+on `:8080`, and a ServiceMonitor that the VM operator copies to a VMServiceScrape. So the
+rotation alerts (`PocketIDOIDCClientRotationFailing`, `PocketIDOIDCClientRotationOverdue`) fire.
 
 The job label is the Service name. vmagent names service-scrape jobs after the Service, so the job
 is `pocket-id-operator-metrics-service`. Because of this name, the two rules written as
@@ -381,10 +362,10 @@ An alert whose metric has no scrape source produces no series. So compare the me
 rule against the names that VictoriaMetrics knows:
 
 ```bash
-kubectl port-forward -n observability svc/victoria-metrics-server 18428:8428 &
+kubectl port-forward -n observability svc/victoria-metrics-server 18428:8428 --context artemis &
 export LC_ALL=C
 comm -23 \
-  <(kubectl get vmrule -A -o json | jq -r '.items[].spec.groups[].rules[].expr' \
+  <(kubectl get vmrule -A --context artemis -o json | jq -r '.items[].spec.groups[].rules[].expr' \
       | grep -oE '\b[a-z_][a-z0-9_]*_[a-z0-9_]+\b' | sort -u) \
   <(curl -s localhost:18428/api/v1/label/__name__/values | jq -r '.data[]' | sort -u)
 ```
@@ -393,9 +374,9 @@ comm -23 \
 holds more than metric names. Label names (`pool_name`, `code_verb`), label values (`min_spacing`,
 `window_missed`) and PromQL keywords with more than one word (`clamp_max`, `group_left`) all have
 the same shape. Read the output as a list of candidates, not a verdict. A block of names from one
-`<subsystem>_*` family is the real signal. The eleven `pocketid_operator_*` names formed such a
-block. The other names are families that do not exist on this cluster, and their rules come from
-vendored rule sets.
+`<subsystem>_*` family is the real signal. The `pocketid_operator_*` names once formed such a
+block. Single names usually belong to families that do not exist on this cluster, and their rules
+come from vendored rule sets.
 
 ## chaski Notification Templates
 
@@ -416,9 +397,10 @@ the end. Never reorder the existing ones.
 
 ### Why the hermes branch is shaped the way it is
 
-The two hermes skills (`cluster-health`, `readme-sync`) are LLM cron jobs. When they wrote their own
-HTML message bodies, every run produced a slightly different layout: different labels, a different
-order, and sometimes raw markdown. The fix is a strict split. The skill supplies data, and chaski
+The hermes cron skills are LLM jobs. Today only `cluster-health` runs. The template still maps the
+retired `readme-sync` slug. When the skills wrote their own HTML message bodies, every run produced
+a slightly different layout: different labels, a different order, and sometimes raw markdown. The
+fix is a strict split. The skill supplies data, and chaski
 supplies the format. The skill POSTs `{skill, status, summary, stats{}, items[], url}` and nothing
 else.
 

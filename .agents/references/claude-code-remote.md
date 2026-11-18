@@ -12,7 +12,8 @@ repo on the PVC of the pod.
 | Kubernetes | ServiceAccount bound to `cluster-admin`, as a kubeconfig with context `artemis`                                                                    |
 | Talos      | `talos.dev` ServiceAccount `claude-code-talos` (`os:admin`). Talos writes and rotates the Secret, which is mounted at `/var/run/secrets/talos.dev` |
 | Forgejo    | `DUSK_BOT_CLUSTER_TOKEN` from the `forgejo` item. git and `fjo` act as dusk-bot                                                                    |
-| memini     | In-cluster service, with the same namespace configuration as the workstation                                                                       |
+| memini     | In-cluster service. Namespace prefix `homelab`, home `personal/exikle`. Turn capture and session digests are off (env in `helmrelease.yaml`)       |
+| Frostlink  | None. The kubeconfig has no `frostlink` context, and there is no talosconfig for Frostlink. Frostlink work stays on the workstation                |
 
 The Talos access needs `cortex` in `allowedKubernetesNamespaces` of the `KubeTalosAPIAccessConfig`
 in `kube/clusters/artemis/talos/controlplane.yaml.j2`. That change applies without a reboot.
@@ -29,7 +30,9 @@ RBAC does not limit the access. These guards limit it:
   protection does not apply to admins. So the token can merge a PR without the
   `Kritika / Review` check. The admin role is kept on purpose. Only the permission prompt stops a
   merge, and the pod never pre-approves a merge.
-- No ingress. The NetworkPolicy denies all ingress. Remote Control only dials out.
+- No ingress. The NetworkPolicy denies all ingress. Remote Control only dials out. The policy does
+  not restrict egress, because the pod installs tools and plugins from the internet on every
+  start.
 
 ## Tools
 
@@ -40,6 +43,11 @@ the workstation, plus the two MCP servers (`kubernetes-mcp-server`, `flux-operat
 The entrypoint puts `mise bin-paths` on `PATH`. It does not activate mise. The reason is that the
 mise env of the repo points `KUBECONFIG` and `TALOSCONFIG` at files that exist only on the
 workstation.
+
+For the same reason, the cluster mise tasks (`apply-ks`, `suspend-ks`, `diff-ks` and the rest) do
+not work in the pod. `kube/clusters/artemis/mise.toml` points `KUBECONFIG` at a gitignored file
+that the clone does not have. So the pod does not run the test sequence of `commit-style.md`. It
+opens a pull request, and the owner tests the change from the workstation.
 
 The agentgateway tiers in the `.mcp.json` of the repo name a `headersHelper` path that exists only
 on the workstation. The pod mounts its own `app/resources/ai-headers.mjs` at that same path. This
@@ -78,6 +86,9 @@ touch ~/.remote-control-ready
 exit
 kubectl rollout restart -n cortex deploy/claude-code --context artemis
 ```
+
+The clone of `home-infra` is at `~/Artemis-Cluster`, the old name of the repo. `entrypoint.sh` and
+`MISE_TRUSTED_CONFIG_PATHS` both use that path.
 
 The `export PATH` line is required. Without it, the shell reports `claude: command not found`.
 `-c app` picks the app container. Without it, kubectl picks one and prints `Defaulted container`.
@@ -136,6 +147,6 @@ help. Make the pod idle first, then log in.
    `claude auth login`, run `claude remote-control` and answer any prompt it shows, then
    `touch ~/.remote-control-ready` and the rollout restart.
 4. Wait for the old pod to stop. The Deployment uses the `Recreate` strategy, so the new pod starts
-   only after the old one is gone. `sleep infinity` runs as PID 1 and ignores SIGTERM, so the old pod
-   takes the full 30-second grace period.
+   only after the old one is gone. `sleep infinity` runs as PID 1 and ignores SIGTERM, so the old
+   pod takes the full 30-second grace period.
 5. Make sure that the new pod runs `remote-control --name artemis` with 0 restarts.
