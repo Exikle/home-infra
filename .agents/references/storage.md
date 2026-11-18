@@ -53,7 +53,16 @@ kubectl exec -n miroir-system <miroir-agent> -c agent -- drbdsetup show <pv> | g
 
 `on-no-quorum io-error` means `freeze`, which is the expected value. No output means `last-man-standing`.
 
-The `MiroirVolumeReadOnly` alert fires when a latch happens. It reads `node_filesystem_readonly` for the pod mount of each miroir volume, so the node-exporter `mount-points-exclude` of Artemis must keep `/var/lib/kubelet/pods/<uid>/volumes/kubernetes.io~csi/` visible. If a volume latches read-only, delete the pod that mounts it. The new pod remounts the filesystem. The triggers seen so far were pantheon tap drops on 2026-09-09 (#2160) and a UCG-Max firmware reboot on 2026-09-11 and 2026-10-29 (#3061).
+The `MiroirVolumeReadOnly` alert fires when a latch happens. It reads `node_filesystem_readonly` for the pod mount of each miroir volume, so the node-exporter `mount-points-exclude` of Artemis must keep `/var/lib/kubelet/pods/<uid>/volumes/kubernetes.io~csi/` visible. The triggers seen so far were pantheon tap drops on 2026-09-09 (#2160), a UCG-Max firmware reboot on 2026-09-11 and 2026-10-29 (#3061), and a network loss from `talos-w-02` to all three control planes on 2026-11-18.
+
+The alert cannot fire when the `victoria-metrics-server` volume latches too, because no metrics reach vmalert. On 2026-11-18 it latched, and the only page was the Gatus heartbeat `core/artemis`. To list the latched pods without metrics, grep the pod logs for `read-only file system`. That grep misses an app that has not tried to write.
+
+A deleted pod does not always remount the filesystem. Each volume has one node-level mount (`.../plugins/kubernetes.io/csi/miroir.home-operations.com/<hash>/globalmount`), and every pod mount on that node reuses it. The kubelet removes it only after no pod on the node uses the volume. If the replacement pod starts on the same node first, it gets the same read-only mount. On 2026-11-18, `thelounge` and `rensaio` came back read-only this way. To clear a latch, do these steps:
+
+1. Scale the workload of the pod to 0 replicas.
+2. On the node, make sure that `kubectl exec -n miroir-system <miroir-agent> -c agent -- grep -c <drbd-device> /proc/1/mounts` prints `0`. It took about 45 seconds on 2026-11-18.
+3. Scale the workload back to its replica count.
+4. Make sure that `/proc/mounts` in the new pod shows the volume without `emergency_ro`.
 
 miroir exposes only `freeze` and `last-man-standing`. It has no `suspend-io` option. `nklmilojevic/home` runs an identical topology and differs from ours in this one parameter.
 
