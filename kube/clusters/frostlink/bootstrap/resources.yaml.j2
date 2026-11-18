@@ -34,11 +34,3 @@ type: Opaque
 stringData:
   username: exikle
   password: unused-apoci-allows-anonymous-pulls
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cloudflare-tunnel-id-secret
-  namespace: network
-stringData:
-  CLOUDFLARE_TUNNEL_ID: op://frostlink/cloudflare-frostlink/CLOUDFLARE_TUNNEL_ID

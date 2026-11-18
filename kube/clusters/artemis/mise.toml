@@ -148,6 +148,7 @@ arg "<ns>" help="Namespace of the app"
 arg "<app>" help="Name of the app, its policy and its PVC"
 arg "[offset]" default="0" help="Snapshot offset, 0 = latest"
 '''
+confirm = { message = "Restore {{ usage.ns }}/{{ usage.app }} in place from snapshot offset {{ usage.offset }}? The app goes down while it runs.", default = "no" }
 run = '''
 selector="app.kubernetes.io/name=$usage_app"
 mise run //:log warn "Restoring PVC — the app will be scaled to zero" ns "$usage_ns" app "$usage_app" offset "$usage_offset"
@@ -290,6 +291,23 @@ kubectl --context "$KUBE_CONTEXT" get "$usage_resource" --no-headers -A | while 
         "reconcile.fluxcd.io/requestedAt=$(date +%s)" \
         "reconcile.fluxcd.io/forceAt=$(date +%s)"
 done
+'''
+
+[tasks.release-snapshot]
+description = "Remove the cleanup finalizer from one kopiur Snapshot that is stuck deleting; its data stays in the repository"
+usage = '''
+arg "<ns>" help="Namespace of the Snapshot"
+arg "<snapshot>" help="Name of the Snapshot"
+'''
+confirm = { message = "Remove the finalizer from Snapshot {{ usage.ns }}/{{ usage.snapshot }}? kopiur will not clean it out of the repository.", default = "no" }
+run = '''
+deleting="$(kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" get snapshot "$usage_snapshot" -o jsonpath='{.metadata.deletionTimestamp}')"
+if [[ -z "$deleting" ]]; then
+    mise run //:log fatal "Snapshot is not being deleted, so nothing is stuck" ns "$usage_ns" snapshot "$usage_snapshot"
+    exit 1
+fi
+kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" patch snapshot "$usage_snapshot" --type=merge -p '{"metadata":{"finalizers":null}}'
+mise run //:log warn "Finalizer removed; the kopia snapshot may stay in the repository until maintenance" ns "$usage_ns" snapshot "$usage_snapshot"
 '''
 
 [tasks.view-secret]

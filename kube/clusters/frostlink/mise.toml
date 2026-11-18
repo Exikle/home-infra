@@ -225,6 +225,7 @@ arg "<ks>" help="Name of the Flux Kustomization that owns the PVC"
 arg "<claim>" help="Name of the PVC"
 arg "[offset]" default="0" help="Snapshot offset, 0 = latest"
 '''
+confirm = { message = "Delete PVC {{ usage.ns }}/{{ usage.claim }} and restore it from snapshot offset {{ usage.offset }}?", default = "no" }
 run = '''
 # Kopiur restore, as actually exercised on 2026-08-18. Order matters:
 #
@@ -311,8 +312,56 @@ mise run //:log info "restore complete" claim "$PVC" resolution "$RESOLUTION"
 # Printed rather than passed to the log task: gum parses a leading --flag inside
 # a value as its own flag and exits non-zero.
 mise run //:log warn "old volume retained - reclaim it once the data checks out" pv "$PV"
-printf '  kubectl --context %s delete pv %s\n  kubectl --context %s -n openebs-system delete zfsvolume %s\n' \
-    "$KUBE_CONTEXT" "$PV" "$KUBE_CONTEXT" "$PV"
+printf '  mise run --yes //kube/clusters/frostlink:reclaim-pv %s\n' "$PV"
+'''
+
+[tasks.towonel-invite]
+description = "Create a towonel agent invite on the hub and print its token; the operator key never touches disk"
+usage = '''
+arg "<name>" help="Agent name, for example artemis"
+flag "--tcp-ports <ports>" default="" help="Comma-separated TCP ports the agent may publish, for example 15001"
+flag "--hostnames <hosts>" default="" help="Comma-separated hostnames the agent may claim"
+'''
+confirm = { message = "Create a towonel invite for {{ usage.name }}? The printed token is a credential.", default = "no" }
+run = '''
+body="$(jq -nc --arg n "$usage_name" --arg p "$usage_tcp_ports" --arg h "$usage_hostnames" \
+    '{name: $n, hostnames: ($h | split(",") | map(select(. != ""))), tcp_ports: ($p | split(",") | map(select(. != "") | tonumber))}')"
+key="$(kubectl --context "$KUBE_CONTEXT" -n towonel exec ds/towonel -c main -- cat /data/operator.key)"
+curl -fsS -X POST https://hub.frostlink.dev/v1/invites \
+    -H "Authorization: Bearer $key" -H 'content-type: application/json' -d "$body"
+'''
+
+[tasks.release-snapshot]
+description = "Remove the cleanup finalizer from one kopiur Snapshot that is stuck deleting; its data stays in the repository"
+usage = '''
+arg "<ns>" help="Namespace of the Snapshot"
+arg "<snapshot>" help="Name of the Snapshot"
+'''
+confirm = { message = "Remove the finalizer from Snapshot {{ usage.ns }}/{{ usage.snapshot }}? kopiur will not clean it out of the repository.", default = "no" }
+run = '''
+deleting="$(kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" get snapshot "$usage_snapshot" -o jsonpath='{.metadata.deletionTimestamp}')"
+if [[ -z "$deleting" ]]; then
+    mise run //:log fatal "Snapshot is not being deleted, so nothing is stuck" ns "$usage_ns" snapshot "$usage_snapshot"
+    exit 1
+fi
+kubectl --context "$KUBE_CONTEXT" -n "$usage_ns" patch snapshot "$usage_snapshot" --type=merge -p '{"metadata":{"finalizers":null}}'
+mise run //:log warn "Finalizer removed; the kopia snapshot may stay in the repository until maintenance" ns "$usage_ns" snapshot "$usage_snapshot"
+'''
+
+[tasks.reclaim-pv]
+description = "Delete a released PV and its ZFS volume after restore-pvc, once the restored data is confirmed good"
+usage = 'arg "<pv>" help="The retained PV that restore-pvc printed"'
+confirm = { message = "Delete PV {{ usage.pv }} and its ZFS volume? This is the only copy of the pre-restore data.", default = "no" }
+run = '''
+kc() { kubectl --context "$KUBE_CONTEXT" "$@"; }
+phase="$(kc get pv "$usage_pv" -o jsonpath='{.status.phase}')"
+if [[ "$phase" != "Released" ]]; then
+    mise run //:log fatal "PV is not Released, so something still uses it" pv "$usage_pv" phase "$phase"
+    exit 1
+fi
+kc delete pv "$usage_pv"
+kc -n openebs-system delete zfsvolume "$usage_pv" --ignore-not-found
+mise run //:log info "Reclaimed" pv "$usage_pv"
 '''
 
 [tasks.snapshot-pvc]

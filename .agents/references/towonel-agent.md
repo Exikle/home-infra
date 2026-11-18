@@ -1,13 +1,13 @@
 # towonel Agent — home-infra
 
-This file explains how Artemis is reached from the public internet. The decision and its history are
-in issue #3082. The frostlink side is documented in `towonel.md` and
-`oci-networking.md` (§ The front door).
+This file explains how the public internet reaches Artemis. Issue #3082 holds the decision and its
+history. `towonel.md` and `oci-networking.md` (§ The front door) document the frostlink side.
 
 ## What the agent does (Shape 1)
 
-Artemis publishes no hostname through towonel. frostlink's Envoy terminates TLS for every public
-name, runs CrowdSec, and re-encrypts to Artemis over one towonel TCP service.
+Artemis publishes no hostname through towonel. The Envoy on frostlink terminates TLS for every
+public name and runs CrowdSec. It then encrypts the traffic again and sends it to Artemis over one
+towonel TCP service.
 
 | Part           | Value                                                                |
 | -------------- | -------------------------------------------------------------------- |
@@ -15,34 +15,34 @@ name, runs CrowdSec, and re-encrypts to Artemis over one towonel TCP service.
 | Edge port      | `15001`                                                              |
 | Origin         | `edge-gateway.network.svc.cluster.local:443`                         |
 | Defined in     | `TOWONEL_AGENT_TCP_SERVICES` in `towonel-agent/app/helmrelease.yaml` |
-| frostlink side | the `home-backhaul` app in frostlink's `towonel` namespace           |
+| frostlink side | the `home-backhaul` app in the `towonel` namespace on frostlink      |
 
-The agent dials out over iroh QUIC (UDP 51820 on frostlink) and holds the connection open. Artemis
-opens no inbound port.
+The agent connects out over iroh QUIC (UDP 51820 on frostlink) and keeps the connection open.
+Artemis opens no inbound port.
 
-- **No hostname claims.** The agent has no `TOWONEL_AGENT_SERVICES`. frostlink sends all of
+- No hostname claims. The agent has no `TOWONEL_AGENT_SERVICES`. frostlink sends all of
   `*.dcunha.io` and `dcunha.io` to the backhaul.
-- **No PROXY protocol.** The backhaul carries HTTPS that Envoy re-encrypts. The real client IP is in
-  `X-Forwarded-For`, which frostlink's Envoy sets.
-- **`ClientTrafficPolicy/edge` must trust that header.** It trusts `X-Forwarded-For` from
-  `10.42.0.0/16`, the agent pod CIDR. Without it, every request looks like it comes from the agent
-  and the per-IP rate limits rate-limit everyone at once.
-- **No CrowdSec on Artemis.** A `403` or challenge page on a public site is frostlink's CrowdSec.
-  Fix it on Frostlink (`crowdsec.md`). LAN traffic is not checked.
-- **SNI on the backhaul.** frostlink validates the Artemis certificate with SNI `edge.dcunha.io`,
-  and with `dcunha.io` for the apex, because `edge-gateway` has a separate apex listener.
+- No PROXY protocol. The backhaul carries HTTPS that Envoy encrypts again. The real client IP is in
+  `X-Forwarded-For`, which the Envoy on frostlink sets.
+- `ClientTrafficPolicy/edge` must trust that header. It trusts `X-Forwarded-For` from
+  `10.42.0.0/16`, the agent pod CIDR. Without this, every request seems to come from the agent. The
+  per-IP rate limits then limit everyone at once.
+- No CrowdSec on Artemis. A `403` or a challenge page on a public site comes from the CrowdSec on
+  frostlink. Fix it on Frostlink (`crowdsec.md`). LAN traffic is not checked.
+- SNI on the backhaul. frostlink validates the Artemis certificate with SNI `edge.dcunha.io`. For
+  the apex, it uses `dcunha.io`, because `edge-gateway` has a separate apex listener.
 
-The agent is app-template (`codeberg.org/towonel/towonel-agent` image), not the upstream chart.
-Configuration is `TOWONEL_AGENT_*` environment variables. Versions: `grep -h 'tag:'
-kube/clusters/artemis/apps/network/towonel-agent/app/*.yaml`.
+The agent is app-template (`codeberg.org/towonel/towonel-agent` image), not the upstream chart. Its
+configuration is `TOWONEL_AGENT_*` environment variables. To find the versions, run
+`grep -h 'tag:' kube/clusters/artemis/apps/network/towonel-agent/app/*.yaml`.
 
-Repo boundary: frostlink and Artemis stay separate repos. The interface is one invite token and the
-backhaul port. Do not share manifests or components. Do not propose a monorepo.
+Both clusters live in this repo. The interface between the two towonel sides is one invite token
+and the backhaul port.
 
 ## Which gateway a route uses
 
-`edge-gateway` is the list of **public** Artemis apps. Public hostnames, and LAN DNS (`10.10.99.90`,
-LAN name `edge.dcunha.io`), both reach it. Never point the backhaul at `internal-gateway`.
+`edge-gateway` is the list of _public_ Artemis apps. Public hostnames and LAN DNS (`10.10.99.90`,
+LAN name `edge.dcunha.io`) both reach it. Never point the backhaul at `internal-gateway`.
 
 | Hostname                | `parentRefs`       | `sectionName`           |
 | ----------------------- | ------------------ | ----------------------- |
@@ -52,149 +52,164 @@ LAN name `edge.dcunha.io`), both reach it. Never point the backhaul at `internal
 
 `external-gateway` takes no new routes.
 
-The `sectionName: https` trap: on `internal-gateway` and `external-gateway`, `https` is the
-`dcunha.io` listener. On `edge-gateway` it is the `frostlink.dev` listener, so a `*.dcunha.io` route
-that pins `sectionName: https` never attaches. Use `https-dcunha`. Auth SecurityPolicies (tinyauth,
-envoy-oidc) target the HTTPRoute, so they follow the route.
+The `sectionName: https` trap works like this. On `internal-gateway` and `external-gateway`,
+`https` is the `dcunha.io` listener. On `edge-gateway`, `https` is the `frostlink.dev` listener. So
+a `*.dcunha.io` route that pins `sectionName: https` never attaches. Use `https-dcunha`. Auth
+SecurityPolicies (tinyauth, envoy-oidc) target the HTTPRoute, so they follow the route.
 
 ## Certificates
 
-Public visitors see frostlink's certificate. Artemis certificates are seen only over the backhaul
-(frostlink checks them) and by LAN clients. A certificate problem on a public name is therefore
-frostlink's, unless the backhaul check fails.
+Public visitors see the frostlink certificate. Only two parties see the Artemis certificates:
+frostlink, which checks them over the backhaul, and LAN clients. So a certificate problem on a
+public name belongs to frostlink, unless the backhaul check fails.
 
-`frostlink-dev-tls` in `network` is imported from 1Password, not issued here. Copy the shape from
-`certificates/import/frostlink-externalsecret.yaml`, **not** from the neighboring
-`externalsecret.yaml`. The frostlink import keeps the ExternalSecret defaults (`refreshInterval` 1h,
-`creationPolicy: Owner`), so it picks up renewals. The `dcunha-io-tls` import is bootstrap-only
-(`refreshPolicy: CreatedOnce`, `creationPolicy: Orphan`) and cert-manager owns its renewal. Copying
-that pattern onto the frostlink import would serve an expired certificate at the next rollover.
-cert-manager does not manage the imported secret, so its expiry metrics do not cover it.
+`frostlink-dev-tls` in `network` is imported from 1Password. It is not issued here. Copy the shape
+from `certificates/import/frostlink-externalsecret.yaml`. Do _not_ copy it from the neighbouring
+`externalsecret.yaml`. The two imports differ:
+
+- The frostlink import keeps the ExternalSecret defaults (`refreshInterval` 1h,
+  `creationPolicy: Owner`). So it picks up renewals.
+- The `dcunha-io-tls` import is only for bootstrap (`refreshPolicy: CreatedOnce`,
+  `creationPolicy: Orphan`). cert-manager owns its renewal.
+
+If you copy the `dcunha-io-tls` pattern onto the frostlink import, it serves an expired certificate
+at the next rollover. cert-manager does not manage the imported secret, so the cert-manager expiry
+metrics do not cover it.
 
 ## DNS
 
-Records for the public names are **grey** and point at `edge.frostlink.dev`. frostlink's Envoy
-answers there. A proxied record sends the connection to Cloudflare instead.
+The records for the public names are grey, and they point at `edge.frostlink.dev`. The Envoy on
+frostlink answers there. A proxied record sends the connection to Cloudflare instead.
 
-- **dcunha.io:** `external-dns-edge` (`kube/clusters/artemis/apps/network/edge-dns/`) writes a grey CNAME per
-  `edge-gateway` route. It reads only `edge-dns.kubernetes.io/` annotations (`--annotation-prefix`),
-  so `external-dns-unifi` can keep the standard `external-dns.kubernetes.io/target:
-  edge.dcunha.io` for the LAN. Settings: `kubectl get deploy -n network external-dns-edge -o
-  yaml --context artemis`.
-- **status.dcunha.io:** a grey CNAME to `edge.frostlink.dev`, from
-  `cloudflare-dns/app/dnsendpoint.yaml`. It is served by Envoy on frostlink.
-- **edge.dcunha.io:** a grey CNAME to `edge.frostlink.dev`, from
-  `towonel-agent/app/dnsendpoint.yaml`. It exists for IPv6 LAN clients (`networking.md` § The
-  LAN-side AAAA leak).
-- **frostlink.dev:** Artemis no longer publishes a `*.frostlink.dev` wildcard (removed 2026-11-12).
-  frostlink owns its own records. `external-dns-frostlink` (`network/frostlink-dns`) still runs with
-  `crd` as its only source.
-- **Specific names on a `DNSEndpoint`:** an annotation on the DNSEndpoint object is ignored. Set
-  `cloudflare-proxied: "false"` as `providerSpecific` on the endpoint.
-- **Check with `@1.1.1.1`.** Bare `dig` on the dev machine returns the split-horizon (LAN) answer.
+- dcunha.io: `external-dns-edge` (`kube/clusters/artemis/apps/network/edge-dns/`) writes one grey
+  CNAME for each `edge-gateway` route. It reads only `edge-dns.kubernetes.io/` annotations
+  (`--annotation-prefix`). So `external-dns-unifi` can keep the standard
+  `external-dns.kubernetes.io/target: edge.dcunha.io` for the LAN. To see the configuration, run
+  `kubectl get deploy -n network external-dns-edge -o yaml --context artemis`.
+- status.dcunha.io: a grey CNAME to `edge.frostlink.dev`, from `cloudflare-dns/app/dnsendpoint.yaml`.
+  The Envoy on frostlink serves it.
+- edge.dcunha.io: a grey CNAME to `edge.frostlink.dev`, from `towonel-agent/app/dnsendpoint.yaml`.
+  It exists for IPv6 LAN clients (`networking.md` § The LAN-side AAAA leak).
+- frostlink.dev: Artemis no longer publishes a `*.frostlink.dev` wildcard (removed 2026-11-12).
+  frostlink owns its own records. `external-dns-frostlink` (`network/frostlink-dns`) still runs,
+  with `crd` as its only source.
+- Specific names on a `DNSEndpoint`: external-dns ignores an annotation on the DNSEndpoint object.
+  Set `cloudflare-proxied: "false"` as `providerSpecific` on the endpoint.
+- Check with `@1.1.1.1`. A bare `dig` on the dev machine returns the split-horizon (LAN) answer.
 
 ### The collision guard
 
-frostlink's external-dns runs `policy: sync` with `txtOwnerId: frostlink` over the `frostlink.dev`
-zone. A second controller on that zone must differ in **both** owner id and TXT prefix, or the two
-delete each other's records in a loop:
+The external-dns on frostlink runs `policy: sync` with `txtOwnerId: frostlink` over the
+`frostlink.dev` zone. A second controller on that zone must differ in _both_ the owner id and the
+TXT prefix. If not, the two controllers delete each other's records in a loop:
 
 ```yaml
 txtOwnerId: artemis # not frostlink
 txtPrefix: k8s.artemis.%{record_type}- # not frostlink's prefix
 ```
 
-The owner id decides what a controller deletes. The prefix decides whether it can see the other
-controller's ownership TXT records. Matching prefixes with different owner ids is the loop, because
-the controllers overwrite each other's registry entries. frostlink's `external-dns-cloudflare`
-uses `k8s.%{record_type}-`, which is the same prefix as Artemis's own `external-dns-cloudflare`
-(owner `artemis-cluster`). Omit `--cloudflare-proxied` on the frostlink-zone instance so records
-default to grey.
+The owner id decides what a controller deletes. The prefix decides whether a controller can see
+the ownership TXT records of the other controller. Matching prefixes with different owner ids cause
+the loop, because the controllers overwrite each other's registry entries. The
+`external-dns-cloudflare` on frostlink uses `k8s.%{record_type}-`. That is the same prefix as the
+`external-dns-cloudflare` of Artemis (owner `artemis-cluster`). Leave out `--cloudflare-proxied` on
+the instance for the frostlink zone, so that records are grey by default.
 
 ## Getting an invite token
 
-The frostlink hub issues the token. Run this from a session with frostlink access:
+The frostlink hub issues the token. Run this from a session that has access to frostlink:
 
 ```bash
-kubectl --context=frostlink -n towonel exec ds/towonel -c main -- cat /data/operator.key > /tmp/opkey
-curl -sS -X POST https://hub.frostlink.dev/v1/invites \
-  -H "Authorization: Bearer $(cat /tmp/opkey)" -H 'content-type: application/json' \
-  -d '{"name":"artemis","hostnames":[],"tcp_ports":[15001]}'
+mise run --yes //kube/clusters/frostlink:towonel-invite artemis --tcp-ports 15001
 ```
 
-**The invite carries the port grant, not the agent config.** Without `tcp_ports` for 15001, the edge
-declines to bind the listener and neither side logs an error. The `towonel invite create --help`
-output in the frostlink pod has the exact flags, and the `towonel-ops` skill
-covers the call. Check the request body above against them before use.
+The task reads the operator key into memory. It never writes the key to disk.
 
-The `token` (`tt_inv_2_…`) in the response is the only secret. It embeds the hub identity, so the
-agent needs no hub URL. Revoke it with `DELETE /v1/invites/{invite_id}`.
+The invite carries the port grant, not the agent configuration. Without `tcp_ports` for 15001, the
+edge does not bind the listener, and neither side logs an error.
 
-The user must create the 1Password item (`op item create` from an agent session returns `(101) You
-do not have permission`). It lives in the `artemis` vault, in item `towonel`, field
-`TOWONEL_INVITE_TOKEN`. The ExternalSecret is inline under `externalSecrets.env` in the HelmRelease
-(`dataFrom.extract.key: towonel`), and the agent reads it as a `secretKeyRef` on `TOWONEL_INVITE_TOKEN`.
+The `token` (`tt_inv_2_…`) in the response is the only secret. It contains the hub identity, so the
+agent needs no hub URL. To revoke it, call `DELETE /v1/invites/{invite_id}`.
+
+The user must create the 1Password item. `op item create` from an agent session returns
+`(101) You do not have permission`. The item lives in the `artemis` vault, in item `towonel`,
+field `TOWONEL_INVITE_TOKEN`. The ExternalSecret is inline under `externalSecrets.env` in the
+HelmRelease (`dataFrom.extract.key: towonel`). The agent reads it as a `secretKeyRef` on
+`TOWONEL_INVITE_TOKEN`.
 
 ## Shape
 
-`kube/clusters/artemis/apps/network/towonel-agent/` holds `ks.yaml` plus `app/` with `ocirepository.yaml`,
-`helmrelease.yaml` and `dnsendpoint.yaml`. The agent is stateless: no PVC, no kopiur. All state is
-the invite token.
+`kube/clusters/artemis/apps/network/towonel-agent/` holds `ks.yaml`, plus `app/` with
+`ocirepository.yaml`, `helmrelease.yaml` and `dnsendpoint.yaml`. The agent is stateless: no PVC and
+no kopiur. The invite token is all of its state.
 
-app-template does not inherit chart hardening, so it is written out in the HelmRelease. Health is
-`/healthz` on port 9090, with a 60-failure startup budget (the agent can take a while to establish
-the iroh connection) and `timeoutSeconds: 3` on liveness. A 1 s timeout is too tight and causes
-spurious restarts. Write the manifests comment-free (`yaml-conventions.md`).
+app-template does not inherit the hardening of the chart, so the HelmRelease writes it out. These
+are the health settings:
 
-**Memory is sized for bursts, not idle.** The agent idles near 25–50Mi, but it buffers every stream
-it relays. apoci federation opens one download per layer (2–3 per digest) when a peer pushes an
-image. A ~10-layer image drove the agent past an old 128Mi limit. Each OOM restart dropped every
-public connection for a few seconds, and frostlink's apoci logged `eager replication failed … EOF`
-for every in-flight blob. At 512Mi, a 19-blob, ~400MB parallel pull ran clean (2026-10-27). If it
-OOMs again, raise the limit. Do not throttle apoci: its replication concurrency is not configurable.
-Since Shape 1, **all** public traffic crosses this one agent, so an OOM now drops every public
-Artemis connection.
+- Health is `/healthz` on port 9090.
+- The startup probe allows 60 failures, because the agent can take some time to set up the iroh
+  connection.
+- Liveness uses `timeoutSeconds: 3`. A 1 s timeout is too tight and causes restarts with no real
+  fault.
+
+Write the manifests without comments (`yaml-conventions.md`).
+
+Memory is sized for bursts, not for idle. The agent idles near 25–50Mi, but it buffers every stream
+that it relays. When a peer pushes an image, apoci federation opens one download per layer (2–3 per
+digest). An image of about 10 layers pushed the agent past an old 128Mi limit. Each OOM restart
+dropped every public connection for a few seconds. The apoci on frostlink then logged
+`eager replication failed … EOF` for every blob in flight. At 512Mi, a parallel pull of 19 blobs
+(about 400MB) ran clean (2026-10-27). If it OOMs again, raise the limit. Do not throttle apoci. Its
+replication concurrency cannot be configured. Since Shape 1, _all_ public traffic goes through this
+one agent. So an OOM now drops every public Artemis connection.
 
 ## Other TCP and UDP services
 
-`TOWONEL_AGENT_TCP_SERVICES` holds only `artemis-backhaul`. `minecraft` (25565/tcp) and `eco`
-(3000/udp) were removed earlier, because both apps are commented out of `arcade/kustomization.yaml`
-and the open ports only drew scanners. To re-add one, the entry shape is
-`{"name":"<name>","origin":"<service>.<namespace>.svc.cluster.local:<port>","listen_port":<port>}`
-(UDP entries also take `idle_timeout_secs` and use `TOWONEL_AGENT_UDP_SERVICES`).
+`TOWONEL_AGENT_TCP_SERVICES` holds only `artemis-backhaul`. The team removed `minecraft`
+(25565/tcp) and `eco` (3000/udp) earlier. Both apps are commented out of
+`arcade/kustomization.yaml`, and the open ports only drew scanners. To add one again, use this
+entry shape:
 
-- It bypasses `edge-gateway`: the agent dials the app Service directly.
-- The edge binds the host port only while an agent session exists, so a port test proves nothing
-  while the agent is down.
-- The invite must grant the port, and the OCI security list on frostlink must allow it.
+`{"name":"<name>","origin":"<service>.<namespace>.svc.cluster.local:<port>","listen_port":<port>}`
+
+UDP entries also take `idle_timeout_secs`, and they go in `TOWONEL_AGENT_UDP_SERVICES`.
+
+- Such a service does not go through `edge-gateway`. The agent connects to the app Service
+  directly.
+- The edge binds the host port only while an agent session exists. So if the agent is down, a port
+  test proves nothing.
+- The invite must grant the port. The OCI security list on frostlink must also allow it.
 
 ## Jellyfin — the video path
 
-`jellyfin.dcunha.io` is served through frostlink's Envoy and the backhaul. The Cloudflare terms
-forbid serving video over the CDN, and every record is grey, so no Jellyfin traffic touches
-Cloudflare.
+`jellyfin.dcunha.io` goes through the Envoy on frostlink and the backhaul. The Cloudflare terms
+forbid serving video over the CDN. Every record is grey, so no Jellyfin traffic touches Cloudflare.
 
-`jellyfin_compat.public_url` of silo is pinned to the `dcunha.io` hostname, so the unauthenticated
-`/System/Info/Public` endpoint returns `LocalAddress: https://jellyfin.dcunha.io` to public clients.
-The home IP is not exposed. Accepted. Pointing the URL at another hostname would make LAN clients
-hairpin out to the VPS and cap local playback at residential upload.
+The `jellyfin_compat.public_url` of silo is pinned to the `dcunha.io` hostname. So the
+unauthenticated `/System/Info/Public` endpoint returns `LocalAddress: https://jellyfin.dcunha.io`
+to public clients. The home IP is not exposed. This is accepted. If the URL points at another
+hostname, LAN clients go out to the VPS and back. The residential upload speed then limits local
+playback.
 
-**Bandwidth.** OCI Always Free gives 10 TB/month egress. Artemis to frostlink is VPS ingress and is
-uncounted, so each delivered byte counts once. The real ceiling is Artemis's residential upload
-(about 20–50 Mbps). Expect seeking to feel worse than direct play.
+Bandwidth: OCI Always Free gives 10 TB/month of egress. Traffic from Artemis to frostlink is VPS
+ingress, and it is not counted. So each delivered byte counts once. The real limit is the
+residential upload of Artemis (about 20–50 Mbps). Expect seeking to feel worse than direct play.
 
 ## Gotchas
 
-- Missing UDP fails silently. frostlink must have UDP 51820 open. If agents reach the hub by relay
-  but never go direct, suspect the UDP rule.
-- The default relay is whatever the hub advertises. Set `relayUrl` only to override it.
-- The pre-commit hook rewrites `$schema` in `kustomization.yaml` to `k8s-schemas.home-operations.com`
-  (frostlink uses `json.schemastore.org`) and stages the rewrite. Never use `--no-verify`.
-- If the agent is down, frostlink's `home-down` page answers `503` for every `dcunha.io` name.
+- Missing UDP fails silently. frostlink must have UDP 51820 open. If agents reach the hub through
+  the relay but never connect directly, suspect the UDP rule.
+- The default relay is the one that the hub advertises. Set `relayUrl` only to override it.
+- The pre-commit hook rewrites `$schema` in `kustomization.yaml` to
+  `k8s-schemas.home-operations.com` (frostlink uses `json.schemastore.org`), and it stages the
+  rewrite. Never use `--no-verify`.
+- If the agent is down, the frostlink `home-down` page answers `503` for every `dcunha.io` name.
 
 ## Verify
 
-1. `towonel_edge_active_sessions` on the frostlink hub is at least 1 while the agent runs.
-2. frostlink's `TowonelEdgeNoSessions` alert (`app/prometheusrule-edge.yaml`) is on. It is the only
-   alert for a dead tunnel. Leave it on.
-3. `curl -sI https://<name>.dcunha.io` from outside answers, and the certificate is frostlink's.
+1. Make sure that `towonel_edge_active_sessions` on the frostlink hub is at least 1 while the agent
+   runs.
+2. Make sure that the frostlink `TowonelEdgeNoSessions` alert (`app/prometheusrule-edge.yaml`) is
+   on. It is the only alert for a dead tunnel. Leave it on.
+3. Run `curl -sI https://<name>.dcunha.io` from outside. Make sure that it answers and that the
+   certificate is the frostlink one.

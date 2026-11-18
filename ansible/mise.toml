@@ -74,6 +74,18 @@ for f in playbooks/*.yml; do
 done
 '''
 
+[tasks.ucg-authkey]
+description = "Mint a 1-hour Headscale pre-auth key for ucg-max on Frostlink and store it in 1Password without printing it"
+usage = 'arg "<user>" help="Headscale user ID that owns the router node (headscale users list)"'
+confirm = { message = "Mint a new Headscale key and overwrite UCG_AUTHKEY in infrastructure/headscale?", default = "no" }
+run = '''
+kubeconfig="$(git rev-parse --show-toplevel)/kube/clusters/frostlink/kubeconfig"
+key="$(kubectl --kubeconfig "$kubeconfig" --context frostlink -n network exec deploy/headscale -c app -- \
+    headscale preauthkeys create --user "$usage_user" --tags tag:home-router --expiration 1h -o json | jq -er '.key')"
+op item edit headscale --vault infrastructure "ucg-max router.UCG_AUTHKEY[concealed]=$key" >/dev/null
+mise run //:log info "Stored a fresh key in UCG_AUTHKEY; it expires in 1 hour" user "$usage_user"
+'''
+
 [tasks.playbook-path]
 hide = true
 usage = 'arg "<name>"'

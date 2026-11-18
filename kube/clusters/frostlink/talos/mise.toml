@@ -12,6 +12,39 @@ talosctl --context "$KUBE_CONTEXT" -n "$endpoint" upgrade \
     --timeout 10m
 '''
 
+[tasks.diff-patch]
+description = "Dry-run a delta patch against the frostlink node; the diff can hold the Tailscale key, never paste it"
+usage = 'arg "<file>" help="Delta patch with only the changed fields, never patches/controlplane.yaml"'
+run = '''
+case "$(realpath "$usage_file")" in
+"$MISE_CONFIG_ROOT"/patches/*)
+    mise run //:log error "That is a gen-time patch, not a delta. Applying it strands the node." file "$usage_file"
+    exit 2
+    ;;
+esac
+endpoint="$(talosctl --context "$KUBE_CONTEXT" config info -o yaml | yq -e '.endpoints[0]')"
+talosctl --context "$KUBE_CONTEXT" -n "$endpoint" patch machineconfig --patch-file "$usage_file" --dry-run
+'''
+
+[tasks.patch-node]
+description = "Apply a delta patch to the frostlink node; run diff-patch first"
+usage = '''
+arg "<file>" help="Delta patch with only the changed fields, never patches/controlplane.yaml"
+flag "--mode <mode>" default="auto" help="auto, no-reboot, staged or try. A reboot is a full outage"
+'''
+confirm = { message = "Patch the only frostlink node with {{ usage.file }}? If it reboots, the whole cluster goes down.", default = "no" }
+run = '''
+case "$(realpath "$usage_file")" in
+"$MISE_CONFIG_ROOT"/patches/*)
+    mise run //:log error "That is a gen-time patch, not a delta. Applying it strands the node." file "$usage_file"
+    exit 2
+    ;;
+esac
+endpoint="$(talosctl --context "$KUBE_CONTEXT" config info -o yaml | yq -e '.endpoints[0]')"
+mise run //:log warn "Patching the only node" node "$endpoint" file "$usage_file" mode "$usage_mode"
+talosctl --context "$KUBE_CONTEXT" -n "$endpoint" patch machineconfig --patch-file "$usage_file" --mode "$usage_mode"
+'''
+
 [tasks.schematic-id]
 description = "Get the schematic ID from factory.talos.dev for the current schematic"
 hide = true

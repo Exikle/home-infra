@@ -8,30 +8,32 @@ compatibility: Requires `talosctl` (mise pins it to the cluster's running Talos 
 
 Node operations for home-infra (Talos Linux with render-config / Jinja2 templates).
 
-> Also read `.agents/references/talos.md` for node IPs and config background.
+> Also read `.agents/references/talos.md` for node IPs and configuration background.
 
-On Frostlink (one node, so every upgrade or reboot is a full outage), read `frostlink.md` in this
-folder first. The steps below are Artemis.
+If you work on Frostlink, read `frostlink.md` in this folder first. Frostlink is one node, so every
+upgrade or reboot is a full outage. The steps below are for Artemis.
 
-Goal: apply one Talos change to the named node(s) and confirm that the node came back healthy.
+Goal: apply one Talos change to the named node or nodes. Then make sure that the node came back
+healthy.
 
-Success means that the node reports the intended config, is `Ready`, and its static pods
-run (`talosctl get staticpods`). A Ready node with missing control-plane static pods is the
-failure this repo has hit before, and it only shows on the next reboot.
+Success means three things. The node reports the intended configuration. The node is `Ready`. Its
+static pods run (`talosctl get staticpods`). This repo has hit a Ready node with missing
+control-plane static pods before. That failure shows only on the next reboot.
 
-Stop when the change is applied and verified on the node(s) that the user named. Do NOT roll on
-to other nodes. Do NOT start a version upgrade that the user did not ask for. Do NOT reboot a
-second node until the first is back and healthy.
+Stop when the change is applied and verified on the nodes that the user named. Do NOT roll on to
+other nodes. Do NOT start a version upgrade that the user did not ask for. Do NOT reboot a second
+node until the first is back and healthy.
 
-Edit in a worktree (`mise run //:wt:new <type>/<slug>`, `AGENTS.md` rule 7). Every write verb below is
-confirm-gated, so from a non-interactive shell put `--yes` before the module:
+Edit in a worktree (`mise run //:wt:new <type>/<slug>`, `AGENTS.md` rule 7). Every write verb below
+asks for confirmation. So from a non-interactive shell, put `--yes` before the module:
 `mise run --yes //kube/clusters/artemis/talos:apply-node <node>` (`.agents/instructions/tooling.md`).
 
 ## Config Changes (no reboot)
 
 1. Edit `kube/clusters/artemis/talos/nodes/<node>.yaml.j2`.
-2. Run `mise run //kube/clusters/artemis/talos:render-config <node>`, then `mise run //kube/clusters/artemis/talos:diff-node <node>` for a dry run.
-3. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node>`.
+2. Run `mise run //kube/clusters/artemis/talos:render-config <node>`.
+3. Run `mise run //kube/clusters/artemis/talos:diff-node <node>` for a dry run.
+4. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node>`.
 
 ## Config Changes (with reboot)
 
@@ -48,41 +50,38 @@ kubectl drain <node> --ignore-daemonsets --delete-emptydir-data
 kubectl uncordon <node>
 ```
 
-Use `drain` when you mean to empty the node. Do not use a bare `cordon` (`.agents/references/scheduling.md`).
+If you mean to empty the node, use `drain`. Do not use a bare `cordon`
+(`.agents/references/scheduling.md`).
 
 ## Extension Changes
 
-Schematics are per node type, not per node: run `ls kube/clusters/artemis/talos/schematics`. `mise run //kube/clusters/artemis/talos:schematic-type <node>`
-(hidden, in `kube/clusters/artemis/talos/mise.toml`) maps a node name to its type. Extensions need a new schematic ID
-and a reboot:
+Schematics are per node type, not per node. To list them, run
+`ls kube/clusters/artemis/talos/schematics`. `mise run //kube/clusters/artemis/talos:schematic-type <node>`
+maps a node name to its type. It is hidden, and it is in `kube/clusters/artemis/talos/mise.toml`.
+Extensions need a new schematic ID and a reboot:
 
 1. Edit `kube/clusters/artemis/talos/schematics/<type>.yaml`.
-2. Run `mise run //kube/clusters/artemis/talos:schematic-id <type>`. It registers the schematic with Sidero Image Factory and prints the ID. It is
-   hidden, so it does not appear in `mise tasks`, but it is still a real task.
+2. Run `mise run //kube/clusters/artemis/talos:schematic-id <type>`. It registers the schematic with
+   Sidero Image Factory and prints the ID. It is hidden, so it does not appear in `mise tasks`. It
+   is still a real task.
 3. Edit nothing by hand. `render-config` computes the ID and injects it into `cluster.yaml.j2` as
    `ENV.SCHEMATIC`.
-4. Run `mise run --yes //kube/clusters/artemis/talos:apply-node <node> --mode=reboot`.
+4. Run `mise run --yes //kube/clusters/artemis/talos:upgrade-node <node>`. The same Talos version
+   is fine. `apply-node --mode=reboot` does not reinstall the image, so the new extension does not
+   land.
+5. Make sure that the `extensions.talos.dev/schematic` annotation of the node shows the new ID
+   (`talos.md` § Extension Changes).
 
-## NEVER use `talosctl patch machineconfig` with a full config
+## Never change a node by hand
 
-If you pass a full config as a patch, array fields (`machine.files`, `machine.certSANs`) are **duplicated** in the merge. This can produce a read-only filesystem on the next boot. Always use one of these:
+Every Artemis node change goes through its `.yaml.j2` template and `apply-node`. Do not use
+`talosctl patch machineconfig` or `talosctl apply-config` directly:
 
-- `mise run //kube/clusters/artemis/talos:apply-node <node>` for full config replacement (render-config output)
-- A minimal 6-line delta patch file for targeted changes (for example, certSANs only)
+- `apply-config` replaces the whole machine configuration. So a partial file strands the node.
+- A full configuration passed to `patch` duplicates array fields such as `machine.files`. The next
+  boot can then come up read-only.
 
-Minimal certSANs patch example:
-
-```yaml
-machine:
-    certSANs:
-        - <ip-or-hostname>
-cluster:
-    apiServer:
-        certSANs:
-            - <ip-or-hostname>
-```
-
-Apply: `talosctl apply-config --file patch.yaml -n <node-ip>`
+The guard blocks `talosctl patch machineconfig` in this repo.
 
 ## Node Health
 
@@ -95,8 +94,8 @@ talosctl get machineconfig -n <node-ip> -o yaml
 
 ## Automated Upgrades (tuppr)
 
-Check tuppr before you upgrade by hand. It manages Talos and Kubernetes upgrades through cluster-scoped
-CRDs:
+Before you upgrade by hand, look at tuppr. It manages Talos and Kubernetes upgrades through
+cluster-scoped CRDs:
 
 ```bash
 kubectl get talosupgrades,kubernetesupgrades
@@ -110,9 +109,10 @@ mise run --yes //kube/clusters/artemis/talos:upgrade-node <node>
 kubectl uncordon <node>
 ```
 
-The task resolves the installer image (schematic plus version) from the rendered config. For Kubernetes, run
-`mise run --yes //kube/clusters/artemis/talos:upgrade-k8s <version>`.
+The task resolves the installer image (schematic plus version) from the rendered configuration. For
+Kubernetes, run `mise run --yes //kube/clusters/artemis/talos:upgrade-k8s <version>`.
 
 ## Nodes
 
-`ls kube/clusters/artemis/talos/nodes` lists them and `kubectl get nodes -o wide` gives roles and IPs.
+`ls kube/clusters/artemis/talos/nodes` lists the nodes. `kubectl get nodes -o wide` gives their
+roles and IPs.

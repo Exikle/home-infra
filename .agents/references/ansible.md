@@ -1,79 +1,91 @@
 # Ansible — home-infra
 
-This file covers the `ansible/` tree. It holds everything in the house that has an _operating system_ that needs
-configuration. `ansible/README.md` covers operational usage. This file carries the
-reasoning and the traps.
+This file covers the `ansible/` tree. That tree holds every machine in the house that has an
+_operating system_ to configure. `ansible/README.md` covers how to run it. This file gives the
+reasons and the traps.
 
 ## Scope — what belongs here
 
-| Host                      | What Ansible owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pantheon` (10.10.99.104) | Proxmox host OS: ZFS dataset properties (`roles/zfs`), `node_exporter`, tap/net tuning, `lldpd`, the Sunday pre-update snapshot of CT 105 (`roles/pve_guest_snapshots`) and the nightly off-site mirror of `/bulkpool/backups` to atlas (`roles/offsite_backup`). `playbooks/pantheon.yml` applies only these. Hand-managed on the host and in no repo: apt `.sources`, `sshd_config.d/10-hardening.conf`, `modprobe.d/zfs.conf` (ARC cap), the ZED→Alertmanager zedlet, `smartctl_exporter.service`, `/etc/pve/notifications.cfg`, the `pve-etc-backup` timer, `/etc/network/interfaces`, PCI mappings. No NUT (no UPS), no `ssacli` (LSI HBA, not Smart Array). Bringing these under roles is owed. Until then the daily `/etc` tarball on `bulkpool` is the only copy. |
-| `atlas` (10.10.99.100)    | TrueNAS: the netdata `[web]` bind in `/etc/netdata/netdata.conf` and its POSTINIT restore hook (`roles/netdata_exporter`). `playbooks/atlas.yml` applies only these. Datasets, NFS shares and snapshot/scrub tasks belong to tofu (`terraform/stacks/truenas`). Neither tool manages the `media` SMB share. `terraform/stacks/truenas/main.tf` says why.                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `forgejo` (10.10.99.24)   | Forgejo LXC (CT 105, created by tofu in `terraform/stacks/proxmox/forgejo.tf`): OS baseline (`roles/lxc_base`), release binary, `app.ini`, systemd unit, scripts (`roles/forgejo`, `playbooks/forgejo.yml`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `grimoire` (10.10.1.157)  | MacBook workstation: `roles/macos_workstation`, `playbooks/grimoire.yml`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `ucg-max` (10.10.99.1)    | UCG Max gateway: the Tailscale subnet router (`roles/ucg_tailscale`, `playbooks/ucg-max.yml`). See the UCG Max section below. UniFi owns everything else on the box.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `crs309` (10.10.99.2)     | Mikrotik switch: inventory only, no playbook. Tofu owns its config (`terraform/stacks/mikrotik`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Host                      | What Ansible owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pantheon` (10.10.99.104) | The Proxmox host OS: ZFS dataset properties (`roles/zfs`), `node_exporter`, tap and net tuning, `lldpd`, the Sunday pre-update snapshot of CT 105 (`roles/pve_guest_snapshots`), and the nightly off-site mirror of `/bulkpool/backups` to atlas (`roles/offsite_backup`). `playbooks/pantheon.yml` applies only these. Some files are managed by hand on the host and are in no repo: apt `.sources`, `sshd_config.d/10-hardening.conf`, `modprobe.d/zfs.conf` (ARC cap), the ZED→Alertmanager zedlet, `smartctl_exporter.service`, `/etc/pve/notifications.cfg`, the `pve-etc-backup` timer, `/etc/network/interfaces`, and the PCI mappings. There is no NUT (no UPS) and no `ssacli` (the HBA is LSI, not Smart Array). These files must still move into roles. Until then, the daily `/etc` tarball on `bulkpool` is the only copy. |
+| `atlas` (10.10.99.100)    | TrueNAS: the netdata `[web]` bind in `/etc/netdata/netdata.conf` and its POSTINIT restore hook (`roles/netdata_exporter`). `playbooks/atlas.yml` applies only these. Tofu owns the datasets, the NFS shares and the snapshot and scrub tasks (`terraform/stacks/truenas`). Neither tool manages the `media` SMB share. `terraform/stacks/truenas/main.tf` gives the reason.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `forgejo` (10.10.99.24)   | The Forgejo LXC (CT 105, created by tofu in `terraform/stacks/proxmox/forgejo.tf`): the OS baseline (`roles/lxc_base`), the release binary, `app.ini`, the systemd unit and the scripts (`roles/forgejo`, `playbooks/forgejo.yml`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `grimoire` (10.10.1.157)  | The MacBook workstation: `roles/macos_workstation`, `playbooks/grimoire.yml`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `ucg-max` (10.10.99.1)    | The UCG Max gateway: the Tailscale subnet router (`roles/ucg_tailscale`, `playbooks/ucg-max.yml`). See the UCG Max section below. UniFi owns everything else on the box.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `crs309` (10.10.99.2)     | The Mikrotik switch: inventory only, no playbook. Tofu owns its configuration (`terraform/stacks/mikrotik`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ## What does NOT belong here
 
-- Talos nodes. They have no SSH, no package manager, and no Python interpreter. There is no
-  `siderolabs` Ansible collection. People build `command:` wrappers around
-  `talosctl`, which is Ansible as a shell script with none of the value of Ansible. Talos machine
-  config _is_ the declarative state. `mise run //kube/clusters/artemis/talos:render-config` already does this, and
-  the wider home-operations community converged on it after dropping Ansible.
+- Talos nodes. They have no SSH, no package manager and no Python interpreter. There is no
+  `siderolabs` Ansible collection. People build `command:` wrappers around `talosctl`. That is
+  Ansible used as a shell script, and it gives none of the value of Ansible. The Talos machine
+  configuration _is_ the declarative state. `mise run //kube/clusters/artemis/talos:render-config`
+  already does this job. The wider home-operations community moved to this model after it dropped
+  Ansible.
 - Anything inside Kubernetes. Flux owns it.
-- Restore drills and runbooks. They are interactive, branching procedures that need human judgment,
-  the opposite of convergent state. They stay as mise tasks and `.agents/skills/`.
-- Windows / Arcana. It is one GUI-managed desktop, and WinRM plumbing has negative payback.
-- The WSL2 dev machine. mise owns both dotfiles and tools. It manages dotfiles with `symlink-each`
-  in `~/dotfiles/mise.toml`, applied with `mise bootstrap dotfiles apply`. The only genuine
-  gap is sudo-level system config (`/etc/wsl.conf`, linuxbrew removal). The post-dotfiles hooks of mise
-  cover that without a third owner of the same box.
+- Restore drills and runbooks. They are interactive procedures with branches, and they need human
+  judgment. That is the opposite of convergent state. They stay as mise tasks and in
+  `.agents/skills/`.
+- Windows and Arcana. Arcana is one desktop that you manage through its GUI. The WinRM setup costs
+  more than it saves.
+- The WSL2 dev machine. mise owns both its dotfiles and its tools. mise manages the dotfiles with
+  `symlink-each` in `~/dotfiles/mise.toml`, and you apply them with
+  `mise bootstrap dotfiles apply`. The only real gap is system configuration that needs sudo
+  (`/etc/wsl.conf`, linuxbrew removal). The post-dotfiles hooks of mise cover that gap, so the box
+  does not get a third owner.
 
 ## Collections
 
-`ansible/requirements.yml` pins the collections. `mise run //ansible:deps` installs them into the gitignored
-`collections` directory under `ansible`. That directory is absent in a fresh worktree until the command runs.
+`ansible/requirements.yml` pins the collections. `mise run //ansible:deps` installs them into the
+gitignored `collections` directory under `ansible`. In a fresh worktree, that directory does not
+exist until you run the command.
 
-`community.proxmox` is the current home of the `proxmox_*` modules. They were split
-out of `community.general`, which now keeps deprecated redirects. Write new code against
+`community.proxmox` is the current home of the `proxmox_*` modules. These modules were split out of
+`community.general`, which now keeps only deprecated redirects. Write new code against
 `community.proxmox`.
 
-`arensb.truenas` is the only viable TrueNAS collection. It does
-_not_ call the REST API from the control node. It runs on the box over SSH and shells to
-`midclt`, so `atlas` needs SSH access. It has no replication-task, cloud-sync, or Apps
-modules. It covers snapshot tasks but not replication.
+`arensb.truenas` is the only usable TrueNAS collection. It does _not_ call the REST API from the
+control node. It runs on the box over SSH and calls `midclt` in a shell, so `atlas` needs SSH
+access. It has no modules for replication tasks, cloud sync or Apps. It covers snapshot tasks but
+not replication.
 
-For the CRS309 use `community.routeros.api_modify` (idempotent), not `command`.
+For the CRS309, use `community.routeros.api_modify` (idempotent), not `command`.
 
 ## The forgejo role — why `app.ini` is edited key-by-key
 
-`roles/forgejo` builds a host from bare Debian and converges an existing one. Since
-2026-10-10 it installs packages, creates the `git` user at the pinned UID/GID (103/112, the
-IDs that the original community-scripts install used, so carried-over data keeps its owner),
-installs the latest release, and creates an instance signing key if there is none. It never
-replaces an existing signing key, because that would break verification of every commit it signed.
-The play ends with an `/api/healthz` check. systemd reports "started" before Forgejo
-has read its config, and a fatal config error would otherwise pass. A fresh instance still
-needs someone to create its admin account by hand.
+`roles/forgejo` builds a host from bare Debian, and it also converges an existing host. Since
+2026-10-10, the role does these things:
 
-The role converges the file with `community.general.ini_file`, one key at a time, not with a
-template. This is deliberate. Understand it before you change the role. A
-`template:` task renders the whole file, so every key it fails to reproduce is a key it
-silently deletes. `app.ini` contains at least one key whose value is recorded nowhere:
-`[database] PASSWD`, a dead MySQL leftover that is inert under `DB_TYPE = sqlite3`. `ini_file`
-touches only the keys that the role names and leaves everything else byte-identical.
+1. It installs the packages.
+2. It creates the `git` user at the pinned UID/GID (103/112). These are the IDs that the original
+   community-scripts install used, so the data that came over keeps its owner.
+3. It installs the latest release.
+4. It creates an instance signing key if there is none.
 
-The cost is real. The role does not converge keys that are absent from `forgejo_settings`.
-Drift in an unmanaged setting is invisible to the role. That is the trade: the role leaves undeclared settings
-alone and does not destroy them.
+The role never replaces an existing signing key. A new key breaks the verification of every
+commit that the old key signed.
+
+The play ends with an `/api/healthz` check. systemd reports "started" before Forgejo reads its
+configuration. Without the check, a fatal configuration error passes. On a fresh instance,
+someone must still create the admin account by hand.
+
+The role converges the file with `community.general.ini_file`, one key at a time. It does not use a
+template. This choice is deliberate. Understand it before you change the role. A `template:` task
+renders the whole file, so it silently deletes every key that it does not reproduce. `app.ini`
+contains at least one key whose value is recorded nowhere else: `[database] PASSWD`. It is a dead
+MySQL leftover, and it has no effect under `DB_TYPE = sqlite3`. `ini_file` changes only the keys
+that the role names. It leaves everything else byte-identical.
+
+This choice has a real cost. The role does not converge keys that are absent from
+`forgejo_settings`. The role cannot see drift in a setting that it does not manage. That is the
+trade: the role leaves undeclared settings alone, and it does not destroy them.
 
 ### The secrets live in 1Password
 
 Four `app.ini` values are secrets that Forgejo generated at install time. They live in the `server`
-section of `op://infrastructure/forgejo` beside `METRICS_TOKEN`. A second
-`no_log: true` `ini_file` task applies them from there. The task uses `forgejo_secret_settings`:
+section of `op://infrastructure/forgejo`, beside `METRICS_TOKEN`. A second `ini_file` task with
+`no_log: true` applies them from there. That task uses `forgejo_secret_settings`:
 
 | app.ini                         | 1Password field      |
 | ------------------------------- | -------------------- |
@@ -82,307 +94,376 @@ section of `op://infrastructure/forgejo` beside `METRICS_TOKEN`. A second
 | `[oauth2] JWT_SECRET`           | `OAUTH2_JWT_SECRET`  |
 | `[server] LFS_JWT_SECRET`       | `LFS_JWT_SECRET`     |
 
-A separate item would not hide them from the cluster. The 1Password Connect
-tokens of both clusters read the `infrastructure` vault, because the Forgejo tokens of the cluster live there too. To keep
-them from the cluster, you would need a vault that Connect cannot read, not a separate item.
+A separate 1Password item does not hide these secrets from the clusters. The 1Password Connect
+tokens of both clusters can read the `infrastructure` vault, because the cluster's own Forgejo
+tokens live there too. To keep the secrets from the clusters, you need a vault that Connect cannot
+read. A separate item is not enough.
 
-This instance does not set `SECRET_KEY`, and you must not add it. It is absent from `app.ini`
-entirely, and Forgejo falls back to its own default. If you introduce one, it invalidates anything encrypted
+This instance does not set `SECRET_KEY`. You must not add it. The key is absent from `app.ini`, and
+Forgejo uses its own default. If you add a value, it invalidates everything that Forgejo encrypted
 under the old value.
 
-The role applies these values and does not template them. A `--check` run is therefore a live consistency test. If
-all four report `ok`, what is in the vault matches what is on the box. If one reports `changed`,
-the vault and the host have diverged. Find out which is right before you apply.
+The role applies these values and does not template them. So a `--check` run is a live
+consistency test:
+
+- If all four report `ok`, the vault matches the box.
+- If one reports `changed`, the vault and the host are different. Find out which one is correct
+  before you apply.
 
 ### Themes are shipped by the role, and the THEMES list is derived
 
-Forgejo shows a custom theme only when both of these are true: `theme-<name>.css` exists in
-`$WORK_PATH/custom/public/assets/css/`, and `<name>` appears in `[ui] THEMES`. If only one is true, nothing tells you. There is no error, and the theme is not offered.
+Forgejo shows a custom theme only when both of these are true:
 
-For this reason `forgejo_custom_themes` lists the filenames, and `forgejo_theme_names` derives the
-app.ini value from them by stripping the `theme-` / `.css` wrapper. To add a theme, you add one line
-to one list. The two halves cannot drift apart.
+1. `theme-<name>.css` exists in `$WORK_PATH/custom/public/assets/css/`.
+2. `<name>` is in `[ui] THEMES`.
 
-The stylesheets live in `roles/forgejo/files/themes/`. Forgejo serves them straight off disk, so the CSS needs no restart. A change to the THEMES list does need a restart,
-because Forgejo reads `app.ini` once at boot. The task notifies
-the restart handler. That is enough only when the play runs to completion. See the partial-apply
-trap below for the case where it does not.
+If only one is true, nothing tells you. There is no error, and Forgejo does not offer the theme.
 
-Symptom when the restart is missed: the files are on disk, `THEMES` is correct in `app.ini`, the
-stylesheet serves `200`, and the theme still does not appear in Settings. The running
-process still holds the list that it read at boot. Check it with
-`systemctl show forgejo -p ActiveEnterTimestamp --value` against the `app.ini` mtime.
+For this reason, `forgejo_custom_themes` lists the filenames. `forgejo_theme_names` derives the
+`app.ini` value from them: it removes the `theme-` / `.css` wrapper. To add a theme, you add one
+line to one list. The two halves cannot drift apart.
 
-`anthracite` is the theme of Erwan Leboucher (`eleboucher/homelab`), already in use here. Each
-file is a compiled Forgejo base followed by a trailing `:root` block. That block remaps the `--steel-*` (dark) or `--zinc-*` (light) ramp of the base onto a named palette. That trailing block is the
-whole theme. The base above it is untouched upstream output.
+The stylesheets live in `roles/forgejo/files/themes/`. Forgejo serves them directly from disk, so a
+CSS change needs no restart. A change to the THEMES list does need a restart, because Forgejo reads
+`app.ini` once at boot. The task notifies the restart handler. That works only when the play runs to
+the end. For the case where it does not, see the partial-apply trap below.
 
-The base is from Forgejo 16, so a Forgejo major can add variables that the base never defines. Forgejo 17 builds
-`--color-thin-*` (callouts, danger buttons, coloured text) from `--hue-*`, and in light mode from
-`--thin-lightness` and `--regular-chroma` too. A last `:root` block in each file carries the values of Forgejo 17
-for those. After a major upgrade, diff the variables that `index.css` references against what
-`index.css` plus each theme defines. Compare the result with the built-in `forgejo-dark`/`-light`.
+These are the symptoms of a missed restart:
 
-`solarized` is the default theme. The team built it by swapping only that block for the 16
-colours of Solarized (<https://ethanschoonover.com/solarized/>). The 16 colours sit in each file as
-`--sol-<name>` variables, and every ramp is mixed from them. It replaced the earlier `ayu` theme.
+- The files are on disk.
+- `THEMES` is correct in `app.ini`.
+- The stylesheet serves `200`.
+- The theme still does not appear in Settings.
 
-Solarized measures under WCAG AA (4.5:1) in some places, so the theme has three deliberate deviations:
+The running process still holds the list that it read at boot. To find out, compare
+`systemctl show forgejo -p ActiveEnterTimestamp --value` with the mtime of `app.ini`.
+
+`anthracite` is the theme of Erwan Leboucher (`eleboucher/homelab`), and it is already in use here.
+Each file is a compiled Forgejo base, followed by a trailing `:root` block. That block maps the
+`--steel-*` (dark) or `--zinc-*` (light) colour ramp of the base onto a named palette. The trailing
+block is the whole theme. The base above it is unchanged upstream output.
+
+The base comes from Forgejo 16. A Forgejo major version can add variables that the base never
+defines. Forgejo 17 builds `--color-thin-*` (callouts, danger buttons, coloured text) from
+`--hue-*`. In light mode, it also uses `--thin-lightness` and `--regular-chroma`. A last `:root`
+block in each file holds the Forgejo 17 values for those variables. After a major upgrade, do these
+steps:
+
+1. Diff the variables that `index.css` references against the variables that `index.css` and each
+   theme define.
+2. Compare the result with the built-in `forgejo-dark`/`-light`.
+
+`solarized` is the default theme. The team built it from `anthracite`: they replaced only the
+trailing block with the 16 colours of Solarized (<https://ethanschoonover.com/solarized/>). The 16
+colours are in each file as `--sol-<name>` variables, and every ramp is mixed from them. It replaced
+the earlier `ayu` theme.
+
+In some places, Solarized measures below WCAG AA (4.5:1). So the theme has three deliberate
+deviations:
 
 - Links: Solarized blue `#268bd2` is 3.5:1 on the dark panels and 3.4:1 on the light background.
-  `--color-primary` is a lighter blue in dark (`#54a0d3`) and a darker blue in light
-  (`#1b6ea3`). Each clears 4.5:1 on both surfaces of its mode. The true blue stays on
-  `--color-accent` for non-text use.
+  `--color-primary` is a lighter blue in dark mode (`#54a0d3`) and a darker blue in light mode
+  (`#1b6ea3`). Each one reaches 4.5:1 on both surfaces of its mode. The true blue stays on
+  `--color-accent` for uses that are not text.
 - Dark body text: Solarized uses `base0`, which is 4.1:1 on the `base02` panels. `--color-text` is
   `base1` (4.9:1). `base0` stays for secondary text.
-- Light body text: Solarized uses `base00`, which is 4.1:1 on `base3`. `--color-text` is
-  `base02`, and secondary text is `base01` (5.0:1). `base00` stays only for the faintest text.
+- Light body text: Solarized uses `base00`, which is 4.1:1 on `base3`. `--color-text` is `base02`,
+  and secondary text is `base01` (5.0:1). `base00` stays only for the faintest text.
 
 ### The host updates itself — do not let the role fight it
 
-| Cron file                | When (UTC)  | What it does                                                                   |
-| ------------------------ | ----------- | ------------------------------------------------------------------------------ |
-| `forgejo-update`         | Sun 03:00   | Installs the `latest` release from Codeberg, majors included (the user's call) |
-| `forgejo-status-cleanup` | Daily 04:30 | `forgejo doctor cleanup-commit-status`, then a 90-day age trim in SQLite       |
+| Cron file                | When (UTC)  | What it does                                                                          |
+| ------------------------ | ----------- | ------------------------------------------------------------------------------------- |
+| `forgejo-update`         | Sun 03:00   | Installs the `latest` release from Codeberg, major versions too (the user chose this) |
+| `forgejo-status-cleanup` | Daily 04:30 | Runs `forgejo doctor cleanup-commit-status`, then a 90-day age trim in SQLite         |
 
-`forgejo-update.sh` and the role cannot both own the binary. Cron upgrades
-on Sunday, the next Ansible run puts `forgejo_version` back, and this repeats forever. For this reason `forgejo_manage_binary`
-defaults to false, and an `assert` fails the play if it is ever true at the same time as
-`forgejo_update_cron_enabled`. Pick one owner.
+`forgejo-update.sh` and the role cannot both own the binary. If both own it, cron upgrades on
+Sunday, the next Ansible run puts `forgejo_version` back, and this repeats forever. For
+this reason, `forgejo_manage_binary` is false by default. An `assert` fails the play if it is true
+at the same time as `forgejo_update_cron_enabled`. Pick one owner.
 
-How an upgrade is made safe (since 2026-10-10): The updater verifies the `.sha256` of the release,
-flushes queues, stops Forgejo, takes `sqlite3 .backup` into
-`/var/lib/forgejo/backups` (newest 3 kept), swaps the binary, and waits for `/api/healthz`. If
-that check fails, it puts back both the old binary and the pre-upgrade database, so it also undoes the migration of a major
-version. Behind that, pantheon snapshots CT 105 at Sun 02:55 UTC
-(`roles/pve_guest_snapshots`, `auto_*`, newest 4 kept). `pct rollback 105 <name>` restores the
-whole container if both of those fail. Any other failure with the service stopped (a failed
-backup, a failed start) puts the old binary and database back if they were already swapped,
-starts Forgejo again, and only then alerts. A failed run therefore does not leave Forgejo down.
+Since 2026-10-10, the updater makes an upgrade safe with these steps:
 
-Both cron scripts set their own `PATH`, and the updater runs `set -E`. The `PATH` of cron is
-`/usr/bin:/bin`, which has no `runuser`. Without `-E`, functions do not inherit the `ERR` trap,
-so a failure inside `as_git` exited with no alert and no restart. On 2026-10-18
-those two together left Forgejo stopped for 2.5 hours (#2809).
+1. It verifies the `.sha256` of the release.
+2. It flushes the queues.
+3. It stops Forgejo.
+4. It takes a `sqlite3 .backup` into `/var/lib/forgejo/backups` (it keeps the newest 3).
+5. It swaps the binary.
+6. It waits for `/api/healthz`.
 
-The updater reports every outcome. It posts `alertname=ForgejoUpdate` to Alertmanager (the
-same path as the ZED bridge of pantheon. chaski itself is cluster-internal). The severity is `info` when it upgraded,
-`warning` when it did not upgrade but Forgejo is still serving (no asset, bad checksum, rolled
-back, or an unexpected exit with the service up), and `critical` when Forgejo is left down. "Nothing
-to do" sends nothing. Info alerts expire after an hour, and the rest after a day.
+If the health check fails, the updater puts back both the old binary and the pre-upgrade database.
+So it also undoes the database migration of a major version.
 
-Why the age trim stays raw SQL: `doctor cleanup-commit-status` of Forgejo removes duplicates
-only. It has no age retention, and CI writes
-several thousand statuses a day, so the 90-day `DELETE` keeps the table flat.
+There is a second safety layer. pantheon takes a snapshot of CT 105 at Sun 02:55 UTC
+(`roles/pve_guest_snapshots`, `auto_*`, it keeps the newest 4). If both of the steps above fail,
+`pct rollback 105 <name>` restores the whole container.
+
+Other failures can happen while the service is stopped, for example a failed backup or a failed
+start. In that case, the updater puts back the old binary and database if it already swapped them.
+It starts Forgejo again, and only then sends an alert. So a failed run does not leave Forgejo down.
+
+Both cron scripts set their own `PATH`, and the updater runs `set -E`. These two settings exist for
+these reasons:
+
+- The `PATH` of cron is `/usr/bin:/bin`, which has no `runuser`.
+- Without `-E`, functions do not inherit the `ERR` trap. A failure inside `as_git` then exited with
+  no alert and no restart.
+
+On 2026-10-18, these two faults together left Forgejo stopped for 2.5 hours (#2809).
+
+The updater reports every outcome. It posts `alertname=ForgejoUpdate` to Alertmanager. This is the
+same path that the ZED bridge of pantheon uses, because chaski itself is cluster-internal. The
+severity depends on the outcome:
+
+- `info`: it upgraded.
+- `warning`: it did not upgrade, but Forgejo still serves. The causes are no asset, a bad checksum,
+  a rollback, or an unexpected exit while the service is up.
+- `critical`: Forgejo is left down.
+
+When there is nothing to do, the updater sends nothing. Info alerts expire after one hour. The other
+alerts expire after one day.
+
+The age trim stays raw SQL for this reason: `doctor cleanup-commit-status` of Forgejo removes only
+duplicates. It has no age retention. CI writes several thousand statuses a day, so the 90-day
+`DELETE` keeps the size of the table flat.
 
 ### `section: DEFAULT` is a trap in `ini_file`
 
-`app.ini` opens with five keys (`APP_NAME`, `APP_SLOGAN`, `RUN_USER`, `WORK_PATH`, `RUN_MODE`)
-above the first section header. `community.general.ini_file` does not treat `section: DEFAULT`
-as that area. It appends a literal `[DEFAULT]` block to the end of the file and leaves the real
-keys untouched, so the settings silently do not take. `section: null` edits the
-pre-section area in place. A `--check --diff` run caught this, which is the argument for always
-doing one.
+`app.ini` starts with five keys (`APP_NAME`, `APP_SLOGAN`, `RUN_USER`, `WORK_PATH`, `RUN_MODE`)
+above the first section header. `community.general.ini_file` does not treat `section: DEFAULT` as
+that area. Instead, it adds a literal `[DEFAULT]` block to the end of the file and leaves the real
+keys unchanged. The settings then silently have no effect. `section: null` edits the area before
+the first section in place. A `--check --diff` run found this problem. That is why you must always
+do one.
 
 ## Rebuilding the Forgejo container
 
-This sequence replaces the container with a fresh tofu-built one that takes over its identity.
+This procedure replaces the container with a fresh one that tofu builds. The new container takes
+over the identity of the old one.
 
-1. Run `pct snapshot 105 <name>` first.
-2. Run `tofu apply` on `terraform/stacks/proxmox/forgejo.tf` with `vm_id = 106` and a free LAB address.
-   The `.20`–`.49` range is outside DHCP (`.50`–`.70`) and the Cilium pool (`.71`–`.99`). ARP cannot
-   find a free address, because the UCG proxy-ARPs every unused address with its own MAC.
-3. Run `mise run --yes //ansible:apply forgejo -e ansible_host=<temp IP>`. It builds and starts a fresh
-   instance, which the copy then overwrites.
-4. On pantheon, copy at the ZFS level with `rsync -aHAX --numeric-ids --delete` from
+1. Run `pct snapshot 105 <name>`.
+2. In `terraform/stacks/proxmox/forgejo.tf`, set `vm_id = 106` and a free LAB address. Use the
+   `.20`–`.49` range. It is outside DHCP (`.50`–`.70`) and outside the Cilium pool (`.71`–`.99`).
+   You cannot use ARP to find a free address, because the UCG answers ARP for every unused address
+   with its own MAC.
+3. Run `mise run //terraform:plan proxmox`.
+4. Run `mise run --yes //terraform:apply proxmox`.
+5. Run `mise run --yes //ansible:apply forgejo -e ansible_host=<temp IP>`. It builds and starts a
+   fresh instance. The copy in the next step overwrites that instance.
+6. On pantheon, copy at the ZFS level with `rsync -aHAX --numeric-ids --delete`. Copy from
    `/vmpool/subvol-105-disk-0/{var/lib/forgejo,etc/forgejo,home/git}` into the rootfs and data
-   volume of 106. Both are unprivileged with the same offset, so owners survive. Keep Forgejo
-   stopped on 106. A second live copy would run push mirrors and webhooks from stale data.
-5. Cut over. Stop Forgejo on 105. Make a final copy plus `/etc/ssh/ssh_host_*` (so git clients see no
-   host-key change). Shut both down, then `zfs rename` the subvols and `mv` the configs:
-   105 → 905 (`onboot: 0`, `link_down=1`) and 106 → 105 with the old MAC and IP. This causes about 2 minutes
-   of downtime.
-6. Run the playbook again against `.24`. The copy brought the old `app.ini`, so the newer
-   keys of the role are not live until it runs.
-7. Run `tofu state rm` on the container, set `vm_id = 105` and the final address/MAC, run `tofu import
-   … pantheon/105`, apply the state-only diff, and make sure that the next plan is empty.
-8. Delete 905 (`pct destroy 905`) after the new container has run cleanly for two weeks.
+   volume of 106. Both containers are unprivileged with the same ID offset, so the file owners stay
+   correct.
+7. Keep Forgejo stopped on 106. A second live copy runs push mirrors and webhooks from old
+   data.
+8. Cut over. This step causes about 2 minutes of downtime:
+    1. Stop Forgejo on 105.
+    2. Make a final copy. Include `/etc/ssh/ssh_host_*`, so git clients see no host-key change.
+    3. Shut down both containers.
+    4. Use `zfs rename` on the subvols and `mv` on the configuration files: 105 → 905
+       (`onboot: 0`, `link_down=1`), and 106 → 105 with the old MAC and IP.
+9. Run the playbook again against `.24`. The copy brought the old `app.ini`, so the newer keys of
+   the role are not live until the playbook runs.
+10. Run `mise run //terraform:run proxmox state rm <address>`.
+11. Set `vm_id = 105` and the final address and MAC.
+12. Run `mise run //terraform:import proxmox <address> pantheon/105`.
+13. Apply the state-only diff. Make sure that the next plan is empty. Never run a bare `tofu`. It
+    skips `TF_ENCRYPTION` and writes the state unencrypted (`terraform.md`).
+14. After the new container runs cleanly for two weeks, delete 905 (`pct destroy 905`).
 
 ## The UCG Max role — Tailscale on a box UniFi owns
 
-`roles/ucg_tailscale` installs the community
-[`SierraSoftworks/tailscale-unifi`](https://github.com/SierraSoftworks/tailscale-unifi) package
-so the gateway can be a subnet router to the tailnet. UniFi has no native Tailscale. The team applied it
-2026-10-02 against Headscale. `host_vars/ucg-max.yml` sets `ucg_tailscale_up: true` and the
-login server, so a plain `mise run //ansible:apply ucg-max` also brings the node up and re-applies any
-drifted pref (routes, hostname, SNAT). The role default stays `ucg_tailscale_up: false`.
+UniFi has no native Tailscale. `roles/ucg_tailscale` installs the community package
+[`SierraSoftworks/tailscale-unifi`](https://github.com/SierraSoftworks/tailscale-unifi), so that
+the gateway can be a subnet router to the tailnet. The team applied it on 2026-10-02 against
+Headscale. `host_vars/ucg-max.yml` sets `ucg_tailscale_up: true` and the login server. So a plain
+`mise run //ansible:apply ucg-max` also brings the node up. It also applies again any pref that
+drifted (routes, hostname, SNAT). The role default stays `ucg_tailscale_up: false`.
 
-- Pinned, not `curl | sh latest`. The role does what the `install.sh` of upstream does. It unpacks
-  the release tarball into `/data`, then runs `manage.sh install`, but from a pinned tag. The tarball
-  carries no version file, so the role writes `/data/tailscale/.tailscale-unifi-version`. Pinned
-  tag: `grep unifi_version: ansible/roles/ucg_tailscale/defaults/main.yml`. That pins the
-  _wrapper_. The `tailscale` .deb itself follows `TAILSCALE_AUTOUPDATE` of upstream (daily, on by
-  default) unless `ucg_tailscale_package_version` is set.
-- Firmware updates can wipe the install. The package lives in `/data` (survives), but the
-  `.deb` lands in the overlay root. The `tailscale-install.timer` of upstream runs `manage.sh on-boot`
-  after boot and daily and reinstalls it. It has still failed before (upstream issues #38, #96,
-  #118), so watch tunnel reachability after every UniFi OS update. Do not trust the timer.
-  Prefs (login server, routes) live in `/data/tailscale/tailscaled.state` and survive a reinstall.
-- Config changes go through `manage.sh install!`, not `restart`. `TS_*` lines in
+- The role pins a version. It does not use `curl | sh latest`. The role does what the upstream
+  `install.sh` does: it unpacks the release tarball into `/data`, then runs `manage.sh install`.
+  But it uses a pinned tag. The tarball has no version file, so the role writes
+  `/data/tailscale/.tailscale-unifi-version`. To find the pinned tag, run
+  `grep unifi_version: ansible/roles/ucg_tailscale/defaults/main.yml`. That pins only the
+  _wrapper_. The `tailscale` .deb itself follows the upstream `TAILSCALE_AUTOUPDATE` (daily, on by
+  default), unless you set `ucg_tailscale_package_version`.
+- A firmware update can remove the install. The package lives in `/data`, which survives. But the
+  `.deb` goes into the overlay root. The upstream `tailscale-install.timer` runs
+  `manage.sh on-boot` after boot and once a day, and it installs the package again. This has
+  failed before (upstream issues #38, #96, #118). So after every UniFi OS update, watch whether the
+  tunnel is reachable. Do not trust the timer. The prefs (login server, routes) live in
+  `/data/tailscale/tailscaled.state`, and they survive a reinstall.
+- Configuration changes go through `manage.sh install!`, not `restart`. The `TS_*` lines in
   `tailscale-env` reach `/etc/default/tailscaled` only during install, so the handler runs
-  `install!`. That runs apt, so the gateway needs internet for the handler to succeed.
-- `TS_TUN_DISABLE_TCP_GRO=1` works around the TSO engine of the UCG Max LAN port, which mangles the
-  GRO super-packets of Tailscale. Subnet-router TCP collapses to hundreds of kbps while ping looks
-  fine (upstream issue #205).
-- Kernel (TUN) mode is required. Userspace mode NATs everything and cannot route LAN →
-  tailnet. Upstream silently falls back to userspace when `/dev/net/tun` is missing. The role
+  `install!`. That runs apt, so the gateway needs internet access for the handler to succeed.
+- `TS_TUN_DISABLE_TCP_GRO=1` works around the TSO engine of the UCG Max LAN port. That engine
+  damages the GRO super-packets of Tailscale. Without the setting, subnet-router TCP drops to
+  hundreds of kbps while ping looks normal (upstream issue #205).
+- Kernel (TUN) mode is required. Userspace mode NATs everything, and it cannot route from the LAN to
+  the tailnet. When `/dev/net/tun` is missing, upstream silently falls back to userspace. The role
   fails instead.
-- `--snat-subnet-routes=false` keeps real LAN source IPs on the far side. You must set it on
-  _both_ subnet routers, and each must accept the routes of the other, or return traffic breaks (upstream
-  issue #161). `--accept-dns=false` stops Tailscale from taking over the dnsmasq of UniFi.
-- dnsmasq must also listen on `tailscale0`, or split DNS fails for every Headscale client.
-  UniFi runs dnsmasq with `bind-dynamic` and an `interface=` list of LAN bridges only, so dnsmasq ignores (UDP) or resets (TCP) a
-  `dcunha.io` query that arrives over the tailnet. The role installs
-  `dnsmasq-tailscale.{service,path}`. They write `interface=tailscale0` to
-  `/run/dnsmasq.dhcp.conf.d/zz-tailscale.conf` and restart dnsmasq, but only when the file was
-  missing. `/run` is tmpfs, so the path unit re-applies it after boot and whenever UniFi rewrites
-  its dnsmasq config. Each re-apply is a ~1 s DNS blip on the LAN. Check:
-  `ss -lun | grep ':53'` on the UCG must list the `100.64.x` address.
-- The role clamps TCP MSS across `tailscale0`. Without it, Frostlink pods stall ~7 s on every TLS
-  handshake to an Artemis LoadBalancer IP. Pods are MTU 1500, and their SYNs leave the VPS through
-  a BPF redirect that skips netfilter, so they advertise MSS 1460. Envoy on `.90`/`.98` then sends
-  1500-byte segments. The UCG answers `need to frag (mtu 1280)`, but the Cilium-LB VIP never acts
-  on it, and TCP recovers only after 1+2+4 s of retransmits (packet capture, 2026-10-03). The role
-  installs `tailscale-mss.{service,timer}`: two `mangle FORWARD` TCPMSS rules (`-i tailscale0`
-  set to 1240, `-o tailscale0` clamp-to-pmtu). The timer re-adds them every minute, because iptables is not
-  persistent and UniFi rewrites its rules. Check: `iptables -t mangle -S FORWARD | grep TCPMSS`.
-- `tailscale up` is idempotent by comparison. The role reads `tailscale status --json` and
-  `tailscale debug prefs` and runs `tailscale up --reset …` only when the node is logged out or a
-  pref drifted. The 1Password lookup sits in the `vars` of that task, so it resolves only when the task
-  runs. A check run with `ucg_tailscale_up: false` never needs the item to exist.
+- `--snat-subnet-routes=false` keeps the real LAN source IPs on the far side. You must set it on
+  _both_ subnet routers. Each router must also accept the routes of the other. If not, return
+  traffic breaks (upstream issue #161). `--accept-dns=false` stops Tailscale from taking over the
+  dnsmasq of UniFi.
+- dnsmasq must also listen on `tailscale0`. If not, split DNS fails for every Headscale client.
+  UniFi runs dnsmasq with `bind-dynamic` and an `interface=` list that holds only the LAN bridges.
+  So dnsmasq ignores (UDP) or resets (TCP) a `dcunha.io` query that comes in over the tailnet. The
+  role installs `dnsmasq-tailscale.{service,path}`. These units write `interface=tailscale0` to
+  `/run/dnsmasq.dhcp.conf.d/zz-tailscale.conf`. They restart dnsmasq only when the file was
+  missing. `/run` is tmpfs, so the path unit applies the file again after boot. It also does this
+  each time UniFi rewrites its dnsmasq configuration. Each new apply causes a DNS gap of about 1 s
+  on the LAN. To make sure that it works, run `ss -lun | grep ':53'` on the UCG. The output must
+  list the `100.64.x` address.
+- The role clamps TCP MSS across `tailscale0`. Without the clamp, Frostlink pods stall for about
+  7 s on every TLS handshake to an Artemis LoadBalancer IP. This is the cause, from a packet
+  capture on 2026-10-03:
+    1. Pods have MTU 1500. Their SYNs leave the VPS through a BPF redirect that skips netfilter, so
+       they advertise MSS 1460.
+    2. Envoy on `.90`/`.98` then sends 1500-byte segments.
+    3. The UCG answers `need to frag (mtu 1280)`, but the Cilium-LB VIP never acts on it.
+    4. TCP recovers only after 1+2+4 s of retransmits.
+
+    The role installs `tailscale-mss.{service,timer}`. They add two `mangle FORWARD` TCPMSS rules:
+    `-i tailscale0` set to 1240, and `-o tailscale0` clamp-to-pmtu. iptables is not persistent, and
+    UniFi rewrites its rules. So the timer adds the rules again every minute. To make sure that they
+    are there, run `iptables -t mangle -S FORWARD | grep TCPMSS`.
+
+- `tailscale up` is made idempotent by comparison. The role reads `tailscale status --json` and
+  `tailscale debug prefs`. It runs `tailscale up --reset …` only when the node is logged out or a
+  pref drifted. The 1Password lookup is in the `vars` of that task, so it resolves only when the
+  task runs. A check run with `ucg_tailscale_up: false` does not need the item to exist.
 - The tag comes from the pre-auth key, never from `--advertise-tags`. Create the key with
-  `headscale preauthkeys create --user <id> --tags tag:home-router`. Headscale rejects _any_
-  requested tag on a pre-auth-key registration, even one identical to the key, with
-  `requested tags [tag:home-router] are invalid or not permitted`, and the node stays logged out.
-  The first real apply hit this (2026-10-02). The failed attempt does not consume the key.
-- The key in `infrastructure/headscale` → `ucg-max router` is single-use and already spent. The role reads it only
-  when the node is logged out (a reset UCG, or a deleted Headscale node). Before you run the role again
-  in that case, mint a fresh key on Frostlink with
-  `kubectl -n network exec deploy/headscale -c app -- headscale preauthkeys create --user <id> --tags tag:home-router --expiration 1h`
-  and store it in the `UCG_AUTHKEY` field of that item.
-- `ucg_tailscale_login_server` has no default on purpose. If it is unset, `tailscale up` would join
+  `headscale preauthkeys create --user <id> --tags tag:home-router`. On a pre-auth-key
+  registration, Headscale rejects _any_ requested tag, even one that is the same as the tag on the
+  key. It fails with `requested tags [tag:home-router] are invalid or not permitted`, and the node
+  stays logged out. The first real apply hit this on 2026-10-02. The failed attempt does not use up
+  the key.
+- The key in `infrastructure/headscale` → `ucg-max router` is single-use, and it is already used.
+  The role reads it only when the node is logged out (a reset UCG, or a deleted Headscale node). In
+  that case, run `mise run --yes //ansible:ucg-authkey <user-id>` before you run the role again.
+  This task makes a 1-hour key on Frostlink. It writes the key to the `UCG_AUTHKEY` field of that
+  item, and it does not print it.
+- `ucg_tailscale_login_server` has no default on purpose. If it is not set, `tailscale up` joins
   Tailscale SaaS. The role asserts that it is set before it runs `up`.
-- The role probes for Python and does not assume it. Whether UniFi OS ships `python3` is undocumented. The
-  playbook runs with `gather_facts: false`, and the first task of the role is a `raw` probe that fails
-  with a clear message if Python is missing. If that ever fires, do not `apt install python3`. It
-  would land in the overlay that a firmware update replaces.
-- Manual, not Ansible: turn off the IPS "Peer to Peer and Dark Web" category
-  (Network → Security → Protection), or it can block NAT traversal to the VPS. That is UniFi
-  controller config, outside this role.
+- The role probes for Python and does not assume that it is there. It is not documented whether
+  UniFi OS ships `python3`. The playbook runs with `gather_facts: false`. The first task of the role
+  is a `raw` probe, which fails with a clear message if Python is missing. If that probe ever
+  fails, do not run `apt install python3`. The package goes into the overlay that a firmware
+  update replaces.
+- One step is manual, not Ansible. Turn off the IPS category "Peer to Peer and Dark Web"
+  (Network → Security → Protection). If it is on, it can block NAT traversal to the VPS. This is
+  UniFi controller configuration, outside this role.
 - The zone firewall of UniFi cannot see `tailscale0`, because UniFi does not manage that interface.
   Access control for the routes lives in the Headscale policy, not in ZBF.
 
 ## Secrets
 
-Use the `community.general.onepassword` lookup, which supports both service-account tokens and
-1Password Connect. Pass vault, item and field separately. Do not use an `op://` URI:
+Use the `community.general.onepassword` lookup. It supports both service-account tokens and
+1Password Connect. Give the vault, the item and the field as separate values. Do not use an
+`op://` URI:
 
 ```yaml
 forgejo_runner_token: "{{ lookup('community.general.onepassword',
-    'forgejo', field='RUNNER_TOKEN', vault='artemis') }}"
+    'forgejo', field='RUNNER_TOKEN', vault='infrastructure') }}"
 ```
 
-The `op://` URI form fails under a service-account token with
-`'vault' is required with 'service_account_token'`, and laptop runs are exactly that case.
+Under a service-account token, the `op://` URI form fails with
+`'vault' is required with 'service_account_token'`. Laptop runs use a service-account token, so
+they hit this failure.
 
-Use a service account for laptop runs and Connect for CI. Put `no_log: true` on tasks that consume
-secrets. Do not use ansible-vault: `AGENTS.md` rule 3 (1Password only, no SOPS) wins.
+Use a service account for laptop runs and Connect for CI. Put `no_log: true` on tasks that use
+secrets. Do not use ansible-vault. `AGENTS.md` rule 3 (1Password only, no SOPS) wins.
 
 ## The netdata.conf chore, solved properly
 
-TrueNAS wipes `/etc/netdata/netdata.conf` on every update. If you re-template the file, you lose the
-race with the next update.
+TrueNAS removes `/etc/netdata/netdata.conf` on every update. If you only write the file again from
+a template, the next update removes it again.
 
-How netdata reaches the cluster now: Nothing is pushed. VMStaticScrape
+This is how netdata data reaches the cluster now. Nothing is pushed. The VMStaticScrape
 `observability/netdata-atlas`
-(`kube/clusters/artemis/apps/observability/victoria/agent/vmstaticscrape-atlas.yaml`) scrapes the Prometheus endpoint of netdata,
-`10.10.99.100:19999/api/v1/allmetrics?format=prometheus`, as
+(`kube/clusters/artemis/apps/observability/victoria/agent/vmstaticscrape-atlas.yaml`) scrapes the
+Prometheus endpoint of netdata, `10.10.99.100:19999/api/v1/allmetrics?format=prometheus`, as
 `job=netdata, instance=atlas`. That endpoint exists only because the role rewrites the `[web]`
-section of `/etc/netdata/netdata.conf` to bind `10.10.99.100:19999` (`netdata_exporter_bind`,
-and it keeps the loopback bind that the Reporting tab of TrueNAS reads). The update wipes that too.
+section of `/etc/netdata/netdata.conf` to bind `10.10.99.100:19999` (`netdata_exporter_bind`). The
+role also keeps the loopback bind that the TrueNAS Reporting tab reads. A TrueNAS update removes
+this section too.
 
-The team retired the `truenas-exporter` graphite bridge in `d1fb5e655`. `exporting.conf` does not belong to
-the role. TrueNAS middleware renders it from Reporting → Exporters
-(`midclt call reporting.exporters.query`), so the team configured the graphite push there, not in
-any file. The role used to stage its own copy as well. The team removed that in #2762, along with
-the middleware exporter, whose destination `10.10.99.93` had become the ClusterMesh apiserver
-LoadBalancer (`networking.md` § ClusterMesh with Frostlink).
+The team retired the `truenas-exporter` graphite bridge in `d1fb5e655`. `exporting.conf` does not
+belong to the role. The TrueNAS middleware renders that file from Reporting → Exporters
+(`midclt call reporting.exporters.query`). So the team set up the graphite push there, not in a
+file. The role also used to stage its own copy. The team removed that copy in #2762. They also
+removed the middleware exporter. Its destination, `10.10.99.93`, had become the ClusterMesh
+apiserver LoadBalancer (`networking.md` § ClusterMesh with Frostlink).
 
-`roles/netdata_exporter` implements the fix. The canonical config and a restore script live
-on a dataset (`/mnt/atlas/config/netdata/`). They must not live in `/etc`, which is what
-the update replaces. `arensb.truenas.initscript` registers the script as POSTINIT, so
-the box repairs itself at boot.
+`roles/netdata_exporter` is the fix. The canonical configuration and a restore script live on a
+dataset (`/mnt/atlas/config/netdata/`). They must not live in `/etc`, because an update replaces
+`/etc`. `arensb.truenas.initscript` registers the script as POSTINIT, so the box repairs itself at
+boot.
 
-`arensb.truenas.initscript` is not idempotent on TrueNAS 25.04. A second run raises
-`Module failed: 'script_text'` on an entry that already exists. The role queries
-`initshutdownscript.query` through `midclt` first and calls the module only when the entry is absent. The parameters of the module also differ from what the docs suggest. It takes `cmd`, `name`, `when`, `state`,
-`timeout`. It has no `type` or `enabled`.
+`arensb.truenas.initscript` is not idempotent on TrueNAS 25.04. A second run fails with
+`Module failed: 'script_text'` on an entry that already exists. So the role first queries
+`initshutdownscript.query` through `midclt`. It calls the module only when the entry is absent. The
+module parameters also differ from what the docs suggest. It takes `cmd`, `name`, `when`, `state`
+and `timeout`. It has no `type` or `enabled`.
 
 ## Apply by hand, never from CI
 
-Ansible is push-based and non-transactional. A half-applied run against the only
-hypervisor in the house leaves an undefined state with no reconcile loop to heal it. Flux
-can apply continuously because Kubernetes self-heals. Bare metal does not. An
-unattended run after a Renovate bump could reboot the box that holds the ZFS pools.
+Ansible pushes changes, and it is not transactional. A half-applied run against the only hypervisor
+in the house leaves it in an unknown state. No reconcile loop exists to repair it. Flux can apply
+all the time because Kubernetes repairs itself. Bare metal does not. An unattended run after a
+Renovate bump can reboot the box that holds the ZFS pools.
 
-Always run `mise run //ansible:check <playbook>` first. Modules without check-mode
-support skip or report inaccurately, so a clean check run is a strong hint, not proof.
+Always run `mise run //ansible:check <playbook>` first. Modules without check-mode support skip, or
+they report wrong results. So a clean check run is a strong sign, but it is not proof.
 
 CI runs `ansible-lint` and `--syntax-check`, and it resolves `requirements.yml`. A human applies
 from the laptop.
 
 ## Traps
 
-- A run through the `!` prefix of Claude Code can half-apply and report failure. Ansible refuses
-  non-blocking stdio (`ERROR: Ansible requires blocking IO on stdin/stdout/stderr`), but that
-  guard lives in the display layer, so it can fire _after_ tasks have already changed the
-  host. Because the play aborted, its handlers never ran, so nothing restarts the service. The follow-up run finds the config already correct, so it has nothing to notify
-  either.
+- A run through the `!` prefix of Claude Code can half-apply and then report failure. Ansible
+  refuses non-blocking stdio (`ERROR: Ansible requires blocking IO on stdin/stdout/stderr`). But
+  that guard lives in the display layer, so it can fire _after_ tasks already changed the host.
+  The play stopped, so its handlers never ran, and nothing restarts the service. The next run finds
+  the configuration already correct, so it has nothing to notify either.
 
-    Treat that error as an unknown partial apply, never a no-op. Run again, then make sure that the
-    service actually restarted. Do not trust the recap. Redirecting to a file
-    (`> out 2>&1`) gives blocking handles and avoids it. A normal terminal tab has none of this.
+    Treat that error as an unknown partial apply, never as a no-op. Run again. Then make sure that
+    the service actually restarted. Do not trust the recap. If you redirect the output to a file
+    (`> out 2>&1`), the handles are blocking and the error does not occur. A normal terminal tab
+    does not have this problem.
 
-- TrueNAS keeps the SSH keys of root in its middleware, not in `authorized_keys`. A key written to
-  the file is lost on update. `roles/offsite_backup` adds its key through `midclt user.update`
-  (`files/authorize-key.py`, delegated to atlas), behind `command="rrsync …",restrict` so it can
-  only write under `/mnt/atlas/backups/pantheon`.
-- Do not create Proxmox guests with Ansible. Tofu owns guest creation, and Ansible
-  configures what is inside them. Two creators guarantee drift.
-- LXC containers have no cloud-init, so they need `ansible_user: root` while VMs use a
-  normal user. The inventory diverges on that line. `inventory/hosts.yml` already reflects this for the Forgejo container.
-- ZFS: set dataset properties, and never create or destroy pools. Pool operations are
-  one-shot and reboot-bearing. Encode them as a check-and-assert, not enforced state.
-- Reports say `community.proxmox.proxmox_cluster` is not reliably idempotent. Prefer
-  the module set for guests, ACLs and backup schedules. Use plain `ansible.builtin` for host OS.
+- TrueNAS keeps the SSH keys of root in its middleware, not in `authorized_keys`. An update removes
+  a key that you write to the file. `roles/offsite_backup` adds its key through `midclt user.update`
+  (`files/authorize-key.py`, delegated to atlas). The key is behind `command="rrsync …",restrict`,
+  so it can write only under `/mnt/atlas/backups/pantheon`.
+- Do not create Proxmox guests with Ansible. Tofu owns guest creation, and Ansible configures what
+  is inside the guests. Two creators always cause drift.
+- LXC containers have no cloud-init, so they need `ansible_user: root`. VMs use a normal user. The
+  inventory differs on that line. `inventory/hosts.yml` already has this for the Forgejo container.
+- ZFS: set dataset properties. Never create or destroy pools. Pool operations happen once, and they
+  can need a reboot. Write them as a check-and-assert, not as enforced state.
+- Reports say that `community.proxmox.proxmox_cluster` is not reliably idempotent. Use the module
+  set for guests, ACLs and backup schedules. Use plain `ansible.builtin` for the host OS.
 - Run `ansible` directly. You do not need `mise exec`. The shims directory is on PATH through
-  `~/.zshenv`, so any tool added to `.mise/config.toml` resolves automatically.
-- `.mise/config.toml` sets `ANSIBLE_CONFIG` and its related variables, as absolute paths. Without
-  them, running `ansible` from the repo root silently picks up `/etc/ansible/ansible.cfg`,
-  with the wrong inventory, the wrong roles path, and no error. The env vars are absolute
-  (`{{config_root}}/...`) so they hold from any directory. The relative paths inside
+  `~/.zshenv`, so any tool that you add to `.mise/config.toml` resolves automatically.
+- `.mise/config.toml` sets `ANSIBLE_CONFIG` and the related variables as absolute paths. Without
+  them, `ansible` run from the repo root silently uses `/etc/ansible/ansible.cfg`. You then get the
+  wrong inventory, the wrong roles path, and no error. The variables are absolute
+  (`{{config_root}}/...`), so they work from any directory. The relative paths inside
   `ansible/ansible.cfg` are only a fallback for someone who already ran `cd` into `ansible/`.
-- The `ansible` binary needs a generated UTF-8 locale. This box exports
-  `LANG=en_US.utf-8` but has only `C.utf8` generated, which makes ansible refuse to start.
-  `.mise/config.toml` pins `LANG`/`LC_ALL` to `C.UTF-8` for the repo.
+- The `ansible` binary needs a generated UTF-8 locale. This box exports `LANG=en_US.utf-8`, but it
+  has only `C.utf8` generated. So ansible refuses to start. `.mise/config.toml` pins
+  `LANG`/`LC_ALL` to `C.UTF-8` for the repo.
 
 ## Formatting
 
-Ansible YAML goes through the same `oxfmt` pre-commit hook as every other YAML file in the
-repo. The team tested this, and `ansible-lint` at the `production` profile passes on the output of oxfmt. The one thing oxfmt changes is that it explodes long inline flow collections across
-multiple lines, both lists (`[a, b, c, ...]`) and mappings (`{k: v, k: v}`).
+Ansible YAML goes through the same `oxfmt` pre-commit hook as every other YAML file in the repo.
+The team tested this. `ansible-lint` at the `production` profile passes on the output of oxfmt.
+oxfmt changes one thing: it splits long inline flow collections across multiple lines. This
+applies to both lists (`[a, b, c, ...]`) and mappings (`{k: v, k: v}`).
 
-Use block form, which is idiomatic Ansible anyway. oxfmt and `ansible-lint` disagree about
-how to indent an exploded flow collection, so anything oxfmt explodes fails `yaml[indentation]`
-on the very next lint. Because oxfmt runs as a pre-commit hook, that failure lands _after_ a clean
-pre-commit lint run and shows up only if you lint the committed state again.
+Use block form, which is normal Ansible style anyway. oxfmt and `ansible-lint` do not agree on how
+to indent a split flow collection. So anything that oxfmt splits fails `yaml[indentation]` on the
+next lint. oxfmt runs as a pre-commit hook, so that failure comes _after_ a clean pre-commit lint
+run. You see it only if you lint the committed state again.

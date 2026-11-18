@@ -6,123 +6,128 @@ compatibility: Requires the kopiur CRDs and the shared `ClusterRepository/atlas`
 
 # Skill: Kopiur Restore
 
-Restore a kopiur-managed PVC from a snapshot in home-infra, or extract a single file from
-a snapshot while the app keeps running.
+Restore a kopiur-managed PVC from a snapshot in home-infra. Or extract a single file from a
+snapshot while the app keeps running.
 
 On Frostlink, read `frostlink.md` in this folder first. Its `restore-pvc` takes
-`<ns> <ks> <claim> [offset]`, it restores from R2 on `openebs-zfs`, and the steps below are Artemis.
+`<ns> <ks> <claim> [offset]`, and it restores from R2 on `openebs-zfs`. The steps below are for
+Artemis.
 
-> Read `.agents/references/kopiur.md` first. It covers mover identity, `restore.yaml` uid rules, and why a
-> completed `Restore` is never re-reconciled. `.agents/references/storage.md` § Binding mode
-> explains why you must drive a populator restore with the workload scaled back up.
+> Read `.agents/references/kopiur.md` first. It covers mover identity, the `restore.yaml` uid
+> rules, and why Flux never re-reconciles a completed `Restore`.
+> `.agents/references/storage.md` § Binding mode explains why a populator restore needs the
+> workload scaled back up.
 
-> The direction to scale depends on how the PVC is driven.
+> The direction to scale depends on how the PVC is driven:
 >
-> - `target.populator` Restore into a new, unbound PVC: scale the workload UP. Both
+> - `target.populator` Restore into a new, unbound PVC: scale the workload up. Both
 >   StorageClasses are `WaitForFirstConsumer`, so the PVC stays `Pending` until a consumer is
->   scheduled. If the workload stays at 0, the restore deadlocks. A populator only hands a volume to an _unbound_
->   claim.
-> - Existing, bound PVC restored in place: scale to 0, which is what
->   `mise run //kube/clusters/artemis:restore-pvc` does. The mover pod is the consumer, and the app must not write
->   while its data is replaced.
-> - `target.pvcRef` Restore into a pre-created PVC (§ Extract-only recovery): this is not a populator.
->   The mover pod mounts the claim, and it is the first consumer. A fresh, unbound `miroir` claim
->   binds within seconds of the mover pod scheduling, and the Restore reaches `Completed` with no
->   reader pod and nothing to scale. Verified 2026-10-15
+>   scheduled. If the workload stays at 0, the restore deadlocks. A populator gives a volume only
+>   to an _unbound_ claim.
+> - Existing, bound PVC restored in place: scale to 0. `mise run //kube/clusters/artemis:restore-pvc`
+>   does this. The mover pod is the consumer, and the app must not write while its data is
+>   replaced.
+> - `target.pvcRef` Restore into a pre-created PVC (§ Extract-only recovery): this is not a
+>   populator. The mover pod mounts the claim, and it is the first consumer. A new, unbound
+>   `miroir` claim binds within seconds after the mover pod schedules. The Restore reaches
+>   `Completed` with no reader pod and nothing to scale. Verified 2026-10-15
 >   ([#2769](https://git.dcunha.io/Exikle/home-infra/issues/2769)).
 
 The `//kube/clusters/artemis` tasks use `kube/clusters/artemis/kubeconfig` with context `artemis`.
 Outside a task, pass `--context artemis` explicitly before you run anything destructive.
 
-Goal: get one PVC's data back from a kopiur snapshot, or pull specific files out of one.
+Goal: get the data of one PVC back from a kopiur snapshot, or pull specific files out of one.
 
-Success means that the app runs against restored data and the user has confirmed the
-contents are what they expected. You cannot confirm that yourself. Only the user knows whether
-the restored state is the right point in time.
+Success means that the app runs against the restored data, and the user confirmed that the contents
+are what they expected. You cannot confirm that yourself. Only the user knows if the restored state
+is the right point in time.
 
-Stop when the workload is Running on the restored PVC and you have reported which snapshot
-you used. Do NOT delete the old PVC, the snapshot, or any `Restore` object afterwards. Flux never re-reconciles a
-completed `Restore`, so if you delete it, you remove the only record of what ran.
+Stop when the workload is Running on the restored PVC and you reported which snapshot you used.
+After that, do not delete the old PVC, the snapshot, or any `Restore` object. Flux never
+re-reconciles a completed `Restore`. If you delete it, you remove the only record of what ran.
 
 ## Pick the right shape first
 
-There are two very different jobs. If you choose wrong, you cause an outage you did not need.
+There are two very different jobs. If you choose the wrong one, you cause an outage that you did
+not need.
 
-| You want                                          | Use                         | App downtime     |
-| ------------------------------------------------- | --------------------------- | ---------------- |
-| The live PVC's contents replaced wholesale        | **§ Full restore**          | Yes, scaled to 0 |
-| One file (a database, a config) out of a snapshot | **§ Extract-only recovery** | **None**         |
+| You want                                          | Use                     | App downtime     |
+| ------------------------------------------------- | ----------------------- | ---------------- |
+| The live PVC's contents replaced wholesale        | § Full restore          | Yes, scaled to 0 |
+| One file (a database, a config) out of a snapshot | § Extract-only recovery | None             |
 
-Most "recover my data" requests are extract-only. If the app runs fine and you only need
-rows or a file from before a bad change, do not scale anything down and do not touch the live
-claim. Restore into a _separate_ PVC and copy what you need out.
+Most "recover my data" requests are extract-only. If the app runs correctly and you need only rows
+or a file from before a bad change, do not scale anything down. Do not touch the live claim.
+Restore into a _separate_ PVC and copy out what you need.
 
 ## Critical rules
 
-- Everything below goes through git, not a direct cluster write. The global `~/.claude/hooks/bash-guard.sh`
-  blocks direct applies in this repo. This is deliberate, so do not route around it. Put the
-  recovery objects in a temporary directory under the app, then run `mise run //kube/clusters/artemis:apply-ks`. It renders
-  from local files and therefore needs no CI round-trip. Clean up with `mise run //kube/clusters/artemis:delete-ks`
-  plus a removal commit. § Extract-only recovery has a worked example.
-- The guard also matches `git commit -m` message text. It blocks a commit message that only _quotes_ a
-  guarded command. Use `git commit -F -` with a heredoc. The guard strips heredoc
+- Everything below goes through git, not a direct cluster write. The global
+  `.claude/hooks/guard-destructive.sh` blocks direct applies in this repo. This is on purpose, so do
+  not route around it. Put the recovery objects in a temporary directory under the app. Then run
+  `mise run //kube/clusters/artemis:apply-ks`. It renders from local files, so it needs no CI
+  round-trip. To clean up, run `mise run //kube/clusters/artemis:delete-ks` and make a removal
+  commit. § Extract-only recovery has a worked example.
+- The guard also matches the message text of `git commit -m`. It blocks a commit message that only
+  _quotes_ a guarded command. Use `git commit -F -` with a heredoc. The guard strips heredoc
   bodies.
-- Always use `target.pvcRef`. `target.pvc` creates an OWNED PVC that Kubernetes garbage-collects when
-  the Restore completes, and that deletes your data. Pre-create the PVC and point `pvcRef` at it.
-- Do NOT set `credentialProjection` when the mover namespace already has its own
-  `kopiur-repository-secret`. See § Credentials. This is the most likely cause of a stalled
-  restore.
+- Always use `target.pvcRef`. `target.pvc` creates an owned PVC. Kubernetes garbage-collects that
+  PVC when the Restore completes, and that deletes your data. Pre-create the PVC and point
+  `pvcRef` at it.
+- If the mover namespace already has its own `kopiur-repository-secret`, do not set
+  `credentialProjection`. See § Credentials. This is the most likely cause of a stalled restore.
 - For postgres PVCs (uid 999, mode 700), use `copyMethod: Snapshot` plus
   `moverSecurityContext: runAsUser: 999, runAsGroup: 999`.
 - `copyMethod: Direct` cannot remount a live RWO volume. Scale to 0, or use `copyMethod: Snapshot`.
 - Artemis has two StorageClasses, both `WaitForFirstConsumer`: `miroir` (default, 2 replicas) and
   `miroir-local` (1 replica). There is no RWX class. `kubectl get sc` gives the live answer.
-- Flux Kustomizations live in the app's target namespace. Look up the real name:
+- Flux Kustomizations live in the target namespace of the app. Look up the real name:
   `grep "^  name:" kube/clusters/artemis/apps/<ns>/<app>/ks.yaml`.
-- Suspend, apply, confirm, commit, wait for the artifact and resume as
-  `.agents/instructions/commit-style.md` § The sequence describes. Do not resume until the artifact carries
-  your commit. If you resume earlier, Flux reverts the change.
-- Edit in a worktree: run `mise run //:wt:new fix/<slug>` first (`AGENTS.md` rule 7).
+- Suspend, apply, confirm, commit, wait for the artifact, and resume, as
+  `.agents/instructions/commit-style.md` § The sequence describes. Do not resume until the artifact
+  carries your commit. If you resume earlier, Flux reverts the change.
+- Edit in a worktree. Run `mise run //:wt:new fix/<slug>` first (`AGENTS.md` rule 7).
 
 ## Credentials: read this before you write a Restore
 
 The `atlas` ClusterRepository points `encryption.passwordSecretRef` at
-`kopiur-system/kopiur-repository-secret`. Namespaces that back up (through `components/kopiur/secret`)
-also carry their own identical copy of that secret.
+`kopiur-system/kopiur-repository-secret`. Namespaces that back up (through
+`components/kopiur/secret`) also carry their own identical copy of that secret.
 
-- If the secret is already in the mover namespace (the normal case for `media`, `default`, `fediverse`),
-  omit `credentialProjection` entirely. The mover uses the local secret.
+- If the secret is already in the mover namespace, omit `credentialProjection` entirely. This is
+  the normal case for `media`, `default` and `fediverse`. The mover uses the local secret.
 - If the secret is not in the namespace, the ClusterRepository must allow it with
-  `credentialProjection.allowed: true`, and the Restore must set `credentialProjection.enabled:
-  true`. Without the owner-side allow, setting `enabled` on its own fails.
+  `credentialProjection.allowed: true`. The Restore must also set
+  `credentialProjection.enabled: true`. Without the allow on the owner side, `enabled` alone
+  fails.
 
-If you set `credentialProjection.enabled: true` when the local secret exists, the restore does not fall back
-to the local secret. It requests cross-namespace access, the ClusterRepository denies it, and the Restore
-stays in `Pending` with:
+If you set `credentialProjection.enabled: true` when the local secret exists, the restore does not
+fall back to the local secret. It requests cross-namespace access, and the ClusterRepository
+denies it. The Restore then stays in `Pending` with:
 
 ```
 CredentialsAvailable=False MissingCredentialsSecret: cross-namespace credential projection denied
 ```
 
-A good identical secret sits unused in the namespace. To fix it, delete the field.
+A good, identical secret sits unused in the namespace. To fix it, delete the field.
 
 ## Reading a snapshot without restoring it
 
-`kubectl kopiur ls|cat|download|browse` are read-only and would be the quick path, but both modes
-are currently unavailable for namespaced snapshots here:
+`kubectl kopiur ls|cat|download|browse` are read-only. They are the quick path when they work.
+But both modes do not work at this time for namespaced snapshots here:
 
-- `--local` fails because the `atlas` backend is an in-cluster NFS volume that a workstation cannot mount.
+- `--local` fails. The `atlas` backend is an in-cluster NFS volume that a workstation cannot mount.
 - The default in-cluster session pod fails on the same cross-namespace secret wall as above.
 
-Setting `credentialProjection.allowed: true` on the ClusterRepository would unlock them. Until
-then, use § Extract-only recovery.
+Setting `credentialProjection.allowed: true` on the ClusterRepository unlocks them. Until then,
+use § Extract-only recovery.
 
 ## Step 1: Confirm
 
-Ask for the app and namespace, which PVC, which snapshot, and the reason. Then use the table at the top to decide
-between a full restore and extract-only.
-
-For a full restore, warn that it overwrites current PVC contents and get explicit confirmation.
+1. Ask for the app and namespace, the PVC, the snapshot, and the reason.
+2. Use the table at the top to choose between a full restore and extract-only.
+3. For a full restore, warn the user that it overwrites the current PVC contents. Get explicit
+   confirmation.
 
 ## Step 2: Find the snapshot
 
@@ -130,15 +135,16 @@ For a full restore, warn that it overwrites current PVC contents and get explici
 kubectl get snapshots.kopiur.home-operations.com -n <ns> | grep <app>
 ```
 
-Names are `<app>-YYYYMMDDHHMMSS` in UTC. Convert before you choose. The classic mistake is to pick a snapshot an hour
-on the wrong side of the incident. Compare your choice with the `AGE` column.
+Names are `<app>-YYYYMMDDHHMMSS` in UTC. Convert the time before you choose. The classic mistake is
+to pick a snapshot an hour on the wrong side of the incident. Compare your choice with the `AGE`
+column.
 
 ---
 
 ## Extract-only recovery (no downtime)
 
-This restores a snapshot into a throwaway PVC, then copies one file out. It never touches the live claim or the running
-app.
+This restores a snapshot into a throwaway PVC, then copies one file out. It never touches the live
+claim or the running app.
 
 ### 1. Stage the objects locally
 
@@ -173,12 +179,12 @@ spec:
 
 There is no `credentialProjection` here. See § Credentials.
 
-Add a Kustomization document to the app's `ks.yaml` that points at `./recovery`.
+Then add a Kustomization document to the `ks.yaml` of the app that points at `./recovery`.
 
 ### 2. Apply and watch
 
-The recovery Kustomization exists only locally. Suspend the root first, or its next reconcile
-prunes the recovery objects mid-restore:
+The recovery Kustomization exists only locally. Suspend the root first. If you do not, the next
+reconcile of the root prunes the recovery objects in the middle of the restore:
 
 ```bash
 mise run //kube/clusters/artemis:suspend-ks flux-system flux-system
@@ -186,10 +192,12 @@ mise run //kube/clusters/artemis:apply-ks <ns> <app>-recovery
 kubectl get restore -n <ns> <app>-recovery -o jsonpath='{.status.phase}'
 ```
 
-The phase goes from `Restoring` to `Completed`, in about two minutes for a 1Gi claim. The PVC stays `Pending` only until the
-mover pod schedules, so do not create the reader first. If the Restore stays `Pending`, read
-`.status.conditions[].message`. It names the cause precisely. If the Restore goes `Failed`, see
-§ Common issues.
+The phase goes from `Restoring` to `Completed`. For a 1Gi claim, this takes about two minutes. The
+PVC stays `Pending` only until the mover pod schedules. So do not create the reader first.
+
+- If the Restore stays `Pending`, read `.status.conditions[].message`. It names the cause
+  precisely.
+- If the Restore goes `Failed`, see § Common issues.
 
 ### 3. Copy the file out
 
@@ -202,9 +210,10 @@ kubectl exec -n <ns> <app>-recovery-reader -- ls -la /mnt
 kubectl cp -n <ns> "<app>-recovery-reader:/mnt/<path>" ./<file>
 ```
 
-For SQLite, copy all three files (`<db>`, `<db>-shm`, `<db>-wal`) and make sure that each one arrived with
-the expected size. A copy that lacks its WAL reads as an older, smaller database. It can also report
-`database disk image is malformed`. Do not suppress `kubectl cp` errors, because that hides this fault.
+For SQLite, copy all three files (`<db>`, `<db>-shm`, `<db>-wal`). Make sure that each one arrived
+with the expected size. A copy without its WAL reads as an older, smaller database. It can also
+report `database disk image is malformed`. Do not suppress `kubectl cp` errors, because that hides
+this fault.
 
 ### 4. Clean up
 
@@ -213,9 +222,13 @@ kubectl delete pod -n <ns> <app>-recovery-reader --wait=false
 mise run //kube/clusters/artemis:delete-ks <ns> <app>-recovery
 ```
 
-Then delete `recovery/` and remove the Kustomization document from `ks.yaml` (keep the leading
-`---` on the first remaining document). You commit nothing here. Resume the root
-(`mise run //kube/clusters/artemis:resume-ks flux-system flux-system`) after `delete-ks` finishes.
+1. Delete `recovery/`.
+2. Remove the Kustomization document from `ks.yaml`. Keep the leading `---` on the first remaining
+   document.
+3. After `delete-ks` finishes, resume the root
+   (`mise run //kube/clusters/artemis:resume-ks flux-system flux-system`).
+
+You commit nothing here.
 
 ---
 
@@ -224,37 +237,47 @@ Then delete `recovery/` and remove the Kustomization document from `ks.yaml` (ke
 Use this only when you must replace the contents of the live claim. Use the task:
 
 ```bash
-mise run //kube/clusters/artemis:restore-pvc <ns> <app> [offset]
+mise run --yes //kube/clusters/artemis:restore-pvc <ns> <app> [offset]
 ```
 
-`offset` 0 is the latest snapshot, 1 the previous, and so on. The task suspends the Kustomization
-and HelmRelease that are both named `<app>` in `<ns>`, scales the workload to 0, and waits for the pods to go.
-It then runs `kopiur restore --from-policy <app> --to-pvc <app> --wait`, resumes, force-reconciles and
-waits for the rollout. It assumes that the Kustomization, HelmRelease, SnapshotPolicy and PVC all share
-the app's name. On failure it leaves the app at 0 replicas with Flux suspended on purpose. Resume by
-hand when you know the cause. Afterwards, check the app's own API or logs, not only pod readiness.
+`offset` 0 is the latest snapshot, 1 is the one before it, and so on. The task does these steps,
+in order:
+
+1. It suspends the Kustomization and the HelmRelease that are both named `<app>` in `<ns>`.
+2. It scales the workload to 0 and waits for the pods to go.
+3. It runs `kopiur restore --from-policy <app> --to-pvc <app> --wait`.
+4. It resumes, force-reconciles, and waits for the rollout.
+
+The task assumes that the Kustomization, HelmRelease, SnapshotPolicy and PVC all share the name of
+the app. If it fails, it leaves the app at 0 replicas with Flux suspended. This is on purpose.
+Resume by hand when you know the cause. Afterwards, read the API or the logs of the app. Pod
+readiness alone is not enough.
 
 ## After any restore into a database-backed app
 
-Apps cache configuration at boot. If you restore or load data underneath a running app, restart
-it. Otherwise it keeps serving the state it read at startup. Sonarr and Radarr report _"No indexers
-available"_ with indexers in the database, and bazarr loses its language profile. Running
-`kubectl rollout restart deployment/<app> -n <ns>` is part of the job.
+Apps cache their configuration at boot. If you restore or load data under a running app, restart
+it. If you do not, it keeps serving the state that it read at startup. Sonarr and Radarr report
+_"No indexers available"_ with indexers in the database, and bazarr loses its language profile.
+Running `kubectl rollout restart deployment/<app> -n <ns>` is part of the job.
 
-Verify row counts per table, not the exit code. A load can report success and still be wrong.
+Make sure that the row counts per table are correct. Do not trust the exit code. A load can report
+success and still be wrong.
 
 ## Common issues
 
-- Restore stuck `Pending` with `MissingCredentialsSecret`: `credentialProjection` is set but the
+- Restore stuck `Pending` with `MissingCredentialsSecret`: `credentialProjection` is set, but the
   namespace already has the secret. Remove the field. See § Credentials.
-- Snapshot stuck with the `snapshot-cleanup` finalizer:
-  `kubectl patch snapshot <name> -n <ns> --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'`
+- Snapshot stuck deleting with the `snapshot-cleanup` finalizer: ask the user first. Then run
+  `mise run --yes //kube/clusters/artemis:release-snapshot <ns> <name>`. The task refuses a
+  Snapshot that is not being deleted. Without the finalizer, kopiur does not clean the snapshot
+  out of the repository.
 - Mover pod `Init:0/1` with FailedMount: another pod still mounts the volume. Scale to 0 first.
 - Restore stuck Pending: make sure that the source snapshot is `Succeeded`, not `Failed`.
-- Restore `Failed`, `kopiaErrorClass: Locked`, `mkdir /repository/...: read-only file system`
-  in `.status.failure`: kopia tried to auto-compact the repository mid-restore, and restore
-  movers mount it read-only. The fault is intermittent and the snapshot is fine. A `Failed` Restore is
-  terminal. Run `mise run //kube/clusters/artemis:delete-ks <ns> <app>-recovery`, then `apply-ks` again. A retry completed
-  on 2026-10-15.
+- Restore `Failed`, with `kopiaErrorClass: Locked` and
+  `mkdir /repository/...: read-only file system` in `.status.failure`: kopia tried to
+  auto-compact the repository in the middle of the restore, and restore movers mount it read-only.
+  The fault is intermittent, and the snapshot is good. A `Failed` Restore is terminal. Run
+  `mise run //kube/clusters/artemis:delete-ks <ns> <app>-recovery`, then run `apply-ks` again. A
+  retry completed on 2026-10-15.
 - Recovered data vanishes when the Restore completes: you used `target.pvc` instead of
   `target.pvcRef`. Kubernetes garbage-collected the owned PVC.

@@ -1,92 +1,108 @@
 # Reference: towonel — Frostlink
 
-towonel is the private path between the public front door and Artemis. Frostlink runs the **hub**
-(control plane) and the **edge**; the Artemis agent dials in over UDP 51820. Public web traffic does
-**not** go through the edge any more: Envoy owns the node's public 80 and 443 (`oci-networking.md` §
-The front door, Artemis issue #3082). The edge carries agent tunnels and the TCP backhaul to Artemis.
+towonel is the private path between the public front door and Artemis. Frostlink runs the hub (the
+control plane) and the edge. The Artemis agent connects to it over UDP 51820. Public web traffic
+does _not_ go through the edge any more. Envoy owns the public ports 80 and 443 of the node
+(`oci-networking.md` § The front door, Artemis issue #3082). The edge carries the agent tunnels and
+the TCP backhaul to Artemis.
 
-The agent side is Artemis's `.agents/references/towonel-agent.md`. The two files
-describe two ends of one tunnel; when they disagree about a port, a DNS record, or who terminates
-TLS, one of them is wrong. Frostlink no longer runs an agent of its own.
+The Artemis `.agents/references/towonel-agent.md` describes the agent side. The two files describe
+the two ends of one tunnel. If they disagree about a port, a DNS record, or who terminates TLS, one
+of them is wrong. Frostlink no longer runs an agent of its own.
 
 Upstream: <https://codeberg.org/towonel/towonel> · charts `oci://codeberg.org/towonel/charts/`
 
 ## Shape here
 
-One `towonel-node` release with **both roles enabled**, in its own `towonel` namespace.
+One `towonel-node` release has both roles turned on. It runs in its own `towonel` namespace.
 
-| Thing       | Value                                                   |
-| ----------- | ------------------------------------------------------- |
-| Chart       | `oci://codeberg.org/towonel/charts/towonel-node`        |
-| Namespace   | `towonel` (not `network` — see below)                   |
-| Workload    | hostNetwork **DaemonSet** (an enabled edge forces this) |
-| Edge public | `edge.frostlink.dev` → `40.233.88.33`, **DNS-only**     |
-| Hub API     | `hub.frostlink.dev` via Envoy                           |
-| State       | sqlite on a kopiur-backed PVC                           |
+| Thing       | Value                                                |
+| ----------- | ---------------------------------------------------- |
+| Chart       | `oci://codeberg.org/towonel/charts/towonel-node`     |
+| Namespace   | `towonel` (not `network`, see below)                 |
+| Workload    | hostNetwork DaemonSet (a turned-on edge forces this) |
+| Edge public | `edge.frostlink.dev` → `40.233.88.33`, DNS-only      |
+| Hub API     | `hub.frostlink.dev` through Envoy                    |
+| State       | sqlite on a PVC that kopiur backs up                 |
 
-Hub and edge share one process because a single node has nowhere to place a separate edge; the
-split exists only to run edges in other regions. `TOWONEL_HUB_PUBLIC_URL` is where agents reach the
-control plane (through Envoy, not the raw 8443 listener); `TOWONEL_EDGE_ADVERTISED_ADDRESSES`
-is where they dial the edge and must be the DNS-only A record. The edge's `/data` needs only the
-key files and the sqlite DB, so the 1Gi `KOPIUR_CAPACITY` is ample. The node's public IP in
-`FROSTLINK_PUBLIC_IP` is not a secret.
+The hub and the edge share one process. A single node has nowhere to put a separate edge. The split
+exists only to run edges in other regions.
+
+- `TOWONEL_HUB_PUBLIC_URL` is where agents reach the control plane. That path goes through Envoy,
+  not the raw 8443 listener.
+- `TOWONEL_EDGE_ADVERTISED_ADDRESSES` is where agents connect to the edge. It must be the DNS-only
+  A record.
+- The edge's `/data` needs only the key files and the sqlite DB. So the 1Gi `KOPIUR_CAPACITY` is
+  more than enough.
+- The public IP of the node in `FROSTLINK_PUBLIC_IP` is not a secret.
 
 ### The backhaul to Artemis
 
-Artemis's agent publishes **one** TCP service, `artemis-backhaul`, on edge port 15001. It lands on
-Artemis `edge-gateway:443`. `kube/clusters/frostlink/apps/towonel/home-backhaul` holds the Frostlink half:
-Services `artemis-backhaul` and `artemis-backhaul-apex` (both to the towonel pod on `:15001`),
-BackendTLSPolicies, HTTPRoutes for `*.dcunha.io` and `dcunha.io`, and a BackendTrafficPolicy with a
-TCP health check and the `home-down` page. How it works and why: `oci-networking.md` § The front door.
+The Artemis agent publishes one TCP service, `artemis-backhaul`, on edge port 15001. It goes to
+Artemis `edge-gateway:443`. `kube/clusters/frostlink/apps/towonel/home-backhaul` holds the
+Frostlink half:
 
-- Envoy terminates the public TLS, then re-encrypts to Artemis. The edge never sees plaintext and
-  does no SNI routing for public names.
-- There is **no PROXY protocol** and no hostname claim. The real client IP travels in
-  `X-Forwarded-For`; Artemis `ClientTrafficPolicy/edge` trusts it from the agent pod.
-- A certificate problem on a public `dcunha.io` name is split: the browser sees Frostlink's
-  certificate, and Envoy checks Artemis's. A failed check surfaces as the `home-down` page.
+- The Services `artemis-backhaul` and `artemis-backhaul-apex`. Both point to the towonel pod on
+  `:15001`.
+- The BackendTLSPolicies.
+- The HTTPRoutes for `*.dcunha.io` and `dcunha.io`.
+- A BackendTrafficPolicy with a TCP health check and the `home-down` page.
+
+`oci-networking.md` § The front door explains how it works and why.
+
+- Envoy terminates the public TLS, then encrypts again to Artemis. The edge never sees plaintext.
+  It does no SNI routing for public names.
+- There is no PROXY protocol and no hostname claim. The real client IP travels in
+  `X-Forwarded-For`. Artemis `ClientTrafficPolicy/edge` trusts that header from the agent pod.
+- A certificate problem on a public `dcunha.io` name has two halves. The browser sees the Frostlink
+  certificate, and Envoy checks the Artemis certificate. If that check fails, the `home-down` page
+  appears.
 
 ## Why its own namespace
 
-The edge is a hostNetwork DaemonSet binding host `:443` and `:80`. PodSecurity
-`baseline` forbids both host namespaces and hostPorts, and `network` has no PSS
-label so it inherits `baseline`. Labelling `network` privileged would also relax
-envoy-gateway and external-dns, so towonel gets its own namespace at
-`pod-security.kubernetes.io/enforce: privileged` — same pattern as `cert-manager`,
-`observability` and `openebs-system`.
+The edge is a hostNetwork DaemonSet that binds host `:443` and `:80`. PodSecurity `baseline`
+forbids both host namespaces and hostPorts. `network` has no PSS label, so it inherits `baseline`.
+A privileged label on `network` also relaxes envoy-gateway and external-dns. So
+towonel gets its own namespace at `pod-security.kubernetes.io/enforce: privileged`. This is the
+same pattern as `cert-manager`, `observability` and `openebs-system`.
 
 ## Why the hub API is not exposed directly
 
-The hub speaks **plain HTTP** on `:8443` unless `TOWONEL_HUB_TLS_ACME_EMAIL` is set,
-and that path is ACME **TLS-ALPN-01**, which Let's Encrypt only validates on port
-443 — which the edge owns. There is no static-certificate option: `hub_tls_cert_dir`
-is ACME `FileStorage`, not a place to drop an existing cert.
+The hub speaks plain HTTP on `:8443`, unless `TOWONEL_HUB_TLS_ACME_EMAIL` is set. That TLS path is
+ACME TLS-ALPN-01. Let's Encrypt validates TLS-ALPN-01 only on port 443, and the edge owns port 443.
+There is no option for a static certificate. `hub_tls_cert_dir` is ACME `FileStorage`, not a place
+for an existing certificate.
 
-So the hub is published as an `HTTPRoute` on `external-gateway`, where Envoy
-terminates TLS with the existing `*.frostlink.dev` certificate. **TCP 8443 must stay closed on the OCI security list** — it is
-bound on the host by hostNetwork, so an open rule exposes the operator API in
-cleartext.
+So the hub is published as an `HTTPRoute` on `external-gateway`. There, Envoy terminates TLS with
+the existing `*.frostlink.dev` certificate.
+
+TCP 8443 must stay closed on the OCI security list. hostNetwork binds it on the host. So an open
+rule exposes the operator API in cleartext.
 
 ## Why sqlite and not the CNPG cluster
 
-The hub supports `postgres`, but:
+The hub supports `postgres`, but the team chose sqlite for these reasons:
 
-- Coupling the tunnel control plane to Postgres means a Renovate CNPG image bump
-  can take **ingress** down. That failure mode already cost us the mautrix bridges
-  (see `database.md` § Why clients must tolerate a primary change).
-- The Postgres advisory lock only matters for multi-replica hub HA, and a single
-  node cannot have that.
-- The node already needs a persistent volume for its keys, so sqlite adds no new
-  state to back up.
+- If the tunnel control plane depends on Postgres, a Renovate bump of the CNPG image can take
+  ingress down. That failure already broke the mautrix bridges (see `database.md` § Why clients
+  must tolerate a primary change).
+- The Postgres advisory lock matters only for a hub with several replicas for HA. A single node
+  cannot have that.
+- The node already needs a persistent volume for its keys. So sqlite adds no new state to back up.
 
 ## The data volume is not optional
 
-`/data` holds `node.key` (edge identity), `hub_kek.key` (seals hub signing keys) and
-`invite_hash.key`. **Losing `invite_hash.key` invalidates every outstanding invite.**
+`/data` holds three keys:
 
-The chart's `templates/_config.tpl` forces the volume to `emptyDir` unless
-`persistence.data.type` is set explicitly — `existingClaim` alone is silently
-ignored and the keys regenerate on every restart. Always set both:
+- `node.key`: the edge identity.
+- `hub_kek.key`: seals the hub signing keys.
+- `invite_hash.key`.
+
+If you lose `invite_hash.key`, every outstanding invite stops working.
+
+The chart's `templates/_config.tpl` forces the volume to `emptyDir` unless you set
+`persistence.data.type` explicitly. The chart silently ignores `existingClaim` on its own, and the
+keys then regenerate on every restart. Always set both:
 
 ```yaml
 persistence:
@@ -95,89 +111,92 @@ persistence:
         existingClaim: towonel
 ```
 
-Do not add `globalMounts`/`advancedMounts`; the chart supplies a mount at
-`edge.dataDir` and a second one double-mounts the volume.
+Do not add `globalMounts`/`advancedMounts`. The chart already mounts the volume at `edge.dataDir`,
+and a second mount mounts the volume twice.
 
 ## kopiur movers need an explicit security context
 
-Both patches live in `kube/clusters/frostlink/apps/towonel/towonel/app/kustomization.yaml`, and
-the component is pulled in **there** rather than via the Flux Kustomization's
-`components:` — patches in the app kustomization do not apply to resources a Flux
-`spec.components` introduces.
+Both patches live in `kube/clusters/frostlink/apps/towonel/towonel/app/kustomization.yaml`. The
+component is pulled in _there_, not through `components:` in the Flux Kustomization. Patches in
+the app kustomization do not apply to resources that a Flux `spec.components` adds.
 
-| Mover   | Component default                        | Why it fails                                                                                                                                        |
-| ------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Restore | `inheritSecurityContextFrom.snapshot`    | A first deploy has no recorded snapshot → `MissingRecordedIdentity`, the Restore holds, and the PVC never binds (the Restore is its populator).     |
-| Backup  | `inheritSecurityContextFrom.pvcConsumer` | Inherits `NET_BIND_SERVICE` from the edge; kopiur treats any added capability as a privileged mover and refuses it (`PrivilegedMoverNotPermitted`). |
+| Mover   | Component default                        | Why it fails                                                                                                                                           |
+| ------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Restore | `inheritSecurityContextFrom.snapshot`    | A first deploy has no recorded snapshot → `MissingRecordedIdentity`. The Restore holds, and the PVC never binds, because the Restore is its populator. |
+| Backup  | `inheritSecurityContextFrom.pvcConsumer` | It inherits `NET_BIND_SERVICE` from the edge. kopiur treats any added capability as a privileged mover and refuses it (`PrivilegedMoverNotPermitted`). |
 
-Both are patched to a plain non-root context (uid/gid `10001`, matching the chart)
-rather than annotating the namespace for privileged movers.
+Both movers are patched to a plain non-root context (uid/gid `10001`, the same as the chart). The
+namespace is not annotated for privileged movers.
 
-Target the patches **by kind**, not by name — `postBuild` substitution runs after
-kustomize, so the resources are still literally named `${KOPIUR_APP}`.
+Target the patches by kind, not by name. `postBuild` substitution runs after kustomize, so at patch
+time the resources are still literally named `${KOPIUR_APP}`.
 
 ## DNS must be grey-cloud, and the annotation does not work
 
 `edge.frostlink.dev` must resolve to the VPS itself, and so must every public record. A proxied
-record hands the connection to Cloudflare, which cannot carry the Headscale passthrough or reach
-the node's public ports the way the front door expects.
+record gives the connection to Cloudflare. Cloudflare cannot carry the Headscale passthrough, and
+it cannot reach the public ports of the node in the way that the front door expects.
 
-external-dns runs **without** `--cloudflare-proxied`, so records are grey by default. On the
-**CRD source an annotation on the DNSEndpoint is ignored** — a per-record override has to be
-`providerSpecific` on the endpoint (`envoy-gateway/app/dnsendpoint.yaml` shows the shape).
+external-dns runs _without_ `--cloudflare-proxied`, so records are grey by default. On the CRD
+source, external-dns ignores an annotation on the DNSEndpoint. A per-record override must be
+`providerSpecific` on the endpoint. `envoy-gateway/app/dnsendpoint.yaml` shows the shape.
 
-Verify with `dig +short edge.frostlink.dev @1.1.1.1` — a `172.64.x.x` answer means it is proxied.
+To make sure that the record is grey, run `dig +short edge.frostlink.dev @1.1.1.1`. A `172.64.x.x`
+answer means that the record is proxied.
 
-Artemis removed its `*.frostlink.dev` wildcard on 2026-11-12, so a hostname without its own record
-does not resolve. This cluster's external-dns must never be repointed at owner id `artemis` or
-prefix `k8s.artemis.%{record_type}-` — see `oci-networking.md` § The `frostlink.dev` zone is shared with
+Artemis removed its `*.frostlink.dev` wildcard on 2026-11-12. So a hostname without its own record
+does not resolve. Never point the external-dns of this cluster at owner id `artemis` or prefix
+`k8s.artemis.%{record_type}-`. See `oci-networking.md` § The `frostlink.dev` zone is shared with
 Artemis.
 
 ## Ports
 
-Two kinds: ports the DaemonSet declares and holds for its lifetime, and ports the edge binds
-**on demand** when an agent registers a TCP/UDP service.
+There are two kinds of port:
+
+- Static ports. The DaemonSet declares them and holds them for its whole life.
+- Dynamic ports. The edge binds them on demand when an agent registers a TCP or UDP service.
 
 ### Static — declared on the DaemonSet
 
-| Port      | Proto | Where            | Open on OCI?                                                   |
-| --------- | ----- | ---------------- | -------------------------------------------------------------- |
-| 443       | TCP   | edge TLS (SNI)   | open, but **Envoy gets the traffic** (BPF); the edge sees none |
-| 51820     | UDP   | iroh QUIC        | **yes** — where agents connect                                 |
-| 8443      | TCP   | hub API          | **no** — via Envoy                                             |
-| 80        | TCP   | edge HTTP        | open, but **Envoy gets the traffic**; the edge sees none       |
-| 51444     | TCP   | hub↔edge link    | no — single pod, disabled                                      |
-| 9090/9091 | TCP   | edge/hub metrics | no — scraped in-cluster                                        |
+| Port      | Proto | Where            | Open on OCI?                                               |
+| --------- | ----- | ---------------- | ---------------------------------------------------------- |
+| 443       | TCP   | edge TLS (SNI)   | open, but Envoy gets the traffic (BPF). The edge sees none |
+| 51820     | UDP   | iroh QUIC        | yes. Agents connect here                                   |
+| 8443      | TCP   | hub API          | no. Traffic goes through Envoy                             |
+| 80        | TCP   | edge HTTP        | open, but Envoy gets the traffic. The edge sees none       |
+| 51444     | TCP   | hub↔edge link    | no. Single pod, turned off                                 |
+| 9090/9091 | TCP   | edge/hub metrics | no. Scraped in-cluster                                     |
 
-The edge still binds host 443 and 80 (chart values). Moving it off them is parked: the advertised
-address would have to change, and that is the risk.
+The edge still binds host 443 and 80 (chart values). The move off these ports is parked. The
+move needs a change to the advertised address, and that change is the risk.
 
-Missing the UDP half fails **silently**: QUIC never establishes and there is no error.
+If the UDP rule is missing, the failure is silent. QUIC never connects, and there is no error.
 
 ### Dynamic — bound per agent service
 
-The edge binds a port per agent TCP/UDP service while a session exists. Today that is
-`15001/tcp` for `artemis-backhaul`. It is **not** open on the OCI security list: only the Frostlink
-pod reaches it, in-cluster (`towonel` Service, `home-backhaul`). These listeners are absent from
-`kubectl get ds -n towonel towonel -o yaml --context frostlink`. The edge logs them:
+The edge binds one port for each agent TCP or UDP service while a session exists. Today that is
+`15001/tcp` for `artemis-backhaul`. This port is _not_ open on the OCI security list. Only the
+Frostlink pod reaches it, in-cluster (the `towonel` Service, `home-backhaul`). These listeners are
+not in `kubectl get ds -n towonel towonel -o yaml --context frostlink`. The edge logs them:
 
 ```text
 edge tcp listener bound   port=15001 service=artemis-backhaul
 ```
 
-They exist only while the agent session does, so probing the port while the agent is down proves
-nothing. The invite must grant the port (`tcp_ports`), or the edge declines to bind with no error.
+The listeners exist only while the agent session exists. So if the agent is down, a probe of the
+port proves nothing. The invite must grant the port (`tcp_ports`). If not, the edge does not bind
+it, and there is no error.
 
 ## Monitoring
 
-The chart ships hub alerts and a ServiceMonitor, which vm-operator converts into `VMRule` /
-`VMServiceScrape`. Edge alerts are **not** in the chart — they are lifted from `eleboucher/homelab`
-into `app/prometheusrule-edge.yaml` with the upstream `cluster="towonel-ops"` selector dropped
-(that exists only because their hub runs outside their cluster).
+The chart ships hub alerts and a ServiceMonitor. vm-operator converts them into `VMRule` and
+`VMServiceScrape`. The chart has no edge alerts. The team took them from `eleboucher/homelab` and
+put them in `app/prometheusrule-edge.yaml`. They removed the upstream `cluster="towonel-ops"`
+selector, which exists only because that hub runs outside its cluster.
 
-Leave `TowonelEdgeNoSessions` on: zero sessions is not a valid steady state now that agents exist.
-A dead tunnel takes every `dcunha.io` name down behind the `home-down` page, and this alert is the
-one that says why. The `for: 10m` tolerates an agent rollout without flapping.
+Leave `TowonelEdgeNoSessions` on. Agents now exist, so zero sessions is not a valid steady state.
+A dead tunnel takes every `dcunha.io` name down behind the `home-down` page. This alert is the one
+that tells you why. The `for: 10m` lets an agent rollout finish without a false alert.
 
 ## Operating
 
@@ -200,29 +219,31 @@ kubectl -n towonel logs ds/towonel --tail=200 --context frostlink | grep 'agent 
 mise run //kube/clusters/frostlink:snapshot-pvc towonel towonel
 ```
 
-Creating an invite uses the operator API key the node generates into `/data` (`/data/operator.key`;
-never print it); the hub API is at `https://hub.frostlink.dev`. Invites are scoped to a hostname
-list and returned as a `tt_inv_2_<token>` string:
+To create an invite, you use the operator API key. The node generates that key into `/data`
+(`/data/operator.key`). Never print it. The hub API is at `https://hub.frostlink.dev`. Each invite
+is scoped to a list of hostnames. The hub returns it as a `tt_inv_2_<token>` string:
 
 ```bash
-towonel invite create --name <agent> --hostnames '<host>,*.<host>'
+mise run --yes //kube/clusters/frostlink:towonel-invite <agent> --hostnames '<host>,*.<host>' [--tcp-ports <port>,...]
 ```
 
-**The invite carries the port grants**, not just the hostnames (`towonel invite create --help` for
-the port flags). Artemis's agent claims no hostnames and publishes one TCP service (`artemis-backhaul`, port 15001,
-in its `towonel-agent/app/helmrelease.yaml`), so its invite needs `tcp_ports: [15001]`. A service on
-the agent side without a matching grant leaves the edge declining to bind the listener, with no
-error on either side.
+The invite carries the port grants as well as the hostnames. For the port flags, run
+`towonel invite create --help`. The Artemis agent claims no hostnames. It publishes one TCP service
+(`artemis-backhaul`, port 15001, in its `towonel-agent/app/helmrelease.yaml`). So its invite needs
+`tcp_ports: [15001]`. If an agent service has no matching grant, the edge does not bind the
+listener, and neither side logs an error.
 
 ## Gotchas
 
-- **`helm show chart oci://codeberg.org/towonel/charts/towonel` 404s** — the chart is
-  `towonel-node` (hub and/or edge). The agent (on Artemis) is plain app-template, not a towonel
+- `helm show chart oci://codeberg.org/towonel/charts/towonel` returns 404. The chart is
+  `towonel-node` (hub, edge, or both). The agent on Artemis is plain app-template, not a towonel
   chart.
-- **The chart's derived probes use `timeoutSeconds: 1`** — the same too-tight setting
-  that let a brief Postgres blip kill the mautrix bridges. They are loosened in the
-  HelmRelease; do not let a chart bump quietly reset them.
-- **Two startup log lines are harmless.** `edge_link listen_addr and psk must both be set; edge_link
-  disabled` (that link only matters for remote edges) and `Insecure TLS config: server certificates
-  will be trusted without verification` (`iroh_relay::tls`, the relay client's default, not
-  towonel's public TLS path).
+- The probes that the chart derives use `timeoutSeconds: 1`. A short Postgres gap killed the
+  mautrix bridges with that same tight setting. The HelmRelease sets looser values. Do not let a
+  chart bump silently reset them.
+- Two startup log lines are harmless:
+    - `edge_link listen_addr and psk must both be set; edge_link disabled`. That link matters only
+      for remote edges.
+    - `Insecure TLS config: server certificates will be trusted without verification`
+      (`iroh_relay::tls`). This is the default of the relay client, not the public TLS path of
+      towonel.
