@@ -163,6 +163,19 @@ after 2 hours (`> 7200`), and `for: 1h` adds one more hour.
 
 The upstream configuration reference is `configs/apoci.example.yaml` in `eleboucher/apoci`.
 
+### Dangling `package_versions` rows after a PVC restore
+
+apoci keeps its blobs on the PVC and its manifests as rows in Postgres. A PVC restore rolls the
+blobs back, but the database stays current. The GC then reports
+`gc: drift reconcile: file missing, no peer holds it`. If the dangling rows are for superseded
+artifacts, retention clears them over time. To clear them at once:
+
+1. Make sure that the live tag (`main`) is not among them.
+2. Make sure that `peer_blobs` holds no copy.
+3. Dump the rows to a file, so that you can reverse the edit.
+4. In one transaction, delete the affected `package_versions` and their `package_files`,
+   `package_tags` and orphaned `blobs` rows.
+
 ## Troubleshooting
 
 Webfinger 404 on the bare domain: use the full actor URL (`https://registry.<domain>/ap/actor`), not

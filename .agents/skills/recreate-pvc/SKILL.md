@@ -143,15 +143,7 @@ were absent from disk.
 Other apps split their data the same way and fail more quietly. After you restore one, find out
 what it stores in other places, and look at that first. Do not wait for the fault to show.
 
-If the dangling rows are for superseded artifacts, apoci retention clears them. The retention
-values are in the `apoci-federation` skill, § Garbage Collection & Retention. To clear them at
-once:
-
-1. Make sure that the live tag (`main`) is not among them.
-2. Make sure that `peer_blobs` holds no copy.
-3. Dump the rows to a file, so that you can reverse the edit.
-4. In one transaction, delete the affected `package_versions` and their `package_files`,
-   `package_tags` and orphaned `blobs` rows.
+To clear the dangling apoci rows, see the `apoci-federation` skill, § Dangling `package_versions` rows after a PVC restore.
 
 ## Gotchas
 
