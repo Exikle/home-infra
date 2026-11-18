@@ -84,9 +84,8 @@ targetNamespace → commonMetadata → path → prune → sourceRef
 → wait → healthChecks
 ```
 
-`wait` goes last (before `healthChecks`). Every Kustomization document must declare it. Today
-every document under `kube/base/` and `kube/clusters/artemis/` does. On Frostlink, some documents
-do not. No hook checks that `wait` is present. § No Restating Defaults gives the reason that the
+`wait` goes last (before `healthChecks`). Every Kustomization document must declare it, on both
+clusters. No hook checks that `wait` is present. § No Restating Defaults gives the reason that the
 redundant `wait: false` stays. In the folders that it covers, the normalizer enforces this order.
 So this list is canonical, not aspirational.
 

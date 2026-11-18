@@ -5,7 +5,7 @@ Mark each item PASS, FAIL, or N/A.
 The spec field order is defined in `.agents/instructions/yaml-conventions.md` § ks.yaml. That file
 wins.
 
-On Frostlink, K8, K10, K11, K13, K14 and K16 do not apply. These Frostlink checks apply instead:
+On Frostlink, K10, K11, K13, K14 and K16 do not apply. These Frostlink checks apply instead:
 
 - If Kopiur is used, `components` includes `../../../../components/kopiur` (no `/backup`), and
   `postBuild.substitute` sets `KOPIUR_APP`. `KOPIUR_CAPACITY` is set only when the claim is not
