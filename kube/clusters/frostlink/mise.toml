@@ -352,9 +352,33 @@ done
 kc -n "$NS" wait pvc "$PVC" --for=jsonpath='{.status.phase}'=Bound --timeout=60m
 
 # The failure this whole task exists to catch: a "successful" empty restore.
-RESOLUTION=$(kc -n "$NS" get restore "$PVC" -o jsonpath='{.status.resolved.resolution}')
+RESOLVED=$(kc -n "$NS" get restore "$PVC" -o json \
+    | jq -c --arg c "$PVC" '.status.claims[$c].resolved // {}')
+RESOLUTION=$(jq -r '.resolution // ""' <<<"$RESOLVED")
+RESOLVED_ID=$(jq -r '.kopiaSnapshotID // ""' <<<"$RESOLVED")
 if [[ "$RESOLUTION" != "Snapshot" ]]; then
     mise run //:log error "restore did NOT come from a snapshot - the volume is EMPTY" resolution "$RESOLUTION"
+    mise run //:log fatal "old data is still on the retained PV" pv "$PV"
+fi
+
+POLICY=$(kc -n "$NS" get restore "$PVC" -o jsonpath='{.spec.source.fromPolicy.name}')
+SNAPSHOT_IDS=$(kc -n "$NS" get snapshot -o json \
+    | jq -r --arg p "$POLICY" '[.items[]
+        | select(.spec.policyRef.name == $p and .status.phase == "Succeeded")]
+        | sort_by(.metadata.creationTimestamp) | reverse
+        | .[].status.snapshot.kopiaSnapshotID')
+LATEST_ID=$(sed -n '1p' <<<"$SNAPSHOT_IDS")
+WANTED_ID=$(sed -n "$((usage_offset + 1))p" <<<"$SNAPSHOT_IDS")
+if [[ -z "$WANTED_ID" ]]; then
+    mise run //:log error "no Succeeded snapshot at this offset" policy "$POLICY" offset "$usage_offset"
+    mise run //:log fatal "old data is still on the retained PV" pv "$PV"
+fi
+if [[ "$usage_offset" != "0" && "$RESOLVED_ID" == "$LATEST_ID" ]]; then
+    mise run //:log error "offset was $usage_offset but the restore used the LATEST snapshot" snapshot "$RESOLVED_ID"
+    mise run //:log fatal "old data is still on the retained PV" pv "$PV"
+fi
+if [[ "$RESOLVED_ID" != "$WANTED_ID" ]]; then
+    mise run //:log error "restore used a different snapshot than the offset names" used "$RESOLVED_ID" wanted "$WANTED_ID"
     mise run //:log fatal "old data is still on the retained PV" pv "$PV"
 fi
 

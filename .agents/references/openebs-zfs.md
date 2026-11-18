@@ -234,6 +234,11 @@ and recreate the CR, the `NoSnapshot` pin goes away. The live PVC needs no filli
 stays unpinned and does not resolve to `Snapshot`. Do not read the absent field as a failure. The
 danger was never "no resolution". It was a resolution pinned to `NoSnapshot`.
 
+For a populator `Restore`, the controller writes these fields under `status.claims.<pvc>.resolved`,
+not under `status.resolved`. The `restore-pvc` task reads them there. It also compares
+`resolved.kopiaSnapshotID` with the Succeeded `Snapshot` at the requested offset, and it fails if
+an offset above 0 used the latest snapshot.
+
 You cannot see the pin in `phase`, which reads `Completed` in both cases. To audit the whole fleet,
 run one command:
 
