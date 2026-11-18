@@ -20,9 +20,9 @@ the comparison that matters.
 ### Why this does not repeat the mistake it was modelled on
 
 The reference implementation in the wild (ionfury/homelab `.claude/skills/instruction-eval`) never
-loads a single CLAUDE.md. It primes the model with a short paraphrase that already contains the
+loads a single AGENTS.md. It primes the model with a short paraphrase that already contains the
 answers its own probes look for, so every repo-constraint test passes for the wrong reason. This
-harness assembles the actual file chain — CLAUDE.md, its `@` imports expanded recursively, and the
+harness assembles the actual file chain — AGENTS.md, its `@` imports expanded recursively, and the
 `paths:`-scoped rules that match a case's declared file — prints a fingerprint of what it built, and
 refuses to run if the result is implausibly small. `--show-context` dumps it for inspection.
 
@@ -133,16 +133,16 @@ def matches(glob: str, path: str) -> bool:
 
 
 def build_context(ref: str | None, context_path: str | None) -> tuple[str, list[str]]:
-    """Assemble exactly what an agent would have: CLAUDE.md + imports + matching rules."""
+    """Assemble exactly what an agent would have: AGENTS.md + imports + matching rules."""
     parts: list[str] = []
     loaded: list[str] = []
 
-    root_md = read_at(ref, "CLAUDE.md")
+    root_md = read_at(ref, "AGENTS.md")
     if root_md is None:
-        raise SystemExit("error: CLAUDE.md not found — cannot assemble context")
-    parts.append("===== CLAUDE.md =====")
-    parts.append(expand_imports(root_md, ref, {"CLAUDE.md"}))
-    loaded.append("CLAUDE.md (+imports)")
+        raise SystemExit("error: AGENTS.md not found — cannot assemble context")
+    parts.append("===== AGENTS.md =====")
+    parts.append(expand_imports(root_md, ref, {"AGENTS.md"}))
+    loaded.append("AGENTS.md (+imports)")
 
     if context_path:
         rules_dir = ROOT / ".claude/rules"

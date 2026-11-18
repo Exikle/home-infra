@@ -11,7 +11,6 @@ area/agents:
           - .agents/**/*
           - .claude/**/*
           - AGENTS.md
-          - CLAUDE.md
           - .mcp.json
 area/backup:
   - changed-files:

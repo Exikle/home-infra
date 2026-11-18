@@ -4,7 +4,7 @@
 check-doc-paths.py catches a dead path inside a doc. check-doc-cluster-claims.py catches a dead
 cluster name. Neither catches the wiring: a skill with no frontmatter is never auto-invoked, a
 skill with no `.claude/skills/` symlink is invisible to Claude Code, a dangling `@import` in
-CLAUDE.md drops a whole instruction file, and a reference doc missing from the AGENTS.md index is
+AGENTS.md drops a whole instruction file, and a reference doc missing from the AGENTS.md index is
 one no agent will ever think to open.
 
 Every one of those failures is silent. Nothing errors; the agent just does not know the rule
@@ -138,11 +138,13 @@ def check_agents() -> None:
 
 
 def check_imports() -> None:
-    """Every @import in CLAUDE.md must resolve, or that instruction file is silently absent."""
-    claude_md = ROOT / "CLAUDE.md"
+    """Every @import in AGENTS.md must resolve, or that instruction file is silently absent."""
+    claude_md = ROOT / "AGENTS.md"
     if not claude_md.exists():
-        fail("no CLAUDE.md at the repo root — Claude Code does not read AGENTS.md natively")
+        fail("no AGENTS.md at the repo root")
         return
+    if (ROOT / "CLAUDE.md").exists():
+        fail("CLAUDE.md exists — Claude Code then ignores AGENTS.md; delete it")
     imported: set[str] = set()
     for line in claude_md.read_text(encoding="utf-8").splitlines():
         m = re.match(r"^@(\S+)", line.strip())
@@ -151,7 +153,7 @@ def check_imports() -> None:
         target = m.group(1)
         imported.add(target)
         if not (ROOT / target).exists():
-            fail(f"CLAUDE.md imports `@{target}`, which does not exist")
+            fail(f"AGENTS.md imports `@{target}`, which does not exist")
 
     # Every instruction file must reach Claude Code one way or the other:
     # an unconditional @import, or a paths:-scoped rule symlinked into .claude/rules/.
@@ -177,7 +179,7 @@ def check_imports() -> None:
         rel = f".agents/instructions/{instr.name}"
         if rel not in imported and instr.name not in scoped:
             fail(
-                f"{rel} is neither imported by CLAUDE.md nor symlinked into .claude/rules/ — "
+                f"{rel} is neither imported by AGENTS.md nor symlinked into .claude/rules/ — "
                 f"Claude Code never loads it"
             )
         if rel in imported and instr.name in scoped:

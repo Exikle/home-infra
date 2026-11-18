@@ -86,10 +86,10 @@ local linters = new Mapping<String, Step> {
     glob = ".claude/hooks/*"
     check = #"if [ -d "$HOME/dotfiles/home/claude/agent-hooks" ]; then "$HOME/dotfiles/home/claude/agent-hooks/sync-hooks.sh" --check "$PWD"; fi"#
   }
-  // Skill/subagent frontmatter and symlinks, CLAUDE.md @imports, .claude/rules scoping, and
+  // Skill/subagent frontmatter and symlinks, AGENTS.md @imports, .claude/rules scoping, and
   // the AGENTS.md reference index. Every one of these fails silently otherwise.
   ["agent-config"] {
-    glob = List("AGENTS.md", "CLAUDE.md", ".agents/**", ".claude/**", "opencode.json")
+    glob = List("AGENTS.md", ".agents/**", ".claude/**", "opencode.json")
     check = "python3 scripts/check-agent-config.py --quiet"
   }
   // Scorer unit tests for the instruction eval (the eval itself stays on demand).

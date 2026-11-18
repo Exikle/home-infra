@@ -1,73 +1,89 @@
 # Claude Code setup — home-infra
 
 These mechanics have no opencode equivalent, so they stay out of the shared `.agents/` contract.
-Read this file when you touch a hook, add a skill or subagent, or wonder why a guard did not fire.
+Read this file when you touch a hook, add a skill or subagent, or want to know why a guard did not
+fire.
 
-- Hooks: `.claude/settings.json` wires `SessionStart` (git state injection),
-  `PreToolUse:Bash` (destructive-command guard), and `PostToolUse:Edit|Write|MultiEdit` (manifest lint).
-  The guards are generated, not hand-written.
-  `.claude/hooks/guard-destructive.sh` and
-  `.opencode/plugins/guard-destructive.js` are both emitted from `.claude/hooks/guard-rules.json`
-  by `.claude/hooks/gen-guards.py`. Edit the rule table, then run
-  `python3 .claude/hooks/gen-guards.py`. Pre-commit re-runs it with `--check`, so a hand-edit or a
-  half-applied change fails the commit and does not ship. Both guards strip heredoc bodies before
-  they match. A heredoc body is data, not a command. Matching it blocked the writing of docs that
-  merely quoted a guarded command.
-- A rule can carry a scoped `exempt` pattern. `kubectl-delete-critical` has one. A command that
-  contains `I_HAVE_A_KOPIUR_SNAPSHOT` opts out of _that rule only_, so a planned PVC recreation
-  can run without a blanket hole. Every other rule still fires, `talosctl reset/wipe` included.
-  That is why this is a per-rule `exempt` and not an entry in the global `always_allow`. The
-  procedure that it exists for is `.agents/skills/recreate-pvc/SKILL.md`. The marker is not a
-  general-purpose override, and it means nothing without a verified snapshot. The rule matches the
-  bare word `pvc`, so it also fires on unrelated objects _named_ `pvc-…` (a MiroirVolume, for
-  example).
-- The hooks are shared with the standalone `~/frostlink` checkout until it is retired.
-  `session-context.sh`, `validate-manifest.sh`,
-  `guard-rules.json` and `gen-guards.py` are vendored copies of
-  `~/dotfiles/home/claude/agent-hooks/`. Push changes out with the `sync-hooks.sh` of that
-  directory. Repo-specific rules carry a per-rule `"repos": [...]` field in `guard-rules.json`,
-  and `.claude/hooks/guard-repo` names which set this repo emits. This repo emits `home-infra`,
-  the set for both clusters. Its `talosctl upgrade/reboot/shutdown` rule blocks any `talosctl` call
-  that does not name Artemis, because a bare call may hit the single Frostlink node.
+- There is no `CLAUDE.md` at the repo root. Claude Code reads `AGENTS.md` when a project has no
+  `CLAUDE.md`. If someone adds a `CLAUDE.md`, Claude Code stops reading `AGENTS.md`, and
+  `lint-agents` fails. The three always-loaded instruction files are `@` imports inside
+  `AGENTS.md`.
+
+- Hooks: `.claude/settings.json` wires three hooks. `SessionStart` injects the git state.
+  `PreToolUse:Bash` is the destructive-command guard. `PostToolUse:Edit|Write|MultiEdit` lints
+  manifests. The guards are generated, not hand-written. `.claude/hooks/gen-guards.py` emits
+  both `.claude/hooks/guard-destructive.sh` and `.opencode/plugins/guard-destructive.js` from
+  `.claude/hooks/guard-rules.json`. To change a guard, edit the rule table, then run
+  `python3 .claude/hooks/gen-guards.py`. Pre-commit runs it again with `--check`. So a hand-edit
+  or a half-applied change fails the commit and does not ship. Both guards strip heredoc bodies
+  before they match. A heredoc body is data, not a command. When the guards matched heredoc
+  bodies, they blocked the writing of docs that only quoted a guarded command.
+- A rule can carry a scoped `exempt` pattern. `kubectl-delete-critical` has one. If a command
+  contains `I_HAVE_A_KOPIUR_SNAPSHOT`, it opts out of _that rule only_. So a planned PVC
+  recreation can run without a blanket hole. Every other rule still fires, `talosctl reset/wipe`
+  included. For this reason, the marker is a per-rule `exempt` and not an entry in the global
+  `always_allow`. The procedure that it exists for is `.agents/skills/recreate-pvc/SKILL.md`. The
+  marker is not a general-purpose override. Without a verified snapshot, it means nothing. The
+  rule matches the bare word `pvc`. So it also fires on unrelated objects _named_ `pvc-…`, for
+  example a MiroirVolume.
+- The hooks are shared with the standalone `~/frostlink` checkout until that checkout is retired.
+  `session-context.sh`, `validate-manifest.sh`, `guard-rules.json` and `gen-guards.py` are
+  vendored copies (copies kept in this repo) of `~/dotfiles/home/claude/agent-hooks/`. To push
+  changes out, run the `sync-hooks.sh` of that directory. Repo-specific rules carry a per-rule
+  `"repos": [...]` field in `guard-rules.json`. `.claude/hooks/guard-repo` names the set that
+  this repo emits. This repo emits `home-infra`, the set for both clusters. Its
+  `talosctl upgrade/reboot/shutdown` rule blocks any `talosctl` call that does not name Artemis.
+  The reason is that a bare call can hit the single Frostlink node.
 - Skill symlinks: `.claude/skills/<name>` → `.agents/skills/<name>`. A new skill needs the
-  symlink, or Claude Code cannot see it. opencode reads `.agents/skills/` directly.
+  symlink. Without it, Claude Code cannot see the skill. opencode reads `.agents/skills/`
+  directly.
 - Subagent symlinks: `.claude/agents/<name>.md` → `.agents/agents/<name>.md`.
-- Path-scoped rules: `.claude/rules/<name>.md` is a symlink to a file in
-  `.agents/instructions/` that carries `paths:` frontmatter. Claude Code loads it only when it
-  touches a matching file, so `cluster-conventions.md` (`kube/clusters/artemis/**`) and `yaml-conventions.md`
-  (`kube/clusters/artemis/**/*.yaml`) stay out of the always-loaded set. A rule in `.claude/rules/` without
-  `paths:` loads every session, which costs the same as an `@import`. So you wire an instruction
-  file exactly one way, never both. opencode has no equivalent: `opencode.json` globs
-  `.agents/instructions/*.md` and loads all five unconditionally, frontmatter and all.
+- Path-scoped rules: `.claude/rules/<name>.md` is a symlink to a file in `.agents/instructions/`
+  that carries `paths:` frontmatter. Claude Code loads such a rule only when it touches a matching
+  file. So `cluster-conventions.md`, `yaml-conventions.md` and `frostlink.md` stay out of the
+  always-loaded set. Each file's `paths:` frontmatter lists the folders that load it. A rule in
+  `.claude/rules/` without `paths:` loads every session. That costs the same as an `@import`. So
+  wire an instruction file exactly one way, never both. opencode has no equivalent.
+  `opencode.json` globs `.agents/instructions/*.md` and loads all six unconditionally,
+  frontmatter and all.
 - `mise run //ai:lint-agents` (`scripts/check-agent-config.py`) audits all of the above. It finds
-  invalid frontmatter YAML, missing or dangling symlinks, skills and subagents without
-  `name:`/`description:`/`mode:`, dangling `@imports`, an instruction file wired twice or not at
-  all, a reference doc absent from the AGENTS.md index, an index row that names a file that does
-  not exist, and an `opencode.json` instructions glob that matches nothing. It runs in the hk
-  pre-commit hook on any `.agents/`, `.claude/`, `AGENTS.md`, `CLAUDE.md` or `opencode.json`
-  change. The original check functions were mutation-tested. Someone broke them deliberately and
-  confirmed that they fire. The frontmatter-YAML check has not been mutation-tested. The
-  mutation test matters because a checker that crashes also exits non-zero and would otherwise
-  look like a working gate.
+  these faults:
+    - Invalid frontmatter YAML.
+    - Missing or dangling symlinks.
+    - Skills and subagents without `name:`/`description:`/`mode:`.
+    - Dangling `@imports`.
+    - An instruction file wired twice or not at all.
+    - A reference doc absent from the AGENTS.md index.
+    - An index row that names a file that does not exist.
+    - An `opencode.json` instructions glob that matches nothing.
+
+    It runs in the hk pre-commit hook on any change to `.agents/`, `.claude/`, `AGENTS.md` or
+    `opencode.json`. The original check functions were mutation-tested. Someone broke them
+    deliberately and made sure that they fire. Nobody mutation-tested the frontmatter-YAML check.
+    The mutation test matters for this reason. A checker that crashes also exits non-zero.
+    Without the test, such a checker looks like a working gate.
+
 - `mise run //ai:eval` (`scripts/eval-instructions.py`) is the behavioural counterpart to
   `lint-agents`. The lint proves that a file is _wired_. The eval proves that the wiring carries
-  meaning. It assembles the real context that an agent gets: CLAUDE.md with `@` imports expanded
-  recursively, plus the `paths:`-scoped rules that match the declared file of a case. It asks the
-  questions in `.agents/evals/*.yaml` and scores the replies. `--ab <ref>` runs the same suite
-  against a git ref and reports regressions. That is the only honest way to back a claim that a
-  cut lost nothing important. The eval costs tokens, so it runs on demand and never in a hook.
-  `--show-context` dumps what it built. `--show-replies` prints the reply behind each failure.
+  meaning. It assembles the real context that an agent gets. That context is AGENTS.md with `@`
+  imports expanded recursively, plus the `paths:`-scoped rules that match the declared file of a
+  case. The eval asks the questions in `.agents/evals/*.yaml` and scores the replies. `--ab <ref>`
+  runs the same suite against a git ref and reports regressions. That is the only honest way to
+  back a claim that a cut lost nothing important. The eval costs tokens, so it runs on demand and
+  never in a hook. `--show-context` dumps the context that it built. `--show-replies` prints the
+  reply behind each failure.
 
-    The eval is built around two traps. The implementation that it was modelled on
-    (ionfury/homelab `instruction-eval`) never loads a CLAUDE.md at all. It primes the model with
-    a paraphrase that already contains the answers, so every constraint probe passes for the wrong
-    reason. This eval refuses to run if the assembled context is under 6KB. The second trap is
-    scoring `forbidden` by naive substring. That is wrong, because a correct answer usually has to
-    name the thing to rule it out ("SOPS is fully removed", "no `git add .`"). The scorer counts
-    only an _affirmative_ use, and it checks for negation on both sides of the match.
-    `scripts/test-eval-scorer.py` pins both directions offline and runs in the hk pre-commit hook.
+    The eval is built to avoid two traps. The first trap comes from the implementation that it
+    was modelled on (ionfury/homelab `instruction-eval`). That implementation never loads a root
+    instruction file at all. It primes the model with a paraphrase that already contains the
+    answers. So every constraint probe passes for the wrong reason. This eval refuses to run if
+    the assembled context is under 6KB. The second trap is to score `forbidden` by naive
+    substring. That is wrong, because a correct answer usually has to name the thing to rule it
+    out ("SOPS is fully removed", "no `git add .`"). The scorer counts only an _affirmative_ use.
+    It checks for negation on both sides of the match. `scripts/test-eval-scorer.py` pins both
+    directions offline, and it runs in the hk pre-commit hook.
 
-    A single run is noisy. Cases flip between runs of the same unchanged suite. `--runs N` takes a
-    strict majority of N samples (an even split fails). Raise it for any `--ab` that you intend to
-    act on. One FAIL at `--runs 1` is a prompt to read the reply with `--show-replies`, not a
-    verdict.
+    A single run is noisy. Cases flip between runs of the same unchanged suite. `--runs N` takes
+    a strict majority of N samples. An even split fails. If you intend to act on an `--ab` run,
+    raise `--runs`. If a case FAILs once at `--runs 1`, read the reply with `--show-replies`. One
+    FAIL is a prompt to read the reply, not a verdict.
