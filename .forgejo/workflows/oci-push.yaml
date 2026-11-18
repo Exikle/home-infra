@@ -52,8 +52,8 @@ jobs:
             fetch -q --depth 1 "$CLONE_URL" "$SHA" "$BEFORE"
           files=$(git diff --name-only "$BEFORE" "$SHA")
           printf 'changed:\n%s\n' "$files"
-          if grep -E '^kube/(base/|components/|clusters/artemis/(apps|components|settings)/)' <<<"$files" >/dev/null; then a=true; else a=false; fi
-          if grep -E '^kube/(base/|components/|clusters/frostlink/(apps|components|settings)/)' <<<"$files" >/dev/null; then f=true; else f=false; fi
+          if grep -E '^kube/(base/|components/|clusters/artemis/(apps|components)/)' <<<"$files" >/dev/null; then a=true; else a=false; fi
+          if grep -E '^kube/(base/|components/|clusters/frostlink/(apps|components)/)' <<<"$files" >/dev/null; then f=true; else f=false; fi
           echo "artemis=$a" >> "$FORGEJO_OUTPUT"
           echo "frostlink=$f" >> "$FORGEJO_OUTPUT"
 
