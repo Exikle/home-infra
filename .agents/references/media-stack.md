@@ -325,7 +325,9 @@ is lost that is not in Postgres or that silo cannot make again.
 - Silo has its own edge rate-limit policy. `BackendTrafficPolicy/silo` overrides `network/edge`
   for the `silo-app` route. The login rule of the gateway matches `api/v1/auth/.*`. Without the
   override, that rule throttles TV sign-in (device polling every 3s) and token refresh. The
-  override limits only `^/api/v2/auth/(login|device/start)$`. It copies the other fields of
+  override limits only `^/api/v2/auth/(login|device/start)$`. silo retired the v1 auth paths:
+  `POST /api/v1/auth/login` returns `410 Gone` (checked 2026-11-18), so v1 needs no limit. The
+  override copies the other fields of
   `edge`, because an override does not inherit them. If `edge` changes, change both.
   `mergeType: StrategicMerge` does not work here. It keeps the rule of the gateway beside the
   rule of the route.
