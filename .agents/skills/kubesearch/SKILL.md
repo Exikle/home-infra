@@ -29,27 +29,11 @@ in the middle of a task, such as deploying an app, the query is the name of that
 
 ## Step 2: Search kubesearch.dev
 
-Download all data chunks in parallel, and filter them by app name (substring match):
+Run the search script with the app name. It finds the last data chunk, downloads every chunk, and
+prints the top 15 matches as `stars | name | repo | url` (substring match on the name):
 
 ```bash
-APP="<app-name>"
-# The index grows; discover the last chunk instead of hardcoding it.
-LAST=$(n=0; while curl -sfo /dev/null "https://kubesearch.dev/hr/data-$n.json"; do n=$((n+1)); done; echo $((n-1)))
-seq 0 "$LAST" | xargs -P8 -I{} sh -c "
-  curl -sL 'https://kubesearch.dev/hr/data-{}.json' | \
-  python3 -c \"
-import sys, json
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-for v in data.values():
-    if '${APP}' in v.get('name','').lower():
-        best = sorted(v['repos'], key=lambda r: -r.get('stars',0))
-        for r in best[:3]:
-            print(r.get('stars',0), '|', v['name'], '|', r['repo'], '|', r['url'])
-\" 2>/dev/null
-" | sort -t'|' -k1 -rn | head -15
+bash .agents/skills/kubesearch/search.sh <app-name>
 ```
 
 Read this coverage limit before you trust a result of 0. The `/hr/` dataset only reliably covers
