@@ -106,7 +106,9 @@ When a chart version or the values of a HelmRelease change, render the HelmRelea
 
 ### Rendering with flate
 
-The checkout has no git history, so you can render only the new version, not a diff. Render from
+The checkout holds only the head version. Its `.git` is empty, and the run has no `git` binary. So
+`git diff` and `git log` do not work, and you can render only the new version. Read the change
+itself with `read_diff`. Render from
 the repo root. Give flate the ignore file of the cluster, so that it sees only the folders that the
 Flux artifact of that cluster holds:
 
