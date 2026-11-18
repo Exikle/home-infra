@@ -208,7 +208,7 @@ many small files are slower than their size suggests. Do not estimate the time f
 
 ### The Restore CR pins its snapshot resolution at creation — permanently
 
-The controller decides `Restore.status.resolved.pinnedAt` and `.resolution` once, when the CR is
+The controller decides `resolved.pinnedAt` and `resolved.resolution` once, when the CR is
 created. It never evaluates them again. A `Restore` created on the first deploy of an app, before
 any snapshot exists, pins `resolution: NoSnapshot` forever. The component sets
 `policy.onMissingSnapshot: Continue`. So every later restore then does this:
@@ -223,11 +223,11 @@ looks like success. It happened on continuwuity, whose Restore stayed poisoned f
 Always delete and recreate the `Restore` CR before you restore. It then resolves again against the
 current `SnapshotPolicy`. There are three states, not two. Read them like this:
 
-| `status.resolved.resolution`   | Meaning                                                                                                                                      |
+| `resolved.resolution`          | Meaning                                                                                                                                      |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Snapshot`                     | Healthy. It resolved against a real snapshot and will restore data.                                                                          |
 | `NoSnapshot`                   | Poisoned. The volume is empty. Stop and use the retained PV.                                                                                 |
-| _absent_, `TargetAlreadyBound` | Healthy. The PVC is already bound, so there was nothing to fill, and nothing is pinned. It resolves fresh when a restore is actually needed. |
+| _absent_, claim `AlreadyBound` | Healthy. The PVC is already bound, so there was nothing to fill, and nothing is pinned. It resolves fresh when a restore is actually needed. |
 
 The third row is what a repaired `Restore` looks like while its PVC is still bound. When you delete
 and recreate the CR, the `NoSnapshot` pin goes away. The live PVC needs no filling, so the new CR
@@ -243,8 +243,7 @@ You cannot see the pin in `phase`, which reads `Completed` in both cases. To aud
 run one command:
 
 ```bash
-kubectl get restore -A --context frostlink -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,\
-RESOLUTION:.status.resolved.resolution,PINNED:.status.resolved.pinnedAt,PHASE:.status.phase
+kubectl get restore -A --context frostlink -o 'custom-columns=NS:.metadata.namespace,NAME:.metadata.name,RESOLUTION:.status.claims.*.resolved.resolution,PINNED:.status.claims.*.resolved.pinnedAt,CLAIM:.status.claims.*.phase,PHASE:.status.phase'
 ```
 
 To repair a `NoSnapshot` pin, delete the CR and let Flux recreate it. The PVC stays `Bound` and the
