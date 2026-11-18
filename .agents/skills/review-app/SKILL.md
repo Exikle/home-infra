@@ -128,7 +128,7 @@ hooks/python scripts/normalize-yaml-order.py --check kube/clusters/<cluster>/app
 ```
 
 A non-zero exit is a FAIL against the yaml-sorting checklist. The script names each file that is
-out of order. Read that file to find which Y item it breaks.
+out of order. `yaml-conventions.md` has the order rules.
 
 ---
 
@@ -150,7 +150,7 @@ check IDs, and code-format the values:
 
 ### WARN — convention drift, fix preferred _(auto-fixable)_
 
-**[Y3]** `enabled` is not the first field in `probes.liveness`.
+**[Y5]** The alias `*app` appears before its anchor `&app`.
 
 **[H27a]** emptyDir `tmp` uses `globalMounts` in a pod that has more than one container. Use `advancedMounts` with `subPath`.
 
