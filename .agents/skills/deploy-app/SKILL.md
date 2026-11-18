@@ -146,6 +146,9 @@ metadata:
         pod-security.kubernetes.io/warn: privileged
 ```
 
+On Artemis, `privileged` is the default PodSecurity level for a new namespace (#3393). Do not
+pick a stricter level unless the user asks for it.
+
 `kustomization.yaml`:
 
 ```yaml
