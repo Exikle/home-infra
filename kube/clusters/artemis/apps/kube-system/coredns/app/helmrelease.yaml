@@ -24,11 +24,6 @@ spec:
     podDisruptionBudget:
       minAvailable: 2
     priorityClassName: system-cluster-critical
-    prometheus:
-      monitor:
-        enabled: false
-      service:
-        enabled: false
     prometheusRules:
       enabled: false
     replicaCount: 3
@@ -80,8 +75,6 @@ spec:
     service:
       clusterIP: 10.43.0.10
       name: kube-dns
-    serviceAccount:
-      create: true
     tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

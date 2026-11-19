@@ -19,4 +19,3 @@ spec:
     keys:
       clientID: ALCOVE_OIDC_CLIENT_ID
       clientSecret: ALCOVE_OIDC_CLIENT_SECRET
-    storeClientSecret: true

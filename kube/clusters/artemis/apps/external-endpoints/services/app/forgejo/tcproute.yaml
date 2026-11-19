@@ -8,8 +8,7 @@ metadata:
     gatus.home-operations.com/enabled: "false"
 spec:
   parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: ListenerSet
+    - kind: ListenerSet
       name: forgejo-ssh
       sectionName: ssh
   rules:

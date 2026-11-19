@@ -20,12 +20,8 @@ spec:
     - kind: ConfigMap
       name: node-exporter-values
       optional: true
-      valuesKey: values.yaml
   values:
     fullnameOverride: node-exporter
-
-    hostPID: true
-    hostNetwork: true
 
     tolerations:
       - effect: NoSchedule

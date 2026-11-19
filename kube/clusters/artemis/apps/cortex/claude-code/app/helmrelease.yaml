@@ -61,13 +61,6 @@ spec:
               MISE_TRUSTED_CONFIG_PATHS: /home/claude/Artemis-Cluster
               MISE_YES: "1"
               TALOSCONFIG: /var/run/secrets/talos.dev/config
-            probes:
-              liveness:
-                enabled: false
-              readiness:
-                enabled: false
-              startup:
-                enabled: false
             resources:
               requests:
                 cpu: 100m

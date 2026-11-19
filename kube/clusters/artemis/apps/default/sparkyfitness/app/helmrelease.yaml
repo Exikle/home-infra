@@ -52,8 +52,6 @@ spec:
                     port: *frontendPort
                   periodSeconds: 10
                   timeoutSeconds: 5
-              startup:
-                enabled: false
             resources:
               requests:
                 cpu: 10m
@@ -153,7 +151,6 @@ spec:
                 enabled: true
                 spec:
                   failureThreshold: 30
-                  periodSeconds: 10
             resources:
               requests:
                 cpu: 50m

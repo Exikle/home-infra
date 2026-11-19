@@ -1,6 +1,3 @@
-monitoring:
-  dashboards:
-    enabled: false
 resources:
   requests:
     cpu: 10m

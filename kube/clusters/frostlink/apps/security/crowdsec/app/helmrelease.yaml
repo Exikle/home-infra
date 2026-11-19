@@ -45,11 +45,9 @@ spec:
         serviceMonitor:
           enabled: true
       securityContext:
-        allowPrivilegeEscalation: false
         capabilities:
           drop:
             - ALL
-        privileged: false
         seccompProfile:
           type: RuntimeDefault
       resources:
@@ -164,11 +162,9 @@ spec:
         limits:
           memory: 1Gi
       securityContext:
-        allowPrivilegeEscalation: false
         capabilities:
           drop:
             - ALL
-        privileged: false
         seccompProfile:
           type: RuntimeDefault
   postRenderers:

@@ -15,12 +15,8 @@ spec:
 
     hub:
       enabled: true
-      apiPort: 8443
     edge:
       enabled: true
-      httpsPort: 443
-      httpPort: 80
-      dataDir: /data
 
     controllers:
       main:
@@ -72,12 +68,6 @@ spec:
               - identifier: main
                 port: 8443
 
-    service:
-      main:
-        controller: main
-        primary: true
-        type: ClusterIP
-
     serviceMonitor:
       main:
         enabled: true
@@ -85,5 +75,3 @@ spec:
     monitoring:
       prometheusRule:
         enabled: true
-      dashboards:
-        enabled: false

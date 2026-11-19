@@ -16,7 +16,6 @@ spec:
           enableEnvoyPatchPolicy: true
           enableLua: true
         provider:
-          type: Kubernetes
           kubernetes:
             deploy:
               type: GatewayNamespace
@@ -25,7 +24,6 @@ spec:
         resources:
           requests:
             cpu: 50m
-            memory: 256Mi
           limits:
             memory: 1Gi
     global:

@@ -8,7 +8,6 @@ spec:
   chartRef:
     kind: OCIRepository
     name: zfs-localpv
-    namespace: openebs-system
   interval: 1h
   values:
     engines:
@@ -17,8 +16,6 @@ spec:
           enabled: false
         zfs:
           enabled: true
-        rawfile:
-          enabled: false
         hostpath:
           enabled: false
       replicated:
@@ -28,16 +25,12 @@ spec:
       csi:
         volumeSnapshots:
           enabled: true
-          keep: true
     zfs-localpv:
       analytics:
         enabled: false
       crds:
         zfsLocalPv:
           enabled: true
-        csi:
-          volumeSnapshots:
-            enabled: false
       zfsNode:
         encrKeysDir: /var/openebs/keys
         kubeletDir: /var/lib/kubelet

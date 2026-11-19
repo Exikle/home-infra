@@ -37,13 +37,6 @@ spec:
             image:
               repository: ghcr.io/home-operations/esphome
               tag: 2026.10.2@sha256:24c898d8562cef5d21de1aea31fbe7cfa902571bbc414779a768eeb02395dea2
-            probes:
-              liveness:
-                enabled: false
-              readiness:
-                enabled: false
-              startup:
-                enabled: false
             resources:
               requests:
                 cpu: 5m

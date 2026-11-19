@@ -58,8 +58,6 @@ spec:
     k8sServicePort: 7445
     kubeProxyReplacement: true
     kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
-    l2announcements:
-      enabled: false
     loadBalancer:
       algorithm: maglev
       mode: dsr
@@ -69,17 +67,12 @@ spec:
     localRedirectPolicies:
       enabled: true
     operator:
-      dashboards:
-        enabled: false
       podDisruptionBudget:
         enabled: true
-        maxUnavailable: 1
       prometheus:
         enabled: true
         serviceMonitor:
           enabled: true
-      replicas: 2
-      rollOutPods: false
     pmtuDiscovery:
       enabled: true
     prometheus:
@@ -87,7 +80,6 @@ spec:
       serviceMonitor:
         enabled: true
         trustCRDsExist: true
-    rollOutCiliumPods: false
     routingMode: native
     securityContext:
       capabilities:

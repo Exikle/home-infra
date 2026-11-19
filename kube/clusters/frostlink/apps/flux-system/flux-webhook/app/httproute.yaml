@@ -16,10 +16,6 @@ spec:
   hostnames:
     - flux-webhook.frostlink.dev
   rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
+    - backendRefs:
         - name: notification-controller
           port: 80

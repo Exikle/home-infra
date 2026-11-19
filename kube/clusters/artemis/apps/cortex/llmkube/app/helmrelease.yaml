@@ -13,33 +13,21 @@ spec:
     controllerManager:
       leaderElection:
         enabled: false
-      podSecurityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
       replicaCount: 1
       resources:
         limits:
           memory: 256Mi
         requests:
-          cpu: 10m
           memory: 128Mi
       securityContext:
-        allowPrivilegeEscalation: false
         capabilities:
           drop:
             - ALL
-        readOnlyRootFilesystem: true
-    crds:
-      install: true
-      keep: true
     metrics:
       secure: false
     modelCache:
-      accessMode: ReadWriteOnce
       enabled: true
       mode: perService
-      mountPath: /models
       size: 4Gi
       storageClass: miroir
     namespace: cortex

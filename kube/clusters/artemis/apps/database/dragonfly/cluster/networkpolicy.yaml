@@ -15,7 +15,6 @@ spec:
               app.kubernetes.io/name: vmagent
       ports:
         - port: 9999
-          protocol: TCP
   podSelector:
     matchLabels:
       app: dragonfly
@@ -44,7 +43,6 @@ spec:
               kubernetes.io/metadata.name: media
       ports:
         - port: 6379
-          protocol: TCP
   podSelector:
     matchLabels:
       app: dragonfly

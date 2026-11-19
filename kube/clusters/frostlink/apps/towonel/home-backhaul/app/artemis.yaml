@@ -5,14 +5,12 @@ kind: Service
 metadata:
   name: artemis-backhaul
 spec:
-  type: ClusterIP
   selector:
     app.kubernetes.io/instance: towonel
     app.kubernetes.io/name: towonel-node
   ports:
     - name: https
       port: 443
-      protocol: TCP
       targetPort: 15001
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/core/service_v1.json
@@ -21,14 +19,12 @@ kind: Service
 metadata:
   name: artemis-backhaul-apex
 spec:
-  type: ClusterIP
   selector:
     app.kubernetes.io/instance: towonel
     app.kubernetes.io/name: towonel-node
   ports:
     - name: https
       port: 443
-      protocol: TCP
       targetPort: 15001
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/backendtlspolicy_v1.json
@@ -107,7 +103,6 @@ metadata:
 spec:
   healthCheck:
     active:
-      healthyThreshold: 1
       interval: 5s
       tcp: {}
       timeout: 2s

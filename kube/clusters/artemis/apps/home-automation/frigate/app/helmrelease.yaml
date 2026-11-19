@@ -138,15 +138,11 @@ spec:
             port: *port
           go2rtc-rtsp:
             enabled: true
-            primary: false
             port: 8554
           go2rtc-webrtc-tcp:
             enabled: true
-            primary: false
             port: 8555
-            protocol: TCP
           go2rtc-webrtc-udp:
             enabled: true
-            primary: false
             port: 8555
             protocol: UDP

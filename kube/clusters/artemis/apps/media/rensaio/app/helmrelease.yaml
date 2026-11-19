@@ -50,13 +50,11 @@ spec:
                 enabled: true
                 spec:
                   failureThreshold: 5
-                  periodSeconds: 10
                   timeoutSeconds: 5
               startup:
                 enabled: true
                 spec:
                   failureThreshold: 30
-                  periodSeconds: 10
             resources:
               requests:
                 cpu: 750m

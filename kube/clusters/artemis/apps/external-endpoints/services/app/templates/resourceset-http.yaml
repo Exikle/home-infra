@@ -31,7 +31,6 @@ spec:
       ports:
         - name: << inputs.protocol >>
           port: << inputs.port >>
-          protocol: TCP
           appProtocol: << inputs.protocol >>
     - apiVersion: v1
       kind: Service
@@ -54,7 +53,6 @@ spec:
         ports:
           - name: << inputs.protocol >>
             port: << inputs.port >>
-            protocol: TCP
             targetPort: << inputs.port >>
             appProtocol: << inputs.protocol >>
     - apiVersion: gateway.networking.k8s.io/v1
@@ -72,10 +70,6 @@ spec:
         hostnames:
           - << inputs.hostname >>
         rules:
-          - matches:
-              - path:
-                  type: PathPrefix
-                  value: /
-            backendRefs:
+          - backendRefs:
               - name: << inputs.backendName >>
                 port: << inputs.backendPort >>

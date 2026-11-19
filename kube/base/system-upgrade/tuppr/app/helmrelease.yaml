@@ -13,10 +13,7 @@ spec:
     - kind: ConfigMap
       name: tuppr-values
       optional: true
-      valuesKey: values.yaml
   values:
-    controller:
-      logLevel: info
     monitoring:
       serviceMonitor:
         enabled: true

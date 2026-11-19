@@ -13,7 +13,6 @@ spec:
     - kind: ConfigMap
       name: kopiur-values
       optional: true
-      valuesKey: values.yaml
   values:
     monitoring:
       prometheusRule:

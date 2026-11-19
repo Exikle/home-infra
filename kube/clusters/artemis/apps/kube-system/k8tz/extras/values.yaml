@@ -12,5 +12,4 @@ webhook:
   certManager:
     enabled: true
     issuerRef:
-      kind: ClusterIssuer
       name: internal-ca-issuer

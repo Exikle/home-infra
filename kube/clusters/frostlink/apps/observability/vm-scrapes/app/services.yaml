@@ -11,7 +11,6 @@ spec:
   ports:
     - name: metrics
       port: 9153
-      targetPort: 9153
   selector:
     k8s-app: kube-dns
 ---
@@ -27,7 +26,6 @@ spec:
   ports:
     - name: https-metrics
       port: 10257
-      targetPort: 10257
   selector:
     component: kube-controller-manager
 ---
@@ -43,7 +41,6 @@ spec:
   ports:
     - name: https-metrics
       port: 10259
-      targetPort: 10259
   selector:
     component: kube-scheduler
 ---
@@ -59,6 +56,5 @@ spec:
   ports:
     - name: http-metrics
       port: 2381
-      targetPort: 2381
   selector:
     component: kube-apiserver

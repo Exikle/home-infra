@@ -49,5 +49,4 @@ spec:
     - name: postgres-ca
       namespace: cert-manager
     - name: postgres-backup-target
-      namespace: database
   wait: true

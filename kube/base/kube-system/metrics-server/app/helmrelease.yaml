@@ -13,7 +13,6 @@ spec:
     - kind: ConfigMap
       name: metrics-server-values
       optional: true
-      valuesKey: values.yaml
   values:
     metrics:
       enabled: true

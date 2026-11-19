@@ -15,10 +15,6 @@ spec:
   hostnames:
     - flux-webhook.dcunha.io
   rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
+    - backendRefs:
         - name: webhook-receiver
           port: 80

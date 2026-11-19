@@ -41,11 +41,6 @@ spec:
             envFrom:
               - secretRef:
                   name: immich
-            probes:
-              liveness:
-                enabled: false
-              readiness:
-                enabled: false
             resources:
               requests:
                 cpu: 100m

@@ -59,9 +59,6 @@ spec:
         enabled: true
         spec:
           allowCrossNamespaceImport: true
-          instanceSelector:
-            matchLabels:
-              dashboards: grafana
   postRenderers:
     - kustomize:
         patches:

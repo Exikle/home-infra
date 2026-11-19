@@ -6,8 +6,7 @@ metadata:
   name: silo-jellyfin
 spec:
   lua:
-    - type: Inline
-      inline: |
+    - inline: |
         local function dash(id)
           if #id ~= 32 then return nil end
           return id:sub(1, 8) .. "-" .. id:sub(9, 12) .. "-" .. id:sub(13, 16) .. "-" .. id:sub(17, 20) .. "-" .. id:sub(21)

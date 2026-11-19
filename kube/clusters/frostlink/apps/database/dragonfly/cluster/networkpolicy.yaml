@@ -15,7 +15,6 @@ spec:
               app.kubernetes.io/name: vmagent
       ports:
         - port: 9999
-          protocol: TCP
   podSelector:
     matchLabels:
       app: dragonfly

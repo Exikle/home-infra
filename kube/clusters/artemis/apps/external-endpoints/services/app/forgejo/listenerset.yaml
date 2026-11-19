@@ -12,8 +12,6 @@ spec:
       allowedRoutes:
         kinds:
           - kind: TCPRoute
-        namespaces:
-          from: Same
   parentRef:
     name: edge-gateway
     namespace: network

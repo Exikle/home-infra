@@ -12,7 +12,6 @@ spec:
               app.kubernetes.io/name: agentgateway
       ports:
         - port: 8317
-          protocol: TCP
     - from:
         - namespaceSelector:
             matchLabels:
@@ -23,7 +22,6 @@ spec:
               app.kubernetes.io/name: kritika
       ports:
         - port: 8317
-          protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/controller: cliproxyapi

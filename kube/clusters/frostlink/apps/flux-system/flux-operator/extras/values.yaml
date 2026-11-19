@@ -1,6 +1,5 @@
 web:
   httpRoute:
-    enabled: false
     hostnames:
       - flux.frostlink.dev
     parentRefs:

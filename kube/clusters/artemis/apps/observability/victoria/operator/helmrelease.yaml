@@ -28,7 +28,6 @@ spec:
         forceConflicts: true
 
     operator:
-      disable_prometheus_converter: false
       enable_converter_ownership: true
 
     resources:
@@ -40,4 +39,3 @@ spec:
 
     serviceMonitor:
       enabled: true
-      vm: true

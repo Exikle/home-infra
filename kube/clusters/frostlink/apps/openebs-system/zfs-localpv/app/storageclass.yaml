@@ -11,5 +11,4 @@ parameters:
   fstype: zfs
   poolname: openebs
 provisioner: zfs.csi.openebs.io
-reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

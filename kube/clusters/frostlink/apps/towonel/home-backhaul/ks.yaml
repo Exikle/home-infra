@@ -18,7 +18,6 @@ spec:
   interval: 1h
   dependsOn:
     - name: towonel
-      namespace: towonel
     - name: envoy-gateway
       namespace: network
   wait: false

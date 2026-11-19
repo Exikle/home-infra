@@ -137,9 +137,6 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      allowedRoutes:
-        namespaces:
-          from: Same
     - name: https
       protocol: HTTPS
       port: 443
@@ -148,8 +145,7 @@ spec:
           from: All
       tls:
         certificateRefs:
-          - kind: Secret
-            name: dcunha-io-tls
+          - name: dcunha-io-tls
             namespace: network
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/gateway_v1.json
@@ -174,9 +170,6 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      allowedRoutes:
-        namespaces:
-          from: Same
     - name: https
       protocol: HTTPS
       port: 443
@@ -185,8 +178,7 @@ spec:
           from: All
       tls:
         certificateRefs:
-          - kind: Secret
-            name: dcunha-io-tls
+          - name: dcunha-io-tls
             namespace: network
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.networking.k8s.io/gateway_v1.json
@@ -222,9 +214,6 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      allowedRoutes:
-        namespaces:
-          from: Same
     - name: https
       protocol: HTTPS
       port: 443
@@ -233,8 +222,7 @@ spec:
           from: All
       tls:
         certificateRefs:
-          - kind: Secret
-            name: frostlink-dev-tls
+          - name: frostlink-dev-tls
             namespace: network
     - name: https-dcunha
       protocol: HTTPS
@@ -245,8 +233,7 @@ spec:
           from: All
       tls:
         certificateRefs:
-          - kind: Secret
-            name: dcunha-io-tls
+          - name: dcunha-io-tls
             namespace: network
     - name: https-dcunha-apex
       protocol: HTTPS
@@ -257,8 +244,7 @@ spec:
           from: All
       tls:
         certificateRefs:
-          - kind: Secret
-            name: dcunha-io-tls
+          - name: dcunha-io-tls
             namespace: network
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/backendtrafficpolicy_v1alpha1.json
@@ -274,7 +260,6 @@ spec:
   connection:
     bufferLimit: 8Mi
   retry:
-    numRetries: 2
     retryOn:
       triggers:
         - connect-failure
@@ -327,7 +312,6 @@ spec:
             requests: 1200
             unit: Minute
   retry:
-    numRetries: 2
     retryOn:
       triggers:
         - connect-failure

@@ -47,10 +47,6 @@ spec:
                     port: &port 8080
                   initialDelaySeconds: 5
                   periodSeconds: 30
-              readiness:
-                enabled: false
-              startup:
-                enabled: false
             resources:
               requests:
                 cpu: 5m

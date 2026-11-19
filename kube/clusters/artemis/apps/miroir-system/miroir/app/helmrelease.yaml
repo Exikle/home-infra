@@ -17,11 +17,9 @@ spec:
         - /var/lib/miroir
       resources:
         requests:
-          cpu: 10m
           memory: 64Mi
         limits:
           memory: 512Mi
-    autoDiskfulAfter: ""
     autoEvictAfter: 6h
     global:
       affinity:

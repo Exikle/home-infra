@@ -13,11 +13,9 @@ spec:
     - kind: ConfigMap
       name: external-secrets-values
       optional: true
-      valuesKey: values.yaml
   values:
     image:
       repository: &image ghcr.io/external-secrets/external-secrets
-    installCRDs: true
     webhook:
       image:
         repository: *image

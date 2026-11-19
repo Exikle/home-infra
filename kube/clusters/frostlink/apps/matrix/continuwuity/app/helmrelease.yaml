@@ -68,7 +68,6 @@ spec:
     persistence:
       config:
         enabled: true
-        type: persistentVolumeClaim
         existingClaim: continuwuity
         globalMounts:
           - path: /data

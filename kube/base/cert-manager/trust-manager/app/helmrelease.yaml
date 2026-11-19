@@ -13,10 +13,6 @@ spec:
     - kind: ConfigMap
       name: trust-manager-values
       optional: true
-      valuesKey: values.yaml
   values:
-    app:
-      trust:
-        namespace: cert-manager
     secretTargets:
       enabled: true

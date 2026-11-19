@@ -86,7 +86,6 @@ spec:
         globalMounts:
           - path: /etc/alertmanager
       data:
-        type: persistentVolumeClaim
         accessMode: ReadWriteOnce
         size: 1Gi
         storageClass: openebs-zfs

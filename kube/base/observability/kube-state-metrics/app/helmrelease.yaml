@@ -20,7 +20,6 @@ spec:
     - kind: ConfigMap
       name: kube-state-metrics-values
       optional: true
-      valuesKey: values.yaml
   values:
     fullnameOverride: kube-state-metrics
     prometheus:

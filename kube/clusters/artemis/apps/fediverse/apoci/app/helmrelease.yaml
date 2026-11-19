@@ -57,7 +57,6 @@ spec:
         type: cronjob
         cronjob:
           backoffLimit: 0
-          concurrencyPolicy: Forbid
           schedule: "17 * * * *"
           ttlSecondsAfterFinished: 3600
         containers:

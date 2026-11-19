@@ -79,15 +79,10 @@ spec:
         enabled: true
     persistence:
       enabled: true
-      accessMode: ReadWriteOnce
-      size: 1Gi
       storageClass: openebs-zfs
     sidecar:
       kinds:
         httproute:
-          auto: true
-          enable: true
-        service:
           enable: true
     volumes:
       - name: receiver-script

@@ -22,4 +22,3 @@ spec:
   secret:
     keys:
       clientSecret: client-secret
-    storeClientSecret: true

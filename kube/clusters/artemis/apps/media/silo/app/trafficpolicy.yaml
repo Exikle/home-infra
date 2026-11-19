@@ -34,7 +34,6 @@ spec:
             requests: 1200
             unit: Minute
   retry:
-    numRetries: 2
     retryOn:
       triggers:
         - connect-failure

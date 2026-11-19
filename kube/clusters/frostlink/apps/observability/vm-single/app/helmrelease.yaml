@@ -32,7 +32,6 @@ spec:
         runAsNonRoot: true
       extraArgs:
         http.shutdownDelay: 15s
-        loggerFormat: json
         selfScrapeInterval: 10s
       persistentVolume:
         enabled: true

@@ -10,7 +10,6 @@ spec:
         - port: 53
           protocol: UDP
         - port: 53
-          protocol: TCP
       to:
         - namespaceSelector:
             matchLabels:
@@ -20,14 +19,12 @@ spec:
               k8s-app: kube-dns
     - ports:
         - port: 4000
-          protocol: TCP
       to:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: agentgateway
     - ports:
         - port: 8080
-          protocol: TCP
       to:
         - podSelector:
             matchLabels:
@@ -37,7 +34,6 @@ spec:
               app.kubernetes.io/name: searxng
     - ports:
         - port: 8080
-          protocol: TCP
       to:
         - namespaceSelector:
             matchLabels:
@@ -47,7 +43,6 @@ spec:
               app.kubernetes.io/name: chaski
     - ports:
         - port: 9093
-          protocol: TCP
       to:
         - namespaceSelector:
             matchLabels:
@@ -57,7 +52,6 @@ spec:
               app.kubernetes.io/name: alertmanager
     - ports:
         - port: 8428
-          protocol: TCP
       to:
         - namespaceSelector:
             matchLabels:
@@ -67,7 +61,6 @@ spec:
               app.kubernetes.io/name: victoria-metrics-single
     - ports:
         - port: 8429
-          protocol: TCP
       to:
         - namespaceSelector:
             matchLabels:
@@ -77,7 +70,6 @@ spec:
               app.kubernetes.io/name: vmagent
     - ports:
         - port: 10443
-          protocol: TCP
       to:
         - namespaceSelector:
             matchLabels:
@@ -95,9 +87,7 @@ spec:
               gateway.networking.k8s.io/gateway-name: edge-gateway
       ports:
         - port: 9119
-          protocol: TCP
         - port: 9120
-          protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/controller: hermes

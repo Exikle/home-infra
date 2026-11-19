@@ -32,12 +32,10 @@ spec:
         runAsNonRoot: true
       extraArgs:
         http.shutdownDelay: 15s
-        loggerFormat: json
         selfScrapeInterval: 10s
       persistentVolume:
         enabled: true
         storageClassName: miroir
-        size: 16Gi
       resources:
         requests:
           cpu: 100m

@@ -18,4 +18,3 @@ spec:
   secret:
     keys:
       clientSecret: OIDC_CLIENT_SECRET
-    storeClientSecret: true

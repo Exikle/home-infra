@@ -15,7 +15,6 @@ spec:
         extensionApis:
           enableEnvoyPatchPolicy: true
         provider:
-          type: Kubernetes
           kubernetes:
             deploy:
               type: GatewayNamespace
@@ -24,6 +23,5 @@ spec:
         resources:
           requests:
             cpu: 50m
-            memory: 256Mi
           limits:
             memory: 512Mi

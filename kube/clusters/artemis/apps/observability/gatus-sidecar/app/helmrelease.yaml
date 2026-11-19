@@ -57,9 +57,6 @@ spec:
     sidecar:
       kinds:
         httproute:
-          auto: true
-          enable: true
-        service:
           enable: true
     volumes:
       - name: push-script

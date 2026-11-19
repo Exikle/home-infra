@@ -24,5 +24,3 @@ spec:
           sourceLabels:
             - __meta_kubernetes_endpoint_node_name
           targetLabel: instance
-    prometheusRules:
-      enabled: false

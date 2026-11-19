@@ -18,5 +18,4 @@ spec:
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
-      namespace: security
   wait: true
