@@ -21,6 +21,30 @@ description = "Join the rebuilt node to the restored Headscale: mint a one-hour 
 confirm = { message = "Join Frostlink to Headscale (mint key + patch Talos)?", default = "no" }
 run = [{ task = ":tailnet-join" }]
 
+[tasks.zpool]
+description = "Create the openebs ZFS pool on an empty block volume; does nothing if the pool already imported (oci-rebuild.md § The ZFS pool on sdb)"
+confirm = { message = "Create the openebs ZFS pool on Frostlink if it is missing?", default = "no" }
+usage = 'arg "<disk>" help="Whole-disk path of the empty block volume, for example /dev/sdb"'
+run = '''
+kc() { kubectl --context "$KUBE_CONTEXT" "$@"; }
+node="$(kc get nodes -o jsonpath='{.items[0].metadata.name}')"
+trap 'kc delete pod -n openebs-system -l app.kubernetes.io/managed-by=kubectl-debug --field-selector "spec.nodeName=$node" --ignore-not-found --wait=false >/dev/null' EXIT
+host_zpool() {
+    kc debug "node/$node" -n openebs-system --image=mirror.gcr.io/alpine:latest --profile=sysadmin \
+        --attach --quiet -- chroot /host /usr/local/sbin/zpool "$@" 2>/dev/null
+}
+if host_zpool list -H -o name openebs | grep -qx openebs; then
+    mise run //:log info "Pool openebs is already imported. Nothing to do." stage "$MISE_TASK_NAME"
+    host_zpool status -P openebs
+    exit 0
+fi
+mise run //:log warn "Creating pool openebs" stage "$MISE_TASK_NAME" disk "$usage_disk"
+out="$(host_zpool create openebs "$usage_disk")"
+host_zpool list -H -o name openebs | grep -qx openebs \
+    || mise run //:log fatal "zpool create did not make the pool" stage "$MISE_TASK_NAME" output "$out"
+host_zpool status -P openebs
+'''
+
 [tasks.config]
 hide = true
 run = '''

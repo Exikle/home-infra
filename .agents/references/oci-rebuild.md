@@ -31,9 +31,11 @@ The tailscale key of the running node lives only in its machine configuration, n
 
 ```bash
 export FROSTLINK_INIT_IP=40.233.88.33
+# OCI console: attach the block volume (the old sdb, or a new empty one) — § The ZFS pool on sdb
 mise run //kube/clusters/frostlink/bootstrap:phase1        # gen config + apply over public 50000 — no tailscale config; reboots
 # OCI console: add ingress 6443/tcp from <home public IP>/32 (stateful)
 mise run //kube/clusters/frostlink/bootstrap:phase2        # k8s, kubeconfig, talosconfig, base, cni, seed, apps — all over the public IP
+mise run --yes //kube/clusters/frostlink/bootstrap:zpool /dev/sdb   # no-op if the pool imported; creates it on an empty volume
 ```
 
 Then do these steps in order:
@@ -88,11 +90,7 @@ A real rebuild did not yet prove these three things. Make sure of each one as yo
 - The kopiur restore waits for the repository, and does not race to an empty volume.
 - The towonel hub restore still accepts the agent invite. Headscale ingress depends on it.
 
-No step in this runbook creates or imports the `openebs` ZFS pool on the block volume `sdb`
-(`oci-node.md` § The node). The procedure for a rebuild that keeps or replaces `sdb` is not
-written down ([#3383](https://git.dcunha.io/Exikle/home-infra/issues/3383)).
-
-Tasks: `phase1`, `phase2` and `tailnet` are the entry points. The other tasks are hidden steps
+Tasks: `phase1`, `phase2`, `zpool` and `tailnet` are the entry points. The other tasks are hidden steps
 (`config apply k8s kubeconfig talosconfig base cni seed apps tailnet-join`).
 `mise tasks ls --all --hidden` and `kube/clusters/frostlink/bootstrap/mise.toml` say what each one
 does.
@@ -100,6 +98,55 @@ does.
 You do not need a certSAN step for `10.0.0.203` or for any tailnet IP. Talos adds the addresses of
 the node to the apiserver certificate automatically. This was compared against the served
 certificate.
+
+## The ZFS pool on sdb
+
+The `openebs` ZFS pool holds every PVC on Frostlink. It is on the separate block volume `sdb`,
+not on the boot volume `sda` (`oci-node.md` § The node). It was made by hand in June 2026 with
+`zpool create openebs /dev/sdb` and no other options. No file in git made it. Terraform does not
+manage the block volume either, so you attach it in the OCI console.
+
+You never import the pool by hand. At each boot, the `ext-zfs-service` service of the Talos ZFS
+extension imports every pool that it finds. Its log (`talosctl logs ext-zfs-service`) then says
+`Import was successful, but unable to mount some datasets`. That message is normal. The root
+dataset cannot mount on the read-only root filesystem of Talos, and the CSI driver mounts each
+volume itself.
+
+`mise run --yes //kube/clusters/frostlink/bootstrap:zpool <disk>` runs `zpool` on the node through
+a privileged debug pod in `openebs-system`. The `default` namespace refuses that pod. If the pool
+`openebs` is already imported, the task prints its status and changes nothing. If not, it runs
+`zpool create openebs <disk>` without `-f`. Without `-f`, `zpool create` refuses a disk that holds
+an old pool. The task needs the Kubernetes API, so run it after phase2. Until the pool exists,
+new PVCs stay `Pending`, and the kopiur restores wait for them.
+
+The rebuild path depends on the state of `sdb`:
+
+1. If `sdb` survived, attach it to the new instance before phase1. The pool imports at the first
+   boot, and the `zpool` task does nothing.
+2. If `sdb` is lost, attach a new empty block volume of about 107 GB. Read its device name with
+   `talosctl get discoveredvolumes`. Then run the `zpool` task with that whole-disk path.
+
+A surviving `sdb` does not give the data back to the apps. zfs-localpv names each dataset after
+its PV, and a PV takes its name from the new PVC. So the rebuilt PVCs get new, empty datasets, and
+kopiur fills them from R2. The old datasets stay in the pool under their old `pvc-<uid>` names.
+They are a copy that you can read by hand, but no task restores from them. They also use space in
+the pool until you delete them. List them with
+`kubectl exec -n openebs-system ds/zfs-localpv-node -c openebs-zfs-plugin --context frostlink -- zfs list -r openebs`.
+
+### What R2 does not hold
+
+Most volumes are in R2. List them with
+`kubectl get snapshotpolicies.kopiur.home-operations.com -A --context frostlink`. Compare that
+list with `kubectl get pvc -A --context frostlink`. Each PVC without a policy comes back empty
+after a rebuild:
+
+| PVC                                               | What is lost                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `database/postgres-1`, `database/postgres-2`      | The data has a barman backup in R2 (`r2-store`). But `cluster.yaml` has no `bootstrap.recovery`, so a rebuild starts an empty cluster. The apoci, gotosocial, mautrix-signal and mautrix-whatsapp databases come back empty ([#3405](https://git.dcunha.io/Exikle/home-infra/issues/3405)) |
+| `observability/alertmanager`                      | Silences and the notification log                                                                                                                                                                                                                                                          |
+| `observability/gatus-sidecar`                     | The uptime history of the status page                                                                                                                                                                                                                                                      |
+| `security/crowdsec-config-pvc`, `crowdsec-db-pvc` | The local database and configuration of CrowdSec                                                                                                                                                                                                                                           |
+| `kopiur-system/*-kopia-cache`                     | Nothing. It is a cache                                                                                                                                                                                                                                                                     |
 
 ## 1Password Items Required
 
