@@ -12,12 +12,13 @@ set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 VENV="$HERE/.venv"
 REQ="$HERE/requirements.txt"
+STAMP="$VENV/.requirements-stamp"
 
-if [[ ! -x "$VENV/bin/python" ]] || [[ "$REQ" -nt "$VENV/bin/python" ]]; then
+if [[ ! -x "$VENV/bin/python" ]] || [[ ! -f "$STAMP" ]] || [[ "$REQ" -nt "$STAMP" ]]; then
     echo "hooks: building $VENV from requirements.txt" >&2
-    uv venv --quiet "$VENV"
+    uv venv --quiet --allow-existing "$VENV"
     uv pip install --quiet --python "$VENV/bin/python" -r "$REQ"
-    touch "$VENV/bin/python"
+    touch "$STAMP"
 fi
 
 exec "$VENV/bin/python" "$@"
