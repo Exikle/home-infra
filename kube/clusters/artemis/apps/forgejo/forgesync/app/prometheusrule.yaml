@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: forgesync
+spec:
+  groups:
+    - name: forgesync.rules
+      rules:
+        - alert: ForgesyncDown
+          annotations:
+            summary: forgesync is down, or its /metrics is not being scraped
+          expr: absent(forgesync_build_info)
+          for: 10m
+          labels:
+            severity: warning
+        - alert: ForgesyncStale
+          annotations:
+            summary: >-
+              forgesync has not finished a tick in over 30 minutes. It cannot
+              list repos on the canonical Forgejo
+          expr: |-
+            forgesync_last_success_timestamp_seconds > 0
+            and time() - forgesync_last_success_timestamp_seconds > 1800
+          for: 10m
+          labels:
+            severity: warning
+        - alert: ForgesyncFlowFailing
+          annotations:
+            summary: >-
+              forgesync {{ $labels.direction }} sync for {{ $labels.repo }} to
+              {{ $labels.mirror }} has failed every run for 30 minutes
+          expr: |-
+            increase(forgesync_flow_runs_total{result="error"}[30m]) > 0
+            and ignoring(result) increase(forgesync_flow_runs_total{result="ok"}[30m]) == 0
+          for: 15m
+          labels:
+            severity: warning
