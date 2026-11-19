@@ -74,21 +74,22 @@ must do the bootstrap again.
 ## One-time bootstrap
 
 Remote Control needs a full claude.ai login. It rejects a `claude setup-token` token. It also needs
-a one-time interactive answer to "enable Remote Control" and to workspace trust. Until
+a one-time interactive answer to workspace trust and to the spawn mode. Until
 `~/.remote-control-ready` exists, the pod installs everything and then sleeps.
 
 ```bash
 kubectl exec -it -n cortex deploy/claude-code -c app --context artemis -- bash
 export PATH="$HOME/.local/bin:$PATH"
 claude auth login                                # claude.ai account, paste the code back
-cd ~/Artemis-Cluster && claude remote-control    # answer y and y, then Ctrl-C
+cd ~/home-infra && claude remote-control        # answer y, then 2 (worktree), then Ctrl-C
 touch ~/.remote-control-ready
 exit
 kubectl rollout restart -n cortex deploy/claude-code --context artemis
 ```
 
-The clone of `home-infra` is at `~/Artemis-Cluster`, the old name of the repo. `entrypoint.sh` and
-`MISE_TRUSTED_CONFIG_PATHS` both use that path.
+The clone of `home-infra` is at `~/home-infra`. `entrypoint.sh` and `MISE_TRUSTED_CONFIG_PATHS`
+both use that path. Workspace trust is stored per folder in `~/.claude.json`. If the clone moves,
+do the `claude remote-control` step again in the new folder.
 
 The `export PATH` line is required. Without it, the shell reports `claude: command not found`.
 `-c app` picks the app container. Without it, kubectl picks one and prints `Defaulted container`.

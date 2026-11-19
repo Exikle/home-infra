@@ -3,7 +3,7 @@
 # Rationale and bootstrap: .agents/references/claude-code-remote.md
 set -euo pipefail
 
-REPO="$HOME/Artemis-Cluster"
+REPO="$HOME/home-infra"
 MISE_VERSION=v2026.11.8
 export PATH="$HOME/.local/bin:$PATH"
 

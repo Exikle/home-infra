@@ -58,7 +58,7 @@ spec:
               MEMINI_NAMESPACE_PREFIX: homelab
               MEMINI_SESSION_DIGEST: "0"
               MISE_GLOBAL_CONFIG_FILE: /scripts/mise.toml
-              MISE_TRUSTED_CONFIG_PATHS: /home/claude/Artemis-Cluster
+              MISE_TRUSTED_CONFIG_PATHS: /home/claude/home-infra
               MISE_YES: "1"
               TALOSCONFIG: /var/run/secrets/talos.dev/config
             resources:
