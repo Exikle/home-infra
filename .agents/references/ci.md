@@ -140,13 +140,15 @@ base. So a diff against it also holds everything that merged since then.
 
 Then one job per picked cluster runs on the default runner image. The job installs `flate` with
 `mise-action` from the shared mise-config pin. Then it runs
-`flate build all --path kube/clusters/<cluster>` with `FLATE_ALLOW_MISSING_SECRETS=true`. If the
-render breaks, the job fails. A cluster that the change does not reach gets no render job.
+`flate build all --path kube/clusters/<cluster>` with `FLATE_ALLOW_MISSING_KINDS=Secret` and
+`FLATE_DISABLE_CHART_DIGEST_TRACKING=true`. If the render breaks, the job fails. A cluster that the
+change does not reach gets no render job.
 
 The render reads the git checkout, not the artifact. flate resolves every `spec.path` from the repo
-root, so this view equals what Flux gets. The `FLATE_ALLOW_MISSING_SECRETS` flag also skips every
-`valuesFrom`. So per-cluster values are not in this render (`app-structure.md` § Per-cluster values
-and extras).
+root, so this view equals what Flux gets. `FLATE_ALLOW_MISSING_KINDS=Secret` lets the render go on
+when a Secret exists only in the live cluster, such as one that 1Password creates. The render
+still applies the per-cluster `valuesFrom` ConfigMaps (`app-structure.md` § Per-cluster values and
+extras).
 
 ---
 

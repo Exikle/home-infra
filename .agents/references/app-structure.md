@@ -163,9 +163,12 @@ render the root Kustomization, so it cannot see objects that only the menu creat
 `extras` a `dependsOn` on the app, or the two wait on each other. The ConfigMap carries
 `reconcile.fluxcd.io/watch: Enabled`, so a change to it starts a Helm upgrade.
 
-`render-ks` sets `FLATE_ALLOW_MISSING_SECRETS=true`, and with that flag flate skips every
-`valuesFrom` reference. So `render-ks` shows the base values only. To see the values of a cluster,
-run `flate build hr --path <artifact> --namespace <ns> <name>` without the flag.
+`render-ks` renders the Flux objects of one Kustomization, not the output of the chart. So it does
+not show the values that a HelmRelease gets. To see the chart output with the values of a
+cluster, run `flate build all --path kube/clusters/<cluster>`. Then select the objects that carry
+the label `helm.toolkit.fluxcd.io/name: <name>`. That render applies the `valuesFrom` ConfigMap of
+the cluster. On flate 0.8.0, do not use `flate build hr` or `flate build all --namespace`. Both
+hang (#3406).
 
 ### Non-standard resource types
 

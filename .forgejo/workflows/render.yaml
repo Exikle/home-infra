@@ -99,5 +99,6 @@ jobs:
       - name: Render
         env:
           CLUSTER: ${{ matrix.cluster }}
-          FLATE_ALLOW_MISSING_SECRETS: "true"
+          FLATE_ALLOW_MISSING_KINDS: Secret
+          FLATE_DISABLE_CHART_DIGEST_TRACKING: "true"
         run: flate build all --no-progress --path "kube/clusters/${CLUSTER}" > /dev/null

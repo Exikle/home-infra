@@ -3,8 +3,8 @@ min_version = "2026.11.8"
 monorepo_root = true
 
 include = [
-  "git::https://git.dcunha.io/exikle/mise-config.git//base.toml?ref=bb896c3981044ef677942ed7fefa44772b4b3282",
-  "git::https://git.dcunha.io/exikle/mise-config.git//cluster.toml?ref=bb896c3981044ef677942ed7fefa44772b4b3282",
+  "git::https://git.dcunha.io/exikle/mise-config.git//base.toml?ref=3f44a7a137172d56c08789fbe7c62ee6e7fa3c30",
+  "git::https://git.dcunha.io/exikle/mise-config.git//cluster.toml?ref=3f44a7a137172d56c08789fbe7c62ee6e7fa3c30",
 ]
 
 [monorepo]
@@ -27,6 +27,7 @@ ANSIBLE_ROLES_PATH = "{{config_root}}/ansible/roles"
 ANSIBLE_COLLECTIONS_PATH = "{{config_root}}/ansible/collections"
 FORGEJO_HOST = "git.dcunha.io"
 MINIJINJA_CONFIG_FILE = "{{config_root}}/.minijinja.toml"
+FLATE_DISABLE_CHART_DIGEST_TRACKING = "true"
 
 [settings]
 lockfile = false

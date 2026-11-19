@@ -19,8 +19,8 @@ mise run //kube/clusters/artemis:render-ks <namespace> <ks-name>
 ```
 
 This task builds the same Flux artifact that CI pushes, then runs `flate build ks` on it, with
-missing Secrets allowed. It prints the rendered manifests. It catches schema errors, missing
-references, and mistakes in HelmRelease values.
+missing Secrets allowed (`FLATE_ALLOW_MISSING_KINDS=Secret`). It prints the rendered manifests. It
+catches schema errors, missing references, and mistakes in HelmRelease values.
 
 The root (`render-ks flux-system flux-system`) is the exception. flux-operator generates it, so
 flate cannot see it. The task runs `flux build kustomization` against the live root instead. That
@@ -37,16 +37,16 @@ flate test all --path kube/clusters/artemis
 This prints a pytest-style `PASS`/`FAIL`/`SKIPPED` result per resource. The exit code is non-zero
 on any failure.
 
-Run it without `--allow-missing-secrets` first. flate already skips a missing Secret that an
+Run it without `--allow-missing-kinds Secret` first. flate already skips a missing Secret that an
 in-repo ExternalSecret declares with a static target name (see Notes).
 
-Use `--allow-missing-secrets` only as a fallback, when a failure names a Secret that exists only in
-the live cluster. The flag soft-skips ALL source auth Secrets and all HelmRelease `valuesFrom`
-Secret and ConfigMap refs. So it can hide a real error, such as a wrong `valuesFrom` name. If you
-use it, say so in your report:
+Use `--allow-missing-kinds Secret` only as a fallback, when a failure names a Secret that exists
+only in the live cluster. On Artemis, `cert-manager/cloudflare-bootstrap` is one. The flag
+tolerates every missing Secret input. So it can hide a real error, such as a wrong `valuesFrom`
+name. If you use it, say so in your report:
 
 ```bash
-flate test all --path kube/clusters/artemis --allow-missing-secrets
+flate test all --path kube/clusters/artemis --allow-missing-kinds Secret
 ```
 
 ## Diff Against the Live Cluster
@@ -88,8 +88,12 @@ flate get ks --path kube/clusters/artemis
 
 ## Build a Specific HelmRelease
 
+On flate 0.8.0, `flate build hr` and `flate build all --namespace` hang (#3406). Render the whole
+cluster, then select the objects of one HelmRelease by its label:
+
 ```bash
-flate build hr --path kube/clusters/artemis --namespace <namespace> --output yaml <helmrelease-name>
+FLATE_ALLOW_MISSING_KINDS=Secret flate build all --no-progress --path kube/clusters/artemis \
+  | yq 'select(.metadata.labels."helm.toolkit.fluxcd.io/name" == "<helmrelease-name>")'
 ```
 
 ## Validate Workflow (pre-commit checklist)
@@ -105,7 +109,11 @@ flate build hr --path kube/clusters/artemis --namespace <namespace> --output yam
 ## Notes
 
 - flate handles ExternalSecrets. If an ExternalSecret declares the Secret, flate marks the Secret
-  `Ready / "skipped"` and does not fail. In most cases you do not need `--allow-missing-secrets`.
+  `Ready / "skipped"` and does not fail. In most cases you do not need `--allow-missing-kinds Secret`.
+- `.mise/config.toml` sets `FLATE_DISABLE_CHART_DIGEST_TRACKING=true`. It matches the
+  `DisableChartDigestTracking` gate on helm-controller in `flux-instance`. Without it, flate adds a
+  digest suffix to the `helm.sh/chart` label, and `diff-ks` shows drift on every chart. If you
+  change one, change the other.
 - This cluster has no SOPS ciphertext. All secrets come from 1Password ExternalSecrets, so you never
   need to decrypt offline.
 - OCI sources (app-template, and others) need network access to pull charts. Run with the network
