@@ -423,6 +423,13 @@ No other major automerges. A package that a rule holds by name never automerges 
 does not hand the merge to Forgejo, because Forgejo's `merge_when_checks_succeed` loses commits
 when several PRs pass at once. Read § Never batch `merge_when_checks_succeed`.
 
+`rebaseWhen` is `"conflicted"`. Without it, Renovate uses `behind-base-branch` when automerge is
+on. Then each merge puts every other open PR behind `main`. Renovate rebases them, and the rebase
+resets their checks to pending. So each hourly run merged only one PR, about three a night, and
+the queue grew. With `"conflicted"`, Renovate rebases a PR only when it has a merge conflict. One
+run merges every PR that has green checks. A PR can merge with checks that ran against an older
+`main`. `main` allows this, because its branch protection has `block_on_outdated_branch: false`.
+
 The review knows only what the PR body tells it. The release notes from Renovate are the
 evidence.
 
