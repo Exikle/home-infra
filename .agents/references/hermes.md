@@ -423,8 +423,9 @@ token sent, cached context included. One rule covers every key, so the limit can
 key.
 
 For this reason kritika does not use agentgateway. One agentic review sends its context again on
-each step, and one review used 6,000,000 tokens in under three minutes. kritika calls OpenCode Go
-directly with the same account key.
+each step, and one review used 6,000,000 tokens in under three minutes. kritika does not use
+OpenCode Go either. Its reviews used up the weekly OpenCode Go limit that hermes and memini share
+(2026-11-20). kritika now uses only Claude through cliproxyapi (`cliproxyapi.md`).
 
 The old LiteLLM 30-day dollar budgets per key are gone. agentgateway cannot enforce dollar
 budgets in Kubernetes mode, only in standalone mode. The team accepted that loss. So a runaway is
