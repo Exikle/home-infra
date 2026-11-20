@@ -10,7 +10,7 @@ skills:
       load: true
 tools:
   # renovate: datasource=github-releases depName=home-operations/flate
-  aqua:home-operations/flate: v0.7.3
+  aqua:home-operations/flate: v0.8.0
   # renovate: datasource=github-releases depName=opentofu/opentofu
   aqua:opentofu/opentofu: v1.13.9
 rules:
