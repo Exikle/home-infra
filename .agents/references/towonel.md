@@ -10,8 +10,9 @@ TCP backhaul to Artemis.
 they disagree about a port, a DNS record, or who terminates TLS, one of them is wrong. Frostlink no
 longer runs an agent of its own.
 
-Upstream: <https://codeberg.org/towonel/towonel> · charts `oci://codeberg.org/towonel/charts/`. The
-node image is the chart default, `git.ow-ops.eu/towonel/towonel-node`. Look there for node updates.
+Upstream: <https://git.ow-ops.eu/towonel/towonel> · charts `oci://git.ow-ops.eu/towonel/charts/`.
+The release notes are there, not on codeberg. The node image is the chart default,
+`git.ow-ops.eu/towonel/towonel-node`.
 
 ## Shape here
 
@@ -19,7 +20,7 @@ One `towonel-node` release has both roles turned on. It runs in its own `towonel
 
 | Thing       | Value                                                |
 | ----------- | ---------------------------------------------------- |
-| Chart       | `oci://codeberg.org/towonel/charts/towonel-node`     |
+| Chart       | `oci://git.ow-ops.eu/towonel/charts/towonel-node`    |
 | Namespace   | `towonel` (not `network`, see below)                 |
 | Workload    | hostNetwork DaemonSet (a turned-on edge forces this) |
 | Edge public | `edge.frostlink.dev` → `40.233.88.33`, DNS-only      |
@@ -214,7 +215,7 @@ error.
 
 ## Gotchas
 
-- `helm show chart oci://codeberg.org/towonel/charts/towonel` returns 404. The chart is
+- `helm show chart oci://git.ow-ops.eu/towonel/charts/towonel` returns 404. The chart is
   `towonel-node` (hub, edge, or both).
 - The probes that the chart derives use `timeoutSeconds: 1`. A short Postgres gap killed the
   mautrix bridges with that same tight setting. The HelmRelease sets looser values. Do not let a

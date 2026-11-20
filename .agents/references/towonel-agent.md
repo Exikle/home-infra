@@ -32,7 +32,7 @@ Artemis opens no inbound port.
 - SNI on the backhaul. frostlink validates the Artemis certificate with SNI `edge.dcunha.io`. For
   the apex, it uses `dcunha.io`, because `edge-gateway` has a separate apex listener.
 
-The agent is app-template (`codeberg.org/towonel/towonel-agent` image), not the upstream chart. Its
+The agent is app-template (`git.ow-ops.eu/towonel/towonel-agent` image), not the upstream chart. Its
 configuration is `TOWONEL_AGENT_*` environment variables plus `TOWONEL_INVITE_TOKEN`. To find the versions, run
 `grep -h 'tag:' kube/clusters/artemis/apps/network/towonel-agent/app/*.yaml`.
 
