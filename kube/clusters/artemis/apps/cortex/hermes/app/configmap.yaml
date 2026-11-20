@@ -289,4 +289,4 @@ data:
     OPENAI_BASE_URL=http://agentgateway.cortex.svc.cluster.local:4000/v1
     API_SERVER_KEY={{ .API_SERVER_KEY }}
   user.yaml: |-
-    _config_version: 53
+    _config_version: 54
