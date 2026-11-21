@@ -1,7 +1,7 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["local>exikle/renovate-config", "local>exikle/renovate-config:cluster"],
-  platformAutomerge: false,
+  platformAutomerge: true,
   rebaseWhen: "conflicted",
   ignorePaths: ["kube/clusters/frostlink/**/*.secret.*", "kube/clusters/frostlink/**/resources/**"],
   prHeader: "{{#if (equals updateType 'major')}}🔴{{else}}{{#if (equals updateType 'minor')}}🔵{{else}}{{#if (equals updateType 'patch')}}🟢{{else}}⚪{{/if}}{{/if}}{{/if}} **{{{updateType}}}** · {{#if isGroup}}{{{groupName}}} group{{else}}{{{depName}}}{{/if}}",
