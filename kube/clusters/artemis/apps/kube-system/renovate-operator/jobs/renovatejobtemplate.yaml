@@ -24,7 +24,7 @@ spec:
       nfs:
         server: 10.10.99.100
         path: /mnt/atlas/renovate-cache
-  image: ghcr.io/renovatebot/renovate:44.247.1@sha256:f7bad0becd5f97275e0b1161a60b5dd25dfb0576f4d8c7701c8b60bfd63f3ee2
+  image: ghcr.io/renovatebot/renovate:44.257.9@sha256:d6b65ff3562dd499240b23d34ef806ec7e5fd2675e4236a027dfb36774f2aa75
   parallelism: 1
   provider:
     name: forgejo
