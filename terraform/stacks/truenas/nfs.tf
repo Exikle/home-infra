@@ -35,3 +35,14 @@ resource "truenas_nfs_share" "kopiur" {
   mapall_user  = "kubernetes"
   mapall_group = "kubernetes"
 }
+
+resource "truenas_nfs_share" "renovate_cache" {
+  path         = "/mnt/atlas/renovate-cache"
+  comment      = "Renovate cache"
+  enabled      = true
+  networks     = local.nfs_networks
+  mapall_user  = "kubernetes"
+  mapall_group = "kubernetes"
+
+  depends_on = [truenas_dataset.renovate_cache]
+}

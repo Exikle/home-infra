@@ -301,6 +301,26 @@ A Forgejo webhook names its job in the URL (`?namespace=kube-system&job=<name>`)
 at `infrastructure`, and containers points at `containers`. If you rename a job, change these URLs
 too. A new RenovateJob runs once when it is created, outside its schedule.
 
+### The cache on atlas
+
+Each run is a new pod, so without a cache Renovate forgets everything between runs. On Forgejo it
+then downloads the list of every PR that the bot ever opened (3073 in home-infra on 2026-11-21).
+That took about 7 minutes of each 11-minute run. No Renovate setting limits that download. The
+PR list lives in the repository cache, and Renovate stores that cache only on local disk or in S3.
+
+The `default` RenovateJobTemplate mounts the NFS share `10.10.99.100:/mnt/atlas/renovate-cache`
+at `/cache`. It sets `RENOVATE_CACHE_DIR=/cache` and `RENOVATE_REPOSITORY_CACHE=enabled`. Every
+job and every repo shares the folder. The `truenas` OpenTofu stack owns the dataset and the share.
+The folder owner is `kubernetes:kubernetes`, set by hand, the same as the Kopiur folder. The
+provider has no field for the owner.
+
+On 2026-11-21 a run with an empty cache took 783 s. The next run took 123 s, and its start-up
+step fell from 373 s to 6 s. The log line `Repository cache is restored from revision N` shows that
+a run read the cache.
+
+The cache is disposable. If you delete the folder contents, the next run is slow once and then
+writes the cache again.
+
 `timestamp-optional` lets an update through `minimumReleaseAge` when its datasource publishes no
 release timestamp. The default (`timestamp-required`) holds such an update pending forever. That
 is why the Talos and Kubernetes PRs of Frostlink never opened (frostlink#345).

@@ -25,3 +25,9 @@ resource "truenas_dataset" "frigate" {
   type        = "filesystem"
   compression = "lz4"
 }
+
+resource "truenas_dataset" "renovate_cache" {
+  name        = "atlas/renovate-cache"
+  type        = "filesystem"
+  compression = "lz4"
+}

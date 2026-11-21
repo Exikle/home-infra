@@ -12,6 +12,18 @@ spec:
       value: "dusk-bot <171887436+dusk-bot[bot]@users.noreply.github.com>"
     - name: LOG_LEVEL
       value: debug
+    - name: RENOVATE_CACHE_DIR
+      value: /cache
+    - name: RENOVATE_REPOSITORY_CACHE
+      value: enabled
+  extraVolumeMounts:
+    - name: cache
+      mountPath: /cache
+  extraVolumes:
+    - name: cache
+      nfs:
+        server: 10.10.99.100
+        path: /mnt/atlas/renovate-cache
   image: ghcr.io/renovatebot/renovate:44.247.1@sha256:f7bad0becd5f97275e0b1161a60b5dd25dfb0576f4d8c7701c8b60bfd63f3ee2
   parallelism: 1
   provider:
