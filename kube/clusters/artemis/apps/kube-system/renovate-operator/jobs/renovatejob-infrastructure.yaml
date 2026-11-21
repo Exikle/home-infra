@@ -8,6 +8,6 @@ spec:
   discoveryFilters:
     - Exikle/dotfiles
     - Exikle/home-infra
-  schedule: 0 * * * *
+  schedule: 20 * * * *
   templateRef:
     name: default

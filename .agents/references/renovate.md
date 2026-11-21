@@ -285,7 +285,7 @@ RenovateJobTemplate, which holds the image, the provider, the secret and the web
 
 | Job              | Repos                                                                   | Schedule (UTC)                      |
 | ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
-| `infrastructure` | home-infra, dotfiles                                                    | every hour                          |
+| `infrastructure` | home-infra, dotfiles                                                    | every hour, at minute 20            |
 | `containers`     | containers                                                              | every 6 hours, at minute 30         |
 | `apps`           | every other repo, except the ones that `renovatejob-apps.yaml` excludes | Mondays, hourly from 04:15 to 10:15 |
 
@@ -318,8 +318,28 @@ On 2026-11-21 a run with an empty cache took 783 s. The next run took 123 s, and
 step fell from 373 s to 6 s. The log line `Repository cache is restored from revision N` shows that
 a run read the cache.
 
-The cache is disposable. If you delete the folder contents, the next run is slow once and then
-writes the cache again.
+The package cache is separate. It holds the results of version lookups. It lives in the shared
+Dragonfly, index 3 (`RENOVATE_REDIS_URL`), as in most home-ops setups. When `redisUrl` is set,
+Renovate puts the package cache in Redis and keeps only the repository cache in `/cache`
+(`lib/util/cache/package/backend.ts`). The `kube-system` namespace is in `dragonfly-clients` for
+this reason.
+
+Two more settings make the package cache work for ghcr.io:
+
+- `RENOVATE_CACHE_PRIVATE_PACKAGES=true`. Renovate caches docker tag lists only for Docker Hub
+  unless this is set (`lib/util/cache/package/with-cache.ts`).
+- `RENOVATE_CACHE_TTL_OVERRIDE` keeps `datasource-docker-tags` and `datasource-docker-releases-v2`
+  for 360 minutes. The default is 30 minutes, so an hourly run never found a cached tag list.
+
+Without them, every run walked the full tag list of `ghcr.io/immich-app/immich-machine-learning`,
+and ghcr.io answered with HTTP 429 partway through (2026-11-21). The cost is that Renovate can see
+a new docker version up to 6 hours late.
+
+The `infrastructure` job runs at minute 20, not minute 0. Other home-ops repos report that ghcr.io
+throttles most at the top of the hour.
+
+The caches are disposable. If you delete the folder contents or flush index 3, the next run is
+slow once and then writes the cache again.
 
 `timestamp-optional` lets an update through `minimumReleaseAge` when its datasource publishes no
 release timestamp. The default (`timestamp-required`) holds such an update pending forever. That

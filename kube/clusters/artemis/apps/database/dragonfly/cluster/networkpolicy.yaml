@@ -40,6 +40,9 @@ spec:
               kubernetes.io/metadata.name: forgejo
         - namespaceSelector:
             matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - namespaceSelector:
+            matchLabels:
               kubernetes.io/metadata.name: media
       ports:
         - port: 6379

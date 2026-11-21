@@ -244,13 +244,14 @@ Dragonfly this way with no gates.
     | 0     | _(reserved, never assign)_              | —                                          |
     | 1     | paperless                               | `PAPERLESS_REDIS` URL suffix `/1`          |
     | 2     | immich                                  | `REDIS_DBINDEX: "2"` (app + microservices) |
-    | 3     | _(free)_                                | —                                          |
+    | 3     | renovate (package cache)                | `RENOVATE_REDIS_URL` suffix `/3`           |
     | 4     | _(free)_                                | —                                          |
     | 5     | trawl (Cloudflare bypass session cache) | `REDIS_URL` suffix `/5`                    |
     | 6     | silo                                    | `REDIS_URL` suffix `/6`                    |
 
-    Index 3 was claimed by litellm, which never set it. Index 4 held tekton-runner checkpoints until
-    2026-10-27. Neither app exists now.
+    Index 3 was claimed by litellm, which never set it. litellm no longer exists, and Renovate took
+    the index on 2026-11-21. Index 4 held tekton-runner checkpoints until 2026-10-27. tekton-runner
+    no longer exists.
 
     Use the keyspace to make sure that an app uses its index. The manifest can be wrong, but the
     keyspace cannot:
