@@ -7,7 +7,7 @@
   prHeader: "{{#if (equals updateType 'major')}}🔴{{else}}{{#if (equals updateType 'minor')}}🔵{{else}}{{#if (equals updateType 'patch')}}🟢{{else}}⚪{{/if}}{{/if}}{{/if}} **{{{updateType}}}** · {{#if isGroup}}{{{groupName}}} group{{else}}{{{depName}}}{{/if}}",
   prBodyTemplate: "{{{header}}}{{{table}}}{{{warnings}}}{{{notes}}}{{{changelogs}}}{{{controls}}}",
   schedule: ["* 0-3 * * *"],
-  updateNotScheduled: false,
+  updateNotScheduled: true,
   terraform: {
     managerFilePatterns: ["terraform/**/*.tf"],
   },

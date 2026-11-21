@@ -261,15 +261,20 @@ the last paragraph of § Schedule and release age.
 
 ```json5
 schedule: ["* 0-3 * * *"],
-updateNotScheduled: false,
+updateNotScheduled: true,
 ```
 
 This repo sets these two values. The shared default supplies the timezone and
 `minimumReleaseAgeBehaviour: "timestamp-optional"`.
 
-Renovate creates and rebases branches only from 00:00 to 03:59 in the repo timezone
-(America/Toronto). `updateNotScheduled: false` stops it from rebasing open branches outside that
-window. The `infrastructure` RenovateJob runs every hour, so that gives four passes a night.
+Renovate creates branches only from 00:00 to 03:59 in the repo timezone (America/Toronto).
+`updateNotScheduled: true` lets every hourly run of the `infrastructure` RenovateJob update and
+merge the open branches, at any hour. So a green PR from the night can roll out to the cluster
+during the day.
+
+With `updateNotScheduled: false`, Renovate skips an open branch outside the window. It also skips
+the automerge of that branch. Then only the four passes in the night merge anything, and the
+queue grew (2026-11-21). A ticked rebase box in the PR body overrides the window in both cases.
 
 ### Three RenovateJobs
 
