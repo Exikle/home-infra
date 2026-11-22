@@ -165,6 +165,20 @@ for c in $clusters; do
     for t in "${targets[@]}"; do
         [[ "${t%%:*}" == "$c" ]] || continue
         nsks="${t#*:}"
+        src="$(kc "$c" get kustomization -n "${nsks%/*}" "${nsks#*/}" -o jsonpath='{.spec.sourceRef.kind}/{.spec.sourceRef.namespace}/{.spec.sourceRef.name}' 2>/dev/null || true)"
+        if [[ "$src" == ExternalArtifact/* ]]; then
+            ean="${src#ExternalArtifact/}"; ens="${ean%%/*}"; ean="${ean#*/}"; ens="${ens:-${nsks%/*}}"
+            for i in $(seq 0 35); do
+                rev="$(kc "$c" get externalartifact -n "$ens" "$ean" -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}' 2>/dev/null || true)"
+                [[ "$rev" == *"$sha"* ]] && break
+                sleep 5
+            done
+            if [[ "$rev" == *"$sha"* ]]; then
+                mise run //:log info "ExternalArtifact carries the commit" cluster "$c" artifact "$ens/$ean"
+            else
+                mise run //:log warn "ExternalArtifact does not carry the commit after 3 minutes, resuming anyway" cluster "$c" artifact "$ens/$ean" revision "$rev"
+            fi
+        fi
         mise run "//kube/clusters/$c:resume-ks" "${nsks%/*}" "${nsks#*/}"
     done
 done

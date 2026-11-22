@@ -109,6 +109,11 @@ done.
 Name `flux-system` in the sync. The bare `mise run //kube/clusters/artemis:sync-flux ocirepo`
 force-annotates every OCIRepository in the cluster, but step 5 needs exactly one.
 
+An app Kustomization reads its own `ExternalArtifact`, not the OCIRepository
+(`app-structure.md` § Per-app artifacts). If the content of the app changed, wait until its
+artifact carries your commit too:
+`kubectl get externalartifact -n <ns> <app-folder> --context artemis -o jsonpath='{.status.artifact.metadata.org\.opencontainers\.image\.revision}'`.
+
 Then resume, root first and then the target, as two calls:
 
 ```bash
