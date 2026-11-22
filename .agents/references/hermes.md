@@ -92,9 +92,9 @@ spoof `X-Forwarded-*`.
 | chaski       | `chaski.observability.svc.cluster.local`        | Pushover notifications from skills    |
 | Forgejo      | `git.dcunha.io` as dusk-bot                     | PRs and commits                       |
 
-`ks.yaml` has `dependsOn` for `agentgateway-mcp`, `agentgateway-models`, `memini` and
-`security/pocket-id-operator`. The first three are the gateway pieces that hermes calls. The last
-one is the operator whose CRs hermes needs.
+`ks.yaml` has one `dependsOn`, on `security/pocket-id-operator`, because hermes creates a CR of
+that operator. Hermes also calls `agentgateway-mcp`, `agentgateway-models` and `memini`, but it
+does not wait for them in Flux. It retries until they answer (`flux-patterns.md` § Key Rules).
 
 The memini plugin is the `memini-hermes` memory plugin. It reads `MEMINI_BASE_URL`, not
 `MEMINI_URL`. If that variable is missing, the plugin silently uses `http://localhost:8080`. Memory

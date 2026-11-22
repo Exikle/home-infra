@@ -15,9 +15,6 @@ spec:
     kind: ExternalArtifact
     name: matter-server
   interval: 1h
-  dependsOn:
-    - name: multus-networks
-      namespace: kube-system
   components:
     - ../../../../components/kopiur/backup
   postBuild:

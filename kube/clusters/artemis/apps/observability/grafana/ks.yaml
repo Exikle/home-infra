@@ -32,7 +32,6 @@ spec:
   interval: 1h
   dependsOn:
     - name: grafana
-    - name: vm-operator
   components:
     - ../../../../components/postgres/app
   postBuild:

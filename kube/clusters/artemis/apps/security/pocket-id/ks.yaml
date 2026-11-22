@@ -82,6 +82,4 @@ spec:
     kind: ExternalArtifact
     name: pocket-id
   interval: 1h
-  dependsOn:
-    - name: pocket-id-groups
   wait: true

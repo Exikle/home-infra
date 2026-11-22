@@ -16,8 +16,6 @@ spec:
     name: postgres
   interval: 1h
   dependsOn:
-    - name: cnpg
-      namespace: cnpg-system
     - name: plugin-barman-cloud
       namespace: cnpg-system
   wait: true
@@ -42,9 +40,4 @@ spec:
   dependsOn:
     - name: cnpg
       namespace: cnpg-system
-    - name: plugin-barman-cloud
-      namespace: cnpg-system
-    - name: postgres-ca
-      namespace: cert-manager
-    - name: postgres-backup-target
   wait: true

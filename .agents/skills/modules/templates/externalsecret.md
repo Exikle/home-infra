@@ -37,7 +37,7 @@ The store name, the API version and the field-name rule are in `cluster-conventi
   several entries, they are named `<release>-<id>`. `target.name` overrides the Secret name.
   `forceRename` overrides the ExternalSecret name.
 - The chart sets `target.deletionPolicy: Delete` by default.
-- Add `onepassword-connect` to `dependsOn` in `ks.yaml` whenever an ExternalSecret is present.
+- An ExternalSecret needs no `dependsOn` in `ks.yaml`. Flux retries until the store answers (`flux-patterns.md` § Key Rules).
 - A standalone `externalsecret.yaml` (`apiVersion: external-secrets.io/v1`, no `namespace:`,
   `spec` alphabetical: `dataFrom → refreshInterval → secretStoreRef → target`) is only for the
   exceptions in `cluster-conventions.md` § Secrets.

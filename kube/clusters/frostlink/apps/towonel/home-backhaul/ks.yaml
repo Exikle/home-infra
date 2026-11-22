@@ -16,7 +16,6 @@ spec:
     name: home-backhaul
   interval: 1h
   dependsOn:
-    - name: towonel
     - name: envoy-gateway
       namespace: network
   wait: false

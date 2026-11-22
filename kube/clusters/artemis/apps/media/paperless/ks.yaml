@@ -52,8 +52,6 @@ spec:
     name: paperless
   interval: 1h
   dependsOn:
-    - name: paperless-tika
-    - name: paperless-gotenberg
     - name: pocket-id-operator
       namespace: security
   components:

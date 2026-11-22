@@ -33,6 +33,4 @@ spec:
     kind: ExternalArtifact
     name: certificates
   interval: 1h
-  dependsOn:
-    - name: certificates-import
   wait: true

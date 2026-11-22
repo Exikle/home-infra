@@ -36,7 +36,6 @@ spec:
   dependsOn:
     - name: pocket-id-operator
       namespace: security
-    - name: sparkyfitness-db
   components:
     - ../../../../components/postgres/app
     - ../../../../components/kopiur/backup

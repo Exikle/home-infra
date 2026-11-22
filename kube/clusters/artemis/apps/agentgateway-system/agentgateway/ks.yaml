@@ -33,6 +33,4 @@ spec:
     kind: ExternalArtifact
     name: agentgateway
   interval: 1h
-  dependsOn:
-    - name: agentgateway-crds
   wait: true

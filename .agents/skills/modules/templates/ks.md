@@ -41,12 +41,15 @@ spec:
 one `ks.yaml` uses the same name. `.agents/references/app-structure.md` § Per-app artifacts has
 the reason, and it wins.
 
-## With ExternalSecret (add to dependsOn)
+## With an OIDC client (add to dependsOn)
+
+Add a `dependsOn` only for a CRD that another Kustomization installs (`flux-patterns.md`
+§ Key Rules, which wins). An ExternalSecret needs none.
 
 ```yaml
 dependsOn:
-    - name: onepassword-connect
-      namespace: external-secrets
+    - name: pocket-id-operator
+      namespace: security
 ```
 
 ## With kopiur backup (add components + postBuild)

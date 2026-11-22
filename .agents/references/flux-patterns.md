@@ -104,7 +104,14 @@ Never delete the Helm release Secrets by hand. `reset-hr` is the only route.
 
 - Set `prune: false` on the `flux-instance` Kustomization. Never prune Flux itself. A few other
   Kustomizations also set it. `grep -rln 'prune: false' kube` lists them.
-- `dependsOn` must list the real runtime dependencies, not only the chart sources.
+- Add a `dependsOn` only when the Kustomization creates objects of a CRD that the other
+  Kustomization installs. Example: an app with an `oidcclient.yaml` depends on
+  `pocket-id-operator`. Do not add one for order at run time, such as a database, a secret store
+  or another app. The pod retries until its dependency is up, and Flux retries a failed apply. CRDs
+  that bootstrap installs (`kube/clusters/artemis/bootstrap/helmfile.d/00-crds.yaml`) need no
+  `dependsOn`. One exception is deliberate: Frostlink `flux-instance` depends on `apoci` and
+  `envoy-gateway`, so that a rebuild does not switch to `registry.frostlink.dev` before that
+  registry serves (`oci-rebuild.md`).
 - `interval: 1h` is the standard in `ks.yaml`. `grep -h 'interval:' kube/clusters/artemis/apps/*/*/ks.yaml | sort | uniq -c`
   shows the exceptions.
 - The child-defaults patch that the FluxInstance puts on the root injects `retryInterval: 1m`. An

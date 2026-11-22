@@ -16,8 +16,6 @@ spec:
     name: esphome
   interval: 1h
   dependsOn:
-    - name: multus-networks
-      namespace: kube-system
     - name: pocket-id-operator
       namespace: security
   components:

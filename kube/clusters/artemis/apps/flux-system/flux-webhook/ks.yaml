@@ -16,6 +16,4 @@ spec:
     name: flux-webhook
   interval: 1h
   timeout: 5m
-  dependsOn:
-    - name: flux-instance
   wait: false

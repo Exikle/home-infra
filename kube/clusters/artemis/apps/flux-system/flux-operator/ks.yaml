@@ -15,8 +15,6 @@ spec:
     kind: ExternalArtifact
     name: flux-operator
   interval: 1h
-  dependsOn:
-    - name: flux-operator-oidc
   wait: true
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json

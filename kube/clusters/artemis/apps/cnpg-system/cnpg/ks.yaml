@@ -30,6 +30,4 @@ spec:
     kind: ExternalArtifact
     name: cnpg
   interval: 1h
-  dependsOn:
-    - name: cnpg
   wait: true
