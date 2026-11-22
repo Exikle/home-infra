@@ -460,7 +460,8 @@ approve its own PR. The gate is the `Kritika / Review` status:
 2. If the score is below 4, the status fails. If kritika cannot score the PR, the status is an
    error.
 3. Patch, minor and digest rules set `ignoreTests: false`. So Renovate merges those PRs only when
-   every status on them is green.
+   every status on them is green. Forgejo, which merges the PRs that Renovate armed, waits only
+   for the checks that the branch protection of `main` requires (see below).
 
 `.renovaterc.json5` and the shared presets still decide what can merge on its own. Two rules skip
 the gate with `ignoreTests: true`:
@@ -472,16 +473,35 @@ the gate with `ignoreTests: true`:
 
 No other major automerges. A package that a rule holds by name never automerges either.
 
-`platformAutomerge` is `false`. Renovate merges each PR itself, one at a time, during its run. It
-does not hand the merge to Forgejo, because Forgejo's `merge_when_checks_succeed` loses commits
-when several PRs pass at once. Read § Never batch `merge_when_checks_succeed`.
+`platformAutomerge` is `true` (since 2026-11-21). When Renovate creates an automerge PR, it arms
+Forgejo's `merge_when_checks_succeed` on it, and Forgejo merges the PR as soon as the required
+checks pass. Renovate arms a PR only when it creates it (`lib/modules/platform/gitea/index.ts`,
+`createPr`). A PR that existed before is merged by Renovate itself, in its run.
+
+The required checks are `Kritika / Review` and `Render Clusters / Result (pull_request)`, in the
+branch protection of `main`. Forgejo waits for these two only. With Kritika alone, PRs merged while
+the render still ran (#3441). `ci.md` § `render` describes the `Result` job.
+
+Forgejo's merge race (§ Never batch `merge_when_checks_succeed`) was the reason that this was
+`false` before. On the first night, 2026-11-22, Forgejo merged 14 PRs in 8 minutes, some 3 to 5
+seconds apart, and every merge commit reached `main`. One night is not proof. After a busy night,
+make sure that each merged PR is on `main`:
+`git merge-base --is-ancestor <merge_commit_sha> origin/main`.
+
+A run of Renovate merges at most two PRs itself. After it merges one, it stops working through the
+branches, because `main` changed (`lib/workers/repository/process/write.ts`). It then starts the
+repository once more and stops after the next merge (`lib/workers/repository/index.ts`). No
+setting changes this. Forgejo's own merges do not count against it.
 
 `rebaseWhen` is `"conflicted"`. Without it, Renovate uses `behind-base-branch` when automerge is
 on. Then each merge puts every other open PR behind `main`. Renovate rebases them, and the rebase
-resets their checks to pending. So each hourly run merged only one PR, about three a night, and
-the queue grew. With `"conflicted"`, Renovate rebases a PR only when it has a merge conflict. One
-run merges every PR that has green checks. A PR can merge with checks that ran against an older
-`main`. `main` allows this, because its branch protection has `block_on_outdated_branch: false`.
+resets their checks to pending. With `"conflicted"`, Renovate rebases a PR only when it has a merge
+conflict. A PR can merge with checks that ran against an older `main`. `main` allows this, because
+its branch protection has `block_on_outdated_branch: false`.
+
+Do not push to a Renovate branch by hand or with Forgejo's "Update branch" button. Renovate then
+logs `PR has been edited` and stops managing the PR. It no longer rebases or merges it. To hand
+it back, tick the rebase box in the PR body. A ticked box also works outside the schedule.
 
 The review knows only what the PR body tells it. The release notes from Renovate are the
 evidence.
@@ -491,8 +511,9 @@ evidence.
 ## Merging a batch
 
 Renovate PRs auto-merge through squash. To merge one PR or a batch by hand, use `fjo`, one PR at
-a time (the command is below). Do not use `merge_when_checks_succeed` (§ Never batch
-`merge_when_checks_succeed`).
+a time (the command is below). Do not queue `merge_when_checks_succeed` by hand (§ Never batch
+`merge_when_checks_succeed`). Renovate's own use of it is the exception that § AI review on pull
+requests describes.
 
 The squash lands as `title (#N)` on main, signed by git.dcunha.io Instance.
 
