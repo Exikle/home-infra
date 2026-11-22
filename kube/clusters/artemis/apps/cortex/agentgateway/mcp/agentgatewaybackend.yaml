@@ -149,6 +149,14 @@ spec:
               requestTimeout: 300s
           port: 3010
           protocol: StreamableHTTP
+      - name: trawl
+        static:
+          host: trawl.media.svc.cluster.local
+          policies:
+            http:
+              requestTimeout: 300s
+          port: 8191
+          protocol: StreamableHTTP
       - name: victoria-logs
         static:
           host: victoria-logs-mcp.cortex.svc.cluster.local

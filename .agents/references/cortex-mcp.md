@@ -158,6 +158,13 @@ runs it over the same crawl index. It needs no key, so the target has only the T
 11 tools. The `kubesearch` skill uses it first. #3457 decides on 2026-12-15 if the old search
 path of the skill can go. If the server moves off the `beta.` host, change `host` and `sni`.
 
+### trawl (target `trawl`, general)
+
+The app itself serves MCP at `/mcp` on its own port 8191, in `media`. It has no MCP workload in
+`cortex`. Trawl turns the route on only when `MCP_ENABLED` is `"true"`, so the HelmRelease sets
+it. MCP in trawl has no authentication. Upstream says that you must keep it on a private
+network. Do not give trawl a public route. The gateway key of the general tier is the only gate.
+
 ### forgejo (`mcp-forgejo`, target `forgejo`, ops)
 
 <https://code.squarecows.com/SquareCows/forgejo-mcp>, package `@ric_/forgejo-mcp`. The image is

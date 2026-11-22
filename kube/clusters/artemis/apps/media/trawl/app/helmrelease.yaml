@@ -33,6 +33,7 @@ spec:
               BROWSER_POOL_SIZE: "1"
               BROWSER_RECYCLE_AFTER_CONTEXTS: "3"
               HOME: /tmp
+              MCP_ENABLED: "true"
               PORT: &port 8191
               REDIS_URL: redis://dragonfly.database.svc.cluster.local:6379/5
             probes:
