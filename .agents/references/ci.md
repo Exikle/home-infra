@@ -128,7 +128,7 @@ costs time).
 `.forgejo/workflows/render.yaml` runs in three cases:
 
 - On each push to `main` that changes `kube/**`.
-- On each pull request that changes `kube/**`.
+- On each pull request, whatever it changes.
 - By hand (`workflow_dispatch`).
 
 First, a `changes` job picks the clusters with the same rule as `oci-push.yaml`. A change under
@@ -142,7 +142,20 @@ Then one job per picked cluster runs on the default runner image. The job instal
 `mise-action` from the shared mise-config pin. Then it runs
 `flate build all --path kube/clusters/<cluster>` with `FLATE_ALLOW_MISSING_KINDS=Secret` and
 `FLATE_DISABLE_CHART_DIGEST_TRACKING=true`. If the render breaks, the job fails. A cluster that the
-change does not reach gets no render job.
+change does not reach gets no render job. If the change reaches no cluster, one placeholder job,
+`Render none`, runs and skips all its steps. Forgejo creates no job at all from an empty matrix,
+and a job that `needs` it then stays `blocked` forever (seen on #3456).
+
+A last job, `Result`, always runs. It passes when the `changes` job passed and every render job
+passed or was skipped. Branch protection on `main` requires its status,
+`Render Clusters / Result (pull_request)`, beside `Kritika / Review`. The per-cluster render
+checks cannot be required, because a PR that does not reach a cluster never gets that check, and
+Forgejo then waits for it forever. That is also why the workflow runs on every pull request: a PR
+outside `kube/` still needs a `Result` status.
+
+This gate matters because `platformAutomerge` is on. Forgejo merges an armed Renovate PR as soon as
+the required checks pass. Before the gate, only Kritika was required, so PRs merged while the
+render still ran (#3441 on 2026-11-22).
 
 The render reads the git checkout, not the artifact. flate resolves every `spec.path` from the repo
 root, so this view equals what Flux gets. `FLATE_ALLOW_MISSING_KINDS=Secret` lets the render go on

@@ -4,8 +4,6 @@ name: Render Clusters
 
 on:
   pull_request:
-    paths:
-      - kube/**
   push:
     branches:
       - main
@@ -67,12 +65,14 @@ jobs:
           for c in artemis frostlink; do
             if grep -E "^kube/(base/|components/|clusters/${c}/(apps|components)/)" <<<"$files" >/dev/null; then list+=("\"$c\""); fi
           done
+          # An empty matrix makes Forgejo skip creating the render job, and Result then blocks
+          # forever. "none" keeps one render job whose steps all skip.
+          [ ${#list[@]} -gt 0 ] || list=('"none"')
           echo "clusters=[$(IFS=,; echo "${list[*]}")]" >> "$FORGEJO_OUTPUT"
 
   render:
     name: Render ${{ matrix.cluster }}
     needs: changes
-    if: needs.changes.outputs.clusters != '[]'
     # The runner's default image: Debian-based and ships node, so checkout and the cached
     # mise install work as actions.
     runs-on: ubuntu-latest
@@ -83,12 +83,14 @@ jobs:
         cluster: ${{ fromJSON(needs.changes.outputs.clusters) }}
     steps:
       - name: Checkout
+        if: matrix.cluster != 'none'
         uses: https://github.com/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       # flate comes from the shared mise-config pin, the same version as local render-ks.
       - name: Install Tools
+        if: matrix.cluster != 'none'
         uses: https://github.com/jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
         with:
           install_args: github:home-operations/flate
@@ -97,8 +99,29 @@ jobs:
       # Renders every Kustomization and HelmRelease the cluster's Flux would see, from the repo
       # root (spec.path values are repo-root-relative). Secrets that exist only live are skipped.
       - name: Render
+        if: matrix.cluster != 'none'
         env:
           CLUSTER: ${{ matrix.cluster }}
           FLATE_ALLOW_MISSING_KINDS: Secret
           FLATE_DISABLE_CHART_DIGEST_TRACKING: "true"
         run: flate build all --no-progress --path "kube/clusters/${CLUSTER}" > /dev/null
+
+  # The one check branch protection requires. It always reports: it passes when no cluster
+  # needed a render, and fails when the diff or any render failed.
+  result:
+    name: Result
+    needs: [changes, render]
+    if: always()
+    runs-on: ubuntu-latest
+    container: git.dcunha.io/exikle/ci-toolbox:0.2.0
+    timeout-minutes: 5
+    steps:
+      - name: Check the render jobs
+        shell: bash
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          RENDER: ${{ needs.render.result }}
+        run: |-
+          echo "changes=${CHANGES} render=${RENDER}"
+          [ "$CHANGES" = success ] || exit 1
+          case "$RENDER" in success|skipped) ;; *) exit 1 ;; esac
