@@ -69,6 +69,8 @@ spec:
           type: anthropic
       review:
         model: claude/claude-haiku-5-5
+      trigger:
+        settle: 60s
       webUrl: https://kritika.dcunha.io
     database:
       app:

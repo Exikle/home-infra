@@ -441,6 +441,14 @@ user. Its repo rules are in `.kritika.yaml`. Its instance configuration is in th
 
 kritika posts a summary comment, inline findings, and a commit status named `Kritika / Review`.
 
+The instance configuration sets `trigger.settle: 60s`. kritika then waits 60 seconds after a push
+before it starts the review. Without the wait, it started about one second after a push. It reads
+the merge base of the PR from Forgejo, and Forgejo computes that merge base in the background after
+a push. A rebased PR was then diffed against its old base. On 2026-11-22, #3380 changed one line,
+but its review got 30 files from two days of `main`. A diff that large also overflows the answer
+limit of the confidence step, which is fixed at 4096 tokens in kritika. The status is then `error`
+with "confidence not scored". If a PR still shows that error, comment `@dusk-bot review` on it.
+
 ### Merge on a green check
 
 kritika does not approve. `dusk-bot` opens the Renovate PRs, and Forgejo does not let a user
