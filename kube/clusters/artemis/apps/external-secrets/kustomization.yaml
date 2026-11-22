@@ -9,6 +9,5 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ../../../../base/external-secrets/external-secrets
-  - ./external-secrets/extras/ks.yaml
+  - ./external-secrets/ks.yaml
   - ./onepassword-connect/ks.yaml

@@ -9,6 +9,4 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ../../../../base/system-upgrade/tuppr
-  - ./tuppr/extras/ks.yaml
   - ./tuppr/ks.yaml

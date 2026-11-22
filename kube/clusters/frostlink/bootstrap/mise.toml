@@ -140,10 +140,10 @@ for app in kube-system/cilium kube-system/coredns cert-manager/cert-manager; do
     ns="${app%%/*}"
     name="${app##*/}"
     dir="../apps/${app}"
-    [[ -d "$dir/app" ]] || dir="../../../base/${app}"
+    [[ -f "$dir/app/ocirepository.yaml" ]] || dir="../../../base/${app}"
     ocirepo="${dir}/app/ocirepository.yaml"
     helmrelease="${dir}/app/helmrelease.yaml"
-    extras="../apps/${app}/extras/values.yaml"
+    extras="../apps/${app}/app/values.yaml"
 
     chart="$(yq '.spec.url' "$ocirepo")"
     version="$(yq '.spec.ref.tag' "$ocirepo")"

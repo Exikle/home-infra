@@ -9,8 +9,6 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ../../../../base/flux-system/flux-instance
-  - ../../../../base/flux-system/flux-operator
-  - ./flux-instance/extras/ks.yaml
-  - ./flux-operator/extras/ks.yaml
+  - ./flux-instance/ks.yaml
+  - ./flux-operator/ks.yaml
   - ./flux-webhook/ks.yaml

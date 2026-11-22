@@ -1,6 +1,6 @@
-{{- /* flux-instance values for a rebuild: the real HelmRelease values (kube/base + this cluster's extras), but syncing from the in-cluster seed registry over plain HTTP, unsigned. Flux replaces this with the HelmRelease (registry.frostlink.dev) once apoci and cloudflare-tunnel are Ready — see bootstrap.md. */ -}}
+{{- /* flux-instance values for a rebuild: the real HelmRelease values (kube/base + this cluster's app/values.yaml), but syncing from the in-cluster seed registry over plain HTTP, unsigned. Flux replaces this with the HelmRelease (registry.frostlink.dev) once apoci and cloudflare-tunnel are Ready — see bootstrap.md. */ -}}
 {{- $base := (fromYaml (readFile "../../../../../base/flux-system/flux-instance/app/helmrelease.yaml")).spec.values -}}
-{{- $v := mergeOverwrite (fromYaml (readFile "../../../apps/flux-system/flux-instance/extras/values.yaml")) $base -}}
+{{- $v := mergeOverwrite (fromYaml (readFile "../../../apps/flux-system/flux-instance/app/values.yaml")) $base -}}
 {{- $_ := set $v.instance.sync "url" "oci://seed-registry.flux-system.svc.cluster.local:5000/exikle/frostlink" -}}
 {{- $patches := list -}}
 {{- range $v.instance.kustomize.patches }}{{- if not (contains "/spec/verify" .patch) }}{{- $patches = append $patches . -}}{{- end }}{{- end -}}

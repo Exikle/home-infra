@@ -9,21 +9,19 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ../../../../base/kube-system/k8tz
-  - ../../../../base/kube-system/ksgate
-  - ../../../../base/kube-system/metrics-server
-  - ../../../../base/kube-system/reloader
   - ./cilium/ks.yaml
   - ./coredns/ks.yaml
   - ./descheduler/ks.yaml
   - ./etcd-defrag/ks.yaml
   - ./generic-device-plugin/ks.yaml
   - ./intel-gpu-resource-driver/ks.yaml
-  - ./k8tz/extras/ks.yaml
+  - ./k8tz/ks.yaml
   - ./kata-containers/ks.yaml
+  - ./ksgate/ks.yaml
   - ./lldpd/ks.yaml
-  - ./metrics-server/extras/ks.yaml
+  - ./metrics-server/ks.yaml
   - ./multus/ks.yaml
+  - ./reloader/ks.yaml
   - ./renovate-operator/ks.yaml
   - ./snapshot-controller/ks.yaml
   - ./spegel/ks.yaml

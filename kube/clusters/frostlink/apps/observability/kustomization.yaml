@@ -9,14 +9,12 @@ components:
 
 resources:
   - ./namespace.yaml
-  - ../../../../base/observability/kube-state-metrics
-  - ../../../../base/observability/node-exporter
   - ./alertmanager/ks.yaml
   - ./chaski/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./kromgo/ks.yaml
-  - ./kube-state-metrics/extras/ks.yaml
-  - ./node-exporter/extras/ks.yaml
+  - ./kube-state-metrics/ks.yaml
+  - ./node-exporter/ks.yaml
   - ./vm-alert/ks.yaml
   - ./vm-operator/ks.yaml
   - ./vm-scrapes/ks.yaml
