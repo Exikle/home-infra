@@ -10,9 +10,6 @@ spec:
     name: forgesync
   interval: 30m
   values:
-    defaultPodOptions:
-      imagePullSecrets:
-        - name: forgejo-registry-pull
     controllers:
       forgesync:
         annotations:
