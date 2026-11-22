@@ -151,6 +151,13 @@ It is a hosted endpoint at <https://mcp.context7.com/mcp>. It has no container a
 so there is nothing to harden. The gateway sends the key as the upstream token of the target, with
 an explicit TLS `sni`. It has 2 tools.
 
+### kubesearch (target `kubesearch`, general)
+
+It is a hosted endpoint at <https://beta.kubesearch.dev/mcp>. The developer of kubesearch.dev
+runs it over the same crawl index. It needs no key, so the target has only the TLS `sni`. It has
+11 tools. The `kubesearch` skill uses it first. #3457 decides on 2026-12-15 if the old search
+path of the skill can go. If the server moves off the `beta.` host, change `host` and `sni`.
+
 ### forgejo (`mcp-forgejo`, target `forgejo`, ops)
 
 <https://code.squarecows.com/SquareCows/forgejo-mcp>, package `@ric_/forgejo-mcp`. The image is

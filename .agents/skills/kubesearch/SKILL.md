@@ -1,7 +1,7 @@
 ---
 name: kubesearch
 description: Find real-world HelmRelease examples for an app by searching kubesearch.dev and other home-ops repos, then adapt the best match to this cluster's conventions. Use for "find examples for X", "how do others deploy X", "search kubesearch for X", or when deploying an unfamiliar app with no obvious reference. Covers Artemis and Frostlink.
-compatibility: Requires outbound network access. It uses the public kubesearch MCP server (no API key) and falls back to the static JSON of kubesearch.dev. Read-only; it produces a manifest to adapt, it does not apply anything.
+compatibility: Requires the general MCP tier (the kubesearch target) and outbound network access for the fallback, which curls the static JSON of kubesearch.dev. Read-only; it produces a manifest to adapt, it does not apply anything.
 ---
 
 # Skill: Kubesearch — Find Home-Ops Examples
@@ -20,8 +20,9 @@ does not exist in their repos.
 
 kubesearch.dev indexes repos on GitHub and GitLab that carry the tag `k8s-at-home` or
 `kubesearch`. Its developer runs an MCP server over the same index at
-`https://beta.kubesearch.dev/mcp`. The server is registered as `kubesearch` in `.mcp.json` and
-`opencode.json`. It needs no key. Use it first. It answers a search in under a second. The old
+`https://beta.kubesearch.dev/mcp`. agentgateway serves it as the `kubesearch` target of the
+general tier, so the tools are `kubesearch_<tool>` (for example `kubesearch_search_releases`).
+Use it first. It answers a search in under a second. The old
 path (Step 2b) takes about 20 seconds and searches only names.
 
 The old path stays as a fallback until the review in #3457 (due 2026-12-15). If the MCP server
@@ -34,7 +35,8 @@ in the middle of a task, such as deploying an app, the query is the name of that
 
 ## Step 2a: Search the kubesearch MCP server
 
-Tool names carry a server prefix that changes per client. Match on the tool part of the name.
+Tool names carry a server prefix that changes per client. Match on the `kubesearch_` part of the
+name. The steps below give the tool part only.
 
 1. Call `search_releases` with `query` set to the app name. It matches the release name, the
    chart name and the chart source URL. Each result is one group (for example "sonarr on

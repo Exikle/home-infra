@@ -111,6 +111,16 @@ spec:
               requestTimeout: 300s
           port: 8000
           protocol: StreamableHTTP
+      - name: kubesearch
+        static:
+          host: beta.kubesearch.dev
+          policies:
+            http:
+              requestTimeout: 300s
+            tls:
+              sni: beta.kubesearch.dev
+          port: 443
+          protocol: StreamableHTTP
       - name: searxng
         static:
           host: mcp-searxng.cortex.svc.cluster.local

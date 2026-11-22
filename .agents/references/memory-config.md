@@ -77,7 +77,8 @@ key on the path of the wrong tier. `ai-ops` has privileged access to the cluster
 clients only. Never expose it to a general-purpose chat frontend. `cortex-mcp.md` has the auth
 rules. It also says why the key must be an `x-api-key` header and never `Authorization`.
 
-`context7` is the only remote server (`https://mcp.context7.com/mcp`). The other servers run as
+`context7` (`https://mcp.context7.com/mcp`) and `kubesearch` (`https://beta.kubesearch.dev/mcp`)
+are the only remote servers. The other servers run as
 Deployments in `cortex` (`cortex-mcp.md` § Layout). The exception is sparkyfitness. Its target
 is the server of the app itself, in `default`.
 
