@@ -24,6 +24,7 @@ spec:
         - kustomize-controller
         - helm-controller
         - notification-controller
+        - source-watcher
       cluster:
         networkPolicy: false
       sync:
