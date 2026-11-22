@@ -117,7 +117,12 @@ For this reason, `forgejo_custom_themes` lists the filenames. `forgejo_theme_nam
 `app.ini` value from them: it removes the `theme-` / `.css` wrapper. To add a theme, you add one
 line to one list. The two halves cannot drift apart.
 
-The stylesheets live in `roles/forgejo/files/themes/`. Forgejo serves them directly from disk, so a
+The `-dark` and `-light` stylesheets live in `roles/forgejo/files/themes/`. The role builds each
+auto theme (`theme-<name>.css`, which follows the OS light or dark setting) from
+`templates/theme-auto.css.j2`. That template joins the two halves into one file and puts the light
+half in a `prefers-color-scheme: light` media query. Do not go back to two `@import` lines. The
+browser fetches imported files only after the first file arrives, and the page does not paint until
+all of them are in. Forgejo serves them directly from disk, so a
 CSS change needs no restart. A change to the THEMES list does need a restart, because Forgejo reads
 `app.ini` once at boot. The task notifies the restart handler. That works only when the play runs to
 the end. For the case where it does not, see the partial-apply trap below.

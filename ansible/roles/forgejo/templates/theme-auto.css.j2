@@ -1,0 +1,4 @@
+{{ lookup('ansible.builtin.file', 'themes/' ~ (item | regex_replace('\.css$', '-dark.css'))) }}
+@media (prefers-color-scheme: light) {
+{{ lookup('ansible.builtin.file', 'themes/' ~ (item | regex_replace('\.css$', '-light.css'))) }}
+}

@@ -115,7 +115,20 @@
     owner: "{{ forgejo_user }}"
     group: "{{ forgejo_group }}"
     mode: "0644"
-  loop: "{{ forgejo_custom_themes }}"
+  loop: "{{ forgejo_custom_themes | select('search', '-(dark|light)\\.css$') | list }}"
+
+# An auto theme (theme-<name>.css) is its -dark file plus its -light file inside a
+# prefers-color-scheme media query, joined into one file. Two @import lines would
+# make the browser fetch the wrapper first and only then the halves, a second
+# round trip that blocks the first paint.
+- name: Build the auto theme stylesheets from their dark and light halves
+  ansible.builtin.template:
+    src: theme-auto.css.j2
+    dest: "{{ forgejo_theme_dir }}/{{ item }}"
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0644"
+  loop: "{{ forgejo_custom_themes | reject('search', '-(dark|light)\\.css$') | list }}"
 
 # Key-by-key, not templated. See forgejo_settings in defaults/main.yml for why.
 - name: Apply the managed app.ini settings
