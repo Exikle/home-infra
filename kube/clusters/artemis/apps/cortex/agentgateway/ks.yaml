@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cortex/agentgateway/gateway
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: agentgateway
   interval: 1h
   dependsOn:
     - name: agentgateway
@@ -34,9 +33,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cortex/agentgateway/models
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: agentgateway
   interval: 1h
   dependsOn:
     - name: agentgateway-gateway
@@ -55,9 +53,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cortex/agentgateway/mcp
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: agentgateway
   interval: 1h
   dependsOn:
     - name: agentgateway-gateway

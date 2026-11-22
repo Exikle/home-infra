@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/observability/silence-operator/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: silence-operator
   interval: 1h
   retryInterval: 1m
   timeout: 5m
@@ -30,9 +29,8 @@ spec:
   path: ./kube/clusters/artemis/apps/observability/silence-operator/silences
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: silence-operator
   interval: 1h
   dependsOn:
     - name: silence-operator

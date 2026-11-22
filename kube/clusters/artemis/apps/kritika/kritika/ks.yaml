@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kritika/kritika/database
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: kritika
   interval: 1h
   dependsOn:
     - name: postgres-cluster
@@ -34,9 +33,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kritika/kritika/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: kritika
   interval: 1h
   dependsOn:
     - name: kritika-database

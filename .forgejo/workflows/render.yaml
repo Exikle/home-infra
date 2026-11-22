@@ -96,6 +96,12 @@ jobs:
           install_args: github:home-operations/flate
           cache: true
 
+      # flate 0.8.0 cannot run our ArtifactGenerator (no artifacts[].namespace or copy[].optional),
+      # so point the app Kustomizations back at the whole tree. See scripts/flate-offline.sh.
+      - name: Prepare tree for flate
+        if: matrix.cluster != 'none'
+        run: scripts/flate-offline.sh .
+
       # Renders every Kustomization and HelmRelease the cluster's Flux would see, from the repo
       # root (spec.path values are repo-root-relative). Secrets that exist only live are skipped.
       - name: Render

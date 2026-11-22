@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/intel-gpu-resource-driver/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: intel-gpu-resource-driver
   interval: 30m
   wait: true
   healthChecks:

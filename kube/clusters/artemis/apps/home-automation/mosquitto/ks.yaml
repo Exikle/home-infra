@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/home-automation/mosquitto/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: mosquitto
   interval: 1h
   components:
     - ../../../../components/kopiur/backup

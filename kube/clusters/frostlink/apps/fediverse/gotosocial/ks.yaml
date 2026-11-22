@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/fediverse/gotosocial/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: gotosocial
   interval: 1h
   components:
     - ../../../../components/kopiur

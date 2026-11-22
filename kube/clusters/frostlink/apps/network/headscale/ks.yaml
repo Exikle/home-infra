@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/network/headscale/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: headscale
   interval: 1h
   postBuild:
     substitute:

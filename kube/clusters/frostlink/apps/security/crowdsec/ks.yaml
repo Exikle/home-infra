@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/security/crowdsec/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: crowdsec
   interval: 1h
   dependsOn:
     - name: onepassword-connect

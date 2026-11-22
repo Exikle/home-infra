@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/frostlink/apps/kube-system/cilium/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: cilium
   interval: 30m
   wait: true

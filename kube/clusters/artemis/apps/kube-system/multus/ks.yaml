@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/multus/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: multus
   interval: 30m
   dependsOn:
     - name: cilium
@@ -38,9 +37,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/multus/networks
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: multus
   interval: 30m
   dependsOn:
     - name: multus

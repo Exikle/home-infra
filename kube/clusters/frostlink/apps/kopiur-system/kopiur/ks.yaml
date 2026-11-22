@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/kopiur-system/kopiur/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: kopiur
   interval: 1h
   wait: true
 ---
@@ -31,9 +30,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/kopiur-system/kopiur/repository
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: kopiur
   interval: 1h
   dependsOn:
     - name: kopiur

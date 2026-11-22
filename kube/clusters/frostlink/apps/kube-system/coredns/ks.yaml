@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/frostlink/apps/kube-system/coredns/app
   prune: false
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: coredns
   interval: 30m
   wait: false

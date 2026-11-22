@@ -13,9 +13,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/lldpd/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: lldpd
   interval: 1h
   retryInterval: 2m
   timeout: 5m

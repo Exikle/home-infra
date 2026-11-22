@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/artemis/apps/observability/blackbox-exporter/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: blackbox-exporter
   interval: 1h
   wait: true

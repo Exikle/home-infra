@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cortex/llmkube/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: llmkube
   interval: 1h
   retryInterval: 1m
   timeout: 5m
@@ -33,9 +32,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cortex/llmkube/models
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: llmkube
   interval: 1h
   retryInterval: 1m
   timeout: 15m

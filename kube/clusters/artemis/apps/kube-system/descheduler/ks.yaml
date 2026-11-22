@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/descheduler/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: descheduler
   interval: 30m
   wait: true

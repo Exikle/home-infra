@@ -12,8 +12,7 @@ spec:
   path: ./kube/base/kube-system/reloader/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: reloader
   interval: 30m
   wait: true

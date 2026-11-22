@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/cert-manager/csi-driver/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: csi-driver
   interval: 1h
   dependsOn:
     - name: cert-manager

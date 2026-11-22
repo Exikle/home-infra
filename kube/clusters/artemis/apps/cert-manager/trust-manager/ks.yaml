@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cert-manager/trust-manager/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: trust-manager
   interval: 1h
   dependsOn:
     - name: cert-manager
@@ -30,9 +29,8 @@ spec:
   path: ./kube/clusters/artemis/apps/cert-manager/trust-manager/config
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: trust-manager
   interval: 1h
   dependsOn:
     - name: trust-manager

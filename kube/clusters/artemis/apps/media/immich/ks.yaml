@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/immich/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: immich
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
@@ -39,9 +38,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/immich/microservices
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: immich
   interval: 1h
   dependsOn:
     - name: immich-app
@@ -60,9 +58,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/immich/machine-learning
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: immich
   interval: 1h
   timeout: 10m
   dependsOn:

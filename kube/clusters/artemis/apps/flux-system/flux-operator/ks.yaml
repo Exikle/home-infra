@@ -12,8 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/flux-system/flux-operator/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
+    kind: ExternalArtifact
+    name: flux-operator
   interval: 1h
   dependsOn:
     - name: flux-operator-oidc
@@ -32,8 +32,8 @@ spec:
   path: ./kube/clusters/artemis/apps/flux-system/flux-operator/oidc
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
+    kind: ExternalArtifact
+    name: flux-operator
   interval: 1h
   dependsOn:
     - name: pocket-id-operator

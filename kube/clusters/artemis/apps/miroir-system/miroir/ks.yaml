@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/miroir-system/miroir/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: miroir
   interval: 1h
   wait: false
   healthChecks:
@@ -36,9 +35,8 @@ spec:
   path: ./kube/clusters/artemis/apps/miroir-system/miroir/config
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: miroir
   interval: 1h
   dependsOn:
     - name: miroir

@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/frostlink/apps/observability/vm-scrapes/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: vm-scrapes
   interval: 1h
   retryInterval: 1m
   timeout: 5m

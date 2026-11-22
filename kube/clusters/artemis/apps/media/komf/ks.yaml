@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/artemis/apps/media/komf/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: komf
   interval: 1h
   wait: false

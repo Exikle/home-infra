@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/default/atuin/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: atuin
   interval: 1h
   components:
     - ../../../../components/postgres/app

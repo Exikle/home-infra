@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/sabnzbd/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: sabnzbd
   interval: 1h
   components:
     - ../../../../components/zeroscaler

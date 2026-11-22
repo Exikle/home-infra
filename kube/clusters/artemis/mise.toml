@@ -409,5 +409,6 @@ flux build artifact --path "$MISE_MONOREPO_ROOT" --ignore-paths "$FLUX_ARTIFACT_
     || mise run //:log fatal "flux build artifact failed" path "$MISE_MONOREPO_ROOT"
 tar -xzf "$tree/artifact.tgz" -C "$tree"
 rm "$tree/artifact.tgz"
+"$MISE_MONOREPO_ROOT/scripts/flate-offline.sh" "$tree"
 FLATE_ALLOW_MISSING_KINDS=Secret flate build ks --path "$tree" --namespace "$usage_ns" --output yaml "$usage_ks"
 '''

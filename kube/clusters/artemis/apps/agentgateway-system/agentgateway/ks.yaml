@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/agentgateway-system/agentgateway/crds
   prune: false
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: agentgateway
   interval: 1h
   wait: true
 ---
@@ -31,9 +30,8 @@ spec:
   path: ./kube/clusters/artemis/apps/agentgateway-system/agentgateway/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: agentgateway
   interval: 1h
   dependsOn:
     - name: agentgateway-crds

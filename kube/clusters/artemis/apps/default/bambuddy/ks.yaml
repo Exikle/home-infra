@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/default/bambuddy/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: bambuddy
   interval: 1h
   components:
     - ../../../../components/kopiur/backup

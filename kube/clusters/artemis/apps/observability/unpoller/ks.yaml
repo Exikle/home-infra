@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/artemis/apps/observability/unpoller/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: unpoller
   interval: 1h
   wait: false

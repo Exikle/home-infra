@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/database/postgres/backup-target
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: postgres
   interval: 1h
   dependsOn:
     - name: cnpg
@@ -36,9 +35,8 @@ spec:
   path: ./kube/clusters/artemis/apps/database/postgres/cluster
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: postgres
   interval: 1h
   timeout: 10m
   dependsOn:

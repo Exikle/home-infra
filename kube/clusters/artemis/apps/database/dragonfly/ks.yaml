@@ -9,9 +9,8 @@ spec:
   path: ./kube/clusters/artemis/apps/database/dragonfly/cluster
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: dragonfly
   interval: 1h
   dependsOn:
     - name: dragonfly-operator

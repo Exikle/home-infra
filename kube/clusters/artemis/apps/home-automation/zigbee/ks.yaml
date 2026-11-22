@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/home-automation/zigbee/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: zigbee
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
@@ -43,8 +42,7 @@ spec:
   path: ./kube/clusters/artemis/apps/home-automation/zigbee/watchdog
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: zigbee
   interval: 1h
   wait: true

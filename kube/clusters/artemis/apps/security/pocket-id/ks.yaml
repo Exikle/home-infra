@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/security/pocket-id/instance
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: pocket-id
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
@@ -42,9 +41,8 @@ spec:
   path: ./kube/clusters/artemis/apps/security/pocket-id/operator
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: pocket-id
   interval: 1h
   wait: true
 ---
@@ -61,9 +59,8 @@ spec:
   path: ./kube/clusters/artemis/apps/security/pocket-id/groups
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: pocket-id
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
@@ -82,9 +79,8 @@ spec:
   path: ./kube/clusters/artemis/apps/security/pocket-id/external-clients
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: pocket-id
   interval: 1h
   dependsOn:
     - name: pocket-id-groups

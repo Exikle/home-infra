@@ -12,8 +12,7 @@ spec:
   path: ./kube/clusters/artemis/apps/observability/gatus-sidecar/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: gatus-sidecar
   interval: 1h
   wait: true

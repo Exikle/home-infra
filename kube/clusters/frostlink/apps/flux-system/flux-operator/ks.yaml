@@ -12,7 +12,7 @@ spec:
   path: ./kube/clusters/frostlink/apps/flux-system/flux-operator/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
+    kind: ExternalArtifact
+    name: flux-operator
   interval: 1h
   wait: true

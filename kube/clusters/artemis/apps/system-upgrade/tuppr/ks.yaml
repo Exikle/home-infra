@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/system-upgrade/tuppr/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: tuppr
   interval: 1h
   wait: true
 ---
@@ -31,9 +30,8 @@ spec:
   path: ./kube/clusters/artemis/apps/system-upgrade/tuppr/upgrades
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: tuppr
   interval: 1h
   dependsOn:
     - name: tuppr

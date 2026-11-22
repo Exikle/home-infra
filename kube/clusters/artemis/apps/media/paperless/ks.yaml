@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/paperless/tika
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: paperless
   interval: 1h
   wait: true
 ---
@@ -31,9 +30,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/paperless/gotenberg
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: paperless
   interval: 1h
   wait: true
 ---
@@ -50,9 +48,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/paperless/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: paperless
   interval: 1h
   dependsOn:
     - name: paperless-tika

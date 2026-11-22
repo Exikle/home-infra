@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/media/jelu/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: jelu
   interval: 1h
   retryInterval: 1m
   dependsOn:

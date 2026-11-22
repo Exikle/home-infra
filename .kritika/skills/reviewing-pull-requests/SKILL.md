@@ -110,11 +110,15 @@ The checkout holds only the head version. Its `.git` is empty, and the run has n
 `git diff` and `git log` do not work, and you can render only the new version. Read the change
 itself with `read_diff`. Render from
 the repo root. Give flate the ignore file of the cluster, so that it sees only the folders that the
-Flux artifact of that cluster holds:
+Flux artifact of that cluster holds.
+
+flate cannot yet run the `ArtifactGenerator` of this repo. So first copy the checkout and prepare
+the copy with `scripts/flate-offline.sh`. Then render the copy:
 
 ```
-flate build hr <name> -n <namespace> --path . --krmignore .kritika/artemis.krmignore --no-progress
-flate build hr <name> -n <namespace> --path . --krmignore .kritika/frostlink.krmignore --no-progress
+cp -r . /tmp/render && scripts/flate-offline.sh /tmp/render
+flate build hr <name> -n <namespace> --path /tmp/render --krmignore .kritika/artemis.krmignore --no-progress
+flate build hr <name> -n <namespace> --path /tmp/render --krmignore .kritika/frostlink.krmignore --no-progress
 ```
 
 For a change under `kube/base/` or `kube/components/`, render it on both clusters.

@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/renovate-operator/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: renovate-operator
   interval: 30m
   retryInterval: 1m
   timeout: 5m
@@ -36,9 +35,8 @@ spec:
   path: ./kube/clusters/artemis/apps/kube-system/renovate-operator/jobs
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: renovate-operator
   interval: 30m
   retryInterval: 1m
   timeout: 5m

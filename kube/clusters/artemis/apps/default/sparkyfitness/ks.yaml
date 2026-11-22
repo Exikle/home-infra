@@ -12,9 +12,8 @@ spec:
   path: ./kube/clusters/artemis/apps/default/sparkyfitness/db
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: sparkyfitness
   interval: 1h
   wait: true
 ---
@@ -31,9 +30,8 @@ spec:
   path: ./kube/clusters/artemis/apps/default/sparkyfitness/app
   prune: true
   sourceRef:
-    kind: OCIRepository
-    name: flux-system
-    namespace: flux-system
+    kind: ExternalArtifact
+    name: sparkyfitness
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
