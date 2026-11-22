@@ -263,6 +263,18 @@ Quieter ones:
 `KmsgLogConfig` is adopted. `cluster.yaml.j2` defines `kmsg-to-victorialogs`, which ships kernel
 logs to the `observability/talos-logs` receiver at `tcp://127.0.0.1:5170/`
 (`grep -n -A2 KmsgLogConfig kube/clusters/artemis/talos/cluster.yaml.j2`).
+`machine.logging.destinations` sends the Talos service logs (machined, kubelet, etcd, apid, cri)
+to the same receiver. The receiver drops three kinds of lines:
+
+- The `kernel` service, because it copies the lines that `KmsgLogConfig` already sends.
+- `dns-resolve-cache`, which writes two debug lines for each host DNS query.
+- The machined lines from the console dashboard, which polls machined every second.
+
+The receiver keeps unsent lines in a disk queue at `/var/lib/talos-logs` on each node. Its
+`health_check` is off on purpose. With it on, a VictoriaLogs outage fails the readiness probe,
+and Talos cannot hand over lines. Fluent Bit does not count connection errors as output errors,
+so the `TalosLogsNotShipping` alert also fires on a disk queue of more than 10 chunks. The design
+comes from onedr0p/home-ops PR 12173.
 
 ## 1.14 Documents Considered and NOT Adopted
 

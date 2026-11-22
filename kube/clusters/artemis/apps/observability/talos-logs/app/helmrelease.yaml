@@ -10,6 +10,16 @@ spec:
     name: talos-logs
   interval: 1h
   values:
+    luaScripts:
+      strip_newline.lua: |
+        function strip_newline(tag, ts, record)
+          local m = record["msg"]
+          if type(m) == "string" and m:sub(-1) == "\n" then
+            record["msg"] = m:sub(1, -2)
+            return 2, ts, record
+          end
+          return 0, ts, record
+        end
     config:
       service: |-
         [SERVICE]
@@ -20,7 +30,10 @@ spec:
           http_server on
           http_listen 0.0.0.0
           http_port {{ .Values.metricsPort }}
-          health_check on
+          storage.path /var/lib/talos-logs
+          storage.max_chunks_up 16
+          storage.backlog.mem_limit 16M
+          scheduler.cap 30
 
       inputs: |-
         [INPUT]
@@ -30,10 +43,34 @@ spec:
           port 5170
           format json
           tag talos.*
-          chunk_size 32
+          chunk_size 64
           buffer_size 256
+          storage.type filesystem
 
       filters: |-
+        [FILTER]
+          name grep
+          match talos.*
+          exclude $talos-service ^(kernel|dns-resolve-cache)$
+
+        [FILTER]
+          name grep
+          match talos.*
+          logical_op and
+          exclude $talos-service ^machined$
+          exclude $msg match\swith\sservice\s"dashboard"
+
+        [FILTER]
+          name lua
+          match talos.*
+          script /fluent-bit/scripts/strip_newline.lua
+          call strip_newline
+
+        [FILTER]
+          name modify
+          match talos.*
+          hard_rename talos-level level
+
         [FILTER]
           name record_modifier
           match talos.*
@@ -43,14 +80,17 @@ spec:
       outputs: |-
         [OUTPUT]
           name http
+          alias victorialogs
           match talos.*
           host victoria-logs-server.observability.svc.cluster.local
           port 9428
-          uri /insert/jsonline?_stream_fields=node,collector,facility,talos-service&_msg_field=msg&_time_field=talos-time
+          uri /insert/jsonline?_stream_fields=node,collector,facility,talos-service&_msg_field=msg,content&_time_field=talos-time
           format json_lines
           json_date_format iso8601
           compress gzip
           log_response_payload false
+          retry_limit no_limits
+          storage.total_limit_size 256M
 
     env:
       - name: NODE_NAME
@@ -62,5 +102,13 @@ spec:
     logLevel: warn
     serviceMonitor:
       enabled: true
+    daemonSetVolumes:
+      - name: data
+        hostPath:
+          path: /var/lib/talos-logs
+          type: DirectoryOrCreate
+    daemonSetVolumeMounts:
+      - name: data
+        mountPath: /var/lib/talos-logs
     tolerations:
       - operator: Exists

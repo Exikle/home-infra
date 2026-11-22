@@ -6,6 +6,10 @@ machine:
     crt: op://infrastructure/talos/MACHINE_CA_CRT
   features:
     diskQuotaSupport: true
+  logging:
+    destinations:
+      - endpoint: tcp://127.0.0.1:5170/
+        format: json_lines
   kernel:
     modules:
       - name: dm_thin_pool
