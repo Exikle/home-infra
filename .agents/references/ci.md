@@ -160,8 +160,7 @@ render still ran (#3441 on 2026-11-22).
 The render reads the git checkout, not the artifact. flate resolves every `spec.path` from the repo
 root, so this view equals what Flux gets. `FLATE_ALLOW_MISSING_KINDS=Secret` lets the render go on
 when a Secret exists only in the live cluster, such as one that 1Password creates. The render
-still applies the per-cluster `valuesFrom` ConfigMaps (`app-structure.md` § Per-cluster values and
-extras).
+still applies the per-cluster `valuesFrom` ConfigMaps (`app-structure.md` § Per-cluster values).
 
 ---
 

@@ -30,8 +30,9 @@ Stop when that resource is Ready. These are forbidden:
 
 If you need one of these, escalate to the user instead.
 
-The source is the OCIRepository `flux-system`. There is no GitRepository. App Kustomizations live
-in the namespace of their app, not in `flux-system`. A fix that changes manifests follows
+The source is the OCIRepository `flux-system`, cut into one `ExternalArtifact` per app. There is
+no GitRepository. App Kustomizations live in the namespace of their app, not in `flux-system`. A
+fix that changes manifests follows
 `.agents/instructions/commit-style.md` § The sequence, in a worktree
 (`mise run //:wt:new fix/<slug>`).
 
@@ -63,11 +64,10 @@ Fix:
 ### Kustomization Not Reconciling
 
 First, look up the exact Kustomization name. It is the `metadata.name` in `ks.yaml`. It is not
-always `<namespace>-<app>`. A shared app keeps its `ks.yaml` under `kube/base/`, so search both
-places:
+always `<namespace>-<app>`. Every app, shared or not, keeps its `ks.yaml` in the cluster tree:
 
 ```bash
-grep -n "^  name:" kube/clusters/<cluster>/apps/<namespace>/<app>/ks.yaml kube/base/<namespace>/<app>/ks.yaml 2>/dev/null
+grep -n "^  name:" kube/clusters/<cluster>/apps/<namespace>/<app>/ks.yaml
 flux describe kustomization <ks-name> -n <namespace>
 ```
 
@@ -78,6 +78,11 @@ Common causes:
   to catch it locally.
 - The source is behind. First make sure that the `Push OCI Artifact` run for the commit is green.
   Then run `mise run //kube/clusters/<cluster>:sync-flux ocirepo flux-system`.
+- The per-app artifact is behind or missing. An app Kustomization reads the `ExternalArtifact`
+  named for its app folder, which the `apps` `ArtifactGenerator` in `flux-system` makes from the
+  OCIRepository (`.agents/references/app-structure.md` § Per-app artifacts). Read
+  `kubectl get externalartifact <app-folder> -n <namespace>` and
+  `kubectl describe artifactgenerator apps -n flux-system`.
 
 ### ExternalSecret Not Syncing / Empty Secret
 

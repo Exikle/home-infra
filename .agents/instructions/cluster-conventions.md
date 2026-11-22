@@ -20,11 +20,12 @@ sub-directory. There is never more than one `ks.yaml` per app directory. There i
 grouping directory between a namespace and its apps. Add `- ./<app>/ks.yaml` to the namespace
 `kustomization.yaml` in alphabetical position.
 
-An app that both clusters run is the exception. It lives once, in `kube/base/<ns>/<app>/`, with
-its own `ks.yaml`. Each cluster that runs it lists the folder in its namespace menu as
-`- ../../../../base/<ns>/<app>`. If a cluster needs its own additions, they go in
-`kube/clusters/<cluster>/apps/<ns>/<app>/extras/ks.yaml`, and the menu lists that file too.
-`app-structure.md` § Shared apps (`kube/base/`) has the file shape, and it wins.
+An app that both clusters run follows the same rule. Each cluster has its own
+`apps/<ns>/<app>/ks.yaml`, and the menu lists it like any other app. Only the manifests live
+once, in `kube/base/<ns>/<app>/`. That folder has no `ks.yaml`, and a menu never lists it. If a
+cluster needs its own additions, they go in `kube/clusters/<cluster>/apps/<ns>/<app>/app/`, beside
+a reference to the base. There is no `extras/` folder. `app-structure.md` § Shared apps
+(`kube/base/`) has the file shape, and it wins.
 
 Kustomization names are `<app>-<component>`. When the components are one product,
 `commonMetadata.labels.app.kubernetes.io/name` is the app, not the component. Label the component

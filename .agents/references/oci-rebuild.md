@@ -20,9 +20,8 @@ summaries here.
    the copy into a temporary in-cluster registry (`kube/clusters/frostlink/bootstrap/seed-registry.yaml`).
    The bootstrap FluxInstance syncs from that registry over plain HTTP
    (`helmfile.d/templates/flux-instance-seed.yaml.gotmpl`). Flux then upgrades `flux-instance` to
-   its real source. The `flux-instance` Kustomization waits on `flux-instance-extras`, and
-   `flux-instance-extras` has `dependsOn` on apoci and envoy-gateway. So the switch waits until
-   `registry.frostlink.dev` can answer.
+   its real source. The `flux-instance` Kustomization has `dependsOn` on `flux-operator`, apoci
+   and envoy-gateway. So the switch waits until `registry.frostlink.dev` can answer.
 
 The tailscale key of the running node lives only in its machine configuration, never in git. See
 `oci-talos.md` § CRITICAL: never `apply-config` the patch file.
@@ -182,7 +181,7 @@ These three are not in `kube/clusters/frostlink/bootstrap/helmfile.d/01-apps.yam
 `helm upgrade --install`, one per iteration. `phase2` runs it between `base` and `apps`. The task
 reads `chart` and `version` from the `ocirepository.yaml` of each app. It looks in the folder of
 this cluster first, then in `kube/base/`. It reads `values` from the `helmrelease.yaml` of the app,
-merged with `extras/values.yaml` if that file exists. So the install at bootstrap always matches
+merged with the `app/values.yaml` of the cluster app if that file exists. So the install at bootstrap always matches
 what is checked in. Nothing is hard-coded, so nothing goes stale.
 
 The reason for not using helmfile (not checked again since the typed-document migration, and it

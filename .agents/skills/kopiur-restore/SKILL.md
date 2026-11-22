@@ -78,7 +78,7 @@ Restore into a _separate_ PVC and copy out what you need.
   `runAsGroup`, and `spec.mover.podSecurityContext.fsGroup`, on the Restore. The component
   defaults are in `kopiur.md` (the Mover uid/gid row).
 - Flux Kustomizations live in the target namespace of the app. Look up the real name:
-  `grep -n "^  name:" kube/clusters/artemis/apps/<ns>/<app>/ks.yaml kube/base/<ns>/<app>/ks.yaml 2>/dev/null`.
+  `grep -n "^  name:" kube/clusters/artemis/apps/<ns>/<app>/ks.yaml`.
 - Edit in a worktree. Run `mise run //:wt:new fix/<slug>` first (`AGENTS.md` rule 7).
 
 ## Credentials: read this before you write a Restore
@@ -145,8 +145,8 @@ claim or the running app.
 
 ### 1. Stage the objects locally
 
-1. Create `recovery/` beside the `ks.yaml` of the app. The app lives under
-   `kube/clusters/artemis/apps/<ns>/<app>/` or under `kube/base/<ns>/<app>/`.
+1. Create `recovery/` beside the `ks.yaml` of the app, in
+   `kube/clusters/artemis/apps/<ns>/<app>/`. A shared app has its `ks.yaml` there too.
 2. Put the two objects below in `recovery/recovery.yaml`.
 3. Add a `kustomization.yaml` in `recovery/` that lists `recovery.yaml`.
 

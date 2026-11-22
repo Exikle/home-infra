@@ -34,11 +34,12 @@ the app, and the upstream behaviour of the app.
 ## Inputs
 
 - App name and namespace. If you get only a namespace, audit each app in it in turn
-  (`ls kube/clusters/artemis/apps/<ns>/ kube/base/<ns>/`). Never work from a remembered app list.
-- An app lives in one of two places. `kube/clusters/artemis/apps/<ns>/<app>/` holds an app that
-  only Artemis runs. `kube/base/<ns>/<app>/` holds an app that both clusters run. Find it with
-  `ls -d kube/clusters/artemis/apps/*/<app> kube/base/*/<app>`. Below, `<app-dir>` is the path
-  that this command prints.
+  (`ls kube/clusters/artemis/apps/<ns>/`). Never work from a remembered app list.
+- Every app has its `ks.yaml` in `kube/clusters/artemis/apps/<ns>/<app>/`. An app that both
+  clusters run also has manifests in `kube/base/<ns>/<app>/`, and the `spec.path` in `ks.yaml`
+  points there or at a cluster `app/` that lists it. Find both with
+  `ls -d kube/clusters/artemis/apps/*/<app> kube/base/*/<app>`. Below, `<app-dir>` is each path
+  that this command prints. Read all of them.
 
 ## Reading
 

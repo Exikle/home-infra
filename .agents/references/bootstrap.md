@@ -24,9 +24,9 @@ flux-instance.
 Each release reads its chart, version and values from the app that Flux runs. The helmfile
 templates look in `kube/clusters/<cluster>/apps/<ns>/<app>/app/` first, then in
 `kube/base/<ns>/<app>/app/`. For a shared app they also merge
-`kube/clusters/<cluster>/apps/<ns>/<app>/extras/values.yaml`. The base values win, in the same
-order as Flux. So a rebuild installs the versions and values that Flux runs. The `cni` task of
-Frostlink does the same for Cilium, CoreDNS and cert-manager.
+`kube/clusters/<cluster>/apps/<ns>/<app>/app/values.yaml`, if it exists. The base values win, in
+the same order as Flux. So a rebuild installs the versions and values that Flux runs. The `cni`
+task of Frostlink does the same for Cilium, CoreDNS and cert-manager.
 
 The `nodes` stage takes its node list from `kube/clusters/artemis/talos/nodes/*.yaml.j2`, control
 planes first. You do not apply the node configurations by hand before you run the task.

@@ -31,12 +31,15 @@ spec:
     path: ./kube/clusters/<cluster>/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
-        kind: OCIRepository
-        name: flux-system
-        namespace: flux-system
+        kind: ExternalArtifact
+        name: <app>
     interval: 1h
     wait: true
 ```
+
+`sourceRef.name` is the name of the app folder, not of the Kustomization. Every Kustomization in
+one `ks.yaml` uses the same name. `.agents/references/app-structure.md` § Per-app artifacts has
+the reason, and it wins.
 
 ## With ExternalSecret (add to dependsOn)
 
@@ -98,9 +101,8 @@ spec:
     path: ./kube/clusters/<cluster>/apps/<namespace>/<app>/app
     prune: true
     sourceRef:
-        kind: OCIRepository
-        name: flux-system
-        namespace: flux-system
+        kind: ExternalArtifact
+        name: <app>
     interval: 1h
     dependsOn:
         - name: onepassword-connect

@@ -120,27 +120,29 @@ from `oci://registry.dcunha.io/exikle/artemis`. To read the controller versions,
 Kustomizations live in their target namespace (for example `observability` or `media`). They are
 NOT always in `flux-system`.
 
-If a `Kustomization` lives outside `flux-system` (for example in `media` or `cortex`), both
-references must be explicit:
+An app Kustomization reads the `ExternalArtifact` of its own app folder, and the
+`ArtifactGenerator` puts that artifact in the same namespace (`app-structure.md` § Per-app
+artifacts). So `sourceRef` has no `namespace`. A cross-namespace `dependsOn` entry still needs
+one:
 
 ```yaml
 spec:
     sourceRef:
-        kind: OCIRepository
-        name: flux-system
-        namespace: flux-system
+        kind: ExternalArtifact
+        name: <app folder name>
     dependsOn:
         - name: miroir
           namespace: miroir-system
 ```
 
-`sourceRef.namespace` is REQUIRED. If you omit it, it resolves to the namespace of the child, and
-Flux does not find the source. The same applies to every cross-namespace `dependsOn` entry. If
-either is missing, the reconciliation fails with a silent "not found".
+If a `dependsOn` entry omits `namespace`, it resolves to the namespace of the child, and the
+reconciliation fails with a silent "not found". A Kustomization that reads the `flux-system`
+OCIRepository (the root, and the Kustomizations that a component or a ResourceSet generates) must
+set `sourceRef.namespace: flux-system` for the same reason.
 
-| Field            | Correct         | Wrong                                                                                                                             |
-| ---------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `sourceRef.kind` | `OCIRepository` | `GitRepository`. The flux source is OCI. `grep -L 'kind: OCIRepository' kube/clusters/artemis/apps/*/*/ks.yaml` must list nothing |
+| Field            | Correct            | Wrong                                                                                                                                          |
+| ---------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sourceRef.kind` | `ExternalArtifact` | `GitRepository`, or `OCIRepository` in an app `ks.yaml`. `grep -L 'kind: ExternalArtifact' kube/clusters/*/apps/*/*/ks.yaml` must list nothing |
 
 The only live `kind: GitRepository` in the repo is
 `kube/components/alerts/alertmanager/alert.yaml`. There it is a notification `eventSource`
@@ -229,13 +231,13 @@ This section lists only the differences.
   again and reverts what you landed. To make sure that the artifact carries your commit, use the
   command in `.agents/instructions/commit-style.md` § Frostlink. That file wins. The same rule
   holds during a rebuild (`oci-rebuild.md`).
-- `prune: false` is set on a few Kustomizations (`grep -rln 'prune: false' kube/base kube/clusters/frostlink`).
+- `prune: false` is set on a few Kustomizations (`grep -rln 'prune: false' kube/clusters/frostlink`).
   Everything else prunes. Some infrastructure `ks.yaml` files use `interval: 30m`
   (`grep -rh 'interval:' kube/clusters/frostlink/apps/*/*/ks.yaml | sort | uniq -c`).
   A few children override the injected `retryInterval: 1m` on purpose.
 - Root patch. Frostlink uses the same FluxInstance as Artemis,
   `kube/base/flux-system/flux-instance/app/helmrelease.yaml`. Only the sync URL and path come
-  from `kube/clusters/frostlink/apps/flux-system/flux-instance/extras/values.yaml`. The
+  from `kube/clusters/frostlink/apps/flux-system/flux-instance/app/values.yaml`. The
   `spec.patches` rule above applies unchanged.
 - kopiur `wait: true` stall. On Frostlink, `fediverse/apoci`, `fediverse/gotosocial` and
   `matrix/continuwuity` dropped `wait: true` and gate on the HelmRelease. `Restore` can stall the
