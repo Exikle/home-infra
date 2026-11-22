@@ -331,6 +331,30 @@ API Key Management (`/settings?section=api-settings`). It is stored as `MCP_API_
 `API_ENCRYPTION_KEY` on the same item is the server's key for encryption at rest, not a bearer
 token. If you send it as a token, the server returns 401.
 
+### unifi (`mcp-unifi`, target `unifi`, ops)
+
+<https://github.com/sirkirby/unifi-network-mcp>, the Network server of the UniFi MCP monorepo.
+It talks to the UniFi console at `10.10.99.1`. In a container, the server runs as PID 1, so
+`UNIFI_MCP_HTTP_ENABLED=true` gives Streamable HTTP at `/mcp` with no stdio. Port 3000 is the
+default.
+
+`UNIFI_MCP_HTTP_AUTH_TOKEN` makes the server refuse every request without
+`Authorization: Bearer <token>`. The gateway sends it from the `unifi-mcp` Secret. The token is
+`UNIFI_MCP_TOKEN` on the `unifi` 1Password item. A token that is set but empty stops the server
+at startup. `UNIFI_MCP_ALLOWED_HOSTS` must hold the service FQDN, because the gateway sends it as
+`Host`. The probes are TCP, because an HTTP probe gets a 401 without the token.
+
+Auth to the console is `UNIFI_API_KEY` only, the same key that `unifi-dns` uses. With an API key
+and no username and password, the server reads inventory (devices, clients, networks, WLANs,
+firewall policies). Writes, historical clients, events and the event websocket need a local
+console admin in `UNIFI_USERNAME` and `UNIFI_PASSWORD`. The log line
+`Network event websocket unavailable without session credentials` is the expected result.
+
+It has 210 tools, but the default lazy registration lists only 9: the meta-tools
+(`unifi_tool_index`, `unifi_execute`, `unifi_batch` and others) and two read tools. Every other
+tool runs through `unifi_execute`. Mutations use preview-then-confirm by default
+(`UNIFI_TOOL_PERMISSION_MODE=confirm`).
+
 ### victoria-logs (`victoria-logs-mcp`, target `victoria-logs`, general and agent)
 
 <https://github.com/VictoriaMetrics/mcp-victorialogs>, official. It has 13 tools.

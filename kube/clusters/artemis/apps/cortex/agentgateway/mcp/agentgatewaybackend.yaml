@@ -58,6 +58,18 @@ spec:
               requestTimeout: 300s
           port: 8080
           protocol: StreamableHTTP
+      - name: unifi
+        static:
+          host: mcp-unifi.cortex.svc.cluster.local
+          policies:
+            auth:
+              secretRef:
+                name: unifi-mcp
+                key: UNIFI_MCP_HTTP_AUTH_TOKEN
+            http:
+              requestTimeout: 300s
+          port: 3000
+          protocol: StreamableHTTP
   policies:
     mcp:
       authorization:

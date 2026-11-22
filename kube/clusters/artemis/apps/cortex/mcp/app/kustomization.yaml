@@ -12,4 +12,5 @@ resources:
   - ./k8s
   - ./searxng
   - ./seerr
+  - ./unifi
   - ./victoria-logs
