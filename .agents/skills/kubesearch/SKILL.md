@@ -1,7 +1,7 @@
 ---
 name: kubesearch
 description: Find real-world HelmRelease examples for an app by searching kubesearch.dev and other home-ops repos, then adapt the best match to this cluster's conventions. Use for "find examples for X", "how do others deploy X", "search kubesearch for X", or when deploying an unfamiliar app with no obvious reference. Covers Artemis and Frostlink.
-compatibility: Requires outbound network access. It curls the static JSON of kubesearch.dev directly, with no MCP server and no API key. Read-only; it produces a manifest to adapt, it does not apply anything.
+compatibility: Requires outbound network access. It uses the public kubesearch MCP server (no API key) and falls back to the static JSON of kubesearch.dev. Read-only; it produces a manifest to adapt, it does not apply anything.
 ---
 
 # Skill: Kubesearch — Find Home-Ops Examples
@@ -19,15 +19,48 @@ The search runs over other people's repos, so the search paths in this skill use
 does not exist in their repos.
 
 kubesearch.dev indexes repos on GitHub and GitLab that carry the tag `k8s-at-home` or
-`kubesearch`. Its search field is client-side JavaScript that loads static JSON files. This skill
-does the same thing directly.
+`kubesearch`. Its developer runs an MCP server over the same index at
+`https://beta.kubesearch.dev/mcp`. The server is registered as `kubesearch` in `.mcp.json` and
+`opencode.json`. It needs no key. Use it first. It answers a search in under a second. The old
+path (Step 2b) takes about 20 seconds and searches only names.
+
+The old path stays as a fallback until the review in #3457 (due 2026-12-15). If the MCP server
+fails or returns nothing useful during that time, note it in #3457.
 
 ## Step 1: Identify the Query
 
 Decide which app name to search for (for example `sonarr`, `paperless-ngx`, `immich`). If you are
 in the middle of a task, such as deploying an app, the query is the name of that app or chart.
 
-## Step 2: Search kubesearch.dev
+## Step 2a: Search the kubesearch MCP server
+
+Tool names carry a server prefix that changes per client. Match on the tool part of the name.
+
+1. Call `search_releases` with `query` set to the app name. It matches the release name, the
+   chart name and the chart source URL. Each result is one group (for example "sonarr on
+   app-template") with an `id`, a `deployment_count` and `top_repos` ranked by stars. Each
+   entry in `top_repos` has a `file_url` and a `source_kind` (`HelmRepository` or
+   `OCIRepository`).
+2. Call `get_release` with the `id` of the best group. The default summary lists the Helm values
+   that most deployments set, and example configurations.
+3. To read the values of one repo, call `get_release` again with `view: "values"`, the `repo`,
+   and the `value_paths` from the summary.
+4. To read a full manifest, call `repo_clone` with the `owner/repo`, then `repo_read_file` with
+   the path from `file_url`. Call `repo_cleanup` with the handle when you finish.
+
+Other tools help with a narrower question:
+
+- `grep_values` finds a key or a value across every indexed values document (for example
+  `valuesFrom`, or an env var name).
+- `search_images` finds a container image, the tags that repos use, and the repos that use it.
+- `repo_grep_all` searches the manifests of the ten most-starred repos in one call.
+- `status` reports the date of the crawl and the size of the index.
+
+The tools read only the stored manifests. They do not resolve `valuesFrom` files, Secrets or
+ConfigMaps. If you have the manifest, go to Step 4. If the MCP server does not answer, or it
+finds nothing, go to Step 2b.
+
+## Step 2b: Fallback, search the static JSON of kubesearch.dev
 
 Run the search script with the app name. It finds the last data chunk, downloads every chunk, and
 prints the top 15 matches as `stars | name | repo | url` (substring match on the name):
@@ -54,7 +87,7 @@ Rank the results in this order:
 2. Well-known repos: `onedr0p/home-ops`, `gavinmcfall/home-ops`, `bjw-s/home-ops`, `drag0n141/home-ops`
 3. `path` contains `<their-repo>/kubernetes/apps` (home-ops layout)
 
-## Step 3: Fetch the Top Result
+## Step 3: Fetch the Top Result (fallback only)
 
 Take the owner/repo and the path from the chosen URL. Then fetch the file through MCP:
 

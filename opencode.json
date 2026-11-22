@@ -46,6 +46,11 @@
       "headers": {
         "x-api-key": "{env:MCP_OPS_KEY}"
       }
+    },
+    "kubesearch": {
+      "type": "remote",
+      "url": "https://beta.kubesearch.dev/mcp",
+      "enabled": true
     }
   }
 }

@@ -9,6 +9,10 @@
       "type": "http",
       "url": "https://ai.dcunha.io/ops/mcp",
       "headersHelper": "node /home/exikle/.claude/scripts/ai-headers.mjs ops"
+    },
+    "kubesearch": {
+      "type": "http",
+      "url": "https://beta.kubesearch.dev/mcp"
     }
   }
 }
