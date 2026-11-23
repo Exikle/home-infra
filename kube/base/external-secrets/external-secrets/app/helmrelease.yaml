@@ -16,9 +16,14 @@ spec:
   values:
     image:
       repository: &image ghcr.io/external-secrets/external-secrets
+    serviceMonitor: &probe
+      enabled: true
+      interval: 1m
     webhook:
       image:
         repository: *image
+      serviceMonitor: *probe
     certController:
       image:
         repository: *image
+      serviceMonitor: *probe

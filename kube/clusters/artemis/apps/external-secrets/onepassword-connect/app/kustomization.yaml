@@ -15,11 +15,3 @@ patches:
       - op: add
         path: /spec/provider/onepassword/vaults/frostlink
         value: 3
-  - target:
-      kind: HelmRelease
-      name: onepassword-connect
-    patch: |-
-      - op: add
-        path: /spec/values/connect/api/serviceMonitor
-        value:
-          enabled: true

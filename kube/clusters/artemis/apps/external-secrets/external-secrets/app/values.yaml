@@ -1,11 +1,6 @@
-serviceMonitor: &probe
-  enabled: true
-  interval: 1m
 webhook:
   replicaCount: 2
-  serviceMonitor: *probe
 certController:
   replicaCount: 2
-  serviceMonitor: *probe
 grafanaDashboard:
   enabled: true
