@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.extensions.fluxcd.io/artifactgenerator_v1beta1.json
+apiVersion: source.extensions.fluxcd.io/v1beta1
+kind: ArtifactGenerator
+metadata:
+  name: base
+spec:
+  artifacts:
+    - copy:
+        - from: "@repo/kube/base/{namespace}/{app}/**"
+          to: "@artifact/kube/base/{namespace}/{app}/"
+        - exclude:
+            - ks.yaml
+          from: "@repo/kube/base/{namespace}/{app}/**"
+          to: "@artifact/kube/clusters/current/apps/{namespace}/{app}/"
+        - from: "@repo/kube/clusters/frostlink/overlays/{namespace}/{app}/**"
+          optional: true
+          to: "@artifact/kube/clusters/current/apps/{namespace}/{app}/"
+        - from: "@repo/kube/clusters/frostlink/components/**"
+          to: "@artifact/kube/clusters/current/components/"
+        - from: "@repo/kube/components/**"
+          to: "@artifact/kube/components/"
+      name: "{app}"
+      namespace: "{namespace}"
+      originRevision: "@repo"
+  pathPattern: "@repo/kube/base/{namespace}/{app}"
+  sources:
+    - alias: repo
+      kind: OCIRepository
+      name: flux-system
+      namespace: flux-system

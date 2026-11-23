@@ -1,6 +1,7 @@
 ---
 paths:
     - "kube/clusters/frostlink/apps/**"
+    - "kube/clusters/frostlink/overlays/**"
     - "kube/clusters/frostlink/components/**"
 ---
 

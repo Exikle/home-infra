@@ -137,7 +137,7 @@ sequence with the Frostlink tasks (`suspend-ks`, `apply-ks`, `sync-flux`, `resum
 from the worktree.
 
 - `Push OCI Artifact` is one workflow with two jobs, `Artemis` and `Frostlink`. A `changes` job
-  diffs the push. The job of a cluster runs when its `apps/` or `components/` under
+  diffs the push. The job of a cluster runs when its `apps/`, `overlays/` or `components/` under
   `kube/clusters/<cluster>/` changed. Both jobs run when `kube/base/` or `kube/components/`
   changed. A job that does not run shows as skipped. Wait for the job of each cluster that your
   change reaches.

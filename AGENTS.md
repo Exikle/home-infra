@@ -26,26 +26,31 @@ Code reads `AGENTS.md` only when no `CLAUDE.md` exists.
 @.agents/instructions/session.md
 
 `ls` at the repo root is the map. `kube/` holds everything that Flux deploys.
-`kube/clusters/<cluster>/` holds one cluster: its `apps/`, `components/`, `talos/`, `bootstrap/`
-and `mise.toml`. Every app that a cluster runs has one home there,
+An app that both clusters run is a shared app. It lives once, complete, in `kube/base/<ns>/<app>/`,
+with its `ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists that `ks.yaml`. If a
+cluster runs a shared app differently, only the differences go in
+`kube/clusters/<cluster>/overlays/<ns>/<app>/`. A shared app with no differences has no folder in
+any cluster.
+
+`kube/clusters/<cluster>/` holds one cluster: its `apps/`, `overlays/`, `components/`, `talos/`,
+`bootstrap/` and `mise.toml`. An app that only one cluster runs lives in
 `kube/clusters/<cluster>/apps/<ns>/<app>/ks.yaml`, and its namespace menu
-(`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that file.
-`kube/base/<ns>/<app>/` is a library: the manifests of an app that both clusters run, with no
-`ks.yaml` and no cluster name. A cluster `ks.yaml` points its `spec.path` at it.
+(`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that file. The one file
+`kube/clusters/<cluster>/apps/base/kustomization.yaml` links the cluster to `kube/base/`. It also
+holds the patches for the few Kustomization fields that differ per cluster.
 `kube/components/` holds kustomize components that both clusters use the same way.
 
 Components that one cluster uses, or that each cluster builds differently, stay in
 `kube/clusters/<cluster>/components/`. A change under `kube/base/` or `kube/components/` reaches
-both clusters in one push. The layout decision is in #3333 (closed). `app-structure.md`
-§ Shared apps has the file shape.
+both clusters in one push. `app-structure.md` § Shared apps has the file shape, and it wins.
 
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
 the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
 its own cluster. For this reason, every `spec.path` is relative to the repo root. It starts with
-`./kube/clusters/<cluster>/` or `./kube/base/`. Flux cannot see `terraform/`, `ansible/`, the
-other cluster, or `talos/` and `bootstrap/`. In the cluster, one `ArtifactGenerator` cuts that
-artifact into one artifact per app, so a push reconciles only the apps that it changed
-(`app-structure.md` § Per-app artifacts).
+`./kube/clusters/<cluster>/` or, for a shared app, `./kube/clusters/current/`. Flux cannot see
+`terraform/`, `ansible/`, the other cluster, or `talos/` and `bootstrap/`. In the cluster, two
+`ArtifactGenerator`s cut that artifact into one artifact per app, so a push reconciles only the
+apps that it changed (`app-structure.md` § Per-app artifacts).
 
 A command names its cluster in its path. `mise run //kube/clusters/artemis:apply-ks` and
 `mise run //kube/clusters/frostlink:apply-ks` are different tasks. Each cluster folder sets its
@@ -111,11 +116,11 @@ the trigger of a reference comes up, open that reference.
 
 ### Loaded when you touch a matching path
 
-| File                                  | Loads on                                                                     |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| `instructions/cluster-conventions.md` | `kube/base/**`, `kube/components/**`, `kube/clusters/*/{apps,components}/**` |
-| `instructions/yaml-conventions.md`    | the same folders, `*.yaml` only                                              |
-| `instructions/frostlink.md`           | `kube/clusters/frostlink/{apps,components}/**`                               |
+| File                                  | Loads on                                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------------------- |
+| `instructions/cluster-conventions.md` | `kube/base/**`, `kube/components/**`, `kube/clusters/*/{apps,overlays,components}/**` |
+| `instructions/yaml-conventions.md`    | the same folders, `*.yaml` only                                                       |
+| `instructions/frostlink.md`           | `kube/clusters/frostlink/{apps,overlays,components}/**`                               |
 
 All three are `paths:`-scoped rules, symlinked into `.claude/rules/`. Such a rule loads only when
 you touch a file that matches its paths. `frostlink.md` holds only what differs from the shared
@@ -268,11 +273,12 @@ Manifests has the scope and the three machine-oriented exceptions, and it wins.
     - Cilium ClusterMesh between the clusters (removed 2026-11-14). The Cilium cluster ID and name
       stay as leftovers.
     - Relaxing PodSecurity on `network`. towonel has its own `privileged` namespace.
-- `ks.yaml` files under `kube/base/`, menus that list `../../../../base/...`, `extras/` folders
-  and `<app>-extras` Kustomizations (removed 2026-11-22). A shared app has its `ks.yaml` in
-  each cluster, and the cluster additions sit in its `app/` folder (`app-structure.md`
-  § Shared apps). `scripts/check-kube-menus.py` fails on a `ks.yaml` under `kube/base/` and on a
-  menu that lists `kube/base/`.
+- A `ks.yaml` per cluster for a shared app, `extras/` folders and `<app>-extras` Kustomizations
+  (removed 2026-11-22). A shared app has one `ks.yaml`, in `kube/base/`, and the differences of
+  a cluster sit in its `overlays/` folder (`app-structure.md` § Shared apps). A cluster menu
+  never lists `kube/base/`. Only `apps/base/kustomization.yaml` links a cluster to it.
+  `scripts/check-kube-menus.py` fails on a shared app that also has a folder in a cluster's
+  `apps/`, and on a cluster menu that lists `kube/base/`.
 - The audit half of `review-app` (2026-09-01): the skill did a one-minute lint and a deep audit
   under one name. The lint always finished first and reported PASS, so the audit never ran.
   `review-app` is now the lint only. The audit moved to the `audit-app` subagent.

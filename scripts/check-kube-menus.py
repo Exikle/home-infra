@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Check the namespace menus under kube/ (issue #3333).
 
+Shared apps live once in kube/base/<ns>/<app>/ with their ks.yaml. A cluster's differences for a
+shared app live in kube/clusters/<c>/overlays/<ns>/<app>/. Apps that one cluster runs live in
+kube/clusters/<c>/apps/<ns>/<app>/.
+
 - Every kube/clusters/<c>/apps/<ns>/<app>/ks.yaml is listed by its menu.
+- Every kube/base/<ns>/<app>/ has a ks.yaml, listed by kube/base/<ns>/kustomization.yaml.
+- Every kube/base/<ns>/ menu is listed by kube/base/kustomization.yaml.
 - Every menu entry points at a file or folder that exists.
-- No menu lists anything under kube/base: Flux Kustomizations live only in the cluster tree.
-- kube/base holds no ks.yaml.
-- Every kube/base/<ns>/<app> is used by at least one cluster app (a ks.yaml path or an app kustomization).
+- A cluster menu never lists kube/base. Only kube/clusters/<c>/apps/base/kustomization.yaml
+  links the cluster to base, and it lists exactly ../../../../base.
+- A shared app has no kube/clusters/<c>/apps/<ns>/<app>/: both would publish the same artifact.
+- Every kube/clusters/<c>/overlays/<ns>/<app>/ belongs to a shared app.
 - No commented-out entries in a menu (delete the line instead).
 """
 import re
@@ -16,44 +23,64 @@ from ruamel.yaml import YAML  # type: ignore[import-untyped]
 
 ROOT = Path(__file__).resolve().parent.parent
 KUBE = ROOT / "kube"
+BASE = KUBE / "base"
+LINK = "../../../../base"
 
 
-def menus():
-    for menu in sorted(KUBE.glob("clusters/*/apps/*/kustomization.yaml")):
-        yield menu.parent.parent.parent.name, menu
+def entries(menu: Path, errors: list) -> list:
+    text = menu.read_text()
+    rel = menu.relative_to(ROOT)
+    for n, line in enumerate(text.splitlines(), 1):
+        if re.match(r"\s*#\s*-\s", line):
+            errors.append(f"{rel}:{n}: commented-out entry, delete it instead: {line.strip()}")
+    doc = YAML(typ="safe").load(text) or {}
+    found = [str(e) for e in doc.get("resources", []) or []]
+    for e in found:
+        if not (menu.parent / e).resolve().exists():
+            errors.append(f"{rel}: entry does not exist: {e}")
+    return found
+
+
+def require_listed(menu: Path, children, errors: list) -> None:
+    listed = entries(menu, errors) if menu.exists() else []
+    for child in children:
+        entry = "./" + str(child.relative_to(menu.parent))
+        if entry not in listed:
+            errors.append(f"{menu.relative_to(ROOT)}: {entry} exists but is not listed")
 
 
 def main() -> int:
-    errors = []
+    errors: list = []
+    shared = {p.relative_to(BASE) for p in BASE.glob("*/*") if p.is_dir()}
 
-    for _cluster, menu in menus():
-        text = menu.read_text()
-        rel = menu.relative_to(ROOT)
-        for n, line in enumerate(text.splitlines(), 1):
-            if re.match(r"\s*#\s*-\s", line):
-                errors.append(f"{rel}:{n}: commented-out entry, delete it instead: {line.strip()}")
-        doc = YAML(typ="safe").load(text) or {}
-        entries = [str(e) for e in doc.get("resources", []) or []]
-        for e in entries:
-            target = (menu.parent / e).resolve()
-            if not target.exists():
-                errors.append(f"{rel}: entry does not exist: {e}")
+    for app in sorted(shared):
+        if not (BASE / app / "ks.yaml").is_file():
+            errors.append(f"kube/base/{app}: a shared app needs its ks.yaml here")
+    for ns in sorted({a.parts[0] for a in shared}):
+        require_listed(BASE / ns / "kustomization.yaml", sorted((BASE / ns).glob("*/ks.yaml")), errors)
+    require_listed(BASE / "kustomization.yaml", sorted(p.parent for p in BASE.glob("*/kustomization.yaml")), errors)
+
+    for cluster in sorted(p for p in (KUBE / "clusters").iterdir() if (p / "apps").is_dir()):
+        link = cluster / "apps" / "base" / "kustomization.yaml"
+        if not link.is_file():
+            errors.append(f"{link.relative_to(ROOT)}: missing; it links the cluster to kube/base")
+        elif entries(link, errors) != [LINK]:
+            errors.append(f"{link.relative_to(ROOT)}: resources must be exactly [{LINK}]")
+
+        for menu in sorted((cluster / "apps").glob("*/kustomization.yaml")):
+            if menu == link:
                 continue
-            if target.is_relative_to(KUBE / "base"):
-                errors.append(f"{rel}: lists {e}; give the app a ./<app>/ks.yaml in this cluster instead")
-        for ks in sorted(menu.parent.glob("*/ks.yaml")):
-            entry = "./" + str(ks.relative_to(menu.parent))
-            if entry not in entries:
-                errors.append(f"{rel}: {entry} exists but is not listed")
+            for e in entries(menu, errors):
+                if (menu.parent / e).resolve().is_relative_to(BASE):
+                    errors.append(f"{menu.relative_to(ROOT)}: lists {e}; shared apps reach the cluster through apps/base/")
+            require_listed(menu, sorted(menu.parent.glob("*/ks.yaml")), errors)
 
-    for ks in sorted(KUBE.glob("base/**/ks.yaml")):
-        errors.append(f"{ks.relative_to(ROOT)}: kube/base holds no Flux Kustomizations; move it to each cluster's apps/<ns>/<app>/")
-
-    users = "\n".join(p.read_text() for p in KUBE.glob("clusters/*/apps/**/*.yaml"))
-    for app in sorted(p for p in KUBE.glob("base/*/*") if p.is_dir()):
-        key = f"base/{app.parent.name}/{app.name}/"
-        if key not in users:
-            errors.append(f"{app.relative_to(ROOT)}: no cluster app uses it")
+        for app in sorted(shared):
+            if (cluster / "apps" / app).exists():
+                errors.append(f"{(cluster / 'apps' / app).relative_to(ROOT)}: kube/base/{app} is shared; put this cluster's differences in overlays/{app}/")
+        for overlay in sorted(p for p in (cluster / "overlays").glob("*/*") if p.is_dir()):
+            if overlay.relative_to(cluster / "overlays") not in shared:
+                errors.append(f"{overlay.relative_to(ROOT)}: no kube/base app of that name; a cluster-only app goes in apps/")
 
     for e in errors:
         print(e)

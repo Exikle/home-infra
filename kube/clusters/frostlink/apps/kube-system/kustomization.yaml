@@ -11,7 +11,3 @@ resources:
   - ./namespace.yaml
   - ./cilium/ks.yaml
   - ./coredns/ks.yaml
-  - ./k8tz/ks.yaml
-  - ./ksgate/ks.yaml
-  - ./metrics-server/ks.yaml
-  - ./reloader/ks.yaml

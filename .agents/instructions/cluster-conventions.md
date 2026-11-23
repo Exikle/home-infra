@@ -3,6 +3,7 @@ paths:
     - "kube/base/**"
     - "kube/components/**"
     - "kube/clusters/*/apps/**"
+    - "kube/clusters/*/overlays/**"
     - "kube/clusters/*/components/**"
 ---
 
@@ -10,22 +11,23 @@ paths:
 
 These rules cover both clusters. An item that holds for one cluster only carries a label. A
 section without a label is shared. The differences of Frostlink are in `frostlink.md`. That file
-loads on `kube/clusters/frostlink/{apps,components}/**`, and it wins there.
+loads on `kube/clusters/frostlink/{apps,overlays,components}/**`, and it wins there.
 
 ## App Directory Structure
 
-Every app is one directory under `kube/clusters/<cluster>/apps/<namespace>/`. The directory holds
+An app that one cluster runs is one directory under `kube/clusters/<cluster>/apps/<namespace>/`.
+A shared app is one directory under `kube/base/<namespace>/` (below). The directory holds
 exactly one `ks.yaml`. That file can contain several Flux Kustomization documents, one per
 sub-directory. There is never more than one `ks.yaml` per app directory. There is never a
 grouping directory between a namespace and its apps. Add `- ./<app>/ks.yaml` to the namespace
 `kustomization.yaml` in alphabetical position.
 
-An app that both clusters run follows the same rule. Each cluster has its own
-`apps/<ns>/<app>/ks.yaml`, and the menu lists it like any other app. Only the manifests live
-once, in `kube/base/<ns>/<app>/`. That folder has no `ks.yaml`, and a menu never lists it. If a
-cluster needs its own additions, they go in `kube/clusters/<cluster>/apps/<ns>/<app>/app/`, beside
-a reference to the base. There is no `extras/` folder. `app-structure.md` § Shared apps
-(`kube/base/`) has the file shape, and it wins.
+An app that both clusters run lives once, complete, in `kube/base/<ns>/<app>/`, with its
+`ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists it. Its `spec.path` starts with
+`./kube/clusters/current/apps/<ns>/<app>/`, which is the same on both clusters. If a cluster runs
+it differently, only the differences go in `kube/clusters/<cluster>/overlays/<ns>/<app>/`. A
+shared app never also has a folder in a cluster's `apps/`. There is no `extras/` folder.
+`app-structure.md` § Shared apps (`kube/base/`) has the file shape, and it wins.
 
 Kustomization names are `<app>-<component>`. When the components are one product,
 `commonMetadata.labels.app.kubernetes.io/name` is the app, not the component. Label the component

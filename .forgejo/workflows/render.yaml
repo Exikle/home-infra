@@ -63,7 +63,7 @@ jobs:
           printf 'changed:\n%s\n' "$files"
           list=()
           for c in artemis frostlink; do
-            if grep -E "^kube/(base/|components/|clusters/${c}/(apps|components)/)" <<<"$files" >/dev/null; then list+=("\"$c\""); fi
+            if grep -E "^kube/(base/|components/|clusters/${c}/(apps|components|overlays)/)" <<<"$files" >/dev/null; then list+=("\"$c\""); fi
           done
           # An empty matrix makes Forgejo skip creating the render job, and Result then blocks
           # forever. "none" keeps one render job whose steps all skip.
@@ -97,10 +97,13 @@ jobs:
           cache: true
 
       # flate 0.8.0 cannot run our ArtifactGenerator (no artifacts[].namespace or copy[].optional),
-      # so point the app Kustomizations back at the whole tree. See scripts/flate-offline.sh.
+      # so build the shared-app folder by hand and point the app Kustomizations back at the whole
+      # tree. See scripts/flate-offline.sh.
       - name: Prepare tree for flate
         if: matrix.cluster != 'none'
-        run: scripts/flate-offline.sh .
+        env:
+          CLUSTER: ${{ matrix.cluster }}
+        run: scripts/flate-offline.sh . "$CLUSTER"
 
       # Renders every Kustomization and HelmRelease the cluster's Flux would see, from the repo
       # root (spec.path values are repo-root-relative). Secrets that exist only live are skipped.

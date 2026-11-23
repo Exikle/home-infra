@@ -112,20 +112,24 @@ itself with `read_diff`. Render from
 the repo root. Give flate the ignore file of the cluster, so that it sees only the folders that the
 Flux artifact of that cluster holds.
 
-flate cannot yet run the `ArtifactGenerator` of this repo. So first copy the checkout and prepare
-the copy with `scripts/flate-offline.sh`. Then render the copy:
+flate cannot yet run the `ArtifactGenerator`s of this repo. So first make one copy of the
+checkout for each cluster, and prepare each copy with `scripts/flate-offline.sh <copy> <cluster>`.
+The script builds the shared apps of that cluster into `kube/clusters/current/`. Then render each
+copy:
 
 ```
-cp -r . /tmp/render && scripts/flate-offline.sh /tmp/render
-flate build hr <name> -n <namespace> --path /tmp/render --krmignore .kritika/artemis.krmignore --no-progress
-flate build hr <name> -n <namespace> --path /tmp/render --krmignore .kritika/frostlink.krmignore --no-progress
+cp -r . /tmp/render-artemis && scripts/flate-offline.sh /tmp/render-artemis artemis
+cp -r . /tmp/render-frostlink && scripts/flate-offline.sh /tmp/render-frostlink frostlink
+flate build hr <name> -n <namespace> --path /tmp/render-artemis --krmignore .kritika/artemis.krmignore --no-progress
+flate build hr <name> -n <namespace> --path /tmp/render-frostlink --krmignore .kritika/frostlink.krmignore --no-progress
 ```
 
 For a change under `kube/base/` or `kube/components/`, render it on both clusters.
 
 The two `.kritika/*.krmignore` files copy `FLUX_ARTIFACT_IGNORE` from
 `kube/clusters/<cluster>/mise.toml`. If a pull request changes that value, it must update the
-matching krmignore file too. A mismatch is a finding.
+matching krmignore file too. A mismatch is a finding. The one intended difference is the line
+`!/kube/clusters/current/`. That folder exists only in a prepared copy, never in the repo.
 
 - A failure that the change causes is a finding on the changed line: a value that the chart schema
   rejects, or a template that errors on the values of this repo.

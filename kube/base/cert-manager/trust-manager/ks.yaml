@@ -1,0 +1,37 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app trust-manager
+spec:
+  targetNamespace: cert-manager
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  path: ./kube/clusters/current/apps/cert-manager/trust-manager/app
+  prune: true
+  sourceRef:
+    kind: ExternalArtifact
+    name: trust-manager
+  interval: 1h
+  dependsOn:
+    - name: cert-manager
+  wait: true
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: trust-manager-config
+spec:
+  targetNamespace: cert-manager
+  path: ./kube/clusters/current/apps/cert-manager/trust-manager/config
+  prune: true
+  sourceRef:
+    kind: ExternalArtifact
+    name: trust-manager
+  interval: 1h
+  dependsOn:
+    - name: trust-manager
+  wait: true

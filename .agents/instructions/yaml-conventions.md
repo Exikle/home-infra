@@ -3,6 +3,7 @@ paths:
     - "kube/base/**/*.yaml"
     - "kube/components/**/*.yaml"
     - "kube/clusters/*/apps/**/*.yaml"
+    - "kube/clusters/*/overlays/**/*.yaml"
     - "kube/clusters/*/components/**/*.yaml"
 ---
 
@@ -17,12 +18,12 @@ YAML rule of its own. § What the tooling does for you says which hook covers wh
 
 `hk.pkl` runs these steps at commit. Each step covers the folders in its last column.
 
-| Step                                               | Fixes automatically at commit                                          | Does NOT fix                                              | Folders it covers                                                      |
-| -------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| oxfmt                                              | indentation, flow-list spacing, trailing whitespace, final newline     | quoting, anchors                                          | every `*.yaml` file in the repo                                        |
-| `hooks/k8s_yaml_schema.py` (`k8s-schema`)          | the `# yaml-language-server: $schema=` modeline                        | non-k8s YAML, core-API (`v1`) kinds                       | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,components}/` |
-| `scripts/normalize-yaml-order.py` (`yaml-order`)   | every order in § Semantic Orders by Kind, and the `resources` list     | which fields exist. It reorders, it never adds or deletes | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,components}/` |
-| `scripts/check-yaml-comments.py` (`yaml-comments`) | nothing. It fails the commit on a comment (§ No Comments in Manifests) | everything else                                           | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,components}/` |
+| Step                                               | Fixes automatically at commit                                          | Does NOT fix                                              | Folders it covers                                                               |
+| -------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| oxfmt                                              | indentation, flow-list spacing, trailing whitespace, final newline     | quoting, anchors                                          | every `*.yaml` file in the repo                                                 |
+| `hooks/k8s_yaml_schema.py` (`k8s-schema`)          | the `# yaml-language-server: $schema=` modeline                        | non-k8s YAML, core-API (`v1`) kinds                       | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,overlays,components}/` |
+| `scripts/normalize-yaml-order.py` (`yaml-order`)   | every order in § Semantic Orders by Kind, and the `resources` list     | which fields exist. It reorders, it never adds or deletes | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,overlays,components}/` |
+| `scripts/check-yaml-comments.py` (`yaml-comments`) | nothing. It fails the commit on a comment (§ No Comments in Manifests) | everything else                                           | `kube/base/`, `kube/components/`, `kube/clusters/*/{apps,overlays,components}/` |
 
 No hook checks that a Kustomization declares `wait`.
 
@@ -228,8 +229,8 @@ history, no "keep this ordered" warnings, and no commented-out alternatives. Rat
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.
 
-The `yaml-comments` hook checks `kube/base/`, `kube/components/` and both clusters' `apps/` and
-`components/` folders. It skips `resources/` folders. To check by hand, run
+The `yaml-comments` hook checks `kube/base/`, `kube/components/` and both clusters' `apps/`,
+`overlays/` and `components/` folders. It skips `resources/` folders. To check by hand, run
 `python3 scripts/check-yaml-comments.py`.
 
 There are three exceptions, all machine-oriented:

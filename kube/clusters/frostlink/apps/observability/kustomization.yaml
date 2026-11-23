@@ -13,8 +13,6 @@ resources:
   - ./chaski/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./kromgo/ks.yaml
-  - ./kube-state-metrics/ks.yaml
-  - ./node-exporter/ks.yaml
   - ./vm-alert/ks.yaml
   - ./vm-operator/ks.yaml
   - ./vm-scrapes/ks.yaml

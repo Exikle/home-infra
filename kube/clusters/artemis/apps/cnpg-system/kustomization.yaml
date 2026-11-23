@@ -6,4 +6,3 @@ namespace: cnpg-system
 
 resources:
   - ./namespace.yaml
-  - ./cnpg/ks.yaml
