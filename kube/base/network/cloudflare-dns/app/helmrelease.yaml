@@ -9,27 +9,17 @@ spec:
     kind: OCIRepository
     name: external-dns-cloudflare
   interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: cloudflare-dns-values
+      optional: true
   values:
     fullnameOverride: *app
     provider:
       name: cloudflare
-    env:
-      - name: CF_API_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: cloudflare
-            key: CF_TOKEN
-    extraArgs:
-      - --cloudflare-dns-records-per-page=1000
-      - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
-      - --crd-source-kind=DNSEndpoint
-      - --gateway-name=external-gateway
     triggerLoopOnEvent: true
     policy: sync
     sources:
       - crd
       - gateway-httproute
-    txtOwnerId: frostlink
     txtPrefix: k8s.%{record_type}-
-    domainFilters:
-      - frostlink.dev

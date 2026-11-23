@@ -1,0 +1,14 @@
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare
+        key: CF_TOKEN
+extraArgs:
+  - --cloudflare-dns-records-per-page=1000
+  - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
+  - --crd-source-kind=DNSEndpoint
+  - --gateway-name=external-gateway
+txtOwnerId: frostlink
+domainFilters:
+  - frostlink.dev
