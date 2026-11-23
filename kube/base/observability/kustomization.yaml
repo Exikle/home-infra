@@ -6,5 +6,8 @@ namespace: observability
 
 resources:
   - ./namespace.yaml
+  - ./alertmanager/ks.yaml
+  - ./chaski/ks.yaml
+  - ./kromgo/ks.yaml
   - ./kube-state-metrics/ks.yaml
   - ./node-exporter/ks.yaml

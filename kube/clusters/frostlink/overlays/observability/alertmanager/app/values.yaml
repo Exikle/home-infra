@@ -1,0 +1,24 @@
+externalSecrets:
+  app:
+    dataFrom:
+      - extract:
+          key: gatus
+    forceRename: alertmanager-secret
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: onepassword-connect
+    target:
+      name: alertmanager-secret
+      template:
+        data:
+          HEARTBEAT_FROSTLINK_TOKEN: "{{ .HEARTBEAT_FROSTLINK_TOKEN }}"
+        engineVersion: v2
+
+persistence:
+  secrets:
+    type: secret
+    name: alertmanager-secret
+    globalMounts:
+      - path: /etc/alertmanager-secrets
+  data:
+    storageClass: openebs-zfs

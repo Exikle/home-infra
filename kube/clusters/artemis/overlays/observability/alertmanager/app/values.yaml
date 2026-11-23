@@ -1,0 +1,45 @@
+externalSecrets:
+  secrets:
+    forceRename: alertmanager-secret
+    dataFrom:
+      - extract:
+          key: pushover
+      - extract:
+          key: gatus
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: onepassword-connect
+    target:
+      template:
+        data:
+          HEARTBEAT_ARTEMIS_TOKEN: "{{ .HEARTBEAT_ARTEMIS_TOKEN }}"
+          ALERTMANAGER_PUSHOVER_TOKEN: "{{ .PUSHOVER_TOKEN }}"
+          PUSHOVER_USER_KEY: "{{ .PUSHOVER_USER_KEY }}"
+
+persistence:
+  secrets:
+    type: secret
+    externalSecretRef: secrets
+    globalMounts:
+      - path: /etc/alertmanager-secrets
+  data:
+    storageClass: miroir
+
+route:
+  app:
+    annotations:
+      gatus.home-operations.com/endpoint: |-
+        name: alertmanager
+        url: "https://alertmanager.dcunha.io/-/healthy"
+        conditions:
+          - "[STATUS] == 200"
+    hostnames:
+      - alertmanager.dcunha.io
+    parentRefs:
+      - name: internal-gateway
+        namespace: network
+        sectionName: https
+    rules:
+      - backendRefs:
+          - identifier: app
+            port: 9093

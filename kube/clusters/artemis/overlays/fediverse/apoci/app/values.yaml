@@ -1,0 +1,62 @@
+defaultPodOptions:
+  securityContext:
+    fsGroup: 1000
+
+controllers:
+  apoci:
+    containers:
+      app:
+        env:
+          APOCI_DB_DSN:
+            valueFrom:
+              secretKeyRef:
+                name: apoci-postgres
+                key: url
+        envFrom:
+          - externalSecretRef:
+              identifier: env
+  signature-check:
+    containers:
+      app:
+        env:
+          TARGETS: >-
+            http://apoci.fediverse.svc.cluster.local:5000|exikle/artemis
+            https://registry.frostlink.dev|dcunha.io/exikle/artemis
+
+externalSecrets:
+  env:
+    dataFrom:
+      - extract:
+          key: apoci
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: onepassword-connect
+    target:
+      template:
+        data:
+          APOCI_REGISTRY_TOKEN: "{{ .REGISTRY_TOKEN }}"
+          APOCI_ADMIN_TOKEN: "{{ .ADMIN_TOKEN }}"
+
+persistence:
+  data:
+    existingClaim: apoci
+    advancedMounts:
+      apoci:
+        app:
+          - path: /data
+            subPath: data
+  tmpfs:
+    type: emptyDir
+    advancedMounts:
+      apoci:
+        app:
+          - path: /tmp
+            subPath: tmp
+
+route:
+  app:
+    hostnames:
+      - registry.dcunha.io
+    parentRefs:
+      - name: edge-gateway
+        namespace: network

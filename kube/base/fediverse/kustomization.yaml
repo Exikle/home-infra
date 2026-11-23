@@ -6,3 +6,4 @@ namespace: fediverse
 
 resources:
   - ./namespace.yaml
+  - ./apoci/ks.yaml

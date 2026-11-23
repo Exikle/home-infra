@@ -1,0 +1,5 @@
+config:
+  templates:
+    route-title: '{{ if .payload.alerts }}{{ template "alert-title" . }}{{ else }}{{ .payload.title | default (toTitleCase .route) }}{{ end }}'
+    route-message: '{{ if .payload.alerts }}{{ template "alert-body" . }}{{ else }}{{ .payload.message }}{{ end }}'
+    route-url: '{{ if .payload.alerts }}{{ .payload.externalURL | default "" }}{{ else }}{{ .payload.url | default "" }}{{ end }}'

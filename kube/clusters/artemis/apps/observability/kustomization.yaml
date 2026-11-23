@@ -9,14 +9,11 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./alertmanager/ks.yaml
   - ./blackbox-exporter/ks.yaml
-  - ./chaski/ks.yaml
   - ./drm-exporter/ks.yaml
   - ./fluent-bit/ks.yaml
   - ./gatus-sidecar/ks.yaml
   - ./grafana/ks.yaml
-  - ./kromgo/ks.yaml
   - ./prometheus-adapter/ks.yaml
   - ./pve-exporter/ks.yaml
   - ./silence-operator/ks.yaml

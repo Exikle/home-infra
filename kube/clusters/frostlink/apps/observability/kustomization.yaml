@@ -8,10 +8,7 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./alertmanager/ks.yaml
-  - ./chaski/ks.yaml
   - ./gatus-sidecar/ks.yaml
-  - ./kromgo/ks.yaml
   - ./vm-alert/ks.yaml
   - ./vm-operator/ks.yaml
   - ./vm-scrapes/ks.yaml

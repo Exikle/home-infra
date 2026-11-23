@@ -8,6 +8,3 @@ components:
   - ../../../../components/alerts
   - ../../components/kopiur/secret
   - ../../components/postgres/tenants
-
-resources:
-  - ./apoci/ks.yaml

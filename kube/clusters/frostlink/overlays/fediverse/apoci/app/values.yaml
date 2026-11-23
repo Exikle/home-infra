@@ -1,0 +1,62 @@
+defaultPodOptions:
+  securityContext:
+    fsGroup: 999
+
+controllers:
+  apoci:
+    containers:
+      app:
+        env:
+          APOCI_DB_DSN:
+            valueFrom:
+              configMapKeyRef:
+                name: apoci-postgres
+                key: url
+        envFrom:
+          - secretRef:
+              name: apoci
+  signature-check:
+    containers:
+      app:
+        env:
+          TARGETS: >-
+            http://apoci.fediverse.svc.cluster.local:5000|exikle/frostlink
+            https://registry.dcunha.io|frostlink.dev/exikle/frostlink
+
+externalSecrets:
+  app:
+    dataFrom:
+      - extract:
+          key: apoci
+    forceRename: apoci
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: onepassword-connect
+    target:
+      name: apoci
+      template:
+        data:
+          APOCI_ADMIN_TOKEN: "{{ .ADMIN_TOKEN }}"
+          APOCI_REGISTRY_TOKEN: "{{ .REGISTRY_TOKEN }}"
+
+persistence:
+  data:
+    existingClaim: apoci-data
+    advancedMounts:
+      apoci:
+        app:
+          - path: /data
+  tmpfs:
+    type: emptyDir
+    advancedMounts:
+      apoci:
+        app:
+          - path: /tmp
+
+route:
+  app:
+    hostnames:
+      - registry.frostlink.dev
+    parentRefs:
+      - name: external-gateway
+        namespace: network
