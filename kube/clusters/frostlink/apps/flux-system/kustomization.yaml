@@ -6,6 +6,3 @@ namespace: flux-system
 
 components:
   - ../../../../components/alerts
-
-resources:
-  - ./flux-webhook/ks.yaml
