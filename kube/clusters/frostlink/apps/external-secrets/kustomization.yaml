@@ -6,6 +6,3 @@ namespace: external-secrets
 
 components:
   - ../../../../components/alerts
-
-resources:
-  - ./onepassword-connect/ks.yaml

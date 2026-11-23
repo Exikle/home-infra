@@ -3,6 +3,4 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./client-ca.yaml
-  - ./clusterissuer.yaml
-  - ./server-ca.yaml
+  - ../../../../../../base/cert-manager/postgres-ca/app

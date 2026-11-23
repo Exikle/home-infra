@@ -3,28 +3,6 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: dragonfly-metrics
-spec:
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: observability
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: vmagent
-      ports:
-        - port: 9999
-  podSelector:
-    matchLabels:
-      app: dragonfly
-  policyTypes:
-    - Ingress
----
-# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/networking.k8s.io/networkpolicy_v1.json
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
   name: dragonfly-clients
 spec:
   ingress:

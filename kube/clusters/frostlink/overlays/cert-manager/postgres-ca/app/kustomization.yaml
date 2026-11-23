@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../../../base/cert-manager/postgres-ca/app
+  - ./clusterissuer.yaml
+patches:
+  - target:
+      kind: Certificate
+      name: postgres-client-ca
+    patch: |-
+      - op: replace
+        path: /spec/issuerRef/name
+        value: selfsigned
+  - target:
+      kind: Certificate
+      name: postgres-server-ca
+    patch: |-
+      - op: replace
+        path: /spec/issuerRef/name
+        value: selfsigned
+      - op: add
+        path: /spec/nameConstraints/permitted/dnsDomains/2
+        value: pooler-rw

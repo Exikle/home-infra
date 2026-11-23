@@ -9,4 +9,3 @@ components:
 
 resources:
   - ./issuers/ks.yaml
-  - ./postgres-ca/ks.yaml

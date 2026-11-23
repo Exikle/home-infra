@@ -5,5 +5,4 @@ kind: Kustomization
 namespace: database
 
 resources:
-  - ./dragonfly/ks.yaml
   - ./postgres/ks.yaml

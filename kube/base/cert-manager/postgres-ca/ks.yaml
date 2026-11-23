@@ -9,12 +9,10 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/frostlink/apps/cert-manager/postgres-ca/app
+  path: ./kube/clusters/${CLUSTER}/overlays/cert-manager/postgres-ca/app
   prune: true
   sourceRef:
     kind: ExternalArtifact
     name: postgres-ca
   interval: 1h
-  dependsOn:
-    - name: cert-manager
   wait: true

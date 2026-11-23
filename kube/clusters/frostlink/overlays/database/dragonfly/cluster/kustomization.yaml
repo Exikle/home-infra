@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../../../base/database/dragonfly/cluster
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: dragonfly-metrics
+    patch: |-
+      - op: add
+        path: /spec/podSelector/matchLabels/app.kubernetes.io~1name
+        value: dragonfly
+      - op: add
+        path: /spec/podSelector/matchLabels/app.kubernetes.io~1part-of
+        value: dragonfly

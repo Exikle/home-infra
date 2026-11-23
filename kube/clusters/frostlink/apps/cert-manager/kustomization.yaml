@@ -10,4 +10,3 @@ components:
 resources:
   - ./clusterissuer/ks.yaml
   - ./csi-driver/ks.yaml
-  - ./postgres-ca/ks.yaml

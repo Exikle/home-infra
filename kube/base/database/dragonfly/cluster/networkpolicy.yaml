@@ -18,7 +18,5 @@ spec:
   podSelector:
     matchLabels:
       app: dragonfly
-      app.kubernetes.io/name: dragonfly
-      app.kubernetes.io/part-of: dragonfly
   policyTypes:
     - Ingress
