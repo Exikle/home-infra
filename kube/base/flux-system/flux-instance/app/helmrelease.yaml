@@ -72,6 +72,7 @@ spec:
                     target:
                       group: kustomize.toolkit.fluxcd.io
                       kind: Kustomization
+                      labelSelector: home-infra/flux-defaults!=from-component
             target:
               group: kustomize.toolkit.fluxcd.io
               kind: Kustomization

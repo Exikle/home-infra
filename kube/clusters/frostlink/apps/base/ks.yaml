@@ -5,6 +5,8 @@ kind: Kustomization
 metadata:
   name: base
   namespace: flux-system
+  labels:
+    home-infra/flux-defaults: from-component
 spec:
   path: ./kube/base
   prune: true
@@ -34,3 +36,47 @@ spec:
         group: kustomize.toolkit.fluxcd.io
         kind: Kustomization
         name: flux-instance
+    - patch: |-
+        - op: add
+          path: /spec/dependsOn
+          value:
+            - name: external-secrets
+              namespace: external-secrets
+      target:
+        group: kustomize.toolkit.fluxcd.io
+        kind: Kustomization
+        name: flux-webhook
+    - patch: |-
+        - op: add
+          path: /spec/dependsOn
+          value:
+            - name: cert-manager
+      target:
+        group: kustomize.toolkit.fluxcd.io
+        kind: Kustomization
+        name: postgres-ca
+    - patch: |-
+        - op: replace
+          path: /spec/wait
+          value: false
+      target:
+        group: kustomize.toolkit.fluxcd.io
+        kind: Kustomization
+        name: alertmanager
+    - patch: |-
+        - op: replace
+          path: /spec/components
+          value:
+            - ../../../../components/kopiur
+            - ../../../../components/postgres/csi
+        - op: replace
+          path: /spec/postBuild/substitute
+          value:
+            APP: apoci
+            KOPIUR_APP: apoci-data
+            KOPIUR_CAPACITY: 20Gi
+            KOPIUR_SCHEDULE: H */6 * * *
+      target:
+        group: kustomize.toolkit.fluxcd.io
+        kind: Kustomization
+        name: apoci

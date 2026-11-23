@@ -134,6 +134,18 @@ carry variables such as `${APP}` for their own Kustomization. No file in `kube/b
 menus of the cluster keep the alerts component, the other namespace components, and the apps that
 only that cluster runs.
 
+The FluxInstance gives the root Kustomization a patch that sets the Flux defaults on every
+Kustomization that the root applies: `deletionPolicy`, `retryInterval`, and the HelmRelease
+defaults (`crds: CreateReplace`, the remediation settings). That patch replaces the
+`spec.patches` of its target, and it does not reach the Kustomizations that `base` applies. So:
+
+- The root patch skips every Kustomization with the label
+  `home-infra/flux-defaults: from-component`. The `base` Kustomization carries that label, so its
+  own per-cluster patches stay.
+- `kube/base/kustomization.yaml` uses the component `kube/components/flux-defaults`, which sets
+  the same defaults on every shared Kustomization. If you change the defaults, change both the
+  component and the FluxInstance patch in `flux-instance/app/helmrelease.yaml`.
+
 Every namespace lives once, in `kube/base/<ns>/namespace.yaml`, and its base menu lists it. Both
 clusters get every namespace, so a cluster can hold a namespace that it runs nothing in. Where the
 two clusters used to label a namespace differently, the base file carries the labels of both
