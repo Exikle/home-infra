@@ -6,6 +6,5 @@
 !/kube/clusters/
 /kube/clusters/*
 !/kube/clusters/frostlink/
-!/kube/clusters/current/
 /kube/clusters/frostlink/talos/
 /kube/clusters/frostlink/bootstrap/

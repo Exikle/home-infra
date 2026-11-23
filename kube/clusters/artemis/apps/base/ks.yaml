@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: base
+  namespace: flux-system
+spec:
+  path: ./kube/base
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
+  interval: 1h
+  timeout: 5m
+  postBuild:
+    substitute:
+      CLUSTER: artemis
+  wait: false
+  patches:
+    - patch: |-
+        - op: add
+          path: /spec/dependsOn
+          value:
+            - name: cert-manager
+              namespace: cert-manager
+      target:
+        group: kustomize.toolkit.fluxcd.io
+        kind: Kustomization
+        name: k8tz

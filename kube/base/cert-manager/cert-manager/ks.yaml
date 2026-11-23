@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/current/apps/cert-manager/cert-manager/app
+  path: ./kube/clusters/${CLUSTER}/overlays/cert-manager/cert-manager/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

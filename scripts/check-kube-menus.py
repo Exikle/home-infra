@@ -9,8 +9,9 @@ kube/clusters/<c>/apps/<ns>/<app>/.
 - Every kube/base/<ns>/<app>/ has a ks.yaml, listed by kube/base/<ns>/kustomization.yaml.
 - Every kube/base/<ns>/ menu is listed by kube/base/kustomization.yaml.
 - Every menu entry points at a file or folder that exists.
-- A cluster menu never lists kube/base. Only kube/clusters/<c>/apps/base/kustomization.yaml
-  links the cluster to base, and it lists exactly ../../../../base.
+- A cluster menu never lists kube/base. Only the Flux Kustomization `base` in
+  kube/clusters/<c>/apps/base/ks.yaml applies it (path ./kube/base), and that menu lists only ./ks.yaml.
+- Every shared ks.yaml path points at a folder that exists for every cluster, with ${CLUSTER} filled in.
 - A shared app has no kube/clusters/<c>/apps/<ns>/<app>/: both would publish the same artifact.
 - Every kube/clusters/<c>/overlays/<ns>/<app>/ belongs to a shared app.
 - Every namespace lives in kube/base/<ns>/namespace.yaml, listed by its base menu. No cluster
@@ -26,7 +27,7 @@ from ruamel.yaml import YAML  # type: ignore[import-untyped]
 ROOT = Path(__file__).resolve().parent.parent
 KUBE = ROOT / "kube"
 BASE = KUBE / "base"
-LINK = "../../../../base"
+LINK = ["./ks.yaml"]
 
 
 def entries(menu: Path, errors: list) -> list:
@@ -73,8 +74,16 @@ def main() -> int:
         link = cluster / "apps" / "base" / "kustomization.yaml"
         if not link.is_file():
             errors.append(f"{link.relative_to(ROOT)}: missing; it links the cluster to kube/base")
-        elif entries(link, errors) != [LINK]:
-            errors.append(f"{link.relative_to(ROOT)}: resources must be exactly [{LINK}]")
+        elif entries(link, errors) != LINK:
+            errors.append(f"{link.relative_to(ROOT)}: resources must be exactly {LINK}")
+        link_ks = link.parent / "ks.yaml"
+        if link_ks.is_file() and "  path: ./kube/base\n" not in link_ks.read_text():
+            errors.append(f"{link_ks.relative_to(ROOT)}: the base Kustomization must have path ./kube/base")
+        for ks in sorted(BASE.glob("*/*/ks.yaml")):
+            for path in re.findall(r"^  path: (\S+)$", ks.read_text(), re.M):
+                real = ROOT / path.replace("${CLUSTER}", cluster.name)
+                if not real.is_dir():
+                    errors.append(f"{ks.relative_to(ROOT)}: path {path} does not exist for {cluster.name}")
 
         for menu in sorted((cluster / "apps").glob("*/kustomization.yaml")):
             if menu == link:

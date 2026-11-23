@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/current/apps/cnpg-system/cnpg/app
+  path: ./kube/base/cnpg-system/cnpg/app
   prune: true
   sourceRef:
     kind: ExternalArtifact
@@ -24,7 +24,7 @@ metadata:
   name: plugin-barman-cloud
 spec:
   targetNamespace: cnpg-system
-  path: ./kube/clusters/current/apps/cnpg-system/cnpg/plugin-barman-cloud
+  path: ./kube/base/cnpg-system/cnpg/plugin-barman-cloud
   prune: true
   sourceRef:
     kind: ExternalArtifact

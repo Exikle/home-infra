@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/current/apps/system-upgrade/tuppr/app
+  path: ./kube/clusters/${CLUSTER}/overlays/system-upgrade/tuppr/app
   prune: true
   sourceRef:
     kind: ExternalArtifact
@@ -27,7 +27,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: tuppr
-  path: ./kube/clusters/current/apps/system-upgrade/tuppr/upgrades
+  path: ./kube/clusters/${CLUSTER}/overlays/system-upgrade/tuppr/upgrades
   prune: true
   sourceRef:
     kind: ExternalArtifact

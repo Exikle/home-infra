@@ -3,31 +3,4 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../../../base
-patches:
-  - patch: |-
-      - op: replace
-        path: /spec/artifacts/0/copy/2/from
-        value: "@repo/kube/clusters/frostlink/overlays/{namespace}/{app}/**"
-      - op: replace
-        path: /spec/artifacts/0/copy/3/from
-        value: "@repo/kube/clusters/frostlink/components/**"
-    target:
-      group: source.extensions.fluxcd.io
-      kind: ArtifactGenerator
-      name: base
-  - patch: |-
-      - op: add
-        path: /spec/dependsOn/-
-        value:
-          name: apoci
-          namespace: fediverse
-      - op: add
-        path: /spec/dependsOn/-
-        value:
-          name: envoy-gateway
-          namespace: network
-    target:
-      group: kustomize.toolkit.fluxcd.io
-      kind: Kustomization
-      name: flux-instance
+  - ./ks.yaml

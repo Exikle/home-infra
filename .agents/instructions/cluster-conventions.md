@@ -23,9 +23,10 @@ grouping directory between a namespace and its apps. Add `- ./<app>/ks.yaml` to 
 `kustomization.yaml` in alphabetical position.
 
 An app that both clusters run lives once, complete, in `kube/base/<ns>/<app>/`, with its
-`ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists it. Its `spec.path` starts with
-`./kube/clusters/current/apps/<ns>/<app>/`, which is the same on both clusters. If a cluster runs
-it differently, only the differences go in `kube/clusters/<cluster>/overlays/<ns>/<app>/`. A
+`ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists it. If a cluster runs it
+differently, only the differences go in `kube/clusters/<cluster>/overlays/<ns>/<app>/`. Its
+`spec.path` names a real folder: `./kube/base/<ns>/<app>/...` when no cluster has differences,
+else `./kube/clusters/${CLUSTER}/overlays/<ns>/<app>/...`. A
 shared app never also has a folder in a cluster's `apps/`. There is no `extras/` folder.
 `app-structure.md` § Shared apps (`kube/base/`) has the file shape, and it wins.
 

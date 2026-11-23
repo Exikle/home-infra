@@ -36,15 +36,11 @@ spec:
     - copy:
         - from: "@repo/kube/base/{namespace}/{app}/**"
           to: "@artifact/kube/base/{namespace}/{app}/"
-        - exclude:
-            - ks.yaml
-          from: "@repo/kube/base/{namespace}/{app}/**"
-          to: "@artifact/kube/clusters/current/apps/{namespace}/{app}/"
-        - from: "@repo/kube/clusters/artemis/overlays/{namespace}/{app}/**"
+        - from: "@repo/kube/clusters/${CLUSTER}/overlays/{namespace}/{app}/**"
           optional: true
-          to: "@artifact/kube/clusters/current/apps/{namespace}/{app}/"
-        - from: "@repo/kube/clusters/artemis/components/**"
-          to: "@artifact/kube/clusters/current/components/"
+          to: "@artifact/kube/clusters/${CLUSTER}/overlays/{namespace}/{app}/"
+        - from: "@repo/kube/clusters/${CLUSTER}/components/**"
+          to: "@artifact/kube/clusters/${CLUSTER}/components/"
         - from: "@repo/kube/components/**"
           to: "@artifact/kube/components/"
       name: "{app}"

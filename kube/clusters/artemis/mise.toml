@@ -403,6 +403,11 @@ if [[ "$usage_ns/$usage_ks" == "flux-system/flux-system" ]]; then
     flux --context "$KUBE_CONTEXT" build kustomization flux-system -n flux-system --path "$MISE_CONFIG_ROOT/apps"
     exit 0
 fi
+if [[ "$usage_ns/$usage_ks" == "flux-system/base" ]]; then
+    flux build kustomization base -n flux-system --path "$MISE_MONOREPO_ROOT/kube/base" \
+        --kustomization-file "$MISE_CONFIG_ROOT/apps/base/ks.yaml" --dry-run
+    exit 0
+fi
 tree="$(mktemp -d)"
 trap 'rm -rf "$tree"' EXIT
 flux build artifact --path "$MISE_MONOREPO_ROOT" --ignore-paths "$FLUX_ARTIFACT_IGNORE" --output "$tree/artifact.tgz" >/dev/null 2>&1 \

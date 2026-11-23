@@ -6,6 +6,5 @@
 !/kube/clusters/
 /kube/clusters/*
 !/kube/clusters/artemis/
-!/kube/clusters/current/
 /kube/clusters/artemis/talos/
 /kube/clusters/artemis/bootstrap/

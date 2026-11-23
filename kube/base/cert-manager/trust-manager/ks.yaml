@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/current/apps/cert-manager/trust-manager/app
+  path: ./kube/clusters/${CLUSTER}/overlays/cert-manager/trust-manager/app
   prune: true
   sourceRef:
     kind: ExternalArtifact
@@ -26,7 +26,7 @@ metadata:
   name: trust-manager-config
 spec:
   targetNamespace: cert-manager
-  path: ./kube/clusters/current/apps/cert-manager/trust-manager/config
+  path: ./kube/clusters/${CLUSTER}/overlays/cert-manager/trust-manager/config
   prune: true
   sourceRef:
     kind: ExternalArtifact

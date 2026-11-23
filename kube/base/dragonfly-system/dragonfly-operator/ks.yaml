@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/current/apps/dragonfly-system/dragonfly-operator/app
+  path: ./kube/base/dragonfly-system/dragonfly-operator/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

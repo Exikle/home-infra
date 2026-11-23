@@ -36,10 +36,10 @@ clusters have the same namespaces.
 `kube/clusters/<cluster>/` holds one cluster: its `apps/`, `overlays/`, `components/`, `talos/`,
 `bootstrap/` and `mise.toml`. An app that only one cluster runs lives in
 `kube/clusters/<cluster>/apps/<ns>/<app>/ks.yaml`, and its namespace menu
-(`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that file. The one file
-`kube/clusters/<cluster>/apps/base/kustomization.yaml` links the cluster to `kube/base/`. It also
-holds the patches for the few shared objects that differ per cluster, such as an extra
-`dependsOn` or the folder names in the `base` ArtifactGenerator.
+(`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that file. The Flux Kustomization
+`base` in `kube/clusters/<cluster>/apps/base/ks.yaml` links the cluster to `kube/base/`. It fills
+in `${CLUSTER}` with the cluster name, and it holds the patches for the few shared objects that
+differ per cluster, such as an extra `dependsOn`.
 `kube/components/` holds kustomize components that both clusters use the same way.
 
 Components that one cluster uses, or that each cluster builds differently, stay in
@@ -48,8 +48,9 @@ both clusters in one push. `app-structure.md` § Shared apps has the file shape,
 
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
 the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
-its own cluster. For this reason, every `spec.path` is relative to the repo root. It starts with
-`./kube/clusters/<cluster>/` or, for a shared app, `./kube/clusters/current/`. Flux cannot see
+its own cluster. For this reason, every `spec.path` is relative to the repo root and names a
+real folder: `./kube/clusters/<cluster>/...`, or for a shared app `./kube/base/...` or
+`./kube/clusters/${CLUSTER}/overlays/...`. Flux cannot see
 `terraform/`, `ansible/`, the other cluster, or `talos/` and `bootstrap/`. In the cluster, two
 `ArtifactGenerator`s cut that artifact into one artifact per app, so a push reconciles only the
 apps that it changed (`app-structure.md` § Per-app artifacts).
@@ -278,9 +279,13 @@ Manifests has the scope and the three machine-oriented exceptions, and it wins.
 - A `ks.yaml` per cluster for a shared app, `extras/` folders and `<app>-extras` Kustomizations
   (removed 2026-11-22). A shared app has one `ks.yaml`, in `kube/base/`, and the differences of
   a cluster sit in its `overlays/` folder (`app-structure.md` § Shared apps). A cluster menu
-  never lists `kube/base/`. Only `apps/base/kustomization.yaml` links a cluster to it.
+  never lists `kube/base/`. Only the `base` Kustomization in `apps/base/ks.yaml` links a cluster
+  to it.
   `scripts/check-kube-menus.py` fails on a shared app that also has a folder in a cluster's
   `apps/`, and on a cluster menu that lists `kube/base/`.
+- The `kube/clusters/current/` folder (removed 2026-11-23). It existed only inside the artifacts,
+  so a shared `spec.path` led to a folder that git did not have. Shared paths now name real
+  folders, with `${CLUSTER}` filled in by the `base` Kustomization.
 - The audit half of `review-app` (2026-09-01): the skill did a one-minute lint and a deep audit
   under one name. The lint always finished first and reported PASS, so the audit never ran.
   `review-app` is now the lint only. The audit moved to the `audit-app` subagent.
