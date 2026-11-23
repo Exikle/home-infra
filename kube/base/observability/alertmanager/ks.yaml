@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/overlays/observability/alertmanager/app
+  path: ./kube/clusters/${CLUSTER}/apps/observability/alertmanager/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/overlays/fediverse/apoci/app
+  path: ./kube/clusters/${CLUSTER}/apps/fediverse/apoci/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

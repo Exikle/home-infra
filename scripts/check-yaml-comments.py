@@ -37,7 +37,7 @@ def comments(text):
 
 
 def main():
-    roots = [Path(a) for a in sys.argv[1:]] or [Path("kube/base"), Path("kube/components"), *Path("kube/clusters").glob("*/apps"), *Path("kube/clusters").glob("*/components"), *Path("kube/clusters").glob("*/overlays")]
+    roots = [Path(a) for a in sys.argv[1:]] or [Path("kube/base"), Path("kube/components"), *Path("kube/clusters").glob("*/apps"), *Path("kube/clusters").glob("*/components")]
     found = {p for root in roots for p in ([root] if root.is_file() else root.rglob("*.yaml")) if p.suffix == ".yaml" and "resources" not in p.parts}
     bad = 0
     for path in sorted(found):

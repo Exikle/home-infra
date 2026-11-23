@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/overlays/kopiur-system/kopiur/app
+  path: ./kube/clusters/${CLUSTER}/apps/kopiur-system/kopiur/app
   prune: true
   sourceRef:
     kind: ExternalArtifact
@@ -27,7 +27,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: kopiur
-  path: ./kube/clusters/${CLUSTER}/overlays/kopiur-system/kopiur/repository
+  path: ./kube/clusters/${CLUSTER}/apps/kopiur-system/kopiur/repository
   prune: true
   sourceRef:
     kind: ExternalArtifact

@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/overlays/observability/kromgo/app
+  path: ./kube/clusters/${CLUSTER}/apps/observability/kromgo/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

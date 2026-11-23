@@ -63,7 +63,7 @@ jobs:
           printf 'changed:\n%s\n' "$files"
           list=()
           for c in artemis frostlink; do
-            if grep -E "^kube/(base/|components/|clusters/${c}/(apps|components|overlays)/)" <<<"$files" >/dev/null; then list+=("\"$c\""); fi
+            if grep -E "^kube/(base/|components/|clusters/${c}/(apps|components)/)" <<<"$files" >/dev/null; then list+=("\"$c\""); fi
           done
           # An empty matrix makes Forgejo skip creating the render job, and Result then blocks
           # forever. "none" keeps one render job whose steps all skip.

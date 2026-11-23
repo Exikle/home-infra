@@ -12,8 +12,9 @@ spec:
   path: ./kube/base/cnpg-system/cnpg/app
   prune: true
   sourceRef:
-    kind: ExternalArtifact
-    name: cnpg
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
   interval: 1h
   wait: true
 ---
@@ -27,7 +28,8 @@ spec:
   path: ./kube/base/cnpg-system/cnpg/plugin-barman-cloud
   prune: true
   sourceRef:
-    kind: ExternalArtifact
-    name: cnpg
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
   interval: 1h
   wait: true

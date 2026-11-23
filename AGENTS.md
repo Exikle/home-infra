@@ -27,19 +27,22 @@ Code reads `AGENTS.md` only when no `CLAUDE.md` exists.
 
 `ls` at the repo root is the map. `kube/` holds everything that Flux deploys.
 An app that both clusters run is a shared app. It lives once, complete, in `kube/base/<ns>/<app>/`,
-with its `ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists that `ks.yaml`. If a
-cluster runs a shared app differently, only the differences go in
-`kube/clusters/<cluster>/overlays/<ns>/<app>/`. A shared app with no differences has no folder in
-any cluster. Every namespace also lives once, in `kube/base/<ns>/namespace.yaml`, so both
-clusters have the same namespaces.
+with its `ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists that `ks.yaml`. Every
+namespace also lives once, in `kube/base/<ns>/namespace.yaml`, so both clusters have the same
+namespaces.
 
-`kube/clusters/<cluster>/` holds one cluster: its `apps/`, `overlays/`, `components/`, `talos/`,
-`bootstrap/` and `mise.toml`. An app that only one cluster runs lives in
-`kube/clusters/<cluster>/apps/<ns>/<app>/ks.yaml`, and its namespace menu
-(`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that file. The Flux Kustomization
-`base` in `kube/clusters/<cluster>/apps/base/ks.yaml` links the cluster to `kube/base/`. It fills
-in `${CLUSTER}` with the cluster name, and it holds the patches for the few shared objects that
-differ per cluster, such as an extra `dependsOn`.
+`kube/clusters/<cluster>/` holds one cluster: its `apps/`, `components/`, `talos/`, `bootstrap/`
+and `mise.toml`. A folder `kube/clusters/<cluster>/apps/<ns>/<app>/` is one of two things:
+
+- With a `ks.yaml`, it is an app that only this cluster runs. Its namespace menu
+  (`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that `ks.yaml`.
+- Without a `ks.yaml`, it holds what is different on this cluster for a shared app. The
+  `ks.yaml` of that app is in `kube/base/`.
+
+A shared app with no differences has no folder in any cluster. The Flux Kustomization `base` in
+`kube/clusters/<cluster>/apps/flux-system/base/ks.yaml` links the cluster to `kube/base/`. It
+fills in `${CLUSTER}` with the cluster name, and it holds the patches for the few shared objects
+that differ per cluster, such as an extra `dependsOn`.
 `kube/components/` holds kustomize components that both clusters use the same way.
 
 Components that one cluster uses, or that each cluster builds differently, stay in
@@ -49,10 +52,10 @@ both clusters in one push. `app-structure.md` § Shared apps has the file shape,
 One CI workflow (`.forgejo/workflows/oci-push.yaml`) builds one Flux artifact per cluster from
 the repo root. Each artifact keeps only `kube/base/`, `kube/components/` and the Flux folders of
 its own cluster. For this reason, every `spec.path` is relative to the repo root and names a
-real folder: `./kube/clusters/<cluster>/...`, or for a shared app `./kube/base/...` or
-`./kube/clusters/${CLUSTER}/overlays/...`. Flux cannot see
-`terraform/`, `ansible/`, the other cluster, or `talos/` and `bootstrap/`. In the cluster, two
-`ArtifactGenerator`s cut that artifact into one artifact per app, so a push reconciles only the
+real folder: `./kube/clusters/<cluster>/apps/...`, or for a shared app
+`./kube/clusters/${CLUSTER}/apps/...` (with differences) or `./kube/base/...` (without). Flux cannot see
+`terraform/`, `ansible/`, the other cluster, or `talos/` and `bootstrap/`. In the cluster, one
+`ArtifactGenerator` cuts that artifact into one artifact per app, so a push reconciles only the
 apps that it changed (`app-structure.md` § Per-app artifacts).
 
 A command names its cluster in its path. `mise run //kube/clusters/artemis:apply-ks` and
@@ -119,11 +122,11 @@ the trigger of a reference comes up, open that reference.
 
 ### Loaded when you touch a matching path
 
-| File                                  | Loads on                                                                              |
-| ------------------------------------- | ------------------------------------------------------------------------------------- |
-| `instructions/cluster-conventions.md` | `kube/base/**`, `kube/components/**`, `kube/clusters/*/{apps,overlays,components}/**` |
-| `instructions/yaml-conventions.md`    | the same folders, `*.yaml` only                                                       |
-| `instructions/frostlink.md`           | `kube/clusters/frostlink/{apps,overlays,components}/**`                               |
+| File                                  | Loads on                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `instructions/cluster-conventions.md` | `kube/base/**`, `kube/components/**`, `kube/clusters/*/{apps,components}/**` |
+| `instructions/yaml-conventions.md`    | the same folders, `*.yaml` only                                              |
+| `instructions/frostlink.md`           | `kube/clusters/frostlink/{apps,components}/**`                               |
 
 All three are `paths:`-scoped rules, symlinked into `.claude/rules/`. Such a rule loads only when
 you touch a file that matches its paths. `frostlink.md` holds only what differs from the shared
@@ -278,11 +281,14 @@ Manifests has the scope and the three machine-oriented exceptions, and it wins.
     - Relaxing PodSecurity on `network`. towonel has its own `privileged` namespace.
 - A `ks.yaml` per cluster for a shared app, `extras/` folders and `<app>-extras` Kustomizations
   (removed 2026-11-22). A shared app has one `ks.yaml`, in `kube/base/`, and the differences of
-  a cluster sit in its `overlays/` folder (`app-structure.md` § Shared apps). A cluster menu
-  never lists `kube/base/`. Only the `base` Kustomization in `apps/base/ks.yaml` links a cluster
-  to it.
-  `scripts/check-kube-menus.py` fails on a shared app that also has a folder in a cluster's
-  `apps/`, and on a cluster menu that lists `kube/base/`.
+  a cluster sit in a folder in its `apps/` with no `ks.yaml` (`app-structure.md` § Shared apps).
+  A cluster menu never lists `kube/base/`. Only the `base` Kustomization in
+  `apps/flux-system/base/ks.yaml` links a cluster to it. `scripts/check-kube-menus.py` fails on a
+  cluster folder that is named like a shared app and has a `ks.yaml`, and on a cluster menu that
+  lists `kube/base/`.
+- The `overlays/` folder of each cluster and the `base` ArtifactGenerator (removed 2026-11-23).
+  The differences of a cluster moved into its `apps/`. With two folders, two generators made
+  artifacts with the same names and deleted each other's.
 - The `kube/clusters/current/` folder (removed 2026-11-23). It existed only inside the artifacts,
   so a shared `spec.path` led to a folder that git did not have. Shared paths now name real
   folders, with `${CLUSTER}` filled in by the `base` Kustomization.

@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/overlays/observability/chaski/app
+  path: ./kube/clusters/${CLUSTER}/apps/observability/chaski/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

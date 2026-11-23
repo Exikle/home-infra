@@ -263,7 +263,7 @@ if [[ "$usage_ns/$usage_ks" == "flux-system/flux-system" ]]; then
 fi
 if [[ "$usage_ns/$usage_ks" == "flux-system/base" ]]; then
     flux build kustomization base -n flux-system --path "$MISE_MONOREPO_ROOT/kube/base" \
-        --kustomization-file "$MISE_CONFIG_ROOT/apps/base/ks.yaml" --dry-run
+        --kustomization-file "$MISE_CONFIG_ROOT/apps/flux-system/base/ks.yaml" --dry-run
     exit 0
 fi
 tree="$(mktemp -d)"

@@ -6,3 +6,6 @@ namespace: flux-system
 
 components:
   - ../../../../components/alerts
+
+resources:
+  - ./base/ks.yaml

@@ -9,7 +9,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/overlays/network/cloudflare-dns/app
+  path: ./kube/clusters/${CLUSTER}/apps/network/cloudflare-dns/app
   prune: true
   sourceRef:
     kind: ExternalArtifact

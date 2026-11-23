@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Check the namespace menus under kube/ (issue #3333).
+"""Check the namespace menus and app folders under kube/ (issue #3333).
 
-Shared apps live once in kube/base/<ns>/<app>/ with their ks.yaml. A cluster's differences for a
-shared app live in kube/clusters/<c>/overlays/<ns>/<app>/. Apps that one cluster runs live in
-kube/clusters/<c>/apps/<ns>/<app>/.
+kube/clusters/<c>/apps/<ns>/<app>/ holds every app that a cluster runs with its own folder:
+- a folder WITH a ks.yaml is an app that only this cluster runs;
+- a folder WITHOUT a ks.yaml holds this cluster's side of a shared app, whose ks.yaml lives in
+  kube/base/<ns>/<app>/.
+A shared app with no differences has no cluster folder: its ks.yaml points at ./kube/base/... and
+reads the whole flux-system OCIRepository.
 
-- Every kube/clusters/<c>/apps/<ns>/<app>/ks.yaml is listed by its menu.
+- Every kube/clusters/<c>/apps/<ns>/ has a kustomization.yaml (else the root would walk into it),
+  and it lists every <app>/ks.yaml in that folder.
 - Every kube/base/<ns>/<app>/ has a ks.yaml, listed by kube/base/<ns>/kustomization.yaml.
 - Every kube/base/<ns>/ menu is listed by kube/base/kustomization.yaml.
 - Every menu entry points at a file or folder that exists.
 - A cluster menu never lists kube/base. Only the Flux Kustomization `base` in
-  kube/clusters/<c>/apps/base/ks.yaml applies it (path ./kube/base), and that menu lists only ./ks.yaml.
-- Every shared ks.yaml path points at a folder that exists for every cluster, with ${CLUSTER} filled in.
-- A shared app has no kube/clusters/<c>/apps/<ns>/<app>/: both would publish the same artifact.
-- Every kube/clusters/<c>/overlays/<ns>/<app>/ belongs to a shared app.
+  kube/clusters/<c>/apps/flux-system/base/ks.yaml applies it, with path ./kube/base.
+- Every shared ks.yaml path exists for every cluster, with ${CLUSTER} filled in.
+- A cluster folder named like a shared app has no ks.yaml, and a cluster folder without a ks.yaml
+  belongs to a shared app whose ks.yaml points into the cluster's apps/.
+- No kube/clusters/<c>/overlays/ (merged into apps/ on 2026-11-23).
 - Every namespace lives in kube/base/<ns>/namespace.yaml, listed by its base menu. No cluster
   folder holds a namespace.yaml, and every cluster namespace folder has a base namespace.
 - No commented-out entries in a menu (delete the line instead).
@@ -27,7 +32,6 @@ from ruamel.yaml import YAML  # type: ignore[import-untyped]
 ROOT = Path(__file__).resolve().parent.parent
 KUBE = ROOT / "kube"
 BASE = KUBE / "base"
-LINK = ["./ks.yaml"]
 
 
 def entries(menu: Path, errors: list) -> list:
@@ -52,9 +56,18 @@ def require_listed(menu: Path, children, errors: list) -> None:
             errors.append(f"{menu.relative_to(ROOT)}: {entry} exists but is not listed")
 
 
+def shared_paths() -> dict:
+    """Map each shared app (ns/app) to the spec.path values of its ks.yaml."""
+    out = {}
+    for ks in sorted(BASE.glob("*/*/ks.yaml")):
+        out[ks.parent.relative_to(BASE)] = re.findall(r"^  path: (\S+)$", ks.read_text(), re.M)
+    return out
+
+
 def main() -> int:
     errors: list = []
     shared = {p.relative_to(BASE) for p in BASE.glob("*/*") if p.is_dir()}
+    paths = shared_paths()
 
     for app in sorted(shared):
         if not (BASE / app / "ks.yaml").is_file():
@@ -66,39 +79,43 @@ def main() -> int:
         require_listed(ns_file.parent / "kustomization.yaml", [ns_file], errors)
     for stray in sorted((KUBE / "clusters").glob("*/apps/**/namespace.yaml")):
         errors.append(f"{stray.relative_to(ROOT)}: namespaces live in kube/base/<ns>/namespace.yaml")
-    for ns_dir in sorted((KUBE / "clusters").glob("*/apps/*/")):
-        if ns_dir.name != "base" and not (BASE / ns_dir.name / "namespace.yaml").is_file():
-            errors.append(f"{ns_dir.relative_to(ROOT)}: no kube/base/{ns_dir.name}/namespace.yaml")
 
     for cluster in sorted(p for p in (KUBE / "clusters").iterdir() if (p / "apps").is_dir()):
-        link = cluster / "apps" / "base" / "kustomization.yaml"
-        if not link.is_file():
-            errors.append(f"{link.relative_to(ROOT)}: missing; it links the cluster to kube/base")
-        elif entries(link, errors) != LINK:
-            errors.append(f"{link.relative_to(ROOT)}: resources must be exactly {LINK}")
-        link_ks = link.parent / "ks.yaml"
-        if link_ks.is_file() and "  path: ./kube/base\n" not in link_ks.read_text():
-            errors.append(f"{link_ks.relative_to(ROOT)}: the base Kustomization must have path ./kube/base")
-        for ks in sorted(BASE.glob("*/*/ks.yaml")):
-            for path in re.findall(r"^  path: (\S+)$", ks.read_text(), re.M):
-                real = ROOT / path.replace("${CLUSTER}", cluster.name)
-                if not real.is_dir():
-                    errors.append(f"{ks.relative_to(ROOT)}: path {path} does not exist for {cluster.name}")
+        apps = cluster / "apps"
+        if (cluster / "overlays").exists():
+            errors.append(f"{(cluster / 'overlays').relative_to(ROOT)}: merged into apps/; move it there")
+        link = apps / "flux-system" / "base" / "ks.yaml"
+        if not link.is_file() or "  path: ./kube/base\n" not in link.read_text():
+            errors.append(f"{link.relative_to(ROOT)}: the base Kustomization must exist with path ./kube/base")
 
-        for menu in sorted((cluster / "apps").glob("*/kustomization.yaml")):
-            if menu == link:
+        for ns_dir in sorted(p for p in apps.iterdir() if p.is_dir()):
+            menu = ns_dir / "kustomization.yaml"
+            if not menu.is_file():
+                errors.append(f"{ns_dir.relative_to(ROOT)}: no kustomization.yaml; the root would apply its files directly")
                 continue
+            if not (BASE / ns_dir.name / "namespace.yaml").is_file():
+                errors.append(f"{ns_dir.relative_to(ROOT)}: no kube/base/{ns_dir.name}/namespace.yaml")
             for e in entries(menu, errors):
                 if (menu.parent / e).resolve().is_relative_to(BASE):
-                    errors.append(f"{menu.relative_to(ROOT)}: lists {e}; shared apps reach the cluster through apps/base/")
-            require_listed(menu, sorted(menu.parent.glob("*/ks.yaml")), errors)
+                    errors.append(f"{menu.relative_to(ROOT)}: lists {e}; shared apps reach the cluster through the base Kustomization")
+            require_listed(menu, sorted(ns_dir.glob("*/ks.yaml")), errors)
 
-        for app in sorted(shared):
-            if (cluster / "apps" / app).exists():
-                errors.append(f"{(cluster / 'apps' / app).relative_to(ROOT)}: kube/base/{app} is shared; put this cluster's differences in overlays/{app}/")
-        for overlay in sorted(p for p in (cluster / "overlays").glob("*/*") if p.is_dir()):
-            if overlay.relative_to(cluster / "overlays") not in shared:
-                errors.append(f"{overlay.relative_to(ROOT)}: no kube/base app of that name; a cluster-only app goes in apps/")
+        for app_dir in sorted(p for p in apps.glob("*/*") if p.is_dir()):
+            rel = app_dir.relative_to(apps)
+            has_ks = (app_dir / "ks.yaml").is_file()
+            if rel in shared and has_ks:
+                errors.append(f"{app_dir.relative_to(ROOT)}: kube/base/{rel} is shared; its ks.yaml lives in base only")
+            if not has_ks and rel != Path("flux-system/base"):
+                if rel not in shared:
+                    errors.append(f"{app_dir.relative_to(ROOT)}: no ks.yaml and no kube/base/{rel}")
+                elif not any("/apps/" in p for p in paths.get(rel, [])):
+                    errors.append(f"{app_dir.relative_to(ROOT)}: kube/base/{rel}/ks.yaml points at ./kube/base, so this folder is never read")
+
+        for app, app_paths in paths.items():
+            for path in app_paths:
+                real = ROOT / path.replace("${CLUSTER}", cluster.name)
+                if not real.is_dir():
+                    errors.append(f"kube/base/{app}/ks.yaml: path {path} does not exist for {cluster.name}")
 
     for e in errors:
         print(e)

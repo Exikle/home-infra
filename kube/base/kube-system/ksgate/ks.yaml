@@ -12,7 +12,8 @@ spec:
   path: ./kube/base/kube-system/ksgate/app
   prune: true
   sourceRef:
-    kind: ExternalArtifact
-    name: ksgate
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
   interval: 1h
   wait: true

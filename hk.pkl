@@ -5,7 +5,7 @@ import "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Builtins.
 // `hk check --all` / `hk fix --all` run the same steps by hand. Steps run in parallel, so
 // anything that rewrites a file another step also rewrites is ordered with `depends`.
 
-local yaml_k8s = List("kube/base/**/*.{yml,yaml}", "kube/components/**/*.{yml,yaml}", "kube/clusters/artemis/apps/**/*.{yml,yaml}", "kube/clusters/artemis/components/**/*.{yml,yaml}", "kube/clusters/artemis/overlays/**/*.{yml,yaml}", "kube/clusters/frostlink/apps/**/*.{yml,yaml}", "kube/clusters/frostlink/components/**/*.{yml,yaml}", "kube/clusters/frostlink/overlays/**/*.{yml,yaml}")
+local yaml_k8s = List("kube/base/**/*.{yml,yaml}", "kube/components/**/*.{yml,yaml}", "kube/clusters/artemis/apps/**/*.{yml,yaml}", "kube/clusters/artemis/components/**/*.{yml,yaml}", "kube/clusters/frostlink/apps/**/*.{yml,yaml}", "kube/clusters/frostlink/components/**/*.{yml,yaml}")
 
 local linters = new Mapping<String, Step> {
   // --- Hygiene ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ local linters = new Mapping<String, Step> {
 
   // No prose comments in manifests (AGENTS.md, yaml-conventions.md § No Comments in Manifests).
   ["yaml-comments"] {
-    glob = List("kube/base/**/*.yaml", "kube/components/**/*.yaml", "kube/clusters/*/apps/**/*.yaml", "kube/clusters/*/components/**/*.yaml", "kube/clusters/*/overlays/**/*.yaml")
+    glob = List("kube/base/**/*.yaml", "kube/components/**/*.yaml", "kube/clusters/*/apps/**/*.yaml", "kube/clusters/*/components/**/*.yaml")
     check = "python3 scripts/check-yaml-comments.py {{files}}"
   }
 

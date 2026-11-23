@@ -110,29 +110,38 @@ ConfigMaps and secrets all differ.
 ### Shared apps (`kube/base/`)
 
 An app that both clusters run is a shared app. It lives once, complete, in
-`kube/base/<ns>/<app>/`: its `ks.yaml` and its manifests. A cluster folder holds only what is
-different on that cluster. A shared app with no differences has no folder in any cluster.
+`kube/base/<ns>/<app>/`: its `ks.yaml` and its manifests. A folder in a cluster's `apps/` is one
+of two things:
+
+- With a `ks.yaml`, it is an app that only that cluster runs.
+- Without a `ks.yaml`, it holds what is different on that cluster for a shared app.
+
+A shared app with no differences has no folder in any cluster.
 
 ```text
 kube/base/kube-system/
-  kustomization.yaml     namespace: kube-system, lists ./reloader/ks.yaml and the other shared apps
+  kustomization.yaml     namespace: kube-system, lists the shared ks.yaml files
   reloader/              no differences, so no cluster folder
-    ks.yaml              spec.path: ./kube/base/kube-system/reloader/app
+    ks.yaml              path: ./kube/base/kube-system/reloader/app, reads the flux-system OCIRepository
     app/                 kustomization.yaml, helmrelease.yaml, ocirepository.yaml
+  k8tz/                  differences on each cluster
+    ks.yaml              path: ./kube/clusters/${CLUSTER}/apps/kube-system/k8tz/app
+    app/
 kube/base/kustomization.yaml   lists every kube/base/<ns>/ menu
-kube/clusters/<cluster>/apps/base/
-  kustomization.yaml     resources: ./ks.yaml
-  ks.yaml                the Flux Kustomization `base`: path ./kube/base, CLUSTER=<cluster>
+kube/clusters/<cluster>/apps/
+  flux-system/base/ks.yaml     the Flux Kustomization `base`: path ./kube/base, CLUSTER=<cluster>
+  kube-system/k8tz/app/        the differences of this cluster, no ks.yaml
+  kube-system/descheduler/     an app that only this cluster runs, with its ks.yaml
 ```
 
-The Flux Kustomization `base` in `apps/base/ks.yaml` is the only link from a cluster to
-`kube/base/`. The root Kustomization of the cluster applies it like any other `ks.yaml` in
-`apps/`, and `base` then applies all of `kube/base/`. It fills in `${CLUSTER}` with
-`postBuild.substitute`. The root cannot do that job, because about 47 cluster `ks.yaml` files
-carry variables such as `${APP}` for their own Kustomization. No file in `kube/base/` may use any
-`${...}` variable other than `${CLUSTER}`. A cluster menu never lists `kube/base/`. The namespace
-menus of the cluster keep the alerts component, the other namespace components, and the apps that
-only that cluster runs.
+The Flux Kustomization `base` in `apps/flux-system/base/ks.yaml` is the only link from a cluster
+to `kube/base/`. The `flux-system` menu of the cluster lists it, and `base` then applies all of
+`kube/base/`. It fills in `${CLUSTER}` with `postBuild.substitute`. The root cannot do that job,
+because about 47 cluster `ks.yaml` files carry variables such as `${APP}` for their own
+Kustomization. No file in `kube/base/` may use any `${...}` variable other than `${CLUSTER}`. A
+cluster menu never lists `kube/base/`. The namespace menus of the cluster keep the alerts
+component, the other namespace components, and the apps that only that cluster runs. They do not
+list the folders of shared apps, because those folders have no `ks.yaml`.
 
 The FluxInstance gives the root Kustomization a patch that sets the Flux defaults on every
 Kustomization that the root applies: `deletionPolicy`, `retryInterval`, and the HelmRelease
@@ -154,35 +163,41 @@ two clusters used to label a namespace differently, the base file carries the la
 
 Every `spec.path` of a shared app points at a real folder in git:
 
-- `./kube/base/<ns>/<app>/<folder>` when no cluster has differences.
-- `./kube/clusters/${CLUSTER}/overlays/<ns>/<app>/<folder>` when the clusters have differences.
-  Then every cluster needs that overlay folder, even if one of them only lists the base folder.
+- `./kube/clusters/${CLUSTER}/apps/<ns>/<app>/<folder>` when the clusters have differences. Then
+  every cluster needs that folder, even if one of them only lists the base folder. The
+  Kustomization reads its own `ExternalArtifact`.
+- `./kube/base/<ns>/<app>/<folder>` when no cluster has differences. No cluster folder exists, so
+  the generator makes no artifact for the app. The Kustomization reads the whole artifact of the
+  cluster instead (`sourceRef: {kind: OCIRepository, name: flux-system, namespace: flux-system}`).
+  It then reconciles on every push, which costs little. If the app later gets a difference,
+  create the cluster folders and switch both `path` and `sourceRef`.
 
 `scripts/check-kube-menus.py` (an `hk` step) enforces the shape:
 
 - Every shared app has a `ks.yaml`, and its base menu lists it.
 - `kube/base/kustomization.yaml` lists every base menu.
-- `apps/base/kustomization.yaml` lists exactly `./ks.yaml`, that `ks.yaml` has
-  `path: ./kube/base`, and no other cluster menu lists `kube/base/`.
+- `apps/flux-system/base/ks.yaml` has `path: ./kube/base`, and no cluster menu lists `kube/base/`.
+- Every namespace folder in a cluster's `apps/` has a `kustomization.yaml`. Without one, the
+  root would walk into the folder and apply the files of a shared app directly.
 - Every `spec.path` of a shared app exists for every cluster, with `${CLUSTER}` filled in.
-- A shared app has no folder in a cluster's `apps/`. Both would publish an artifact with the
-  same name.
-- Every `overlays/<ns>/<app>/` belongs to a shared app.
+- A cluster folder named like a shared app has no `ks.yaml`. A cluster folder without a `ks.yaml`
+  belongs to a shared app whose `ks.yaml` points into the cluster's `apps/`.
+- No cluster has an `overlays/` folder.
 
 A change in `kube/base/` reaches both clusters in one push, so test it on both clusters before you
 commit.
 
 #### Per-cluster differences
 
-The differences of a cluster for a shared app go in `kube/clusters/<cluster>/overlays/<ns>/<app>/`.
-That folder mirrors the base app, and the shared `ks.yaml` points at it. Its
+The differences of a cluster for a shared app go in `kube/clusters/<cluster>/apps/<ns>/<app>/`,
+with no `ks.yaml`. That folder mirrors the base app, and the shared `ks.yaml` points at it. Its
 `kustomization.yaml` lists the base folder as a resource and adds what differs. `cert-manager` is
 the example:
 
 ```text
 kube/base/cert-manager/cert-manager/app/helmrelease.yaml
   valuesFrom: ConfigMap cert-manager-values, valuesKey values.yaml, optional: true
-kube/clusters/artemis/overlays/cert-manager/cert-manager/app/
+kube/clusters/artemis/apps/cert-manager/cert-manager/app/
   kustomization.yaml     resources: ../../../../../../base/cert-manager/cert-manager/app,
                          plus the files below. configMapGenerator cert-manager-values
                          from values.yaml, label reconcile.fluxcd.io/watch: Enabled
@@ -191,15 +206,15 @@ kube/clusters/artemis/overlays/cert-manager/cert-manager/app/
 ```
 
 The artifact keeps every folder at its repo path, so the `../../../../../../base` path works both
-in the repo and in the artifact. An overlay can also add a folder that the base does not have, for
-example the backup repository of kopiur in `overlays/kopiur-system/kopiur/repository/`.
+in the repo and in the artifact. A cluster folder can also add a folder that the base does not have, for
+example the backup repository of kopiur in `apps/kopiur-system/kopiur/repository/`.
 
 The ConfigMap and the HelmRelease come from one Kustomization, so they need no `dependsOn` between
 them.
 
 A Kustomization field that differs per cluster, for example an extra `dependsOn`, cannot go in the
-shared `ks.yaml`. It goes in a `patches:` entry of the `base` Kustomization in `apps/base/ks.yaml`
-of that cluster.
+shared `ks.yaml`. It goes in a `patches:` entry of the `base` Kustomization in
+`apps/flux-system/base/ks.yaml` of that cluster.
 Artemis adds `dependsOn: cert-manager` to `k8tz`. Frostlink adds `fediverse/apoci` and
 `network/envoy-gateway` to `flux-instance`. A Kustomization that only one cluster runs is its own
 cluster app, for example `apps/flux-system/flux-operator-oidc/` on Artemis.
@@ -209,7 +224,7 @@ HelmRelease must therefore hold only the values that every cluster shares. A key
 goes in the `values.yaml` of each cluster, never in the base. If the base sets it, the cluster
 value is silently lost.
 
-Put the ConfigMap in the `app/` folder of the overlay, not in the namespace menu. flate does not
+Put the ConfigMap in the `app/` folder of the cluster, not in the namespace menu. flate does not
 render the root Kustomization, so it cannot see objects that only the menu creates. The
 ConfigMap carries `reconcile.fluxcd.io/watch: Enabled`, so a change to it starts a Helm upgrade.
 
@@ -223,41 +238,30 @@ hang (#3406).
 ### Per-app artifacts
 
 CI publishes one artifact per cluster (`ci.md` § `oci-push`), and the `flux-system` OCIRepository
-pulls it. In each cluster, two Flux `ArtifactGenerator`s cut that artifact into one artifact per
-app. source-watcher runs them. Both read the `flux-system` OCIRepository. For each app folder,
-each makes one `ExternalArtifact` named `{app}` in the namespace `{namespace}`. So two apps with
-the same folder name in two namespaces (for example `agentgateway`) do not clash.
+pulls it. In each cluster, one Flux `ArtifactGenerator`, `apps`, cuts that artifact into one
+artifact per app. source-watcher runs it. It lives in `kube/base/flux-system/artifactgenerator.yaml`,
+and both clusters apply that same file.
 
-Both generators live once, in `kube/base/flux-system/artifactgenerator.yaml`, and both clusters
-apply that same file.
-
-The `apps` generator serves the apps that
-only one cluster runs. It uses
-`pathPattern: "@repo/kube/clusters/{cluster}/apps/{namespace}/{app}"`. The artifact of a cluster
-holds only its own cluster folder, so `{cluster}` matches exactly one name and the file needs no
-cluster name. Each of its artifacts holds these folders, at their repo paths:
+It uses `pathPattern: "@repo/kube/clusters/{cluster}/apps/{namespace}/{app}"`. The artifact of a
+cluster holds only its own cluster folder, so `{cluster}` matches exactly one name. For each app
+folder, it makes one `ExternalArtifact` named `{app}` in the namespace `{namespace}`. So two apps
+with the same folder name in two namespaces (for example `agentgateway`) do not clash. Each
+artifact holds these folders, at their repo paths:
 
 - The app folder, `kube/clusters/<cluster>/apps/{namespace}/{app}/`.
-- `kube/base/{namespace}/{app}/`, if it exists.
+- `kube/base/{namespace}/{app}/`, if it exists. A shared app gets its base files this way.
 - `kube/clusters/<cluster>/components/`.
 - `kube/components/`.
 
-The `base` generator serves the shared apps.
-It uses `pathPattern: "@repo/kube/base/{namespace}/{app}"`. That pattern has no cluster to
-capture, so the file names the cluster as `${CLUSTER}`, and the `base` Kustomization fills it in.
-Each of its artifacts holds these folders, at their repo paths:
-
-- `kube/base/{namespace}/{app}/`.
-- `kube/clusters/<cluster>/overlays/{namespace}/{app}/`, if it exists.
-- `kube/clusters/<cluster>/components/`.
-- `kube/components/`.
-
-The two generators never make an artifact with the same name, because a shared app has no folder
-in a cluster's `apps/`. `check-kube-menus.py` enforces that.
+The generator finds apps only by their folders, never by their files. One generator for one
+folder tree means that no two generators make an artifact with the same name. Before 2026-11-23,
+a second `base` generator did, and the two deleted each other's artifacts.
+`apps/flux-system/base/` also gets an artifact that nothing reads, because `base` reads the
+whole artifact.
 
 `originRevision: "@repo"` gives each artifact the git revision of the source.
 
-Every app Kustomization reads its own artifact:
+An app Kustomization with a cluster folder reads its own artifact:
 
 ```yaml
 sourceRef:
@@ -267,9 +271,10 @@ sourceRef:
 
 The artifact lives in the namespace of the Kustomization, so `sourceRef` has no `namespace`. The
 name is the app folder, not the Kustomization name. All the Kustomizations in one `ks.yaml` read
-the same artifact (for example `cnpg` and `plugin-barman-cloud`). The root `flux-system`
-Kustomization still reads the `flux-system` OCIRepository. So do the Kustomizations that a
-component or a ResourceSet generates.
+the same artifact (for example `trust-manager` and `trust-manager-config`). The root `flux-system`
+Kustomization, the `base` Kustomization and the shared apps with no differences read the
+`flux-system` OCIRepository. So do the Kustomizations that a component or a ResourceSet
+generates.
 
 A push therefore reconciles only the apps whose files changed. A change to a shared component
 changes every artifact, so it reconciles every app. `dependsOn` waits for the matching revision
@@ -277,12 +282,16 @@ only when both Kustomizations read the same artifact, that is the same app folde
 `dependsOn` gives order only. `land` waits until the `ExternalArtifact` of each target carries
 the pushed revision before it resumes.
 
-flate 0.8.0 cannot run these generators. It does not read `artifacts[].namespace` or
+If an artifact goes missing (for example after a folder moves), run
+`mise run //kube/clusters/<cluster>:sync-flux artifactgenerator apps`. Otherwise the generator
+repairs it within an hour.
+
+flate 0.8.0 cannot run the generator. It does not read `artifacts[].namespace` or
 `copy[].optional`. So every offline render first runs `scripts/flate-offline.sh <tree> <cluster>`
 on a copy of the tree. The script points each app Kustomization back at the whole tree and
-deletes the generators from the copy. Every folder that a generator copies already sits at its
+deletes the generator from the copy. Every folder that the generator copies already sits at its
 repo path, so nothing else needs to be built. The offline render does not test the copy rules of
-the generators. `render-ks`, the CI render and the kritika review all use the script.
+the generator. `render-ks`, the CI render and the kritika review all use the script.
 
 The layout has one home per app, not one artifact per namespace or per path prefix. Every path is
 a real folder in git, as in the upstream `flux2-kustomize-helm-example`. The only cluster name in

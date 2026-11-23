@@ -37,8 +37,8 @@ the app, and the upstream behaviour of the app.
   (`ls kube/clusters/artemis/apps/<ns>/`). Never work from a remembered app list.
 - An app that only Artemis runs has its `ks.yaml` in `kube/clusters/artemis/apps/<ns>/<app>/`.
   An app that both clusters run has its `ks.yaml` and manifests in `kube/base/<ns>/<app>/`, and
-  the differences of Artemis in `kube/clusters/artemis/overlays/<ns>/<app>/`. Find all of them
-  with `ls -d kube/clusters/artemis/apps/*/<app> kube/base/*/<app> kube/clusters/artemis/overlays/*/<app>`.
+  the differences of Artemis, if any, in `kube/clusters/artemis/apps/<ns>/<app>/` with no
+  `ks.yaml`. Find all of them with `ls -d kube/clusters/artemis/apps/*/<app> kube/base/*/<app>`.
   Below, `<app-dir>` is each path that this command prints. Read all of them.
 
 ## Reading

@@ -8,4 +8,5 @@ components:
   - ../../../../components/alerts
 
 resources:
+  - ./base/ks.yaml
   - ./flux-operator-oidc/ks.yaml

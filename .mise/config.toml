@@ -113,7 +113,7 @@ if [[ "$base" != "$(git_main rev-parse origin/main)" ]]; then
     patterns=(kube/base/ kube/components/)
     for t in "${targets[@]}"; do
         c="${t%%:*}"; nsks="${t#*:}"
-        kpath="$(find "$dir/kube/clusters/$c/apps/${nsks%/*}" "$dir/kube/clusters/$c/apps/base" "$dir/kube/base/${nsks%/*}" -name ks.yaml 2>/dev/null \
+        kpath="$(find "$dir/kube/clusters/$c/apps/${nsks%/*}" "$dir/kube/base/${nsks%/*}" -name ks.yaml 2>/dev/null \
             | xargs -r yq -r "select(.kind == \"Kustomization\" and .metadata.name == \"${nsks#*/}\") | .spec.path" \
             | grep -v -e '^$' -e '^null$' | head -1 || true)"
         [[ -n "$kpath" ]] || mise run //:log fatal "Cannot find the path of the Kustomization" target "$t"

@@ -25,30 +25,3 @@ spec:
       kind: OCIRepository
       name: flux-system
       namespace: flux-system
----
-# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.extensions.fluxcd.io/artifactgenerator_v1beta1.json
-apiVersion: source.extensions.fluxcd.io/v1beta1
-kind: ArtifactGenerator
-metadata:
-  name: base
-spec:
-  artifacts:
-    - copy:
-        - from: "@repo/kube/base/{namespace}/{app}/**"
-          to: "@artifact/kube/base/{namespace}/{app}/"
-        - from: "@repo/kube/clusters/${CLUSTER}/overlays/{namespace}/{app}/**"
-          optional: true
-          to: "@artifact/kube/clusters/${CLUSTER}/overlays/{namespace}/{app}/"
-        - from: "@repo/kube/clusters/${CLUSTER}/components/**"
-          to: "@artifact/kube/clusters/${CLUSTER}/components/"
-        - from: "@repo/kube/components/**"
-          to: "@artifact/kube/components/"
-      name: "{app}"
-      namespace: "{namespace}"
-      originRevision: "@repo"
-  pathPattern: "@repo/kube/base/{namespace}/{app}"
-  sources:
-    - alias: repo
-      kind: OCIRepository
-      name: flux-system
-      namespace: flux-system

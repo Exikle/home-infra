@@ -6,7 +6,7 @@ metadata:
   name: dragonfly
 spec:
   targetNamespace: database
-  path: ./kube/clusters/${CLUSTER}/overlays/database/dragonfly/cluster
+  path: ./kube/clusters/${CLUSTER}/apps/database/dragonfly/cluster
   prune: true
   sourceRef:
     kind: ExternalArtifact

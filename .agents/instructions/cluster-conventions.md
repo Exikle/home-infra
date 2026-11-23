@@ -3,7 +3,6 @@ paths:
     - "kube/base/**"
     - "kube/components/**"
     - "kube/clusters/*/apps/**"
-    - "kube/clusters/*/overlays/**"
     - "kube/clusters/*/components/**"
 ---
 
@@ -11,7 +10,7 @@ paths:
 
 These rules cover both clusters. An item that holds for one cluster only carries a label. A
 section without a label is shared. The differences of Frostlink are in `frostlink.md`. That file
-loads on `kube/clusters/frostlink/{apps,overlays,components}/**`, and it wins there.
+loads on `kube/clusters/frostlink/{apps,components}/**`, and it wins there.
 
 ## App Directory Structure
 
@@ -24,10 +23,10 @@ grouping directory between a namespace and its apps. Add `- ./<app>/ks.yaml` to 
 
 An app that both clusters run lives once, complete, in `kube/base/<ns>/<app>/`, with its
 `ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists it. If a cluster runs it
-differently, only the differences go in `kube/clusters/<cluster>/overlays/<ns>/<app>/`. Its
-`spec.path` names a real folder: `./kube/base/<ns>/<app>/...` when no cluster has differences,
-else `./kube/clusters/${CLUSTER}/overlays/<ns>/<app>/...`. A
-shared app never also has a folder in a cluster's `apps/`. There is no `extras/` folder.
+differently, only the differences go in `kube/clusters/<cluster>/apps/<ns>/<app>/`, with no
+`ks.yaml`. Its `spec.path` names a real folder: `./kube/clusters/${CLUSTER}/apps/<ns>/<app>/...`
+when the clusters have differences, else `./kube/base/<ns>/<app>/...`. There is no `extras/`
+folder and no `overlays/` folder.
 `app-structure.md` § Shared apps (`kube/base/`) has the file shape, and it wins.
 
 Kustomization names are `<app>-<component>`. When the components are one product,

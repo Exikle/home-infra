@@ -133,7 +133,7 @@ costs time).
 
 First, a `changes` job picks the clusters with the same rule as `oci-push.yaml`. A change under
 `kube/base/` or `kube/components/` reaches both clusters. A change under
-`kube/clusters/<cluster>/apps/`, `overlays/` or `components/` reaches only that cluster. A manual run renders
+`kube/clusters/<cluster>/apps/` or `components/` reaches only that cluster. A manual run renders
 both. For a pull request, the job reads the file list of the PR from the API. The
 `pull_request.base.sha` of the event is `main` at the time that the PR opened. It is not the merge
 base. So a diff against it also holds everything that merged since then.
