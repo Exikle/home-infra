@@ -297,7 +297,7 @@ fi
 description = "Sync a resource; optionally filter to a single name"
 usage = '''
 arg "<resource>" help="Kind of resource to sync" {
-  choices "hr" "ks" "gitrepo" "ocirepo" "es"
+  choices "hr" "ks" "gitrepo" "ocirepo" "es" "artifactgenerator"
 }
 arg "[name]" help="Only this name"
 '''
