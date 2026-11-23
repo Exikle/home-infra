@@ -38,7 +38,8 @@ An operator that serves the whole cluster gets its own `*-system` namespace. An 
 operand lives in the same namespace is a sub-directory of the app directory of the operand, never
 a sibling top-level app.
 
-Non-standard resource types: put one resource in each file. The filename is the lowercased kind.
+Non-standard resource types: put one kind in each file. The filename is the lowercased kind, and
+several objects of that kind share the file (`yaml-conventions.md` § General Rules wins).
 Keep the files flat in the leaf directory, and list them alphabetically. There is no `rbac/`,
 `monitoring/` or `network/` sub-directory. An app-template app defines its `HTTPRoute` inline,
 under `route.app:` in its values. An app with no app-template HelmRelease uses a standalone

@@ -6,6 +6,17 @@ resources:
   - ../../../../base
 patches:
   - patch: |-
+      - op: replace
+        path: /spec/artifacts/0/copy/2/from
+        value: "@repo/kube/clusters/frostlink/overlays/{namespace}/{app}/**"
+      - op: replace
+        path: /spec/artifacts/0/copy/3/from
+        value: "@repo/kube/clusters/frostlink/components/**"
+    target:
+      group: source.extensions.fluxcd.io
+      kind: ArtifactGenerator
+      name: base
+  - patch: |-
       - op: add
         path: /spec/dependsOn/-
         value:

@@ -175,8 +175,10 @@ apiVersion → kind → namespace → components → resources → <alphabetical
   natural order of their application.
 - Never reorder keys in vendored content (upstream chart values, dashboard JSON, alert rules).
 - Quote env values that YAML otherwise coerces: `"true"`, `"1"`, `"60"`.
-- Put one logical resource in each file (the helmrelease / ocirepository split). There are two
-  exceptions. `ks.yaml` holds all of the Flux Kustomizations of an app. The inline
+- Put one kind in each file (the helmrelease / ocirepository split). The filename is the
+  lowercased kind. Several objects of the same kind in one folder share that file, as separate
+  documents (for example both ArtifactGenerators in `kube/base/flux-system/artifactgenerator.yaml`).
+  There are two exceptions. `ks.yaml` holds all of the Flux Kustomizations of an app. The inline
   `externalSecrets` of app-template live in `helmrelease.yaml`.
 
 ## No Restating Defaults

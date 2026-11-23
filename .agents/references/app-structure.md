@@ -201,19 +201,26 @@ app. source-watcher runs them. Both read the `flux-system` OCIRepository. For ea
 each makes one `ExternalArtifact` named `{app}` in the namespace `{namespace}`. So two apps with
 the same folder name in two namespaces (for example `agentgateway`) do not clash.
 
-The `apps` generator (`kube/clusters/<cluster>/apps/flux-system/artifactgenerator.yaml`) serves the
-apps that only that cluster runs. It uses
-`pathPattern: "@repo/kube/clusters/<cluster>/apps/{namespace}/{app}"`. Each of its artifacts holds
-these folders, at their repo paths:
+Both generators live once, in `kube/base/flux-system/artifactgenerator.yaml`, and both clusters
+apply that same file.
+
+The `apps` generator serves the apps that
+only one cluster runs. It uses
+`pathPattern: "@repo/kube/clusters/{cluster}/apps/{namespace}/{app}"`. The artifact of a cluster
+holds only its own cluster folder, so `{cluster}` matches exactly one name and the file needs no
+cluster name. Each of its artifacts holds these folders, at their repo paths:
 
 - The app folder, `kube/clusters/<cluster>/apps/{namespace}/{app}/`.
 - `kube/base/{namespace}/{app}/`, if it exists.
 - `kube/clusters/<cluster>/components/`.
 - `kube/components/`.
 
-The `base` generator (`kube/clusters/<cluster>/apps/flux-system/artifactgenerator-base.yaml`)
-serves the shared apps. It uses `pathPattern: "@repo/kube/base/{namespace}/{app}"`. Each of its
-artifacts holds:
+The `base` generator serves the shared apps.
+It uses `pathPattern: "@repo/kube/base/{namespace}/{app}"`. That pattern has no cluster to
+capture, so the file names the overlay and components folders of Artemis. The
+`apps/base/kustomization.yaml` of Frostlink patches those two paths to its own folders. A `*` in
+place of the cluster name does not work: the generator then keeps the whole matched path, and the
+overlay never lands on top of the base. Each of its artifacts holds:
 
 - `kube/base/{namespace}/{app}/`, at its repo path.
 - `kube/clusters/current/apps/{namespace}/{app}/`: a copy of the base app without its `ks.yaml`,

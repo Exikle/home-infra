@@ -2,7 +2,7 @@
 # Prepare a COPY of the repo tree for an offline flate render of one cluster.
 #
 # flate 0.8.0 does not support ArtifactGenerator `artifacts[].namespace` or `copy[].optional`,
-# which the per-app artifacts use (kube/clusters/<c>/apps/flux-system/artifactgenerator*.yaml).
+# which the per-app artifacts use (kube/base/flux-system/artifactgenerator.yaml).
 # So this script does the generators' work by hand:
 #   - builds kube/clusters/current/ the way the `base` generator does: each shared app from
 #     kube/base/<ns>/<app>/, then the cluster's overlays/<ns>/<app>/ on top, plus the cluster's
@@ -34,4 +34,5 @@ find "$tree/kube/base" "$tree/kube/clusters/$cluster/apps" -name ks.yaml -print0
     | xargs -0 -r grep -lZ '^    kind: ExternalArtifact$' \
     | xargs -0 -r sed -i -e '/^  sourceRef:$/,/^  [a-z]/{s/^    kind: ExternalArtifact$/    kind: OCIRepository/;s/^    name: .*$/    name: flux-system\n    namespace: flux-system/}'
 # Nothing reads the generators now, and flate would still run them and fail.
-find "$tree/kube/clusters" -path '*/apps/flux-system/artifactgenerator*.yaml' -delete
+rm -f "$tree/kube/base/flux-system/artifactgenerator.yaml"
+sed -i '/artifactgenerator\.yaml$/d' "$tree/kube/base/flux-system/kustomization.yaml"

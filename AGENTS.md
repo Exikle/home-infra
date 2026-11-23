@@ -37,7 +37,8 @@ any cluster.
 `kube/clusters/<cluster>/apps/<ns>/<app>/ks.yaml`, and its namespace menu
 (`kube/clusters/<cluster>/apps/<ns>/kustomization.yaml`) lists that file. The one file
 `kube/clusters/<cluster>/apps/base/kustomization.yaml` links the cluster to `kube/base/`. It also
-holds the patches for the few Kustomization fields that differ per cluster.
+holds the patches for the few shared objects that differ per cluster, such as an extra
+`dependsOn` or the folder names in the `base` ArtifactGenerator.
 `kube/components/` holds kustomize components that both clusters use the same way.
 
 Components that one cluster uses, or that each cluster builds differently, stay in
