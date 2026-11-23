@@ -8,6 +8,5 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./cilium/ks.yaml
   - ./coredns/ks.yaml

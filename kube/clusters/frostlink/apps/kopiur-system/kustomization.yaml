@@ -6,6 +6,3 @@ namespace: kopiur-system
 
 components:
   - ../../../../components/alerts
-
-resources:
-  - ./namespace.yaml

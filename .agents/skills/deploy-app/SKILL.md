@@ -121,15 +121,18 @@ and follow it.
 
 Read `.agents/skills/modules/templates/directory.md` and create the layout.
 
-If the namespace does not exist yet, create it first:
+Every namespace lives once in `kube/base/<namespace>/namespace.yaml`, and both clusters get it,
+even a cluster that runs nothing there. If the namespace does not exist yet, create it in base
+first:
 
 ```
-kube/clusters/<cluster>/apps/<namespace>/
+kube/base/<namespace>/
 ├── namespace.yaml
-└── kustomization.yaml
+└── kustomization.yaml        namespace: <namespace>, resources: ./namespace.yaml
+kube/base/kustomization.yaml  add - ./<namespace>
 ```
 
-For `namespace.yaml` on Artemis, use `name: _`. Kustomize rewrites it from the `namespace:` field:
+Use `name: _` in `namespace.yaml`. Kustomize rewrites it from the `namespace:` field:
 
 ```yaml
 ---
@@ -146,10 +149,11 @@ metadata:
         pod-security.kubernetes.io/warn: privileged
 ```
 
-On Artemis, `privileged` is the default PodSecurity level for a new namespace (#3393). Do not
-pick a stricter level unless the user asks for it.
+`privileged` is the default PodSecurity level for a new namespace (#3393). Do not pick a stricter
+level unless the user asks for it. The file is shared, so it must suit both clusters.
 
-`kustomization.yaml`:
+The cluster menu `kube/clusters/<cluster>/apps/<namespace>/kustomization.yaml` lists only the apps
+that this cluster runs, plus its components. It never lists `namespace.yaml`:
 
 ```yaml
 ---
@@ -162,7 +166,6 @@ components:
     - ../../../../components/alerts
 
 resources:
-    - ./namespace.yaml
     - ./<app>/ks.yaml
 ```
 

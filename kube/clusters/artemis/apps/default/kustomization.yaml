@@ -10,7 +10,6 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./namespace.yaml
   - ./atuin/ks.yaml
   - ./bambuddy/ks.yaml
   - ./glance/ks.yaml

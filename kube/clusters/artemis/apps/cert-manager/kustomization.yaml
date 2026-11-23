@@ -8,6 +8,5 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./issuers/ks.yaml
   - ./postgres-ca/ks.yaml

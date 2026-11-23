@@ -10,7 +10,6 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./namespace.yaml
   - ./agentgateway/ks.yaml
   - ./claude-code/ks.yaml
   - ./cliproxyapi/ks.yaml

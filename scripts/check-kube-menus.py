@@ -13,6 +13,8 @@ kube/clusters/<c>/apps/<ns>/<app>/.
   links the cluster to base, and it lists exactly ../../../../base.
 - A shared app has no kube/clusters/<c>/apps/<ns>/<app>/: both would publish the same artifact.
 - Every kube/clusters/<c>/overlays/<ns>/<app>/ belongs to a shared app.
+- Every namespace lives in kube/base/<ns>/namespace.yaml, listed by its base menu. No cluster
+  folder holds a namespace.yaml, and every cluster namespace folder has a base namespace.
 - No commented-out entries in a menu (delete the line instead).
 """
 import re
@@ -59,6 +61,13 @@ def main() -> int:
     for ns in sorted({a.parts[0] for a in shared}):
         require_listed(BASE / ns / "kustomization.yaml", sorted((BASE / ns).glob("*/ks.yaml")), errors)
     require_listed(BASE / "kustomization.yaml", sorted(p.parent for p in BASE.glob("*/kustomization.yaml")), errors)
+    for ns_file in sorted(BASE.glob("*/namespace.yaml")):
+        require_listed(ns_file.parent / "kustomization.yaml", [ns_file], errors)
+    for stray in sorted((KUBE / "clusters").glob("*/apps/**/namespace.yaml")):
+        errors.append(f"{stray.relative_to(ROOT)}: namespaces live in kube/base/<ns>/namespace.yaml")
+    for ns_dir in sorted((KUBE / "clusters").glob("*/apps/*/")):
+        if ns_dir.name != "base" and not (BASE / ns_dir.name / "namespace.yaml").is_file():
+            errors.append(f"{ns_dir.relative_to(ROOT)}: no kube/base/{ns_dir.name}/namespace.yaml")
 
     for cluster in sorted(p for p in (KUBE / "clusters").iterdir() if (p / "apps").is_dir()):
         link = cluster / "apps" / "base" / "kustomization.yaml"

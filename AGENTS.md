@@ -30,7 +30,8 @@ An app that both clusters run is a shared app. It lives once, complete, in `kube
 with its `ks.yaml`. The menu `kube/base/<ns>/kustomization.yaml` lists that `ks.yaml`. If a
 cluster runs a shared app differently, only the differences go in
 `kube/clusters/<cluster>/overlays/<ns>/<app>/`. A shared app with no differences has no folder in
-any cluster.
+any cluster. Every namespace also lives once, in `kube/base/<ns>/namespace.yaml`, so both
+clusters have the same namespaces.
 
 `kube/clusters/<cluster>/` holds one cluster: its `apps/`, `overlays/`, `components/`, `talos/`,
 `bootstrap/` and `mise.toml`. An app that only one cluster runs lives in

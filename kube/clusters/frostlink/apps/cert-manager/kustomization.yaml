@@ -8,7 +8,6 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./clusterissuer/ks.yaml
   - ./csi-driver/ks.yaml
   - ./postgres-ca/ks.yaml

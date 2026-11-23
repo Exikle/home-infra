@@ -8,7 +8,6 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./continuwuity/ks.yaml
   - ./mautrix-signal/ks.yaml
   - ./mautrix-whatsapp/ks.yaml

@@ -10,7 +10,6 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./namespace.yaml
   - ./alcove/ks.yaml
   - ./autobrr/ks.yaml
   - ./bazarr/ks.yaml

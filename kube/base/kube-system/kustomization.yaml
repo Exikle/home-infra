@@ -5,6 +5,7 @@ kind: Kustomization
 namespace: kube-system
 
 resources:
+  - ./namespace.yaml
   - ./k8tz/ks.yaml
   - ./ksgate/ks.yaml
   - ./metrics-server/ks.yaml

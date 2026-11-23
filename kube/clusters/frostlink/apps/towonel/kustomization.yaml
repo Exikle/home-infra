@@ -8,6 +8,5 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./home-backhaul/ks.yaml
   - ./towonel/ks.yaml

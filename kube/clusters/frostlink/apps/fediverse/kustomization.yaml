@@ -8,7 +8,6 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./apoci/ks.yaml
   - ./fingerjoin/ks.yaml
   - ./gotosocial/ks.yaml

@@ -8,7 +8,6 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./alertmanager/ks.yaml
   - ./chaski/ks.yaml
   - ./gatus-sidecar/ks.yaml

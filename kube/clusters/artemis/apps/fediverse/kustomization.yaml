@@ -10,5 +10,4 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./namespace.yaml
   - ./apoci/ks.yaml

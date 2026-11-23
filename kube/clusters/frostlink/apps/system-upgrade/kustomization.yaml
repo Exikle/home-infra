@@ -6,6 +6,3 @@ namespace: system-upgrade
 
 components:
   - ../../../../components/alerts
-
-resources:
-  - ./namespace.yaml

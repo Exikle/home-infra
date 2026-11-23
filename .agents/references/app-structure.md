@@ -125,8 +125,14 @@ kube/clusters/<cluster>/apps/base/kustomization.yaml   resources: ../../../../ba
 
 The file `apps/base/kustomization.yaml` is the only link from a cluster to `kube/base/`. The root
 Kustomization of the cluster finds it like any other folder in `apps/`. A cluster menu never lists
-`kube/base/`. The namespace menus of the cluster keep the `namespace.yaml`, the alerts component
-and the apps that only that cluster runs.
+`kube/base/`. The namespace menus of the cluster keep the alerts component, the other namespace
+components, and the apps that only that cluster runs.
+
+Every namespace lives once, in `kube/base/<ns>/namespace.yaml`, and its base menu lists it. Both
+clusters get every namespace, so a cluster can hold a namespace that it runs nothing in. Where the
+two clusters used to label a namespace differently, the base file carries the labels of both
+(2026-11-22), so no namespace lost a label. Every namespace carries
+`kustomize.toolkit.fluxcd.io/prune: disabled`. A cluster menu never lists a `namespace.yaml`.
 
 Every `spec.path` of a shared app starts with `./kube/clusters/current/apps/<ns>/<app>/`. That
 folder exists only inside the artifact of the app. The `base` generator builds it from the base

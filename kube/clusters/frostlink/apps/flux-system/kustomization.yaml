@@ -8,5 +8,4 @@ components:
   - ../../../../components/alerts
 
 resources:
-  - ./namespace.yaml
   - ./flux-webhook/ks.yaml

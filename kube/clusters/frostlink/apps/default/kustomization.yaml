@@ -6,6 +6,3 @@ namespace: default
 
 components:
   - ../../../../components/alerts
-
-resources:
-  - ./namespace.yaml

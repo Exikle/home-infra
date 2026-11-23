@@ -10,7 +10,6 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./namespace.yaml
   - ./esphome/ks.yaml
   - ./frigate/ks.yaml
   - ./home-assistant/ks.yaml

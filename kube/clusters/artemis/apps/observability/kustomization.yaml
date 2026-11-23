@@ -9,7 +9,6 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./namespace.yaml
   - ./alertmanager/ks.yaml
   - ./blackbox-exporter/ks.yaml
   - ./chaski/ks.yaml
