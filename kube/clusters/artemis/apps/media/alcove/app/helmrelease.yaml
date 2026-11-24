@@ -26,7 +26,7 @@ spec:
           app:
             image:
               repository: git.dcunha.io/exikle/alcove
-              tag: 0.1.0@sha256:4fb4efd26485281a731e7fc7efb43536aa21a4ab76c4b60dd881fbbc1ae48305
+              tag: 0.3.0@sha256:bab7897258fdc542a7149f85f1e0eeac22933aa8192e725f5bbc328531738692
             env:
               ALCOVE_BOOKLORE_USER: exikle
               ALCOVE_DB_DRIVER: postgres
