@@ -12,7 +12,7 @@ tools:
   # renovate: datasource=github-releases depName=home-operations/flate
   aqua:home-operations/flate: v0.8.0
   # renovate: datasource=github-releases depName=opentofu/opentofu
-  aqua:opentofu/opentofu: v1.13.9
+  aqua:opentofu/opentofu: v1.13.10
 rules:
   - id: no-plaintext-secrets
     rule: A secret in plain text, or SOPS / age encryption, is a blocker. Secrets are ExternalSecrets on the onepassword-connect ClusterSecretStore.
