@@ -9,11 +9,12 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/apps/observability/chaski/app
+  path: ./kube/base/observability/chaski/app
   prune: true
   sourceRef:
-    kind: ExternalArtifact
-    name: chaski
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
   interval: 1h
   retryInterval: 1m
   timeout: 5m
