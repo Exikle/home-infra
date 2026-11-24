@@ -13,6 +13,7 @@ spec:
     - "!Exikle/forgesync"
     - "!Exikle/home-infra"
     - "!Exikle/Rensaio"
+    - "!Exikle/silo-plugins-requests-seerr"
   schedule: 15 4-10 * * 1
   templateRef:
     name: default
