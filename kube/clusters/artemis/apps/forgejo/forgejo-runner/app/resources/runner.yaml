@@ -16,6 +16,7 @@ plugins:
     options:
       namespace: forgejo
       poll_timeout: 10m
+      services_mode: pod
 runner:
   capacity: 6
   labels:
