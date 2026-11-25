@@ -42,7 +42,7 @@ the tables above.
 | `alcove`    | Ebook and audiobook library at `books.dcunha.io`, shared Postgres, OIDC. Receives books and audiobooks from shelfmark            |
 | `shelfmark` | Book search/ingest at `booksearch.dcunha.io`, `:8084`, OIDC, talks to Prowlarr on `:80`                                          |
 | `rensaio`   | Manga downloader, `:9833`, PUID 99 / PGID 100 (not the usual 1000), library at `downloads/kaizoku`                               |
-| `jelu`      | Book tracker (JeluGo, our image) at `jelu.dcunha.io`, `:11111`, public on `edge-gateway` behind the bot challenge                |
+| `dogear`    | Book tracker (Dogear, our image) at `dogear.dcunha.io`, `:8080`, public on `edge-gateway` behind the bot challenge               |
 | `komf`      | Metadata for Komga (KomfGo, our Go port of komf, stateless, matches live in Komga links). Komga itself lives in `default`        |
 | `paperless` | Document management: shared Postgres + Dragonfly index 1, plus `paperless-tika` and `paperless-gotenberg` sidecar kustomizations |
 
@@ -164,7 +164,7 @@ other app keeps its upstream port. So the guess `:80` fails as often as the gues
 | `rensaio`             | `9833`                                   |
 | `thelounge`           | `9000`                                   |
 | `trawl`               | `8191`                                   |
-| `jelu`                | `11111` http, `8081` metrics             |
+| `dogear`              | `8080` http, `8081` metrics              |
 
 Before you connect an app, make sure of the port. The Service is the source of truth. The
 anchor only tells you what was intended:

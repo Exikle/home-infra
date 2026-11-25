@@ -1,0 +1,145 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: dogear
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: dogear
+  interval: 1h
+  values:
+    defaultPodOptions:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+    controllers:
+      dogear:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: git.dcunha.io/exikle/dogear
+              tag: 1.0.0@sha256:1ee92e63d0cd959fbac693589575c82449e82f699cbc49c89413a66669a98a01
+            env:
+              DOGEAR_AUTH_CLIENTS_POCKETID_ID: dogear
+              DOGEAR_AUTH_CLIENTS_POCKETID_ISSUER: https://id.dcunha.io
+              DOGEAR_AUTH_CLIENTS_POCKETID_NAME: pocket-id
+              DOGEAR_AUTH_CLIENTS_POCKETID_REDIRECT: "{baseUrl}/login/oauth2/code/{registrationId}"
+              DOGEAR_AUTH_CLIENTS_POCKETID_SCOPE: openid,profile,email,groups
+              DOGEAR_AUTH_CLIENTS_POCKETID_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: dogear-oidc-credentials
+                    key: client_secret
+              DOGEAR_AUTH_CLIENTS_POCKETID_USERATTR: preferred_username
+              DOGEAR_AUTH_GROUPS_ADMIN: dogear_admin
+              DOGEAR_METADATA_HARDCOVER_ENABLED: "true"
+              DOGEAR_METADATA_HARDCOVER_ORDER: "200"
+              DOGEAR_METADATA_INVENTAIRE_CONFIG: en
+              DOGEAR_METADATA_INVENTAIRE_ENABLED: "true"
+              DOGEAR_METADATA_INVENTAIRE_ORDER: "100"
+              DOGEAR_METADATA_OPENLIBRARY_CONFIG: en
+              DOGEAR_METADATA_OPENLIBRARY_ENABLED: "true"
+              DOGEAR_METADATA_OPENLIBRARY_ORDER: "50"
+              HOME: /tmp
+            envFrom:
+              - externalSecretRef:
+                  identifier: env
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: &port 8080
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /readyz
+                    port: *port
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: *port
+                  initialDelaySeconds: 20
+                  periodSeconds: 5
+                  failureThreshold: 40
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              readOnlyRootFilesystem: true
+    externalSecrets:
+      env:
+        data:
+          - secretKey: DOGEAR_METADATA_HARDCOVER_APIKEY
+            remoteRef:
+              key: alcove
+              property: HARDCOVER_API_TOKEN
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+    persistence:
+      data:
+        existingClaim: "{{ .Release.Name }}"
+        globalMounts:
+          - path: /data
+      tmpfs:
+        type: emptyDir
+        advancedMounts:
+          dogear:
+            app:
+              - path: /tmp
+                subPath: tmp
+    route:
+      app:
+        hostnames:
+          - "dogear.dcunha.io"
+        parentRefs:
+          - name: edge-gateway
+            namespace: network
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: *port
+    service:
+      app:
+        ports:
+          http:
+            port: *port
+          metrics:
+            port: 8081
+    serviceMonitor:
+      app:
+        endpoints:
+          - port: metrics
+            path: /metrics
+            interval: 60s
+            scrapeTimeout: 15s
