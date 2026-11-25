@@ -6,3 +6,4 @@ resources:
   - ./app-admin.yaml
   - ./app-ops.yaml
   - ./app-users.yaml
+  - ./dogear-admin.yaml
