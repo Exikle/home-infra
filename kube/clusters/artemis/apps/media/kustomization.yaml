@@ -15,7 +15,6 @@ resources:
   - ./bazarr/ks.yaml
   - ./dogear/ks.yaml
   - ./immich/ks.yaml
-  - ./jelu/ks.yaml
   - ./komf/ks.yaml
   - ./paperless/ks.yaml
   - ./prowlarr/ks.yaml
