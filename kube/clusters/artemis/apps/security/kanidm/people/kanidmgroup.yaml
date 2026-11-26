@@ -8,8 +8,6 @@ spec:
   kanidmName: app_admin
   kanidmRef:
     name: kanidm
-  members:
-    - exikle
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kaniop.rs/kanidmgroup_v1beta1.json
 apiVersion: kaniop.rs/v1beta1
@@ -20,8 +18,6 @@ spec:
   kanidmName: app_ops
   kanidmRef:
     name: kanidm
-  members:
-    - exikle
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kaniop.rs/kanidmgroup_v1beta1.json
 apiVersion: kaniop.rs/v1beta1
@@ -32,8 +28,6 @@ spec:
   kanidmName: app_users
   kanidmRef:
     name: kanidm
-  members:
-    - exikle
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kaniop.rs/kanidmgroup_v1beta1.json
 apiVersion: kaniop.rs/v1beta1
@@ -44,5 +38,3 @@ spec:
   kanidmName: idm_people_self_mail_write
   kanidmRef:
     name: kanidm
-  members:
-    - exikle
