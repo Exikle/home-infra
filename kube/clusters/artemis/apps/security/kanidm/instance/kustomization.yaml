@@ -5,6 +5,7 @@ kind: Kustomization
 resources:
   - ./certificate.yaml
   - ./kanidm.yaml
+  - ./pushsecret.yaml
 patches:
   - patch: |-
       - op: replace
