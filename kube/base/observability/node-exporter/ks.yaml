@@ -9,11 +9,12 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kube/clusters/${CLUSTER}/apps/observability/node-exporter/app
+  path: ./kube/base/observability/node-exporter/app
   prune: true
   sourceRef:
-    kind: ExternalArtifact
-    name: node-exporter
+    kind: OCIRepository
+    name: flux-system
+    namespace: flux-system
   interval: 1h
   retryInterval: 1m
   timeout: 5m
