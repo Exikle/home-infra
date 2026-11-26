@@ -16,6 +16,8 @@ spec:
     name: esphome
   interval: 1h
   dependsOn:
+    - name: kanidm-operator
+      namespace: security
     - name: pocket-id-operator
       namespace: security
   components:
@@ -27,4 +29,6 @@ spec:
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_SNAPSHOTCLASS: miroir
       KOPIUR_STORAGECLASS: miroir
+      OIDC_CLIENT_SECRET: esphome-kanidm-oauth2-credentials
+      OIDC_ISSUER: idm.dcunha.io/oauth2/openid/esphome
   wait: false

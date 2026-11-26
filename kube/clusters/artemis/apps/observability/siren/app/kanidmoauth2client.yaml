@@ -1,0 +1,28 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kaniop.rs/kanidmoauth2client_v1beta1.json
+apiVersion: kaniop.rs/v1beta1
+kind: KanidmOAuth2Client
+metadata:
+  name: siren
+spec:
+  disableConsentPrompt: true
+  displayname: Siren
+  kanidmRef:
+    name: kanidm
+    namespace: security
+  origin: https://siren.dcunha.io
+  redirectUrl:
+    - https://siren.dcunha.io/oauth2/callback
+  scopeMap:
+    - group: app_admin
+      scopes: &scopes
+        - email
+        - groups
+        - offline_access
+        - openid
+        - profile
+    - group: app_ops
+      scopes: *scopes
+  secretKeyAliases:
+    clientSecret:
+      - client-secret
