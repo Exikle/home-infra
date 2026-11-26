@@ -96,3 +96,8 @@
 - name: "priority/high"
   color: "d93f0b"
   description: "Needs attention before other open work"
+
+# Sync — forgesync never copies a labelled issue to GitHub
+- name: "local-only"
+  color: "cccccc"
+  description: "forgesync never copies this issue to GitHub"
