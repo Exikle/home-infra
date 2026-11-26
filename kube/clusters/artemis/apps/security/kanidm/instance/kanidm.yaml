@@ -1,0 +1,49 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kaniop.rs/kanidm_v1beta1.json
+apiVersion: kaniop.rs/v1beta1
+kind: Kanidm
+metadata:
+  name: kanidm
+spec:
+  domain: idm.dcunha.io
+  gateway:
+    backendTlsPolicy:
+      validation:
+        hostname: idm.dcunha.io
+        wellKnownCaCertificates: System
+    parentRefs:
+      - name: edge-gateway
+        namespace: network
+  groupNamespaceSelector: {}
+  image: kanidm/server:1.12.1@sha256:77198131f28116203e105d2e42214203757d113a694f35de545669e75db5c96f
+  oauth2ClientNamespaceSelector: {}
+  personNamespaceSelector: {}
+  replicaGroups:
+    - name: default
+      primaryNode: true
+      replicas: 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+  securityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  serviceAccountNamespaceSelector: {}
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        storageClassName: miroir
+  tlsSecretName: kanidm-tls
