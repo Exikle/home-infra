@@ -16,6 +16,8 @@ spec:
     name: zigbee
   interval: 1h
   dependsOn:
+    - name: kanidm-operator
+      namespace: security
     - name: pocket-id-operator
       namespace: security
   components:
@@ -27,6 +29,8 @@ spec:
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_SNAPSHOTCLASS: miroir
       KOPIUR_STORAGECLASS: miroir
+      OIDC_CLIENT_SECRET: zigbee-kanidm-oauth2-credentials
+      OIDC_ISSUER: idm.dcunha.io/oauth2/openid/zigbee
   wait: false
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
