@@ -6,7 +6,6 @@ resources:
   - ../../../../../../base/network/cloudflare-dns/app
   - ./dnsendpoint.yaml
   - ./externalsecret.yaml
-  - ./prometheusrule.yaml
 configMapGenerator:
   - name: cloudflare-dns-values
     files:

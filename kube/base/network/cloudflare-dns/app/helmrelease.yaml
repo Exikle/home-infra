@@ -23,3 +23,5 @@ spec:
       - crd
       - gateway-httproute
     txtPrefix: k8s.%{record_type}-
+    serviceMonitor:
+      enabled: true

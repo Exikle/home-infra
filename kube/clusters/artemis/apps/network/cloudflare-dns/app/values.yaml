@@ -19,7 +19,5 @@ extraArgs:
 txtOwnerId: artemis-cluster
 domainFilters:
   - dcunha.io
-serviceMonitor:
-  enabled: true
 podAnnotations:
   secret.reloader.stakater.com/reload: cloudflare
