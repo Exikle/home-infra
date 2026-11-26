@@ -32,7 +32,7 @@ spec:
           app:
             image:
               repository: ghcr.io/silo-server/silo-server
-              tag: build-3027@sha256:7fe880ec77e1b9a66a3c563b27f69730cad6cf1afd79fc821a78c6d072340863
+              tag: build-3046@sha256:9a680e9d78fe8794a22851c068e2a67709397acea4c49edf75e6bacf649f272a
             command: ["silo"]
             env:
               DATABASE_URL:
