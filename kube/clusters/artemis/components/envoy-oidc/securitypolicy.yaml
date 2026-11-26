@@ -9,7 +9,7 @@ spec:
   oidc:
     clientID: ${APP}
     clientSecret:
-      name: ${APP}-oidc-credentials
+      name: ${OIDC_CLIENT_SECRET:=${APP}-oidc-credentials}
     cookieConfig:
       sameSite: Lax
     csrfTokenTTL: 290s
@@ -20,7 +20,7 @@ spec:
           value: cors
     logoutPath: /logout
     provider:
-      issuer: https://id.dcunha.io
+      issuer: https://${OIDC_ISSUER:=id.dcunha.io}
     redirectURL: https://${OIDC_HOST:=${APP}.dcunha.io}/oauth2/callback
     refreshToken: true
     scopes:
