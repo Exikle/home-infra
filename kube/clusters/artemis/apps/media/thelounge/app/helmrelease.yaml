@@ -19,8 +19,19 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
     controllers:
       thelounge:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -50,8 +61,6 @@ spec:
                   - "ALL"
               readOnlyRootFilesystem: true
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
       tmp:
         type: emptyDir
         advancedMounts:
