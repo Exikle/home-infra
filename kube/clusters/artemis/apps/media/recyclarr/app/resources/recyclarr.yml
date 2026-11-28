@@ -1,5 +1,5 @@
 ---
-# yaml-language-server: $schema=https://raw.githubusercontent.com/recyclarr/recyclarr/refs/tags/v8.8.1/schemas/config-schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/recyclarr/recyclarr/refs/tags/v9.0.0/schemas/config-schema.json
 sonarr:
   series:
     base_url: http://sonarr.media.svc.cluster.local
@@ -32,10 +32,6 @@ sonarr:
           enabled: true
       - trash_id: 20e0fc959f1f1704bed501f23bdae76f # [Anime] Remux-1080p
         name: Anime
-        reset_unmatched_scores:
-          enabled: true
-      - trash_id: 20e0fc959f1f1704bed501f23bdae76f # [Anime] Remux-1080p
-        name: Anime (Compact)
         reset_unmatched_scores:
           enabled: true
         upgrade:
@@ -73,7 +69,6 @@ sonarr:
             - name: Korean Dramas
             - name: Chinese Dramas
             - name: Anime
-            - name: Anime (Compact)
         - trash_id: 35fb4585dcd9e2a5ac732e4309f5a45a # [Streaming Services] Asian
           assign_scores_to:
             - name: Korean Dramas
