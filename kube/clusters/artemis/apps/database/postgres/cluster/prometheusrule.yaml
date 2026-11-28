@@ -10,7 +10,7 @@ spec:
       rules:
         - alert: CNPGWalArchiveBacklog
           expr: |-
-            cnpg_collector_pg_wal_archive_status{namespace="database", cnpg_cluster="postgres", value="ready"} > 0
+            cnpg_collector_pg_wal_archive_status{namespace="database", cnpg_cluster="postgres-19", value="ready"} > 0
           for: 15m
           annotations:
             summary: >-
@@ -21,7 +21,7 @@ spec:
 
         - alert: CNPGWalArchiveFailing
           expr: |-
-            rate(cnpg_pg_stat_archiver_failed_count{namespace="database", cnpg_cluster="postgres"}[15m]) > 0
+            rate(cnpg_pg_stat_archiver_failed_count{namespace="database", cnpg_cluster="postgres-19"}[15m]) > 0
           for: 15m
           annotations:
             summary: >-
@@ -34,9 +34,9 @@ spec:
         - alert: CNPGDataVolumeFillingUp
           expr: |-
             (
-              kubelet_volume_stats_used_bytes{namespace="database", persistentvolumeclaim=~"postgres-[0-9]+"}
+              kubelet_volume_stats_used_bytes{namespace="database", persistentvolumeclaim=~"postgres-19-[0-9]+"}
               /
-              kubelet_volume_stats_capacity_bytes{namespace="database", persistentvolumeclaim=~"postgres-[0-9]+"}
+              kubelet_volume_stats_capacity_bytes{namespace="database", persistentvolumeclaim=~"postgres-19-[0-9]+"}
             ) > 0.75
           for: 30m
           annotations:
@@ -50,9 +50,9 @@ spec:
         - alert: CNPGDataVolumeAlmostFull
           expr: |-
             (
-              kubelet_volume_stats_used_bytes{namespace="database", persistentvolumeclaim=~"postgres-[0-9]+"}
+              kubelet_volume_stats_used_bytes{namespace="database", persistentvolumeclaim=~"postgres-19-[0-9]+"}
               /
-              kubelet_volume_stats_capacity_bytes{namespace="database", persistentvolumeclaim=~"postgres-[0-9]+"}
+              kubelet_volume_stats_capacity_bytes{namespace="database", persistentvolumeclaim=~"postgres-19-[0-9]+"}
             ) > 0.90
           for: 10m
           annotations:

@@ -40,7 +40,7 @@ spec:
               RADARR__AUTH__REQUIRED: Enabled
               RADARR__LOG__DBENABLED: "False"
               RADARR__LOG__LEVEL: info
-              RADARR__POSTGRES__HOST: postgres-rw.database.svc
+              RADARR__POSTGRES__HOST: postgres-19-rw.database.svc
               RADARR__POSTGRES__MAINDB: radarr
               RADARR__POSTGRES__PORT: "5432"
               RADARR__POSTGRES__PASSWORD:

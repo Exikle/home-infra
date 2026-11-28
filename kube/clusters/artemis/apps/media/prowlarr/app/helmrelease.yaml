@@ -33,7 +33,7 @@ spec:
               PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
               PROWLARR__LOG__DBENABLED: "False"
               PROWLARR__LOG__LEVEL: info
-              PROWLARR__POSTGRES__HOST: postgres-rw.database.svc
+              PROWLARR__POSTGRES__HOST: postgres-19-rw.database.svc
               PROWLARR__POSTGRES__MAINDB: prowlarr
               PROWLARR__POSTGRES__PORT: "5432"
               PROWLARR__POSTGRES__PASSWORD:

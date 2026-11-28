@@ -38,11 +38,11 @@ spec:
     - apiVersion: postgresql.cnpg.io/v1
       kind: DatabaseRole
       metadata:
-        name: << inputs.owner >>
+        name: << inputs.owner >>-19
         namespace: database
       spec:
         cluster:
-          name: postgres
+          name: postgres-19
         databaseRoleReclaimPolicy: retain
         login: true
         name: << inputs.owner >>
@@ -52,10 +52,10 @@ spec:
     - apiVersion: postgresql.cnpg.io/v1
       kind: Database
       metadata:
-        name: << inputs.name >>
+        name: << inputs.name >>-19
         namespace: database
       spec:
         cluster:
-          name: postgres
+          name: postgres-19
         name: << inputs.name >>
         owner: << inputs.owner >>

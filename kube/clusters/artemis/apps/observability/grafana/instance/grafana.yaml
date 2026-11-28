@@ -38,7 +38,7 @@ spec:
       groups_attribute_path: groups
     database:
       type: postgres
-      host: postgres-rw.database.svc:5432
+      host: postgres-19-rw.database.svc:5432
       name: grafana
       user: grafana
       password: $__env{GF_DATABASE_PASSWORD}

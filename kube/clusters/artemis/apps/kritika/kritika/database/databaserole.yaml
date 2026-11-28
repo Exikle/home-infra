@@ -3,10 +3,10 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
 metadata:
-  name: kritika
+  name: kritika-19
 spec:
   cluster:
-    name: postgres
+    name: postgres-19
   databaseRoleReclaimPolicy: retain
   login: true
   name: kritika
@@ -18,10 +18,10 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
 metadata:
-  name: kritika-app
+  name: kritika-app-19
 spec:
   cluster:
-    name: postgres
+    name: postgres-19
   databaseRoleReclaimPolicy: retain
   login: true
   name: kritika_app

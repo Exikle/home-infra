@@ -3,12 +3,12 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
 metadata:
-  name: &role sparkyfitness-app
+  name: sparkyfitness-app-19
 spec:
   cluster:
-    name: postgres
+    name: postgres-19
   databaseRoleReclaimPolicy: retain
   login: true
-  name: *role
+  name: sparkyfitness-app
   passwordSecret:
     name: sparkyfitness-app-postgres

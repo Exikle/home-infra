@@ -119,4 +119,4 @@ spec:
       postgres:
         namespace: database
         podSelector:
-          cnpg.io/cluster: postgres
+          cnpg.io/cluster: postgres-19

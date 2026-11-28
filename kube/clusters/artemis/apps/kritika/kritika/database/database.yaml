@@ -3,10 +3,10 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
-  name: kritika
+  name: kritika-19
 spec:
   cluster:
-    name: postgres
+    name: postgres-19
   extensions:
     - ensure: present
       name: vector

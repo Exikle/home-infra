@@ -31,6 +31,31 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
+  name: postgres-19-server-cert
+spec:
+  commonName: postgres-19-rw.database.svc.cluster.local
+  dnsNames:
+    - postgres-19-r.database.svc
+    - postgres-19-r.database.svc.cluster.local
+    - postgres-19-ro.database.svc
+    - postgres-19-ro.database.svc.cluster.local
+    - postgres-19-rw.database.svc
+    - postgres-19-rw.database.svc.cluster.local
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: postgres-server-ca
+  secretName: postgres-19-server-cert
+  secretTemplate:
+    labels:
+      cnpg.io/reload: ""
+  usages:
+    - server auth
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/certificate_v1.json
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
   name: postgres-replication-cert
 spec:
   commonName: streaming_replica
