@@ -125,7 +125,7 @@ spec:
               - filter: req.Host == "git.dcunha.io" && (req.URL.Path endsWith "/info/refs" || req.URL.Path endsWith "/git-upload-pack" || req.URL.Path endsWith "/git-receive-pack" || req.URL.Path contains "/info/lfs/" || req.URL.Path startsWith "/v2/" || req.URL.Path == "/v2" || req.URL.Path startsWith "/api/" || req.URL.Path startsWith "/twirp/" || req.URL.Path contains "/archive/" || req.URL.Path startsWith "/.well-known/")
                 apply:
                   - ExemptFromChallenge("forgejo-machine-protocol")
-              - filter: req.Host in ["id.dcunha.io", "idm.dcunha.io"]
+              - filter: req.Host == "id.dcunha.io"
                 apply:
                   - ExemptFromChallenge("oidc-provider")
               - filter: req.Host == "books.dcunha.io" && (req.URL.Path startsWith "/opds" || req.URL.Path startsWith "/koreader" || req.URL.Path startsWith "/api/" || (req.URL.Path == "/login" && req.Method == "POST"))

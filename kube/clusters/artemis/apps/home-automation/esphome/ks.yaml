@@ -16,8 +16,6 @@ spec:
     name: esphome
   interval: 1h
   dependsOn:
-    - name: kanidm-operator
-      namespace: security
     - name: pocket-id-operator
       namespace: security
   components:

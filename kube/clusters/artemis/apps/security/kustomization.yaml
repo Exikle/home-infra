@@ -10,7 +10,6 @@ components:
   - ../../components/postgres/tenants
 
 resources:
-  - ./kanidm/ks.yaml
   - ./lldap/ks.yaml
   - ./pocket-id/ks.yaml
   - ./tinyauth/ks.yaml
