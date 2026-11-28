@@ -49,7 +49,12 @@ spec:
                     name: lldap
                     key: LLDAP_LDAP_USER_PASS
               TINYAUTH_RESOURCES_PATH: /data/resources
-              TINYAUTH_DATABASE_PATH: /data/tinyauth.db
+              TINYAUTH_DATABASE_DRIVER: postgres
+              TINYAUTH_DATABASE_PATH:
+                valueFrom:
+                  secretKeyRef:
+                    name: tinyauth-postgres
+                    key: url
               TINYAUTH_OIDC_PRIVATEKEYPATH: /secrets/oidc/key.pem
               TINYAUTH_OIDC_PUBLICKEYPATH: /secrets/oidc/key.pub
               TINYAUTH_OIDC_CLIENTS_BAZARR_CLIENTID: bazarr

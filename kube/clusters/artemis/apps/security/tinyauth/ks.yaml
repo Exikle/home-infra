@@ -17,4 +17,9 @@ spec:
   interval: 1h
   dependsOn:
     - name: pocket-id-operator
+  components:
+    - ../../../../components/postgres/app
+  postBuild:
+    substitute:
+      APP: *app
   wait: true
