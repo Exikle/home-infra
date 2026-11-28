@@ -59,6 +59,10 @@ workflow deletes it server-side and strips it from every issue and PR that carri
 
 Values: `grep 'name:' .forgejo/labels.yaml`.
 
+`local-only` is outside the axes. It goes on every issue (§ Filing one). It must stay in
+`.forgejo/labels.yaml`, because the labels-sync workflow strips a label that the file does not
+list, and forgesync then copies those issues to GitHub.
+
 `priority/` is one label on purpose. It once carried `high`, `medium` and `low`. But `medium` was
 the default and carried no information, and `low` was indistinguishable from `status/parked`.
 Parked does not mean unimportant. A parked item can still be `priority/high`.
@@ -79,10 +83,15 @@ Use the Forgejo tools of the `-ops` tier where they fit. Tool names carry a serv
 changes when the gateway is rewired. List the tools and match on the suffix. Do not hardcode a
 fully-qualified name.
 
+Every issue that you file gets the `local-only` label. forgesync (the bot that copies issues
+between Forgejo and the GitHub mirror) never copies an issue with that label to GitHub. If you
+forget the label, forgesync copies the issue on its next run. Adding the label later does not
+remove that copy.
+
 From the shell, use `fjo`. It takes label names, so you do not need to look up label IDs:
 
 ```bash
-fjo issue create -R Exikle/home-infra --title "<title>" -F body.md -l status/parked -l area/<x>
+fjo issue create -R Exikle/home-infra --title "<title>" -F body.md -l local-only -l status/parked -l area/<x>
 fjo issue edit <N> -R Exikle/home-infra --add-label status/blocked
 ```
 
