@@ -135,6 +135,8 @@ spec:
         ports:
           http:
             primary: true
+            port: 8971
+          api:
             port: *port
           go2rtc-rtsp:
             enabled: true

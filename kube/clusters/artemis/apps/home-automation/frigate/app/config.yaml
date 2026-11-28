@@ -12,6 +12,22 @@ data:
     # and on-disk version auto-migration cannot write back. On a version bump,
     # reconcile any schema changes here by hand.
 
+    auth:
+      enabled: false
+
+    proxy:
+      header_map:
+        user: remote-user
+        role: remote-groups
+        role_map:
+          admin:
+            - app_admin
+      logout_url: https://auth.dcunha.io/logout
+      default_role: viewer
+
+    tls:
+      enabled: false
+
     mqtt:
       enabled: true
       host: mosquitto.home-automation.svc.cluster.local

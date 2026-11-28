@@ -23,6 +23,10 @@ spec:
       headersToBackend:
         - Authorization
         - Location
+        - Remote-Email
+        - Remote-Groups
+        - Remote-Name
+        - Remote-User
         - Set-Cookie
       path: /api/auth/envoy?path=
   targetRefs:
