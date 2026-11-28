@@ -1,0 +1,90 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Lint Workflows
+
+on:
+  pull_request:
+    paths:
+      - .forgejo/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ forgejo.workflow }}-${{ forgejo.event.number || forgejo.ref }}
+  cancel-in-progress: true
+
+# permissions: unsupported in Forgejo — grant via repo Settings → Actions → Authorized Integrations
+# permissions:
+#   contents: read
+
+jobs:
+  lint:
+    name: actionlint and zizmor
+    # The runner's default image: Debian-based (zizmor has no musl build) and ships node, so
+    # checkout and the cached mise install work as actions.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: https://github.com/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Same pins as the local hk hooks. shellcheck lets actionlint check run: scripts.
+      - name: Install Tools
+        uses: https://github.com/jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          install_args: actionlint zizmor shellcheck jq
+          cache: true
+
+      # The PR's own file list, as in render.yaml: pull_request.base.sha is main when the PR
+      # opened, not the merge base. A manual run lints every workflow.
+      - name: Pick the changed workflow files
+        id: files
+        shell: bash
+        env:
+          API_URL: ${{ forgejo.server_url }}/api/v1/repos/${{ forgejo.repository }}
+          GIT_TOKEN: ${{ forgejo.token }}
+          EVENT: ${{ forgejo.event_name }}
+          PR_NUMBER: ${{ forgejo.event.pull_request.number }}
+        run: |-
+          set -euo pipefail
+          if [ "$EVENT" = pull_request ]; then
+            files=""; page=1
+            while :; do
+              batch=$(curl -sf -H "Authorization: token ${GIT_TOKEN}" "${API_URL}/pulls/${PR_NUMBER}/files?limit=50&page=${page}" | jq -r '(. // [])[] | select(.status != "removed") | .filename')
+              [ -n "$batch" ] || break
+              files+="${batch}"$'\n'; page=$((page + 1))
+            done
+          else
+            files=$(ls .forgejo/workflows/*.yaml)
+          fi
+          workflows=$(grep -E '^\.forgejo/workflows/[^/]+\.ya?ml$' <<<"$files" | tr '\n' ' ' || true)
+          actions=$(grep -E '^\.forgejo/actions/.+/action\.ya?ml$' <<<"$files" | tr '\n' ' ' || true)
+          printf 'workflows: %s\nactions: %s\n' "$workflows" "$actions"
+          echo "workflows=${workflows}" >> "$FORGEJO_OUTPUT"
+          echo "all=${workflows}${actions}" >> "$FORGEJO_OUTPUT"
+
+      # actionlint only knows GitHub Actions, so Forgejo's full-URL `uses:` and its `forgejo.*`
+      # context are ignored; everything else is still checked. Same flags as the containers repo.
+      - name: actionlint
+        if: steps.files.outputs.workflows != ''
+        shell: bash
+        env:
+          FILES: ${{ steps.files.outputs.workflows }}
+        run: |-
+          read -r -a files <<<"$FILES"
+          actionlint -config-file .forgejo/actionlint.yaml \
+            -ignore 'specifying action ".+" in invalid format' \
+            -ignore 'undefined variable "forgejo"' \
+            "${files[@]}"
+
+      # Same flags as the zizmor step in hk.pkl. --offline: the online audits resolve `uses:`
+      # against github.com, and Forgejo's full-URL form parses as the bare host.
+      - name: zizmor
+        if: steps.files.outputs.all != ''
+        shell: bash
+        env:
+          FILES: ${{ steps.files.outputs.all }}
+        run: |-
+          read -r -a files <<<"$FILES"
+          zizmor --offline --no-progress --min-severity=high --config zizmor.yml "${files[@]}"

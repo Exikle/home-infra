@@ -164,6 +164,15 @@ still applies the per-cluster `valuesFrom` ConfigMaps (`app-structure.md` § Per
 
 ---
 
+## `lint` — the workflow files themselves
+
+`.forgejo/workflows/lint.yaml` runs on a pull request that changes `.forgejo/`, or by hand. It
+runs actionlint and zizmor on the workflow and action files that the pull request changes. A
+manual run checks every workflow. Both tools use the same flags as their steps in `hk.pkl`, so the
+pre-commit hook and CI agree. actionlint reads `.forgejo/actionlint.yaml`, copied from `Exikle/containers`.
+
+It exists because Renovate's pin bumps never run the local hooks. It is not a required check.
+
 ## Signing is load-bearing
 
 The OCIRepository of `flux-system` sets `verify.provider: cosign` with

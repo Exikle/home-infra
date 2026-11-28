@@ -1,0 +1,9 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/actionlint.json
+self-hosted-runner:
+  labels:
+    - docker
+    - buildkit
+    - docker-arm64
+    - multiarch
+    - talos

@@ -52,6 +52,12 @@ local linters = new Mapping<String, Step> {
     check = "zizmor --offline --no-progress --min-severity=high --config zizmor.yml {{files}}"
     fix = null
   }
+  // actionlint only knows GitHub Actions, so Forgejo's full-URL `uses:` and its `forgejo.*`
+  // context are ignored. Same flags as .forgejo/workflows/lint.yaml.
+  ["actionlint"] {
+    glob = ".forgejo/workflows/*.yaml"
+    check = #"actionlint -config-file .forgejo/actionlint.yaml -ignore 'specifying action ".+" in invalid format' -ignore 'undefined variable "forgejo"' {{files}}"#
+  }
   // Refuses to commit a plaintext *.tfstate (OpenTofu native encryption).
   ["tfstate-encrypted"] {
     glob = "**/*.tfstate"
