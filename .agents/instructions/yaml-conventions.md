@@ -225,7 +225,7 @@ the rules. It does not define them.
 ## No Comments in Manifests
 
 Manifests carry configuration, not prose. Do not add explanatory comments to anything under
-`kube/`, or to the repo-root `.renovaterc.json5`. That means no rationale, no incident
+`kube/`, to the repo-root `.renovaterc.json5`, or to the files in `.renovate/`. That means no rationale, no incident
 history, no "keep this ordered" warnings, and no commented-out alternatives. Rationale belongs in
 `.agents/references/<topic>.md`. There it is searchable and reviewable, and no one must re-read it
 on every manifest edit.

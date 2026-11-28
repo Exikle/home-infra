@@ -1,6 +1,11 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["local>exikle/renovate-config", "local>exikle/renovate-config:cluster"],
+  extends: [
+    "local>exikle/renovate-config",
+    "local>exikle/renovate-config:cluster",
+    "local>exikle/home-infra//.renovate/frostlink.json5",
+    "local>exikle/home-infra//.renovate/apps/vchord.json5",
+  ],
   platformAutomerge: true,
   rebaseWhen: "conflicted",
   ignorePaths: ["kube/clusters/frostlink/**/*.secret.*", "kube/clusters/frostlink/**/resources/**"],
@@ -14,78 +19,4 @@
   "ansible-galaxy": {
     managerFilePatterns: ["ansible/requirements.yml"],
   },
-  packageRules: [
-    {
-      description: "Frostlink: container digests do not auto-merge by default, only trusted ones below",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["docker"],
-      matchUpdateTypes: ["digest"],
-      automerge: false,
-    },
-    {
-      description: "Frostlink: auto-merge trusted container digests",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["docker"],
-      matchUpdateTypes: ["digest"],
-      matchPackageNames: ["/home-operations/"],
-      automerge: true,
-      ignoreTests: false,
-    },
-    {
-      description: "Frostlink: Grafana dashboards do not auto-merge",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["custom.grafana-dashboards"],
-      automerge: false,
-    },
-    {
-      description: "Frostlink: update at any time, not only in the Artemis window",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      schedule: ["at any time"],
-    },
-    {
-      description: "Frostlink: hold Talos for 7 days before opening the PR",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchPackageNames: ["siderolabs/talos"],
-      minimumReleaseAge: "7 days",
-    },
-    {
-      description: "Never auto-merge tuppr-driven Talos or Kubernetes upgrades",
-      matchFileNames: ["kube/clusters/frostlink/apps/system-upgrade/tuppr/upgrades/**"],
-      automerge: false,
-      minimumReleaseAge: "7 days",
-      prBodyNotes: [
-        "> ⛔ **Do not automerge.** tuppr rolls this Talos or Kubernetes upgrade onto the only node.",
-      ],
-    },
-    {
-      description: "Frostlink: hold the Kubernetes group for 7 days before opening the PR",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      matchDatasources: ["docker"],
-      matchPackageNames: [
-        "/siderolabs\\/kubelet/",
-        "/kube-apiserver/",
-        "/kube-controller-manager/",
-        "/kube-scheduler/",
-        "/kube-proxy/",
-      ],
-      minimumReleaseAge: "7 days",
-    },
-    {
-      description: "Frostlink: CNPG group — batches the updates that recreate the single Postgres instance",
-      matchFileNames: ["kube/clusters/frostlink/**"],
-      groupName: "cnpg",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["/cloudnative-pg/"],
-      group: {
-        commitMessageTopic: "{{{groupName}}} group",
-      },
-      schedule: ["* 4-6 * * 6"],
-    },
-    {
-      description: "The vchord Database version follows ghcr.io/home-operations/vchord, not the cnpg preset's vchord-scratch",
-      matchDatasources: ["docker"],
-      matchPackageNames: ["ghcr.io/tensorchord/vchord-scratch"],
-      enabled: false,
-    },
-  ],
 }

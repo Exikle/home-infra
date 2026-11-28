@@ -1,13 +1,23 @@
 # Renovate — Preset Pinning, Automerge Policy, Per-App Guards
 
-The Renovate rules live in three places. `.renovaterc.json5` at the repo root has no prose on
-purpose. Every "why" below was once a comment block in that file.
+The Renovate rules live in three places. The files in this repo have no prose on purpose. Every
+"why" below was once a comment block in `.renovaterc.json5`.
 
-| Layer          | Where                                      | What it holds                                                                                                                                       |
-| -------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared default | `default.json` in `exikle/renovate-config` | The policy that every repo on git.dcunha.io shares                                                                                                  |
-| Cluster preset | `cluster.json` in `exikle/renovate-config` | The rules that only Artemis and Frostlink share                                                                                                     |
-| This repo      | `.renovaterc.json5`                        | The schedule, the PR body, the manager scopes, and the Frostlink rules scoped to `kube/clusters/frostlink/**`. Its `packageRules` come last and win |
+| Layer          | Where                                      | What it holds                                                                                                   |
+| -------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Shared default | `default.json` in `exikle/renovate-config` | The policy that every repo on git.dcunha.io shares                                                              |
+| Cluster preset | `cluster.json` in `exikle/renovate-config` | The rules that only Artemis and Frostlink share                                                                 |
+| This repo      | `.renovaterc.json5` and `.renovate/`       | The root file holds the schedule, the PR body and the manager scopes, and it extends every file in `.renovate/` |
+
+`.renovate/` holds the `packageRules` of this repo, one file per topic:
+
+- `.renovate/frostlink.json5` holds the Frostlink rules, scoped to `kube/clusters/frostlink/**`.
+- `.renovate/apps/<app>.json5` holds the rules for one app or one upstream preset.
+
+The root file extends them after the two shared presets, so their rules come last and win. Renovate
+reads them from `main` as `local>exikle/home-infra//.renovate/<file>`. A change on a branch has no
+effect until it reaches `main`. A new file in `.renovate/` has no effect until the root file
+extends it.
 
 The shared presets are at <https://git.dcunha.io/exikle/renovate-config>. Read `default.json` and
 `cluster.json` there for the rules themselves. This doc does not restate them. If the doc and the
@@ -145,8 +155,10 @@ and minor rules. It then silently drifts away from the version that it renders c
 The pin
 exists to prevent exactly that drift.
 
-No preset groups the mise tools. So the `groupName: "talos"` of this rule puts the CLI pin in the
-Talos PR, beside the installer image.
+`cluster.json` puts every mise tool in one `mise tools` group. The Talos rule comes after that
+group rule, and the later rule wins. So the `groupName: "talos"` of this rule still puts the CLI
+pin in the Talos PR, beside the installer image. Do not move the `mise tools` rule below the Talos
+rule.
 
 ### pocket-id — the operator halts on an unsupported version
 
@@ -197,6 +209,11 @@ preset ships no guard. So the guard is on the shared minor-automerge rule in `de
 
 Without the guard, 0.x minors on core infrastructure automerge to production unattended.
 
+`cluster.json` makes one exception. The 0.x minors of the VictoriaMetrics charts, flux-operator
+and flux-instance automerge. These publishers ship a 0.x minor almost every week, and the open PRs
+piled up. Both clusters get the exception, because these charts live in `kube/base/`. Every other
+0.x package keeps the guard.
+
 The labels do not follow that split. The `type/*` labels come from the `packageRules` of
 `default.json`, and each one matches on `updateType`. So a 0.x minor gets `type/minor`, although
 its title carries the breaking `!`. The `prHeader` here also says `🔵 minor`, because it picks its
@@ -225,7 +242,7 @@ v3.
 Dashboard revisions are bare integers, so every bump reads as `major`. That is the shape of the
 datasource, not a breaking change. For this reason, `cluster.json` sets `automerge: true` and
 `ignoreTests: true` on `matchDatasources: ["custom.grafana-dashboards"]` +
-`matchUpdateTypes: ["major"]`. `.renovaterc.json5` turns this off for Frostlink.
+`matchUpdateTypes: ["major"]`. `.renovate/frostlink.json5` turns this off for Frostlink.
 
 This repo has no `automergeType` override. For why `branch` is not an option, read
 Commit Signing — Model A above.
@@ -252,7 +269,7 @@ reads the monthly PR.
 
 Every shared group lives in `cluster.json` of `exikle/renovate-config`. To list them, run
 `git -C ~/renovate-config show origin/main:cluster.json | grep -n groupName`. The only local group
-is the Frostlink `cnpg` group in `.renovaterc.json5` (§ Frostlink). For `minimumGroupSize`, read
+is the Frostlink `cnpg` group in `.renovate/frostlink.json5` (§ Frostlink). For `minimumGroupSize`, read
 the last paragraph of § Schedule and release age.
 
 ---
@@ -351,7 +368,9 @@ label-based PR-review merge job that read those labels was retired on 2026-11-16
 commit `f27e27f`). kritika reviews PRs now (§ AI review on pull requests). `default.json` still
 names the old job in two descriptions.
 
-`minimumGroupSize: 2` does not raise a lone update as its own PR. Renovate holds it on the
+A group with `minimumGroupSize` does not raise a smaller set of updates as its own PR. The
+`kubernetes` group needs 5 updates and `flux-operator` needs 3, so a partial release waits until
+the whole set moves. Renovate holds it on the
 Dependency Dashboard under _Group Size Not Met_ until someone ticks its checkbox. `envoy-gateway`
 matches only one package, so it has no `minimumGroupSize`. For the groups that keep it: if a
 single-package bump seems overdue, look in that dashboard section.
@@ -423,7 +442,7 @@ second copy that drifts.
 Neither `flate` nor the schema finds a broken handlebars template. The slot only renders empty.
 
 ```bash
-npx --yes --package renovate@<version> renovate-config-validator .renovaterc.json5
+npx --yes --package renovate@<version> renovate-config-validator --strict .renovaterc.json5 .renovate/*.json5 .renovate/apps/*.json5
 ```
 
 That command checks the configuration shape. To check the template output itself, compile
@@ -467,7 +486,7 @@ approve its own PR. The gate is the `Kritika / Review` status:
 the gate with `ignoreTests: true`:
 
 - Grafana dashboards on Artemis (`cluster.json`) automerge, even though every revision is a
-  major. That is accepted, because a dashboard is read-only. `.renovaterc.json5` turns this off for
+  major. That is accepted, because a dashboard is read-only. `.renovate/frostlink.json5` turns this off for
   Frostlink.
 - Forgejo Actions (`default.json`) automerge the same way.
 
@@ -600,7 +619,7 @@ over waiting for v45. Also, if the team missed an internal host, enforcement sto
 
 ## Where Artemis and Frostlink deliberately differ
 
-The two clusters share one `.renovaterc.json5`, and the mechanisms are similar. So the
+The two clusters share one Renovate configuration, and the mechanisms are similar. So the
 differences are easy to copy wrongly. The rules of Frostlink are scoped to
 `kube/clusters/frostlink/**` (§ Frostlink below). These differences are intentional:
 
@@ -619,7 +638,7 @@ Before you "harmonise" a row, read the rationale of both files for it.
 
 ## Frostlink
 
-Frostlink has no `.renovaterc.json5` of its own. Its rules sit in the root file and carry
+Frostlink has no Renovate configuration of its own. Its rules sit in `.renovate/frostlink.json5` and carry
 `matchFileNames: ["kube/clusters/frostlink/**"]`. Read the file for the rules. This section holds
 only the reasons. The two cluster presets and the guards above apply to both clusters.
 
@@ -640,9 +659,10 @@ only the reasons. The two cluster presets and the guards above apply to both clu
 - Talos version in two places: `talosupgrade.yaml` and the talosctl pin. The package-level Talos
   rule keeps the CLI from drifting. The reason is that an old client rejects a newer configuration
   document (`oci-talos.md`, the client-version note at the top).
-- 0.x guard matters here. Most of the control plane is 0.x (flux-operator, kopiur, ksgate,
-  dragonfly-operator, both victoria-metrics charts). Without the zer0ver guard, a 0.x minor merges
-  unattended.
+- 0.x guard matters here. Most of the control plane is 0.x (kopiur, ksgate, dragonfly-operator).
+  Without the zer0ver guard, a 0.x minor merges unattended. flux-operator and the
+  victoria-metrics charts are the exception (§ The zer0ver guard). Their 0.x minors automerge on
+  Frostlink too.
 - Container digests. Only trusted digests (`/home-operations/`) automerge. Other digests wait for a
   human.
 - Update window. Frostlink updates at any time, not only in the Artemis window.

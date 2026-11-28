@@ -51,7 +51,7 @@ instances. Nobody measured these numbers again against a switchover.
 | --------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/database/postgres/cluster/pooler.yaml`        | `server_login_retry: "0"`                  | Stops pgbouncer from giving a cached login failure after the primary returns. At the default `15`, the bridges crash-loop for the whole window.                                        |
 | `apps/matrix/mautrix-{signal,whatsapp}` helmrelease | `timeoutSeconds: 5`, `failureThreshold: 6` | The liveness probe is a bare TCP connect with `periodSeconds: 30`. Unset, it uses a 1s timeout and 3 failures. That is 90s of tolerance, less than a Postgres restart. Now it is 180s. |
-| `.renovaterc.json5`                                 | CNPG group, `schedule: ["* 4-6 * * 6"]`    | Puts the bumps that roll the primary into one weekly window. So the break is predictable and rare. It does not prevent the break.                                                      |
+| `.renovate/frostlink.json5`                         | CNPG group, `schedule: ["* 4-6 * * 6"]`    | Puts the bumps that roll the primary into one weekly window. So the break is predictable and rare. It does not prevent the break.                                                      |
 
 A liveness probe is for a deadlock, not for a dependency outage. A database that is gone for a
 short time is a readiness matter. The probes stay, with looser values, because the bridges do not
