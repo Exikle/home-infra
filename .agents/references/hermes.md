@@ -51,9 +51,9 @@ dashboard (checked on v0.22). It keeps the main process alive with `sleep infini
 then stays alive only because the s6 shutdown hangs. So every rollout sends SIGKILL to the gateway
 after the 120s grace period.
 
-`$HOME` is `/opt/data`. That is the `hermes` PVC (4Gi `miroir`, `existingClaim: hermes` from
-`components/kopiur/backup`). The PVC holds the home directory, the plugin, the skill library, the
-cron state and the session history. For this reason `Recreate` is mandatory, because a
+`$HOME` is `/opt/data`. That is the `data` claim of the `hermes` StatefulSet (`components/kopiur/statefulset`, see
+`kopiur.md` § Backing up an app). The volume holds the home directory, the plugin, the skill
+library, the cron state and the session history. For this reason `Recreate` is mandatory, because a
 RollingUpdate deadlocks on Multi-Attach. For the same reason the volume has a backup.
 
 There are two routes. Both are on `edge-gateway`, which is public through towonel:

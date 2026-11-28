@@ -18,13 +18,12 @@ spec:
   retryInterval: 1m
   components:
     - ../../../../components/zeroscaler
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 5Gi
+      CONTROLLER: StatefulSet
       KOPIUR_PGID: "100"
       KOPIUR_PUID: "99"
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false

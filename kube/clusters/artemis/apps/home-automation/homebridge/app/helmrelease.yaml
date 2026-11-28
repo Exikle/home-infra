@@ -33,8 +33,22 @@ spec:
           type: RuntimeDefault
     controllers:
       homebridge:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /homebridge
         containers:
           app:
             image:
@@ -66,10 +80,6 @@ spec:
               capabilities: { drop: ["ALL"] }
               readOnlyRootFilesystem: true
     persistence:
-      data:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /homebridge
       tmp:
         type: emptyDir
         advancedMounts:

@@ -4,6 +4,22 @@ defaultPodOptions:
 
 controllers:
   apoci:
+    type: statefulset
+    statefulset:
+      podManagementPolicy: Parallel
+      volumeClaimTemplates:
+        - name: data
+          accessMode: ReadWriteOnce
+          dataSourceRef:
+            apiGroup: kopiur.home-operations.com
+            kind: Restore
+            name: "{{ .Release.Name }}"
+          size: 15Gi
+          storageClass: miroir
+          advancedMounts:
+            app:
+              - path: /data
+                subPath: data
     containers:
       app:
         env:
@@ -38,13 +54,6 @@ externalSecrets:
           APOCI_ADMIN_TOKEN: "{{ .ADMIN_TOKEN }}"
 
 persistence:
-  data:
-    existingClaim: apoci
-    advancedMounts:
-      apoci:
-        app:
-          - path: /data
-            subPath: data
   tmpfs:
     type: emptyDir
     advancedMounts:

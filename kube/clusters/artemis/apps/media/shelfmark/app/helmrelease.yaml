@@ -19,8 +19,20 @@ spec:
         runAsUser: 1000
     controllers:
       shelfmark:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 1Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -131,10 +143,6 @@ spec:
               BOOKLORE_PASSWORD: "{{ .ALCOVE_SHELFMARK_TOKEN }}"
               SHELFMARK_API_KEY: "{{ .SHELFMARK_API_KEY }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /config
       media:
         type: nfs
         path: /mnt/atlas/media

@@ -25,6 +25,17 @@ spec:
         type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
         pod:
           annotations:
             k8s.v1.cni.cncf.io/networks: |-
@@ -91,10 +102,6 @@ spec:
               FRIGATE_RTSP_PASSWORD: "{{ .FRIGATE_RTSP_PASSWORD }}"
               FRIGATE_OWLTRON_RTSP_PASSWORD: "{{ .ONVIF }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /config
       config-file:
         type: configMap
         name: frigate-config

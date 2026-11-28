@@ -30,8 +30,22 @@ spec:
         runAsUser: 1000
     controllers:
       bambuddy:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 10Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /app/data
         containers:
           app:
             image:
@@ -75,10 +89,6 @@ spec:
                   - ALL
               readOnlyRootFilesystem: true
     persistence:
-      data:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/data
       logs:
         type: emptyDir
         globalMounts:

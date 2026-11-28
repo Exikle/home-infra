@@ -50,5 +50,7 @@ failure. `cluster-conventions.md` § Common Mistakes — Quick Reference has the
 
 ## KOPIUR_CAPACITY in wrong place
 
-`KOPIUR_CAPACITY` must be in `ks.yaml` under `postBuild.substitute`, not in the `persistence` spec
-of the app. The kopiur component reads it as `${KOPIUR_CAPACITY:=5Gi}`.
+Frostlink only. `KOPIUR_CAPACITY` must be in `ks.yaml` under `postBuild.substitute`, not in the
+`persistence` spec of the app. The kopiur component reads it as `${KOPIUR_CAPACITY:=5Gi}`. On
+Artemis the size is in the claim template of the StatefulSet (`.agents/references/kopiur.md`
+§ Backing up an app).

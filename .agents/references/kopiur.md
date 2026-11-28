@@ -14,11 +14,11 @@ clusters by copying the setting of one onto the other.
 
 VolSync is gone. `AGENTS.md` § "What was deliberately removed" is the home for that fact, and it
 wins. Every backed-up app uses kopiur against `ClusterRepository/atlas` (NFS
-`10.10.99.100:/mnt/atlas/Kopiur`). `grep -rln 'components/kopiur/backup' kube/clusters/artemis/apps/` lists
+`10.10.99.100:/mnt/atlas/Kopiur`). `grep -rln 'components/kopiur/statefulset' kube` lists
 them. The old VolSync kopia repo stays on the NAS at `atlas/VolsyncKopia` as a frozen historical
 fallback. To restore from it, you need a manual kopia client.
 
-These are the component defaults (`kube/clusters/artemis/components/kopiur/backup/`). No manifest
+These are the component defaults (`kube/clusters/artemis/components/kopiur/statefulset/`). No manifest
 states them in one place:
 
 | Setting        | Default                                                | Override var                                              |
@@ -27,12 +27,13 @@ states them in one place:
 | Retention      | 5 latest / 24 hourly / 30 daily / 8 weekly / 6 monthly | None. Edit the component.                                 |
 | `copyMethod`   | `Snapshot` (VolumeSnapshot clone)                      | None                                                      |
 | Compression    | `zstd`                                                 | None                                                      |
-| PVC capacity   | `5Gi`                                                  | `KOPIUR_CAPACITY`                                         |
-| StorageClass   | `miroir`                                               | `KOPIUR_STORAGECLASS` (app PVC only)                      |
+| Claim name     | `config`                                               | `KOPIUR_CLAIM`                                            |
 | Staging class  | `miroir-local`                                         | `KOPIUR_STAGING_STORAGECLASS`                             |
 | Snapshot class | `miroir`                                               | `KOPIUR_SNAPSHOTCLASS`                                    |
 | Mover uid/gid  | `1000` / `1000`                                        | `KOPIUR_PUID` / `KOPIUR_PGID`                             |
-| Access modes   | `ReadWriteOnce`                                        | `KOPIUR_ACCESSMODES`                                      |
+
+The size and the StorageClass of the app volume are not component settings. They live in the
+`volumeClaimTemplates` entry of the app (§ Backing up an app).
 
 The retention here is deeper than the retention of Frostlink on purpose. Frostlink keeps less,
 because R2 is metered (`openebs-zfs.md` § Schedule and retention).
@@ -83,17 +84,38 @@ the 56 snapshots of that app behind on purpose, rather than purge them by hand.
 this worked. `status.catalog.lastRefreshAt` lags by up to `catalog.refreshInterval` (1h), so the
 number stays stale for an hour. Read the `kopiur-controller` logs instead.
 
-- Reference the component in the `ks.yaml` components: `../../../../components/kopiur/backup`
-- Set the PVC size in the `ks.yaml` postBuild substitute `KOPIUR_CAPACITY`, not in the app
-  manifests.
+### Backing up an app
+
+An app that kopiur backs up runs as a StatefulSet. Its `volumeClaimTemplates` entry restores from
+kopiur when the claim is created. This is the pattern of szinn/k8s-homelab and
+onedr0p/home-ops. `kube/clusters/artemis/apps/media/thelounge/` is a small example.
+
+- In the `ks.yaml`, add `../../../../components/kopiur/statefulset` to the components.
+- In the HelmRelease, set the controller to `type: statefulset` with
+  `statefulset.podManagementPolicy: Parallel`. Add a `volumeClaimTemplates` entry with `size`,
+  `storageClass: miroir` and a `dataSourceRef` of `apiGroup: kopiur.home-operations.com`,
+  `kind: Restore`, `name: "{{ .Release.Name }}"`. The size and the StorageClass live there.
+  `KOPIUR_CAPACITY`, `KOPIUR_STORAGECLASS` and `KOPIUR_ACCESSMODES` do not exist.
+- Name the workload `${APP}`. The `SnapshotPolicy` backs up
+  `${KOPIUR_CLAIM:=config}-${APP}-0` with `sourcePathOverride: /pvc/${APP}`, so the old kopia
+  history stays. A multi-controller app sets `forceRename: <app>` on the controller that owns the
+  claim (`sparkyfitness`).
+- The claim template is named `config` by default. If the app already has a persistence key with
+  that name, such as a secret or a ConfigMap, name the template `data` and set `KOPIUR_CLAIM: data`
+  in the postBuild substitute. If you do not, the template silently replaces that volume. apoci
+  lost its config file this way. `cortex/cliproxyapi` and `cortex/hermes` use `data`.
+- A template with no mounts mounts at `/<name>` in every container. To mount it elsewhere, use
+  `advancedMounts` on the template. It is keyed by the container name directly, with no controller
+  level.
+- A zeroscaler app adds `CONTROLLER: StatefulSet` to the postBuild substitute.
+- A large restore needs `timeout: 30m` on the HelmRelease. The Helm default of 5m times out and
+  rolls the release back. apoci has 5.5 GB.
 - Each backed-up namespace also needs `../../components/kopiur/secret` in its namespace
   kustomization. The mover reads the repo password from its own namespace (`envFrom` is
   namespace-local). So the Secret name is fixed and cannot be per-app.
-- In the HelmRelease, the PVC is `existingClaim: <app>`.
 - Mover uid: it defaults to 1000. Override it with `KOPIUR_PUID` and `KOPIUR_PGID` only when
   something else owns the on-disk data of the app. Read the actual ownership. Never trust the
-  `fsGroup` of the pod, because it misleads. apoci reported 999, but its data was 1000. pocket-id
-  reported 65534, but its data was 1000. With `copyMethod: Snapshot`, the source clone is mounted
+  `fsGroup` of the pod, because it misleads. apoci reported 999, but its data was 1000. With `copyMethod: Snapshot`, the source clone is mounted
   read-only, so the kubelet cannot chgrp it. A mismatched mover gets permission denied. The
   `fsGroup` of the mover also owns the cache PVC, and the mover must be able to write to it. To
   list the apps that override the uid, run `grep -rn KOPIUR_PUID kube/clusters/artemis/apps/`.
@@ -117,8 +139,8 @@ number stays stale for an hour. Read the `kopiur-controller` logs instead.
   cascade.
 - Do not recreate a Restore to pick up a newer snapshot on a bound PVC. It does not work. A
   populator gives a volume only to an _unbound_ claim. The source snapshot is pinned to
-  `status.resolved` at first resolution. To re-restore, delete the PVC (keep its `dataSourceRef`)
-  and let it be re-created. To re-resolve to a newer snapshot, delete and re-create the `Restore`.
+  `status.resolved` at first resolution. To re-restore, delete the PVC of the StatefulSet
+  (`<claim>-<app>-0`) and its pod. The StatefulSet creates the claim again from its template. To re-resolve to a newer snapshot, delete and re-create the `Restore`.
 - `restore.yaml` carries no `kustomize.toolkit.fluxcd.io/ssa: ignore`. Do not re-add it. Flux
   skips such objects entirely, so Flux never creates a Restore that carries it. `restore.yaml`
   keeps `mover.cache.mode: Ephemeral` and the mover identity block. Every app that overrides the
@@ -127,7 +149,28 @@ number stays stale for an hour. Read the `kopiur-controller` logs instead.
   one. For any cross-policy restore (a rename, or recovering the data of one app into another app),
   set `onMissingSnapshot: Fail`. Then a bad source resolution fails loudly. It does not silently
   bind an empty volume. The default is `Continue`. Create both the `Restore` and the PVC by hand.
-  Do not let `apply-ks` create the PVC.
+  Do not let `apply-ks` create the claim.
+
+### Moving an existing app onto the StatefulSet
+
+Use this procedure for an app that still has a standalone `<app>` PVC and an old `Restore`.
+Suspend the root Kustomization and the app Kustomization first (`AGENTS.md` rule 1).
+
+1. Scale the app to 0 (`scale-workload` in `tooling.md` § mise tasks).
+2. Run `snapshot-pvc` and make sure that the snapshot is `Succeeded`.
+3. Run `kubectl delete restore <app> -n <ns>`. A completed `Restore` stays pinned to its old
+   snapshot, so the new claim would restore stale data.
+4. If a StatefulSet named `<app>` already exists, run
+   `kubectl delete sts <app> -n <ns> --cascade=orphan`. The claim templates of a StatefulSet are
+   immutable.
+5. Run `apply-ks` and watch the restore.
+
+A restore mover sometimes hangs right after the log line "loaded work spec". Delete the populate
+Job, not the `Restore`. The populator then starts a fresh one. Flux prunes the old `<app>` PVC when
+the change lands.
+
+pocket-id does not use kopiur. It runs with `fileBackend: database`, so its files are in Postgres
+and it has no PVC.
 
 ### The kopia web UI is deliberately removed (2026-08-09)
 

@@ -19,8 +19,20 @@ spec:
         runAsUser: 1000
     controllers:
       sonarr:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -101,8 +113,6 @@ spec:
               SONARR__AUTH__APIKEY: "{{ .SONARR_API_KEY }}"
               SONARR__AUTH__OIDCUSERIDENTIFIER: "{{ .SONARR_OIDC_USER_ID }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
       scripts:
         type: configMap
         defaultMode: 0775

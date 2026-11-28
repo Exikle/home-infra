@@ -17,11 +17,10 @@ spec:
   interval: 1h
   components:
     - ../../../../components/zeroscaler
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 2Gi
+      CONTROLLER: StatefulSet
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false

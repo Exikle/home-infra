@@ -20,11 +20,10 @@ spec:
       namespace: security
   components:
     - ../../../../components/zeroscaler
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 1Gi
+      CONTROLLER: StatefulSet
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false

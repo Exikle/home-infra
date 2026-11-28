@@ -19,8 +19,20 @@ spec:
         runAsUser: 1000
     controllers:
       sabnzbd:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -59,8 +71,6 @@ spec:
               capabilities: { drop: ["ALL"] }
               readOnlyRootFilesystem: true
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
       media:
         type: nfs
         path: /mnt/atlas/media

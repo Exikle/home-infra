@@ -31,8 +31,20 @@ spec:
         runAsUser: 1000
     controllers:
       home-assistant:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
         initContainers:
           iot-v6-route:
             image:
@@ -111,10 +123,6 @@ spec:
               HASS_LONGITUDE: "{{ .LONGITUDE }}"
               HASS_PIRATE_WEATHER_API_KEY: "{{ .PIRATE_WEATHER_API_KEY }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /config
       config-cache:
         existingClaim: "{{ .Release.Name }}-cache"
         globalMounts:

@@ -19,8 +19,22 @@ spec:
         runAsUser: 1000
     controllers:
       cliproxyapi:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: data
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 1Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /data
         containers:
           app:
             image:
@@ -103,10 +117,6 @@ spec:
         globalMounts:
           - path: /etc/cliproxyapi
             readOnly: true
-      data:
-        existingClaim: cliproxyapi
-        globalMounts:
-          - path: /data
       tmp:
         type: emptyDir
         advancedMounts:

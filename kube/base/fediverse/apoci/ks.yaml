@@ -16,14 +16,13 @@ spec:
     name: apoci
   interval: 1h
   components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
     - ../../../../components/postgres/app
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 15Gi
+      KOPIUR_CLAIM: data
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false
   healthChecks:
     - apiVersion: helm.toolkit.fluxcd.io/v2

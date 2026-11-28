@@ -9,6 +9,7 @@ spec:
     kind: OCIRepository
     name: apoci
   interval: 1h
+  timeout: 30m
   valuesFrom:
     - kind: ConfigMap
       name: apoci-values

@@ -16,14 +16,12 @@ spec:
     name: frigate
   interval: 1h
   components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
     - ../../../../components/tinyauth
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 2Gi
       KOPIUR_PGID: "0"
       KOPIUR_PUID: "0"
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false

@@ -22,7 +22,7 @@ When you delete a PVC, you destroy the volume. `miroir` has `reclaimPolicy: Dele
 is gone when the PVC is gone. You cannot undo this.
 
 ```bash
-kubectl get pvc -n <ns> <app> -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}' --context artemis
+kubectl get pvc -n <ns> <claim>-<app>-0 -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}' --context artemis
 ```
 
 - `Restore/<app>`: the kopiur populator restores the volume. Continue.
@@ -98,9 +98,8 @@ The controller that recreates the PVC depends on where the PVC is defined:
 
 | PVC comes from                                                    | Recreate with                                                                      |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `components/kopiur/backup` (has `dataSourceRef`)                  | `flux reconcile kustomization -n <ns> <ks>`                                        |
 | app-template `persistence.<name>` (Helm)                          | `flux resume helmrelease …` then `flux reconcile helmrelease -n <ns> <hr> --force` |
-| StatefulSet `volumeClaimTemplates` (name ends `-<sts>-<ordinal>`) | Scale the STS back up.                                                             |
+| StatefulSet `volumeClaimTemplates` (name ends `-<sts>-<ordinal>`) | Scale the STS back up. For a kopiur app, see `references/kopiur.md`.               |
 
 On an upgrade with no changes, Helm does not recreate a resource that someone deleted outside Helm.
 The `--force` makes Helm put the PVC back.

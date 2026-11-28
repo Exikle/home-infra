@@ -33,6 +33,17 @@ spec:
         type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -55,10 +66,6 @@ spec:
                   - ALL
               readOnlyRootFilesystem: true
     persistence:
-      config:
-        existingClaim: mosquitto
-        globalMounts:
-          - path: /config
       config-file:
         type: configMap
         identifier: config

@@ -30,9 +30,30 @@ spec:
           type: RuntimeDefault
     controllers:
       hermes:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
         replicas: 1
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: data
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 4Gi
+              storageClass: miroir
+              advancedMounts:
+                cron-reconcile:
+                  - path: /opt/data
+                init:
+                  - path: /opt/data
+                install-memini:
+                  - path: /opt/data
+                app:
+                  - path: /opt/data
         initContainers:
           cron-reconcile:
             image:
@@ -398,18 +419,6 @@ spec:
               - path: /etc/hermes/.env
                 readOnly: true
                 subPath: env
-      data:
-        existingClaim: hermes
-        advancedMounts:
-          hermes:
-            cron-reconcile:
-              - path: /opt/data
-            init:
-              - path: /opt/data
-            install-memini:
-              - path: /opt/data
-            app:
-              - path: /opt/data
       run:
         type: emptyDir
         advancedMounts:

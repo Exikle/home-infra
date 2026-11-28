@@ -16,9 +16,8 @@ spec:
     name: bambuddy
   interval: 1h
   components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 10Gi
   wait: false

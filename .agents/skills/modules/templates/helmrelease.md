@@ -60,10 +60,6 @@ spec:
                                     - ALL
                             readOnlyRootFilesystem: true
         persistence:
-            data:
-                existingClaim: <app>
-                globalMounts:
-                    - path: /data
             tmp:
                 type: emptyDir
                 globalMounts:
@@ -81,6 +77,31 @@ spec:
                     http:
                         port: <port>
 ```
+
+## With kopiur backup (Artemis)
+
+Change the controller and add a claim template. The rest of the template stays.
+
+```yaml
+controllers:
+    <app>:
+        type: statefulset
+        statefulset:
+            podManagementPolicy: Parallel
+            volumeClaimTemplates:
+                - name: config
+                  size: <size>
+                  storageClass: miroir
+                  dataSourceRef:
+                      apiGroup: kopiur.home-operations.com
+                      kind: Restore
+                      name: "{{ .Release.Name }}"
+                  globalMounts:
+                      - path: /config
+```
+
+`.agents/references/kopiur.md` § Backing up an app has the rules: the claim name, the workload
+name, the mounts and the restore timeout.
 
 ## Gateways: pick by hostname suffix
 

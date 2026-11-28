@@ -56,7 +56,7 @@ Each further app migration is its own session. Use this doc when you do one.
 
     Use four `../`, not three. `../../../components/postgres/app` resolves outside the kustomize
     root, and the build fails. Every live consumer uses `../../../../`, the same depth as
-    `../../../../components/kopiur/backup`.
+    `../../../../components/kopiur/statefulset`.
 
     `PG_APP` is optional. It defaults to `${APP}`. Set it only when the database name is different
     from the app name. But every app must set `APP`, also an app that does not use kopiur. The
@@ -266,7 +266,7 @@ Dragonfly this way with no gates.
 3. Remove the old sidecar or embedded Redis or Valkey container, its config, and any PVC it had.
    Dragonfly needs none of that.
 4. Add the namespace of the app to `dragonfly-clients`
-   (`kube/clusters/artemis/apps/database/dragonfly/cluster/networkpolicy.yaml`).
+   (`kube/clusters/artemis/apps/database/dragonfly/cluster/networkpolicy-clients.yaml`).
 
     The dragonfly-operator generates its own `dragonfly` NetworkPolicy. The Dragonfly CR owns it,
     so you cannot manage it from git. Its 6379 ingress rule is a bare `podSelector: {}`. That means
@@ -441,7 +441,7 @@ commit. If you do, follow these rules:
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Always give it its own `walStorage` | If WAL shares the data disk and archiving lags (or is not configured), WAL fills the data PVC and the pod goes into CrashLoopBackOff. A separate volume turns a cluster-down event into a warning about a stalled archive. |
 | Connect via `<name>-rw`             | CNPG creates `<name>-rw` (read-write) and `<name>-ro` for you. `<name>` alone is not a Service.                                                                                                                            |
-| Back the data PVC up with kopiur    | Add `../../../../components/kopiur/backup` and point it at the CNPG PVC (`<name>-1`).                                                                                                                                      |
+| Back it up with barman              | Use the barman-cloud plugin, as the shared cluster does (`plugins` in its `cluster.yaml`). The kopiur component backs up an app StatefulSet claim, not a CNPG PVC.                                                         |
 
 ### Common issues — dedicated or shared
 
@@ -474,7 +474,7 @@ commit. If you do, follow these rules:
   need a temporary shim, patch the ExternalSecret spec.
 
 - All apps share one Dragonfly memory budget (`resources.limits.memory` in
-  `kube/clusters/artemis/apps/database/dragonfly/cluster/dragonfly.yaml`). There is no per-app
+  `kube/base/database/dragonfly/cluster/dragonfly.yaml`). There is no per-app
   quota. A DB index only prevents key collisions. It does not stop one app from evicting the keys
   of another. If the working set of one app fills the cache, Dragonfly can evict keys from the DB
   index of any other app.

@@ -30,8 +30,20 @@ spec:
         runAsUser: 1000
     controllers:
       esphome:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 1Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -80,10 +92,6 @@ spec:
             data:
               client-secret: "{{ .ESPHOME_CLIENT_SECRET }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /config
       secrets:
         type: secret
         externalSecretRef: secrets

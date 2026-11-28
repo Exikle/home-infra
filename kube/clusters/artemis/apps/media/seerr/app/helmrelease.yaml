@@ -19,8 +19,22 @@ spec:
         runAsUser: 1000
     controllers:
       app:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /app/config
         containers:
           app:
             image:
@@ -90,10 +104,6 @@ spec:
             data:
               APIKEY: "{{ .SEERR_API_KEY }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /app/config
       tmp:
         type: emptyDir
         advancedMounts:

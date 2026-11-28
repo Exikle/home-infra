@@ -20,16 +20,15 @@ spec:
       namespace: security
   components:
     - ../../../../components/zeroscaler
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
     - ../../../../components/postgres/app
     - ../../../../components/envoy-oidc
     - ../../../../components/envoy-oidc-groups
   postBuild:
     substitute:
       APP: *app
-      KOPIUR_CAPACITY: 2Gi
+      CONTROLLER: StatefulSet
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
       OIDC_CLIENT_SECRET: bazarr-tinyauth-oidc
       OIDC_ISSUER: auth.dcunha.io
   wait: false

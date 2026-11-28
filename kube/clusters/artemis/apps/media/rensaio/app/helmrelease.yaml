@@ -16,8 +16,20 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
     controllers:
       rensaio:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 5Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -92,10 +104,6 @@ spec:
               runAsUser: 99
               runAsGroup: 100
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
-        globalMounts:
-          - path: /config
       media:
         type: nfs
         path: /mnt/atlas/media

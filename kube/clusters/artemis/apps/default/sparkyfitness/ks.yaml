@@ -38,7 +38,7 @@ spec:
       namespace: security
   components:
     - ../../../../components/postgres/app
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
   postBuild:
     substitute:
       APP: *app

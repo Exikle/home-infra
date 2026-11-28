@@ -16,12 +16,10 @@ spec:
     name: home-assistant
   interval: 1h
   components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
     - ../../../../components/postgres/app
   postBuild:
     substitute:
       APP: home-assistant
-      KOPIUR_CAPACITY: 2Gi
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false

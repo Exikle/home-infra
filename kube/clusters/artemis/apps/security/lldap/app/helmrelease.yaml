@@ -19,8 +19,22 @@ spec:
         runAsUser: 1000
     controllers:
       lldap:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 1Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /data
         containers:
           app:
             image:
@@ -57,10 +71,6 @@ spec:
           kind: ClusterSecretStore
           name: onepassword-connect
     persistence:
-      data:
-        existingClaim: lldap
-        globalMounts:
-          - path: /data
       tmp:
         type: emptyDir
         advancedMounts:

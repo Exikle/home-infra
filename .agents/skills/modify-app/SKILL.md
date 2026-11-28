@@ -50,15 +50,15 @@ find kube/clusters/artemis/apps/<namespace>/<app> -type f | sort
 
 Each kind of change lives in one file:
 
-| Changing            | File                                                                     |
-| ------------------- | ------------------------------------------------------------------------ |
-| Image tag or digest | `app/helmrelease.yaml` → `controllers.<name>.containers.app.image`       |
-| Route / hostname    | `app/helmrelease.yaml` → inline under `route.app`, never a separate file |
-| Resources, probes   | `app/helmrelease.yaml`                                                   |
-| PVC size            | `ks.yaml` → `postBuild.substitute.KOPIUR_CAPACITY`, or the app's own PVC |
-| Adding a component  | `ks.yaml` → `components:` and the matching `postBuild.substitute` keys   |
-| Secret fields       | `app/helmrelease.yaml` → `externalSecrets.<id>`                          |
-| Chart version       | `app/ocirepository.yaml` → `ref.tag` (bare version, no SHA)              |
+| Changing            | File                                                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| Image tag or digest | `app/helmrelease.yaml` → `controllers.<name>.containers.app.image`                          |
+| Route / hostname    | `app/helmrelease.yaml` → inline under `route.app`, never a separate file                    |
+| Resources, probes   | `app/helmrelease.yaml`                                                                      |
+| PVC size            | `app/helmrelease.yaml` → the claim template `size` (Frostlink: `ks.yaml` `KOPIUR_CAPACITY`) |
+| Adding a component  | `ks.yaml` → `components:` and the matching `postBuild.substitute` keys                      |
+| Secret fields       | `app/helmrelease.yaml` → `externalSecrets.<id>`                                             |
+| Chart version       | `app/ocirepository.yaml` → `ref.tag` (bare version, no SHA)                                 |
 
 ## Step 2: Capture the live baseline first
 
@@ -148,8 +148,10 @@ first. It wins where it differs from the shared conventions.
   Kustomization overwrites every child's `spec.patches`.
 - Back up the data and get the user's go-ahead before you remove a component. When the ks has
   `prune: true`, Flux deletes what the component created. Almost every ks has it. If you drop
-  `components/kopiur/backup`, Flux deletes the `SnapshotPolicy`, the `SnapshotSchedule` and the
-  PVC. Deleting the PVC deletes the data of the app.
+  `components/kopiur/statefulset`, Flux deletes the `SnapshotPolicy`, the `SnapshotSchedule` and
+  the `Restore`. The claim of the StatefulSet stays, but it is no longer backed up. To move an
+  existing app onto the component, follow `references/kopiur.md` § Moving an existing app onto the
+  StatefulSet.
 - A change to the gateway of a route changes who can reach the app. Use exactly one of
   `internal-gateway` (LAN only) or `edge-gateway` (public). If you attach to both, you publish the
   app. `external-gateway` is legacy and takes no new routes. If you move a `*.dcunha.io` route to

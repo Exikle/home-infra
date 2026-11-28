@@ -19,8 +19,20 @@ spec:
         runAsUser: 1000
     controllers:
       zigbee:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 1Gi
+              storageClass: miroir
         containers:
           app:
             image:
@@ -89,8 +101,6 @@ spec:
               ZIGBEE2MQTT_CONFIG_ADVANCED_PAN_ID: "{{ .ZIGBEE2MQTT_CONFIG_ADVANCED_PAN_ID
                 }}"
     persistence:
-      config:
-        existingClaim: "{{ .Release.Name }}"
       tmp:
         type: emptyDir
         advancedMounts:

@@ -61,7 +61,7 @@ Their directory trees and tradeoffs are in `.agents/references/app-structure.md`
   `fsGroupChangePolicy: OnRootMismatch`.
 - Container security: `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`,
   `capabilities: {drop: ["ALL"]}`.
-- (Artemis) PVC: `existingClaim: <app>` when the app uses the kopiur component.
+- (Artemis) PVC: a StatefulSet `volumeClaimTemplates` entry when the app uses the kopiur component (`references/kopiur.md` § Backing up an app).
 - (Artemis) NFS media mount: the server, path and mount point are in
   `.agents/references/storage.md`.
 

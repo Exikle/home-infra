@@ -171,7 +171,7 @@ resources:
 
 On Artemis, add two more entries under `components` when an app in the namespace needs them:
 
-- `- ../../components/kopiur/secret` when an app uses `kopiur/backup`.
+- `- ../../components/kopiur/secret` when an app uses `kopiur/statefulset`.
 - `- ../../components/postgres/tenants` when an app uses `postgres/app`.
 
 Flux discovers the new namespace directory automatically. No other wiring is necessary.

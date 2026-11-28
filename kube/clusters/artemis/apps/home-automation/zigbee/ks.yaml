@@ -19,15 +19,13 @@ spec:
     - name: pocket-id-operator
       namespace: security
   components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
     - ../../../../components/envoy-oidc
     - ../../../../components/envoy-oidc-groups
   postBuild:
     substitute:
       APP: zigbee
-      KOPIUR_CAPACITY: 1Gi
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
       OIDC_CLIENT_SECRET: zigbee-tinyauth-oidc
       OIDC_ISSUER: auth.dcunha.io
   wait: false

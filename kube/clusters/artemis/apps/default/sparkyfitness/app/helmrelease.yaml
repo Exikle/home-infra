@@ -63,8 +63,27 @@ spec:
               capabilities: { drop: ["ALL"] }
               readOnlyRootFilesystem: true
       server:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        forceRename: sparkyfitness
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 5Gi
+              storageClass: miroir
+              advancedMounts:
+                app:
+                  - path: /app/SparkyFitnessServer/backup
+                    subPath: backup
+                  - path: /app/SparkyFitnessServer/uploads
+                    subPath: uploads
         containers:
           app:
             image:
@@ -176,15 +195,6 @@ spec:
               SPARKY_FITNESS_ADMIN_EMAIL: "{{ .ADMIN_EMAIL }}"
               SPARKY_FITNESS_API_ENCRYPTION_KEY: "{{ .API_ENCRYPTION_KEY }}"
     persistence:
-      config:
-        existingClaim: sparkyfitness
-        advancedMounts:
-          server:
-            app:
-              - path: /app/SparkyFitnessServer/backup
-                subPath: backup
-              - path: /app/SparkyFitnessServer/uploads
-                subPath: uploads
       nginx-cache:
         type: emptyDir
         advancedMounts:

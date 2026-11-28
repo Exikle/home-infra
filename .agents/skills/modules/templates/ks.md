@@ -56,15 +56,14 @@ dependsOn:
 
 ```yaml
 components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
 postBuild:
     substitute:
         APP: *app
-        KOPIUR_CAPACITY: <size>
 ```
 
-Set `KOPIUR_CAPACITY` only when the size is not `5Gi`. The component defaults it to `5Gi`
-(`yaml-conventions.md` § No Restating Defaults).
+The size and the StorageClass of the volume are in the HelmRelease, in the claim template
+(`.agents/references/kopiur.md` § Backing up an app).
 
 A Kustomization with kopiur sets `wait: false`. With `wait: true`, the kopiur `SnapshotSchedule`
 stalls the health checks (`.agents/references/flux-patterns.md` § kopiur CRs stall `wait: true`
@@ -111,11 +110,10 @@ spec:
         - name: onepassword-connect
           namespace: external-secrets
     components:
-        - ../../../../components/kopiur/backup
+        - ../../../../components/kopiur/statefulset
     postBuild:
         substitute:
             APP: *app
-            KOPIUR_CAPACITY: <size>
     wait: false
 ```
 
@@ -125,13 +123,13 @@ spec:
 `${...}` references in its own files
 (`grep -rho '\${[A-Z_]*' kube/clusters/<cluster>/components/<name>`).
 `grep -rln 'components/<name>' kube/clusters/<cluster>/apps/` shows which apps use it, with a
-working example. `kopiur/backup` renders a PVC, a `Restore`, a `SnapshotPolicy` and a
+working example. `kopiur/statefulset` renders a `Restore`, a `SnapshotPolicy` and a
 `SnapshotSchedule`. `envoy-oidc` needs `pocket-id-operator` in `dependsOn` and an
 `oidcclient.yaml` (see `add-oidc-app`).
 
 Two Artemis components also need a component in the namespace `kustomization.yaml`:
 
-- `kopiur/backup` needs `../../components/kopiur/secret` (`.agents/references/kopiur.md` § kopiur).
+- `kopiur/statefulset` needs `../../components/kopiur/secret` (`.agents/references/kopiur.md` § Backing up an app).
 - `postgres/app` needs `../../components/postgres/tenants` (`postgres-dragonfly.md` § Onboarding
   an app onto shared Postgres).
 

@@ -38,8 +38,22 @@ spec:
             value: "1000 1000"
     controllers:
       matter-server:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /data
         initContainers:
           iot-v6-route:
             image:
@@ -114,8 +128,6 @@ spec:
                   - ALL
               readOnlyRootFilesystem: true
     persistence:
-      data:
-        existingClaim: "{{ .Release.Name }}"
       tmp:
         type: emptyDir
         advancedMounts:

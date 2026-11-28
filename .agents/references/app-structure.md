@@ -97,7 +97,7 @@ controller.
 
 Do not template a fleet into a component or a ResourceSet unless the members are uniform. A
 component or ResourceSet is right when the resource skeleton is identical and only a few scalars
-vary. Examples are `components/kopiur/backup` (`${APP}`, `${KOPIUR_CAPACITY}`),
+vary. Examples are `components/kopiur/statefulset` (`${APP}`, `${KOPIUR_CLAIM}`),
 `components/postgres/*` (`${APP}`), and the `agentgateway-opencode-go` ResourceSet in
 `cortex/agentgateway/models/`. Members can differ in structure: different auth mechanisms, some
 with a workload and some without, per-member volumes or RBAC. In that case, templating hides the

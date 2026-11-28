@@ -55,12 +55,10 @@ spec:
     - name: pocket-id-operator
       namespace: security
   components:
-    - ../../../../components/kopiur/backup
+    - ../../../../components/kopiur/statefulset
     - ../../../../components/postgres/app
   postBuild:
     substitute:
       APP: paperless
-      KOPIUR_CAPACITY: 2Gi
       KOPIUR_SNAPSHOTCLASS: miroir
-      KOPIUR_STORAGECLASS: miroir
   wait: false

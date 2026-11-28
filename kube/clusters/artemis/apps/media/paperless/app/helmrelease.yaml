@@ -20,8 +20,22 @@ spec:
 
     controllers:
       paperless:
+        type: statefulset
         annotations:
           reloader.stakater.com/auto: "true"
+        statefulset:
+          podManagementPolicy: Parallel
+          volumeClaimTemplates:
+            - name: config
+              accessMode: ReadWriteOnce
+              dataSourceRef:
+                apiGroup: kopiur.home-operations.com
+                kind: Restore
+                name: "{{ .Release.Name }}"
+              size: 2Gi
+              storageClass: miroir
+              globalMounts:
+                - path: /data
         initContainers:
           init-run:
             image:
@@ -145,10 +159,6 @@ spec:
                 name: paperless
         refreshPolicy: CreatedOnce
     persistence:
-      config:
-        existingClaim: paperless
-        globalMounts:
-          - path: /data
       ocr:
         type: nfs
         path: /mnt/atlas/media/scanned-documents
