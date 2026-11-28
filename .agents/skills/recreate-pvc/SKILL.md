@@ -14,68 +14,78 @@ StorageClass parameters. The data comes back through the kopiur volume populator
 StorageClass parameters are set when the volume is provisioned. A change to the class does nothing
 to existing volumes. The only way that they get the change is a new PVC.
 
-Pass `--context artemis` to every `kubectl` and `flux` command below.
+A kopiur-backed app runs as a StatefulSet. Its PVC comes from a `volumeClaimTemplates` entry and is
+named `<claim>-<app>-0`. The claim is `config` by default, or `data` when the Kustomization sets
+`KOPIUR_CLAIM: data` (`kopiur.md` § Backing up an app). This skill uses `<pvc>` for that name.
 
-## Step 0: Establish the restore path FIRST
+Pass `--context artemis` to every `kubectl` and `flux` command below. Run every `mise run` task
+from your worktree.
+
+## Step 0: Make sure that a restore path exists
 
 When you delete a PVC, you destroy the volume. `miroir` has `reclaimPolicy: Delete`, so the old PV
 is gone when the PVC is gone. You cannot undo this.
 
 ```bash
-kubectl get pvc -n <ns> <claim>-<app>-0 -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}' --context artemis
+kubectl get pvc -n <ns> <pvc> -o jsonpath='{.spec.dataSourceRef.kind}/{.spec.dataSourceRef.name}{"\n"}' --context artemis
 ```
 
 - `Restore/<app>`: the kopiur populator restores the volume. Continue.
 - Empty: there is no restore path. If you delete the PVC, the data is lost for good. Continue only
-  for a cache that rebuilds itself, or when the user explicitly accepts the loss.
+  for a cache that rebuilds itself, or when the user accepts the loss.
 
-Then make sure that a snapshot exists AND is recent:
+## Step 1: Suspend Flux
 
-```bash
-kopiur snapshots list -n <ns> --context artemis | grep '^<app>-' | grep Succeeded | head -5
-```
-
-`Succeeded` does NOT mean that the snapshot can be restored. See Gotchas. Look at the age too. The
-populator has `policy.onMissingSnapshot: Continue`. So a missing snapshot gives a silently EMPTY
-volume, not an error.
-
-## Step 1: Stop whatever will fight the scale-down
-
-A scale to 0 does not stay by itself. Find what owns the replica count:
+Suspend the root Kustomization and the Kustomization of the app, in two calls (`AGENTS.md`
+rule 1). Otherwise a reconcile in the middle of these steps undoes them.
 
 ```bash
-kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.metadata.ownerReferences}' --context artemis
+mise run //kube/clusters/artemis:suspend-ks flux-system flux-system
+mise run //kube/clusters/artemis:suspend-ks <ns> <ks>
 ```
 
-| Owner                                                      | What to pause                                              |
-| ---------------------------------------------------------- | ---------------------------------------------------------- |
-| none (chart resource)                                      | `flux suspend helmrelease -n <ns> <app> --context artemis` |
-| an operator CR (`InferenceService`, `PocketIDInstance`, …) | Scale the operator to 0, then the app.                     |
+If an operator owns the workload instead of a chart, scale the operator to 0 first. A suspended
+Kustomization does not stop an operator from scaling the app back up. To find the owner, run
+`kubectl get sts -n <ns> <app> -o jsonpath='{.metadata.ownerReferences}' --context artemis`.
 
-`flux suspend kustomization` is NOT enough for a workload that a chart renders, because
-helm-controller restores the replicas. Also, `replicas: null` in app-template means that Flux does
-_not_ put the replicas back after a failure. You must scale up by hand.
+## Step 2: Stop the app
 
-Record the current replica count now. You need it in Step 4:
+Note the replica count. You need it in Step 5:
+`kubectl get sts -n <ns> <app> -o jsonpath='{.spec.replicas}' --context artemis`.
 
-```bash
-kubectl get <deploy|sts> -n <ns> <app> -o jsonpath='{.spec.replicas}' --context artemis
-```
-
-## Step 2: Scale down and confirm the volume is released
+If the app has a zeroscaler HPA, delete the HPA first, or it scales the app up again:
+`kubectl delete hpa <app> -n <ns> --context artemis`. Step 5 creates it again.
 
 The guard blocks `kubectl scale` (rule `kubectl-mutation`). Use the `scale-workload` task. It asks
 for confirmation, so it needs `--yes`:
 
 ```bash
-mise run --yes //kube/clusters/artemis:scale-workload <ns> <deploy|sts>/<app> 0
+mise run --yes //kube/clusters/artemis:scale-workload <ns> sts/<app> 0
+```
+
+Wait until no pod uses the volume. This command must return nothing:
+
+```bash
 kubectl get pods -n <ns> --context artemis -o jsonpath="{range .items[?(@.spec.volumes[*].persistentVolumeClaim.claimName=='<pvc>')]}{.metadata.name}{'\n'}{end}"
 ```
 
-Wait until the second command returns nothing. A pod stuck in `Terminating` holds the volume
-forever. Force it: `kubectl delete pod -n <ns> <pod> --force --grace-period=0 --context artemis`.
+A pod stuck in `Terminating` holds the volume. Force it:
+`kubectl delete pod -n <ns> <pod> --force --grace-period=0 --context artemis`.
 
-## Step 3: Delete the PVC
+## Step 3: Take a fresh snapshot
+
+The app is stopped, so a snapshot now holds all of its data.
+
+```bash
+mise run //kube/clusters/artemis:snapshot-pvc <ns> <app>
+kubectl get snapshot -n <ns> <snapshot> -o jsonpath='{.status.phase} {.status.stats.sizeBytes} {.status.resolved.sources[0].pvc}{"\n"}' --context artemis
+```
+
+Wait until the phase is `Succeeded`. Make sure that the size is plausible and that the source is
+`<ns>/<pvc>`. The populator has `policy.onMissingSnapshot: Continue`. A missing snapshot gives a
+silently empty volume, not an error.
+
+## Step 4: Delete the PVC and the Restore
 
 `guard-destructive.sh` blocks `kubectl delete ... pvc`. For a planned recreation with a verified
 snapshot, turn off that one rule with the marker. The marker must start the command, as an
@@ -85,34 +95,54 @@ environment assignment. A trailing comment does not work:
 I_HAVE_A_KOPIUR_SNAPSHOT=1 kubectl delete pvc -n <ns> <pvc> --wait=false --context artemis
 ```
 
-A command that starts with `VAR=` matches no allow-list entry, so the user approves it.
+A command that starts with `VAR=` matches no allow-list entry, so the user approves it. The marker
+turns off only `kubectl-delete-critical`. Every other rule still applies. Do not use the marker
+unless you did Step 3.
 
-The marker turns off ONLY `kubectl-delete-critical`. Every other rule still applies. Do not use the
-marker unless you did Step 0.
+Wait until the PVC is gone. See the `Terminating` gotcha below.
 
-Wait until the PVC is gone before you continue. See the `Terminating` gotcha below.
+Then delete the Restore. A `Completed` Restore stays pinned to the snapshot that it resolved
+first, so the new claim would get old data:
 
-## Step 4: Recreate it
+```bash
+kubectl delete restore -n <ns> <app> --context artemis
+```
 
-The controller that recreates the PVC depends on where the PVC is defined:
+## Step 5: Create the Restore again and start the app
 
-| PVC comes from                                                    | Recreate with                                                                      |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| app-template `persistence.<name>` (Helm)                          | `flux resume helmrelease …` then `flux reconcile helmrelease -n <ns> <hr> --force` |
-| StatefulSet `volumeClaimTemplates` (name ends `-<sts>-<ordinal>`) | Scale the STS back up. For a kopiur app, see `references/kopiur.md`.               |
+Apply the Kustomization of the app. It creates a fresh Restore, which resolves offset 0 to the
+snapshot from Step 3:
 
-On an upgrade with no changes, Helm does not recreate a resource that someone deleted outside Helm.
-The `--force` makes Helm put the PVC back.
+```bash
+mise run //kube/clusters/artemis:apply-ks <ns> <ks>
+mise run --yes //kube/clusters/artemis:scale-workload <ns> sts/<app> 1
+```
 
-Then scale back to the ORIGINAL replica count from Step 1. Do not assume 1. Use the same task:
-`mise run --yes //kube/clusters/artemis:scale-workload <ns> <deploy|sts>/<app> <replicas>`.
+Use the replica count from Step 2 if it was not 1. The StatefulSet creates
+`<pvc>` from its template, and the populator fills it.
 
-## Step 5: Verify
+## Step 6: Watch the restore
+
+A large restore takes minutes. A 5.5 GB volume took about 8 minutes. To see progress, read the log
+of the mover:
+
+```bash
+kubectl get restore -n <ns> <app> -o jsonpath='{.status.claims.<pvc>.phase} {.status.claims.<pvc>.job}{"\n"}' --context artemis
+kubectl logs -n <ns> job/<job> -c mover --context artemis --tail=3
+```
+
+If the last line stays at "loaded work spec" for more than two minutes, the mover hangs. Delete
+the Job, not the Restore. The populator then starts a fresh mover:
+`kubectl delete job -n <ns> <job> --context artemis`.
+
+If the last line is "resolved restore source to a snapshot", the mover is copying data. Wait.
+
+## Step 7: Make sure that the restore worked, then resume
 
 ```bash
 kubectl get pvc -n <ns> <pvc> --context artemis                     # Bound, and a NEW volume name
 kubectl get restore -n <ns> <app> -o jsonpath='{.status.phase}{"\n"}' --context artemis   # Completed
-kubectl exec -n <ns> <pod> --context artemis -- ls -la <mountPath>  # real files, not an empty dir
+kubectl exec -n <ns> <app>-0 --context artemis -- ls -la <mountPath>  # real files, not an empty dir
 ```
 
 Make sure that the new volume has the current parameters. The DRBD command and how to read it are
@@ -126,6 +156,17 @@ nothing, and that proves nothing. Find the replica nodes (`diskState: UpToDate`)
 ```bash
 kubectl get miroirvolume <pv-name> -o jsonpath='{.status.perNode}' --context artemis
 ```
+
+When the user confirms that the app works, resume the root first and then the app
+(`mise run //kube/clusters/artemis:resume-ks flux-system flux-system`, then
+`mise run //kube/clusters/artemis:resume-ks <ns> <ks>`).
+
+## A standalone PVC
+
+A few PVCs are not kopiur claims, for example `home-assistant-cache` and `esphome-buildcache`.
+They are plain files in the app folder, with no restore path. If you delete one, the app starts on
+an empty volume. Do Steps 1 and 2, delete the PVC with the marker, then run `apply-ks` for the app
+to create the PVC again.
 
 ## After the restore: check for state that did NOT roll back
 
@@ -150,19 +191,22 @@ To clear the dangling apoci rows, see the `apoci-federation` skill, § Dangling 
   failed to restore with `content <id> not found: object not found`. If offset 0 fails, try an
   older one. Frigate needed offset 12, and matter-server needed offset 14.
 - A `Failed` Restore is terminal and never retries. A patch to it does nothing. Delete the Restore
-  CR and let Flux create it again. Or apply one with a different `source.fromPolicy.offset`. Suspend
-  the Kustomization first, or Flux resets the offset to 0.
-- The populator pod can hang. If `<app>-populate-*` runs for many minutes with no new log lines, it
-  is stuck, not slow. Delete the pod, and the Job creates a replacement.
+  CR and apply the Kustomization again. Or apply one with a different `source.fromPolicy.offset`.
+  Suspend the Kustomization first, or Flux resets the offset to 0.
 - In readiness checks, do not treat `<app>-populate-*` as the pod of the app. The name prefix
   matches. Also require the PVC to be `Bound`.
 - A PVC stuck in `Terminating` is held by the `pvc-protection` finalizer. Some pod still references
   it, `Succeeded` pods included. Delete that pod.
-- If you reconcile while the PVC is still `Terminating`, Flux sees it as present and does not
-  recreate it. Wait for it to disappear, then reconcile.
+- If you apply while the PVC is still `Terminating`, the StatefulSet sees it as present and does
+  not create it again. Wait for it to disappear, then apply.
+- A pod can wait in `SchedulingGated` for a few minutes. The ksgate gates of a Postgres app wait for
+  the Postgres cluster and its `Database` object. The gates lift without help.
+- The first mount on a new node can fail with `DataLoss ... reads blank — refusing to reformat`.
+  The DRBD client of that node is not connected yet. The kubelet tries again and the mount
+  succeeds. Do not delete or format the volume.
 - If you delete a PVC whose workload is at 0 replicas on purpose, the delete only prunes the volume.
-  The PVC comes back `Pending` (`WaitForFirstConsumer`) and restores when it is next scheduled. This
-  is the right way to retire a volume and keep its backup.
+  The StatefulSet creates the PVC again when it next starts a pod, and it restores then. This is the
+  right way to retire a volume and keep its backup.
 - Do not remove `replicas: 0` in the same commit that prunes an app. Flux can apply the HelmRelease
   change before it gets to the prune, so the app scales up for a short time. On a kopiur-backed PVC,
   this starts a full restore of data that you were retiring. This happened with `arcade/eco` on
