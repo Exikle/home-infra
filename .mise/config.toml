@@ -197,7 +197,7 @@ run = "git worktree list"
 
 [tools]
 actionlint = "1.7.12"
-talos = "1.14.4"
+talos = "1.14.7"
 "github:home-operations/kopiur" = "0.11.2"
 opentofu = "1.13.10"
 "pypi:ansible-core" = "2.22.0"
