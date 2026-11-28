@@ -199,6 +199,18 @@ The guard matches on `matchDepNames`, not `matchPackageNames`. The mise manager 
 as the package `python/cpython`, and `matchPackageNames` matches that package name. So a
 `matchPackageNames: ["python"]` guard matched nothing, and #2695 reopened the 3.15.0 bump anyway.
 
+### Gotenberg — hold below 9
+
+Paperless sends its PDF work to the Gotenberg sidecar
+(`kube/clusters/artemis/apps/media/paperless/gotenberg/`). Gotenberg 9 removes the
+`/forms/pdfengines/merge` route that the mail parser of Paperless calls. It also refuses the
+`pdfa` form field that Paperless sends for PDF/A output. So a merge of 9.x breaks mail import
+and PDF/A conversion. kritika found both on #3360 (8.40.0 ➔ 9.10.3), which was closed.
+
+The rule is `.renovate/apps/gotenberg.json5`, with `allowedVersions: "<9"`. When a Paperless
+release supports Gotenberg 9, delete that file and its line in the `extends` of
+`.renovaterc.json5`.
+
 ### The zer0ver guard
 
 The zer0ver policy (preset 5.0.0+) reclassifies 0.x minors as breaking. They get a

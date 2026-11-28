@@ -4,6 +4,7 @@
     "local>exikle/renovate-config",
     "local>exikle/renovate-config:cluster",
     "local>exikle/home-infra//.renovate/frostlink.json5",
+    "local>exikle/home-infra//.renovate/apps/gotenberg.json5",
     "local>exikle/home-infra//.renovate/apps/vchord.json5",
   ],
   platformAutomerge: true,

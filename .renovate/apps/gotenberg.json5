@@ -1,0 +1,11 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  packageRules: [
+    {
+      description: "Gotenberg: hold below 9 until Paperless supports it. Gotenberg 9 drops the pdfengines merge route and refuses the pdfa field that Paperless sends",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["docker.io/gotenberg/gotenberg"],
+      allowedVersions: "<9",
+    },
+  ],
+}
