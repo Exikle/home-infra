@@ -66,6 +66,19 @@ spec:
               allowPrivilegeEscalation: false
               capabilities: { drop: ["ALL"] }
               readOnlyRootFilesystem: true
+    externalSecrets:
+      oidc:
+        forceRename: bazarr-tinyauth-oidc
+        dataFrom:
+          - extract:
+              key: tinyauth
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          template:
+            data:
+              client-secret: "{{ .BAZARR_CLIENT_SECRET }}"
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"

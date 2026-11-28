@@ -23,12 +23,13 @@ spec:
   components:
     - ../../../../components/kopiur/backup
     - ../../../../components/envoy-oidc
+    - ../../../../components/envoy-oidc-groups
   postBuild:
     substitute:
       APP: *app
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_SNAPSHOTCLASS: miroir
       KOPIUR_STORAGECLASS: miroir
-      OIDC_CLIENT_SECRET: esphome-kanidm-oauth2-credentials
-      OIDC_ISSUER: idm.dcunha.io/oauth2/openid/esphome
+      OIDC_CLIENT_SECRET: esphome-tinyauth-oidc
+      OIDC_ISSUER: auth.dcunha.io
   wait: false

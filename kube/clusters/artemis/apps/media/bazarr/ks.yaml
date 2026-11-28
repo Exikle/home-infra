@@ -25,12 +25,13 @@ spec:
     - ../../../../components/kopiur/backup
     - ../../../../components/postgres/app
     - ../../../../components/envoy-oidc
+    - ../../../../components/envoy-oidc-groups
   postBuild:
     substitute:
       APP: *app
       KOPIUR_CAPACITY: 2Gi
       KOPIUR_SNAPSHOTCLASS: miroir
       KOPIUR_STORAGECLASS: miroir
-      OIDC_CLIENT_SECRET: bazarr-kanidm-oauth2-credentials
-      OIDC_ISSUER: idm.dcunha.io/oauth2/openid/bazarr
+      OIDC_CLIENT_SECRET: bazarr-tinyauth-oidc
+      OIDC_ISSUER: auth.dcunha.io
   wait: false

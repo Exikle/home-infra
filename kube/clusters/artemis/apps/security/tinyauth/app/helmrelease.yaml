@@ -52,6 +52,14 @@ spec:
               TINYAUTH_DATABASE_PATH: /data/tinyauth.db
               TINYAUTH_OIDC_PRIVATEKEYPATH: /secrets/oidc/key.pem
               TINYAUTH_OIDC_PUBLICKEYPATH: /secrets/oidc/key.pub
+              TINYAUTH_OIDC_CLIENTS_BAZARR_CLIENTID: bazarr
+              TINYAUTH_OIDC_CLIENTS_BAZARR_CLIENTSECRETFILE: /secrets/oidc/bazarr-client-secret
+              TINYAUTH_OIDC_CLIENTS_BAZARR_NAME: Bazarr
+              TINYAUTH_OIDC_CLIENTS_BAZARR_TRUSTEDREDIRECTURIS: https://bazarr.dcunha.io/oauth2/callback
+              TINYAUTH_OIDC_CLIENTS_ESPHOME_CLIENTID: esphome
+              TINYAUTH_OIDC_CLIENTS_ESPHOME_CLIENTSECRETFILE: /secrets/oidc/esphome-client-secret
+              TINYAUTH_OIDC_CLIENTS_ESPHOME_NAME: ESPHome
+              TINYAUTH_OIDC_CLIENTS_ESPHOME_TRUSTEDREDIRECTURIS: https://esphome.dcunha.io/oauth2/callback
               TINYAUTH_OIDC_CLIENTS_IMMICH_CLIENTID: immich
               TINYAUTH_OIDC_CLIENTS_IMMICH_CLIENTSECRETFILE: /secrets/oidc/immich-client-secret
               TINYAUTH_OIDC_CLIENTS_IMMICH_NAME: Immich
@@ -111,6 +119,8 @@ spec:
             data:
               key.pem: "{{ .OIDC_PRIVATE_KEY }}"
               key.pub: "{{ .OIDC_PUBLIC_KEY }}"
+              bazarr-client-secret: "{{ .BAZARR_CLIENT_SECRET }}"
+              esphome-client-secret: "{{ .ESPHOME_CLIENT_SECRET }}"
               immich-client-secret: "{{ .IMMICH_CLIENT_SECRET }}"
               siren-client-secret: "{{ .SIREN_CLIENT_SECRET }}"
               zigbee-client-secret: "{{ .ZIGBEE_CLIENT_SECRET }}"

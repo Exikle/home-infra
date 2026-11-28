@@ -67,6 +67,18 @@ spec:
                 api_encryption_key: "{{ .API_ENCRYPTION_KEY }}"
                 ota_password: "{{ .OTA_PASSWORD }}"
                 fallback_hotspot_password: "{{ .FALLBACK_HOTSPOT_PASSWORD }}"
+      oidc:
+        forceRename: esphome-tinyauth-oidc
+        dataFrom:
+          - extract:
+              key: tinyauth
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          template:
+            data:
+              client-secret: "{{ .ESPHOME_CLIENT_SECRET }}"
     persistence:
       config:
         existingClaim: "{{ .Release.Name }}"
