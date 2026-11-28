@@ -80,9 +80,11 @@ spec:
               TINYAUTH_APPS_AUTOPULSE_OAUTH_WHITELIST: "/.*/"
               TINYAUTH_APPS_AUTOPULSE_OAUTH_GROUPS: app_admin,app_ops
               TINYAUTH_APPS_AUTOPULSE_LDAP_GROUPS: app_admin,app_ops
+              TINYAUTH_APPS_AUTOPULSE_USERS_ALLOW: "/.*/"
               TINYAUTH_APPS_FRIGATE_OAUTH_WHITELIST: "/.*/"
               TINYAUTH_APPS_FRIGATE_OAUTH_GROUPS: app_admin,app_ops
               TINYAUTH_APPS_FRIGATE_LDAP_GROUPS: app_admin,app_ops
+              TINYAUTH_APPS_FRIGATE_USERS_ALLOW: "/.*/"
             envFrom:
               - secretRef:
                   name: "{{ .Release.Name }}-oidc-credentials"
