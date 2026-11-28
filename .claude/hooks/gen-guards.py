@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Generate the destructive-command guards from guard-rules.json.
 
-One rule table, two runtimes. The Claude Code hook (bash + an embedded python engine)
-and the opencode plugin (JavaScript) are both generated from guard-rules.json, so they
-cannot drift apart, and --check re-generates them, compares them with what is on disk,
-and runs guard-cases.json against the generated guards. Pre-commit runs --check, so a
-hand-edit, a half-applied change or a rule that stopped doing its job fails the commit.
+Claude Code and Codex share the bash hook and embedded Python engine. OpenCode uses
+JavaScript. All three use guard-rules.json. The canonical copy generates the trusted
+Codex guard in dotfiles. The vendored copy generates Claude Code and OpenCode guards.
+Use --check to detect drift and run guard-cases.json against the generated guards.
 
 How a command is judged (identical in both runtimes):
   1. Join backslash-newline continuations.
@@ -594,11 +593,15 @@ def fast_path_regex(spec: dict) -> str:
     return "(" + "|".join(parts) + ")"
 
 
-def engine_py(spec: dict, repo_key: str) -> str:
+def engine_py(spec: dict, repo_key: str, *, block_asks: bool) -> str:
     rules = [
         {k: v for k, v in r.items() if k not in ("//", "repos", "exempt_reason")}
         for r in rules_for(spec, repo_key)
     ]
+    if block_asks:
+        for rule in rules:
+            if rule.get("decision") == "ask":
+                rule["decision"] = "block"
     return (
         ENGINE_PY.replace("__RULES__", json.dumps(rules, indent=1))
         .replace("__ALWAYS_ALLOW__", expand(spec, spec["always_allow"]["pattern"]))
@@ -606,15 +609,28 @@ def engine_py(spec: dict, repo_key: str) -> str:
     )
 
 
-def render_bash(spec: dict, repo_key: str) -> str:
+def render_bash(spec: dict, repo_key: str, *, block_asks: bool = False) -> str:
+    banner = BANNER
+    if block_asks:
+        banner = BANNER.replace(".claude/hooks/", "home/claude/agent-hooks/")
+        banner = banner.replace("   (runs in pre-commit)", "")
+        description = [
+            "# Codex PreToolUse:Bash — blocks destructive cluster operations and the",
+            "# subagent writes that Claude Code sends to the owner for approval.",
+            "# Codex fails open on ask decisions, so these rules return exit 2 and stderr.",
+        ]
+    else:
+        description = [
+            "# PreToolUse:Bash — blocks destructive cluster operations that bypass GitOps or",
+            "# the sanctioned mise tasks, and asks the owner before a subagent runs a write task",
+            "# or a git write. The judging is the python engine below; this wrapper is the fast",
+            "# path and the fail-closed handling.",
+        ]
     lines = [
         "#!/usr/bin/env bash",
-        BANNER,
+        banner,
         "#",
-        "# PreToolUse:Bash — blocks destructive cluster operations that bypass GitOps or",
-        "# the sanctioned mise tasks, and asks the owner before a subagent runs a write task",
-        "# or a git write. The judging is the python engine below; this wrapper is the fast",
-        "# path and the fail-closed handling.",
+        *description,
         "",
         "set -uo pipefail",
         "",
@@ -631,7 +647,7 @@ def render_bash(spec: dict, repo_key: str) -> str:
         "# field still exists before anything else.",
         "# read -d '' rather than $(cat <<EOF): bash 3.2 mis-parses a heredoc inside $( ).",
         "read -r -d '' GUARD_PY <<'GUARD_PY_EOF' || true",
-        engine_py(spec, repo_key),
+        engine_py(spec, repo_key, block_asks=block_asks),
         "GUARD_PY_EOF",
         "",
         "# Fail closed: the fast path matched, so a missing python3, a crash or an unparseable",
@@ -695,7 +711,7 @@ def run_bash_case(guard: Path, cmd: str, sub: bool) -> str:
         payload["agent_id"] = "case-agent"
     p = subprocess.run(["bash", str(guard)], input=json.dumps(payload), capture_output=True, text=True)
     if p.returncode == 2:
-        return "block"
+        return "block" if p.stderr.strip() else "rc=2 without stderr"
     if p.returncode == 0:
         if p.stdout.strip():
             out = json.loads(p.stdout)
@@ -724,22 +740,25 @@ console.log(JSON.stringify(out))
 
 
 def run_cases(spec: dict, repo_key: str, cases_doc: dict) -> int:
-    """Run guard-cases.json against the generated bash guard and, if node exists, the JS."""
+    """Run guard-cases.json against both bash variants and, if node exists, the JS."""
     if repo_key not in cases_doc.get("repos", [repo_key]):
         return 0
     cases = cases_doc["cases"]
     failures = []
     with tempfile.TemporaryDirectory() as tmp:
-        guard = Path(tmp) / "guard-destructive.sh"
-        guard.write_text(render_bash(spec, repo_key))
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-            got = list(pool.map(lambda c: run_bash_case(guard, c["command"], c.get("subagent", False)), cases))
-        for c, g in zip(cases, got):
-            if g != c["expect"]:
-                failures.append(f"bash guard: expected {c['expect']}, got {g}: {c['command']!r} (subagent={c.get('subagent', False)})")
+            for name, block_asks in (("bash", False), ("Codex", True)):
+                guard = Path(tmp) / f"{name}-guard.sh"
+                guard.write_text(render_bash(spec, repo_key, block_asks=block_asks))
+                got = list(pool.map(lambda c: run_bash_case(guard, c["command"], c.get("subagent", False)), cases))
+                for c, g in zip(cases, got):
+                    want = "block" if block_asks and c["expect"] == "ask" else c["expect"]
+                    if g != want:
+                        failures.append(f"{name} guard: expected {want}, got {g}: {c['command']!r} (subagent={c.get('subagent', False)})")
 
         # Fail closed: a payload that does not parse, or a missing python3, must block
         # when the fast path matched, not wave the call through.
+        guard = Path(tmp) / "bash-guard.sh"
         garbage = subprocess.run(["bash", str(guard)], input="kubectl {not json", capture_output=True, text=True)
         if garbage.returncode != 2:
             failures.append(f"bash guard: an unparseable payload must block (rc 2), got rc {garbage.returncode}")
@@ -784,7 +803,8 @@ def run_cases(spec: dict, repo_key: str, cases_doc: dict) -> int:
         for f in failures:
             print("  " + f, file=sys.stderr)
         return 1
-    print(f"guard-cases.json: {len(cases)} cases pass on the bash guard" + (f", {js_n} on the JS guard" if node else ""))
+    print(f"guard-cases.json: {len(cases)} cases pass each on the bash and Codex guards"
+          + (f", {js_n} on the JS guard" if node else ""))
     return 0
 
 
@@ -814,36 +834,46 @@ def emit(path: Path, content: str, check: bool, executable: bool) -> bool:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--repo-root", default=None, help="repo root (default: parent of .claude/hooks)")
+    ap.add_argument("--repo-root", default=None, help="output repo root (default: the current dotfiles or vendored tree)")
     ap.add_argument("--check", action="store_true", help="fail on drift instead of rewriting, and run guard-cases.json")
     args = ap.parse_args()
 
     here = Path(__file__).resolve().parent
-    root = Path(args.repo_root).resolve() if args.repo_root else here.parent.parent
+    canonical = here.parts[-3:] == ("home", "claude", "agent-hooks")
+    default_root = here.parents[2] if canonical else here.parents[1]
+    root = Path(args.repo_root).resolve() if args.repo_root else default_root
 
     spec = json.loads((here / "guard-rules.json").read_text())
 
     key_file = here / "guard-repo"
-    if not key_file.exists():
+    if canonical:
+        repo_key = "home-infra"
+    elif key_file.exists():
+        repo_key = key_file.read_text().strip()
+    else:
         print(f"error: {key_file} is missing — it names which repo's rules to emit", file=sys.stderr)
         return 2
-    repo_key = key_file.read_text().strip()
 
     known = {r for rule in spec["rules"] for r in rule.get("repos", [])}
     if known and repo_key not in known:
         print(f"error: unknown repo key {repo_key!r}; guard-rules.json knows {sorted(known)}", file=sys.stderr)
         return 2
 
-    drift = emit(root / ".claude/hooks/guard-destructive.sh", render_bash(spec, repo_key), args.check, True)
-
-    opencode = root / ".opencode/plugins"
-    if opencode.is_dir():
-        drift |= emit(opencode / "guard-destructive.js", render_js(spec, repo_key), args.check, False)
+    if canonical:
+        guard = root / f"home/codex/guards/{repo_key}.sh"
+        drift = emit(guard, render_bash(spec, repo_key, block_asks=True), args.check, True)
+    else:
+        drift = emit(root / ".claude/hooks/guard-destructive.sh", render_bash(spec, repo_key), args.check, True)
+        opencode = root / ".opencode/plugins"
+        if opencode.is_dir():
+            drift |= emit(opencode / "guard-destructive.js", render_js(spec, repo_key), args.check, False)
 
     if drift:
+        generator = here.relative_to(default_root) / "gen-guards.py"
+        rules = generator.with_name("guard-rules.json")
         print(
-            "\nThe guards are generated. Edit .claude/hooks/guard-rules.json, then run:\n"
-            "    python3 .claude/hooks/gen-guards.py",
+            f"\nThe guards are generated. Edit {rules}, then run:\n"
+            f"    python3 {generator}",
             file=sys.stderr,
         )
         return 1
