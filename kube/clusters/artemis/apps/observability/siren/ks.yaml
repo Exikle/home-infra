@@ -21,9 +21,10 @@ spec:
       namespace: security
   components:
     - ../../../../components/envoy-oidc
+    - ../../../../components/envoy-oidc-groups
   postBuild:
     substitute:
       APP: siren
-      OIDC_CLIENT_SECRET: siren-kanidm-oauth2-credentials
-      OIDC_ISSUER: idm.dcunha.io/oauth2/openid/siren
+      OIDC_CLIENT_SECRET: siren
+      OIDC_ISSUER: auth.dcunha.io
   wait: true

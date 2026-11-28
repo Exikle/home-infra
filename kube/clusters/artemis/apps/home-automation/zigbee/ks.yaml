@@ -23,14 +23,15 @@ spec:
   components:
     - ../../../../components/kopiur/backup
     - ../../../../components/envoy-oidc
+    - ../../../../components/envoy-oidc-groups
   postBuild:
     substitute:
       APP: zigbee
       KOPIUR_CAPACITY: 1Gi
       KOPIUR_SNAPSHOTCLASS: miroir
       KOPIUR_STORAGECLASS: miroir
-      OIDC_CLIENT_SECRET: zigbee-kanidm-oauth2-credentials
-      OIDC_ISSUER: idm.dcunha.io/oauth2/openid/zigbee
+      OIDC_CLIENT_SECRET: zigbee-tinyauth-oidc
+      OIDC_ISSUER: auth.dcunha.io
   wait: false
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json

@@ -1,0 +1,42 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.config.k8s.io/kustomization_v1beta1.json
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - patch: |-
+      apiVersion: gateway.envoyproxy.io/v1alpha1
+      kind: SecurityPolicy
+      metadata:
+        name: not-used
+      spec:
+        authorization:
+          defaultAction: Deny
+          rules:
+            - name: allowed-groups
+              action: Allow
+              principal:
+                jwt:
+                  provider: idp
+                  claims:
+                    - name: groups
+                      valueType: StringArray
+                      values:
+                        - app_admin
+                        - app_ops
+        jwt:
+          providers:
+            - name: idp
+              audiences:
+                - ${APP}
+              extractFrom:
+                cookies:
+                  - oidc-id-token
+              issuer: https://${OIDC_ISSUER:=id.dcunha.io}
+              remoteJWKS:
+                uri: https://${OIDC_ISSUER:=id.dcunha.io}/.well-known/jwks.json
+        oidc:
+          cookieNames:
+            accessToken: oidc-access-token
+            idToken: oidc-id-token
+    target:
+      kind: SecurityPolicy

@@ -63,6 +63,18 @@ spec:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities: { drop: ["ALL"] }
+    externalSecrets:
+      oidc:
+        dataFrom:
+          - extract:
+              key: tinyauth
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword-connect
+        target:
+          template:
+            data:
+              client-secret: "{{ .SIREN_CLIENT_SECRET }}"
     route:
       app:
         hostnames:

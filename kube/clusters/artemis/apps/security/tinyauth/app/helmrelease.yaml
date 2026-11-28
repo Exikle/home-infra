@@ -30,7 +30,6 @@ spec:
               TINYAUTH_APPURL: https://auth.dcunha.io
               TINYAUTH_ANALYTICS_ENABLED: false
               TINYAUTH_LABELPROVIDER: none
-              TINYAUTH_OAUTH_AUTOREDIRECT: pocketid
               TINYAUTH_OAUTH_PROVIDERS_POCKETID_NAME: Pocket-ID
               TINYAUTH_OAUTH_PROVIDERS_POCKETID_AUTHURL: https://id.dcunha.io/authorize
               TINYAUTH_OAUTH_PROVIDERS_POCKETID_TOKENURL: https://id.dcunha.io/api/oidc/token
@@ -57,6 +56,14 @@ spec:
               TINYAUTH_OIDC_CLIENTS_IMMICH_CLIENTSECRETFILE: /secrets/oidc/immich-client-secret
               TINYAUTH_OIDC_CLIENTS_IMMICH_NAME: Immich
               TINYAUTH_OIDC_CLIENTS_IMMICH_TRUSTEDREDIRECTURIS: "https://photos.dcunha.io/auth/login,https://photos.dcunha.io/user-settings,https://photos.dcunha.io/api/oauth/mobile-redirect,app.immich:///oauth-callback"
+              TINYAUTH_OIDC_CLIENTS_SIREN_CLIENTID: siren
+              TINYAUTH_OIDC_CLIENTS_SIREN_CLIENTSECRETFILE: /secrets/oidc/siren-client-secret
+              TINYAUTH_OIDC_CLIENTS_SIREN_NAME: Siren
+              TINYAUTH_OIDC_CLIENTS_SIREN_TRUSTEDREDIRECTURIS: https://siren.dcunha.io/oauth2/callback
+              TINYAUTH_OIDC_CLIENTS_ZIGBEE_CLIENTID: zigbee
+              TINYAUTH_OIDC_CLIENTS_ZIGBEE_CLIENTSECRETFILE: /secrets/oidc/zigbee-client-secret
+              TINYAUTH_OIDC_CLIENTS_ZIGBEE_NAME: Zigbee2MQTT
+              TINYAUTH_OIDC_CLIENTS_ZIGBEE_TRUSTEDREDIRECTURIS: https://zigbee.dcunha.io/oauth2/callback
               TINYAUTH_APPS_AUTOPULSE_OAUTH_WHITELIST: "/.*/"
               TINYAUTH_APPS_AUTOPULSE_OAUTH_GROUPS: app_admin,app_ops
               TINYAUTH_APPS_AUTOPULSE_LDAP_GROUPS: app_admin,app_ops
@@ -105,6 +112,8 @@ spec:
               key.pem: "{{ .OIDC_PRIVATE_KEY }}"
               key.pub: "{{ .OIDC_PUBLIC_KEY }}"
               immich-client-secret: "{{ .IMMICH_CLIENT_SECRET }}"
+              siren-client-secret: "{{ .SIREN_CLIENT_SECRET }}"
+              zigbee-client-secret: "{{ .ZIGBEE_CLIENT_SECRET }}"
     persistence:
       oidc:
         type: secret
